@@ -10,7 +10,7 @@ assignees: ''
 ## 📋 Description
 <!-- Provide a clear explanation of the issue, task, or goal -->
 
-**⏱️ Expected Time**: ... (in minutes)
+**⏱️ Expected Time**: ... (in hours)
 
 **📅 Due Date:** ... (YYYY-MM-DD)
 
