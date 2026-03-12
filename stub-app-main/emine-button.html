@@ -1,33 +1,46 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Emine Bireysel Sayfa</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Button 7 - Individual API Page</title>
 </head>
 <body>
-    <h1>Lab 5 Bireysel Görev</h1>
-    <p>Aşağıdaki butona basarak API verisini çekebilirsiniz:</p>
+    <h1>Lab 5 Individual Task - Button 7</h1>
+    <p>Click the button below to fetch data from the public Todo API:</p>
     
-    <button onclick="fetchData()">API Verisini Göster</button>
+    <button onclick="fetchData()">Show API Data</button>
     
-    <div id="sonuc" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; font-family: monospace;">
-        Veri henüz yüklenmedi.
+    <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; font-family: monospace; background-color: #f9f9f9;">
+        No data loaded yet.
     </div>
 
-    <p><strong>Açıklama:</strong> Bu sayfa JSONPlaceholder API'sini kullanarak örnek bir 'yapılacaklar' (todo) verisi çeker.</p>
+    <p><strong>Description:</strong> This page uses the JSONPlaceholder API to fetch a sample 'todo' item. It demonstrates asynchronous data retrieval and dynamic UI updates.</p>
 
     <script>
+        /**
+         * Fetches a sample todo item from a public API
+         * and renders the JSON result in the 'result' div.
+         */
         function fetchData() {
-            // Public API çağrısı
-            fetch('https://jsonplaceholder.typicode.com/todos/1')
-                .then(response => response.json())
+            // API Endpoint for a single todo item
+            const apiURL = 'https://jsonplaceholder.typicode.com/todos/1';
+
+            fetch(apiURL)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    // Veriyi ekrana yazdırma
-                    document.getElementById('sonuc').innerText = JSON.stringify(data, null, 2);
+                    // Inject formatted JSON string into the HTML
+                    document.getElementById('result').innerText = JSON.stringify(data, null, 2);
                 })
                 .catch(error => {
-                    document.getElementById('sonuc').innerText = "Veri çekilirken bir hata oluştu.";
-                    console.error('Hata:', error);
+                    // Handle and display potential errors
+                    document.getElementById('result').innerText = "An error occurred while fetching data.";
+                    console.error('Fetch Error:', error);
                 });
         }
     </script>
