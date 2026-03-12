@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Emine Bireysel Sayfa</title>
+</head>
+<body>
+    <h1>Lab 5 Bireysel Görev</h1>
+    <p>Aşağıdaki butona basarak API verisini çekebilirsiniz:</p>
+    
+    <button onclick="fetchData()">API Verisini Göster</button>
+    
+    <div id="sonuc" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; font-family: monospace;">
+        Veri henüz yüklenmedi.
+    </div>
+
+    <p><strong>Açıklama:</strong> Bu sayfa JSONPlaceholder API'sini kullanarak örnek bir 'yapılacaklar' (todo) verisi çeker.</p>
+
+    <script>
+        function fetchData() {
+            // Public API çağrısı
+            fetch('https://jsonplaceholder.typicode.com/todos/1')
+                .then(response => response.json())
+                .then(data => {
+                    // Veriyi ekrana yazdırma
+                    document.getElementById('sonuc').innerText = JSON.stringify(data, null, 2);
+                })
+                .catch(error => {
+                    document.getElementById('sonuc').innerText = "Veri çekilirken bir hata oluştu.";
+                    console.error('Hata:', error);
+                });
+        }
+    </script>
+</body>
+</html>

@@ -24,3 +24,8 @@ function onButton4Click() {
 function onButton5Click() {
   console.log("Button 5 clicked -- implement me!");
 }
+
+function onButton7Click() {
+  console.log("Button 7 clicked -- implement me!");
+}
+
