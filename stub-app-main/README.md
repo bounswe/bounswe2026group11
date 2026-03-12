@@ -4,7 +4,33 @@ A starter application with configurable buttons. Each button has a placeholder c
 
 ## Getting Started
 
-Open `index.html` in any web browser. That's it.
+Open `index.html` in any web browser and click the button you want to test.
+
+## Button Implementations
+
+### Button 1 - View GitHub Events
+
+- owner: Mehmet Kaan Unsel
+- route/page: `github-events.html`
+- API/source: `https://api.github.com/events`
+- summary: Opens a separate page and loads the most recent public GitHub event.
+- displayed data: Shows the event type, repository name, actor login, and creation time. This represents one recent public activity item reported by GitHub.
+
+## Docker
+
+Build the container image:
+
+```bash
+docker build -t stub-app .
+```
+
+Run the container:
+
+```bash
+docker run --rm -p 8080:80 stub-app
+```
+
+Then open `http://localhost:8080`.
 
 ## Configuration
 
@@ -46,8 +72,11 @@ If you increase `NUM_BUTTONS`, add matching handler functions (e.g. `onButton6Cl
 ## File Overview
 
 | File | Purpose |
-|---|---|
+| --- | --- |
 | `index.html` | Page layout and styling |
 | `config.js` | Number of buttons and their labels |
 | `handlers.js` | Click handler functions (one per button) |
 | `app.js` | Builds the buttons from config and wires up handlers |
+| `github-events.html` | Public API results page |
+| `github-events.js` | Fetches and renders GitHub event data |
+| `Dockerfile` | Builds a container image for the static app |

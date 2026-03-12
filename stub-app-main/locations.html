@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Location Search</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background: #f5f5f5;
+    }
+    h1 { color: #333; }
+    .description {
+      background: #e8f4fd;
+      border-left: 4px solid #2196F3;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      border-radius: 4px;
+    }
+    input {
+      width: 70%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      padding: 10px 16px;
+      background: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-left: 8px;
+    }
+    button:hover { background: #1976D2; }
+    .location-card {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .location-card h3 { margin: 0 0 8px; color: #1a1a1a; }
+    .location-card p  { margin: 4px 0; color: #555; font-size: 14px; }
+    .back-btn {
+      display: inline-block;
+      margin-bottom: 20px;
+      padding: 8px 16px;
+      background: #2196F3;
+      color: white;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .back-btn:hover { background: #1976D2; }
+  </style>
+</head>
+<body>
+
+  <a class="back-btn" href="index.html">← Back</a>
+
+  <h1>🗺️ Location Search</h1>
+
+  <div class="description">
+    <strong>What is this?</strong><br/>
+    This page uses the <strong>OpenStreetMap Nominatim API</strong> to search for locations
+    around the world. Enter any city, landmark, or address and it returns matching places
+    with their coordinates and type — completely free, no API key required.
+  </div>
+
+  <div>
+    <input type="text" id="query" placeholder="Search a place... (e.g. Istanbul)" />
+    <button onclick="search()">Search</button>
+  </div>
+
+  <div id="results"></div>
+
+  <script src="locations.js"></script>
+
+</body>
+</html>
