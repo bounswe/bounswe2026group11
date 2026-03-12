@@ -14,7 +14,7 @@ function onButton2Click() {
 }
 
 function onButton3Click() {
-  console.log("Button 3 clicked -- implement me!");
+  window.location.href = "locations.html";
 }
 
 function onButton4Click() {
