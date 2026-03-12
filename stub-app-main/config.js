@@ -12,8 +12,10 @@ const BUTTON_LABELS = [
   "Button 2",
   "Location Search",
   "Button 4",
-  "🥳🤓🤯",
+  "Button 5",
   "Button 6",
   "Button 7",
   "Button 8",
+
+
 ];
