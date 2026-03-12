@@ -10,7 +10,7 @@ const NUM_BUTTONS = 5;
 const BUTTON_LABELS = [
   "Button 1",
   "Button 2",
-  "Button 3",
+  "Location Search",
   "Button 4",
   "Button 5",
 ];
