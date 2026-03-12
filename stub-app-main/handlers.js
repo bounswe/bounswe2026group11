@@ -24,3 +24,7 @@ function onButton4Click() {
 function onButton5Click() {
   window.location.href = "dog.html";
 }
+
+function onButton6Click() {
+  window.location.href = "catfact.html";
+}
