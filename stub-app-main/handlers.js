@@ -6,7 +6,7 @@
  */
 
 function onButton1Click() {
-  console.log("Button 1 clicked -- implement me!");
+  window.location.href = "github-events.html";
 }
 
 function onButton2Click() {
@@ -14,7 +14,7 @@ function onButton2Click() {
 }
 
 function onButton3Click() {
-  console.log("Button 3 clicked -- implement me!");
+  window.location.href = "locations.html";
 }
 
 function onButton4Click() {
@@ -22,5 +22,9 @@ function onButton4Click() {
 }
 
 function onButton5Click() {
-  console.log("Button 5 clicked -- implement me!");
+  window.location.href = "dog.html";
+}
+
+function onButton6Click() {
+  window.location.href = "catfact.html";
 }
