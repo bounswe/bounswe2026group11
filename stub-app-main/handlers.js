@@ -35,3 +35,6 @@ function onButton6Click() {
   window.location.href = "catfact.html";
 }
 
+function onButton8Click() {
+  window.location.href = "button8.html";
+}
