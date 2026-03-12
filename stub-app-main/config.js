@@ -8,7 +8,7 @@
 const NUM_BUTTONS = 8;
 
 const BUTTON_LABELS = [
-  "Button 1",
+  "View GitHub Events",
   "Button 2",
   "Button 3",
   "Button 4",
