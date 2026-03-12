@@ -24,3 +24,7 @@ function onButton4Click() {
 function onButton5Click() {
   console.log("Button 5 clicked -- implement me!");
 }
+
+function onButton8Click() {
+  window.location.href = "button8.html";
+}
