@@ -25,6 +25,13 @@ function onButton5Click() {
   window.location.href = "dog.html";
 }
 
+
+function onButton7Click() {
+  window.location.href = "emine-button.html";
+}
+
+
 function onButton6Click() {
   window.location.href = "catfact.html";
 }
+
