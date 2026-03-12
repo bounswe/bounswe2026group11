@@ -27,7 +27,7 @@ function onButton5Click() {
 
 
 function onButton7Click() {
-  console.log("Button 7 clicked -- implement me!");
+  window.location.href = "emine-button.html";
 }
 
 
