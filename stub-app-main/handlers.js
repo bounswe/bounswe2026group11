@@ -6,7 +6,7 @@
  */
 
 function onButton1Click() {
-  console.log("Button 1 clicked -- implement me!");
+  window.location.href = "github-events.html";
 }
 
 function onButton2Click() {
