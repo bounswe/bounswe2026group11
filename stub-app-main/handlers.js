@@ -10,7 +10,7 @@ function onButton1Click() {
 }
 
 function onButton2Click() {
-  console.log("Button 2 clicked -- implement me!");
+  window.location.href = "button2.html";
 }
 
 function onButton3Click() {
