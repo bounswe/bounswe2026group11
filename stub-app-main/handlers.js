@@ -38,4 +38,4 @@ function onButton6Click() {
 function onButton8Click() {
   window.location.href = "button8.html";
 }
->>>>>>> 8853dc09b96bbf18801c89decc1df6cffacbf895
+
