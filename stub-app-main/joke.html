@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Random Joke</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+      padding: 24px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 640px;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      padding: 48px 40px;
+      text-align: center;
+    }
+
+    .card h1 {
+      font-size: 1.875rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+
+    .card .subtitle {
+      color: #64748b;
+      margin-bottom: 32px;
+    }
+
+    #loading {
+      color: #64748b;
+      font-size: 1.1rem;
+      margin-bottom: 24px;
+    }
+
+    #joke-box {
+      display: none;
+      margin-bottom: 32px;
+    }
+
+    #joke-setup {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 12px;
+    }
+
+    #joke-punchline {
+      font-size: 1.1rem;
+      color: #4f46e5;
+      font-style: italic;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: background-color 150ms, box-shadow 150ms;
+      margin: 0 8px;
+    }
+
+    .btn-primary {
+      background-color: #4f46e5;
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background-color: #4338ca;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+    }
+
+    .btn-secondary {
+      background-color: #e2e8f0;
+      color: #1e293b;
+    }
+    .btn-secondary:hover {
+      background-color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Random Joke</h1>
+    <p class="subtitle">Fetched from the Official Joke API</p>
+    <div id="loading">Loading a joke...</div>
+    <div id="joke-box">
+      <p id="joke-setup"></p>
+      <p id="joke-punchline"></p>
+    </div>
+    <div>
+      <button class="btn btn-primary" onclick="fetchJoke()">Another One</button>
+      <button class="btn btn-secondary" onclick="window.location.href='index.html'">Back</button>
+    </div>
+  </div>
+
+  <script>
+    function fetchJoke() {
+      var jokeBox = document.getElementById("joke-box");
+      var loading = document.getElementById("loading");
+      var setup = document.getElementById("joke-setup");
+      var punchline = document.getElementById("joke-punchline");
+
+      jokeBox.style.display = "none";
+      loading.style.display = "block";
+      loading.textContent = "Loading a joke...";
+
+      fetch("https://official-joke-api.appspot.com/random_joke")
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          setup.textContent = data.setup;
+          punchline.textContent = data.punchline;
+          jokeBox.style.display = "block";
+          loading.style.display = "none";
+        })
+        .catch(function () {
+          loading.textContent = "Failed to fetch joke. Try again!";
+        });
+    }
+
+    fetchJoke();
+  </script>
+</body>
+</html>

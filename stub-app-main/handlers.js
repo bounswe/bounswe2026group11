@@ -22,7 +22,7 @@ function onButton4Click() {
 }
 
 function onButton5Click() {
-  window.location.href = "dog.html";
+  window.location.href = "joke.html";
 }
 
 
@@ -35,3 +35,9 @@ function onButton6Click() {
   window.location.href = "catfact.html";
 }
 
+<<<<<<< HEAD
+=======
+function onButton8Click() {
+  window.location.href = "button8.html";
+}
+>>>>>>> 8853dc09b96bbf18801c89decc1df6cffacbf895
