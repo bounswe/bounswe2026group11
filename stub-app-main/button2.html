@@ -46,13 +46,13 @@
 </head>
 <body>
   <div class="card">
-    <h1>Random Joke</h1>
-    <p class="muted">This page calls a public API and displays one random joke.</p>
+    <h1>Random Advice</h1>
+    <p class="muted">This page calls a public API and displays one random piece of advice.</p>
 
     <div class="fact" id="fact-box">Loading...</div>
 
     <p>
-      This API returns a random joke.
+      This API returns a random advice message.
       The displayed text above is fetched from the API response.
     </p>
 
@@ -60,12 +60,11 @@
   </div>
 
   <script>
-    async function loadJoke() {
+    async function loadAdvice() {
       try {
-        const response = await fetch("https://official-joke-api.appspot.com/random_joke");
+        const response = await fetch("https://api.adviceslip.com/advice");
         const data = await response.json();
-        document.getElementById("fact-box").textContent =
-          `${data.setup} ${data.punchline}`;
+        document.getElementById("fact-box").textContent = data.slip.advice;
       } catch (error) {
         document.getElementById("fact-box").textContent =
           "Failed to load data from the public API.";
@@ -73,7 +72,7 @@
       }
     }
 
-    loadJoke();
+    loadAdvice();
   </script>
 </body>
 </html>
