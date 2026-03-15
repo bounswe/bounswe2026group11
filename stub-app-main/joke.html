@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Random Dog</title>
+  <title>Random Joke</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -34,23 +34,33 @@
       margin-bottom: 8px;
     }
 
-    .card p {
+    .card .subtitle {
       color: #64748b;
-      margin-bottom: 24px;
-    }
-
-    #dog-img {
-      max-width: 100%;
-      border-radius: 12px;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-      display: none;
-      margin: 0 auto 24px;
+      margin-bottom: 32px;
     }
 
     #loading {
       color: #64748b;
       font-size: 1.1rem;
       margin-bottom: 24px;
+    }
+
+    #joke-box {
+      display: none;
+      margin-bottom: 32px;
+    }
+
+    #joke-setup {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 12px;
+    }
+
+    #joke-punchline {
+      font-size: 1.1rem;
+      color: #4f46e5;
+      font-style: italic;
     }
 
     .btn {
@@ -85,36 +95,44 @@
 </head>
 <body>
   <div class="card">
-    <h1>Random Dog</h1>
-    <p>Fetched from the Dog CEO public API</p>
-    <div id="loading">Loading a good boy...</div>
-    <img id="dog-img" alt="A random dog" />
+    <h1>Random Joke</h1>
+    <p class="subtitle">Fetched from the Official Joke API</p>
+    <div id="loading">Loading a joke...</div>
+    <div id="joke-box">
+      <p id="joke-setup"></p>
+      <p id="joke-punchline"></p>
+    </div>
     <div>
-      <button class="btn btn-primary" onclick="fetchDog()">Another One</button>
+      <button class="btn btn-primary" onclick="fetchJoke()">Another One</button>
       <button class="btn btn-secondary" onclick="window.location.href='index.html'">Back</button>
     </div>
   </div>
 
   <script>
-    function fetchDog() {
-      var img = document.getElementById("dog-img");
+    function fetchJoke() {
+      var jokeBox = document.getElementById("joke-box");
       var loading = document.getElementById("loading");
-      img.style.display = "none";
-      loading.style.display = "block";
+      var setup = document.getElementById("joke-setup");
+      var punchline = document.getElementById("joke-punchline");
 
-      fetch("https://dog.ceo/api/breeds/image/random")
+      jokeBox.style.display = "none";
+      loading.style.display = "block";
+      loading.textContent = "Loading a joke...";
+
+      fetch("https://official-joke-api.appspot.com/random_joke")
         .then(function (res) { return res.json(); })
         .then(function (data) {
-          img.src = data.message;
-          img.style.display = "block";
+          setup.textContent = data.setup;
+          punchline.textContent = data.punchline;
+          jokeBox.style.display = "block";
           loading.style.display = "none";
         })
         .catch(function () {
-          loading.textContent = "Failed to fetch dog. Try again!";
+          loading.textContent = "Failed to fetch joke. Try again!";
         });
     }
 
-    fetchDog();
+    fetchJoke();
   </script>
 </body>
 </html>

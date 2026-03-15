@@ -22,5 +22,5 @@ function onButton4Click() {
 }
 
 function onButton5Click() {
-  window.location.href = "dog.html";
+  window.location.href = "joke.html";
 }
