@@ -38,3 +38,4 @@ function onButton6Click() {
 function onButton8Click() {
   window.location.href = "button8.html";
 }
+
