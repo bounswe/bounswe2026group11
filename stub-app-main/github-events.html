@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitHub Public Events</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #eef2ff, #e0f2fe);
+      color: #0f172a;
+      padding: 24px;
+    }
+
+    .page {
+      max-width: 760px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      padding: 32px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 12px;
+    }
+
+    p {
+      color: #475569;
+      line-height: 1.6;
+    }
+
+    .summary {
+      margin-top: 12px;
+      margin-bottom: 24px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    button,
+    a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: none;
+      background: #2563eb;
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    a {
+      background: #0f172a;
+    }
+
+    .status {
+      margin-bottom: 20px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .status.error {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+
+    .event-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 20px;
+      background: #f8fafc;
+    }
+
+    .event-card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 16px;
+    }
+
+    .event-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .event-item {
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+    }
+
+    .event-item strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #0f172a;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>GitHub Public Events</h1>
+    <p>
+      This page calls the GitHub public events API and shows the latest activity
+      reported by the platform.
+    </p>
+    <p class="summary">
+      The displayed data represents one recent event: its type, the repository
+      involved, the user who triggered it, and when GitHub recorded it.
+    </p>
+
+    <div class="actions">
+      <button id="reload-button" type="button">Load Latest Event</button>
+      <a href="index.html">Back to Home</a>
+    </div>
+
+    <div id="status" class="status">Loading data...</div>
+
+    <section class="event-card" aria-live="polite">
+      <h2>Latest Event Details</h2>
+      <div id="event-list" class="event-list"></div>
+    </section>
+  </main>
+
+  <script src="github-events.js"></script>
+</body>
+</html>
