@@ -1,1 +1,13 @@
+# macOS
 .DS_Store
+
+# VS Code
+.vscode/
+
+# Cursor
+.cursor/
+
+# JetBrains
+.idea/
+*.iml
+
