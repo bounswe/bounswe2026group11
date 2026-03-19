@@ -10,3 +10,6 @@
 # JetBrains
 .idea/
 *.iml
+
+# Local env (see backend/.env.example)
+.env

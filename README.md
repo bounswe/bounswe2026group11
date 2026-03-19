@@ -8,10 +8,14 @@ Go module: [`github.com/bounswe/bounswe2026group11/backend`](https://github.com/
 Run the API server:
 
 ```bash
-cd backend && go run ./cmd/server
+cd backend
+cp .env.example .env   # then edit required values (e.g. JWT_SECRET)
+go run ./cmd/server
 ```
 
-- Health check: `GET /health` → `200 OK` (default listen address `:8080`; override with `PORT`, e.g. `PORT=3000`).
+Configuration is loaded with [viper](https://github.com/spf13/viper): optional `backend/.env` plus environment variables (CI/CD). Env vars override the file. Required keys are listed in [`backend/.env.example`](backend/.env.example).
+
+- Health check: `GET /health` → `200 OK` (listen port from `APP_PORT`, default `8080` if unset).
 
 ## Database
 
