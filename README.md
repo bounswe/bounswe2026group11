@@ -1,21 +1,28 @@
-# bounswe2026group11
-CMPE354 Group 11 repository
+# CMPE354 Group 11 Repository - Social Event Mapper
 
 ## Backend
-
-Go module: [`github.com/bounswe/bounswe2026group11/backend`](https://github.com/bounswe/bounswe2026group11) (directory `backend/`; [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html) layout: `internal/domain`, `internal/application`, `internal/adapter`, `infrastructure`, `pkg`).
 
 Run the API server:
 
 ```bash
 cd backend
-cp .env.example .env   # then edit required values (e.g. JWT_SECRET)
+cp .env.example .env   # optional: override secrets for local dev
 go run ./cmd/server
 ```
 
-Configuration is loaded with [viper](https://github.com/spf13/viper): optional `backend/.env` plus environment variables (CI/CD). Env vars override the file. Required keys are listed in [`backend/.env.example`](backend/.env.example).
+### Docker (API + PostGIS)
 
-- Health check: `GET /health` → `200 OK` (listen port from `APP_PORT`, default `8080` if unset).
+Requires [Docker Compose](https://docs.docker.com/compose/). From the repository root:
+
+```bash
+docker compose up --build
+```
+
+- **API:** `http://localhost:8080` — `GET /health` should return `200` (port: `APP_PORT`, default `8080`).
+- **Database:** Postgres stays on the Docker network only (not on the host). To reach it from your machine at `localhost:5432` (GUI, `psql`, local `go run`), copy [`docker-compose.override.example.yml`](docker-compose.override.example.yml) to `docker-compose.override.yml`.
+- **Env overrides:** Optionally copy [`.env.example`](.env.example) to `.env` at the repo root for DB credentials, `JWT_SECRET`, etc. (gitignored).
+
+PostGIS runs with a persistent volume; migrations apply on API startup. Full options: [`backend/.env.example`](backend/.env.example).
 
 ## Database
 

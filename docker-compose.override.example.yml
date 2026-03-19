@@ -1,0 +1,11 @@
+# Optional local-development overlay. Copy this file to `docker-compose.override.yml`
+# (that filename is gitignored). Docker Compose automatically merges `docker-compose.yml`
+# with `docker-compose.override.yml`, so you do not need extra `-f` arguments.
+#
+# This example publishes Postgres to the host so GUI clients or `psql` on your machine
+# can connect. Binding to 127.0.0.1 limits access to your machine, not the whole LAN.
+
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"

@@ -13,3 +13,6 @@
 
 # Local env (see backend/.env.example)
 .env
+
+# Optional Compose merge for local Postgres port (see docker-compose.override.example.yml)
+docker-compose.override.yml
