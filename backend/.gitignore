@@ -1,0 +1,28 @@
+# Binaries & plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary (`go test -c`)
+*.test
+
+# Coverage & profiling
+*.out
+coverage.out
+coverage.html
+*.coverprofile
+profile.cov
+
+# Vendored deps (remove this line if you commit vendor/)
+vendor/
+
+# Local workspace (remove if you commit go.work)
+go.work
+go.work.sum
+
+# Local env (keep .env.example in repo if you use one)
+.env
+.env.*
+!.env.example
