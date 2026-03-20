@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS comment_like;
+DROP TABLE IF EXISTS event_comment;
+DROP TABLE IF EXISTS feedback;
+DROP TABLE IF EXISTS ticket;

@@ -131,7 +131,7 @@ CREATE TABLE event_history (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
 
-    CONSTRAINT fk_event_uid FOREIGN KEY (event_id) REFERENCES event(id),
+    CONSTRAINT fk_event_history_event FOREIGN KEY (event_id) REFERENCES event(id) ON DELETE CASCADE,
     CONSTRAINT uq_event_history UNIQUE (event_id, version_no)
 );
 
@@ -268,7 +268,7 @@ CREATE TABLE notification (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
 
     CONSTRAINT fk_notification_user FOREIGN KEY (receiver_user_id) REFERENCES app_user(id),
-    CONSTRAINT fk_notification_event FOREIGN KEY (event_id) REFERENCES event(id)
+    CONSTRAINT fk_notification_event FOREIGN KEY (event_id) REFERENCES event(id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_notification_user_id ON notification(receiver_user_id);
@@ -294,7 +294,7 @@ CREATE TABLE join_request (
     CONSTRAINT fk_join_user FOREIGN KEY (user_id) REFERENCES app_user(id),
     CONSTRAINT fk_join_host FOREIGN KEY (host_user_id) REFERENCES app_user(id),
     CONSTRAINT uq_join UNIQUE (event_id, user_id),
-    CONSTRAINT fk_join_participation FOREIGN KEY (participation_id) REFERENCES participation(id)
+    CONSTRAINT fk_join_participation FOREIGN KEY (participation_id) REFERENCES participation(id) ON DELETE SET NULL
 );
 
 -- =========================
@@ -399,6 +399,7 @@ CREATE TABLE favorite_location (
     CONSTRAINT fk_fav_location_user FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE
 );
 
+CREATE INDEX idx_fav_location_user_id ON favorite_location(user_id);
 CREATE INDEX idx_fav_location_point ON favorite_location USING GIST(point);
 
 
@@ -459,29 +460,76 @@ EXECUTE FUNCTION refresh_event_tag_text();
 -- PARTICIPATION COUNT SYNC
 -- =========================
 CREATE OR REPLACE FUNCTION sync_participation_counts() RETURNS trigger AS $$
-DECLARE
-    v_event_id UUID;
 BEGIN
-    v_event_id := COALESCE(NEW.event_id, OLD.event_id);
-
-    UPDATE event
-    SET
-        approved_participant_count = (
-            SELECT COUNT(*) FROM participation
-            WHERE event_id = v_event_id AND status = 'APPROVED'
-        ),
-        pending_participant_count = (
-            SELECT COUNT(*) FROM participation
-            WHERE event_id = v_event_id AND status = 'PENDING'
-        )
-    WHERE id = v_event_id;
+    IF TG_OP = 'DELETE' THEN
+        UPDATE event
+        SET
+            approved_participant_count = (
+                SELECT COUNT(*) FROM participation
+                WHERE event_id = OLD.event_id AND status = 'APPROVED'
+            ),
+            pending_participant_count = (
+                SELECT COUNT(*) FROM participation
+                WHERE event_id = OLD.event_id AND status = 'PENDING'
+            )
+        WHERE id = OLD.event_id;
+    ELSIF TG_OP = 'INSERT' THEN
+        UPDATE event
+        SET
+            approved_participant_count = (
+                SELECT COUNT(*) FROM participation
+                WHERE event_id = NEW.event_id AND status = 'APPROVED'
+            ),
+            pending_participant_count = (
+                SELECT COUNT(*) FROM participation
+                WHERE event_id = NEW.event_id AND status = 'PENDING'
+            )
+        WHERE id = NEW.event_id;
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF OLD.event_id IS DISTINCT FROM NEW.event_id THEN
+            UPDATE event
+            SET
+                approved_participant_count = (
+                    SELECT COUNT(*) FROM participation
+                    WHERE event_id = OLD.event_id AND status = 'APPROVED'
+                ),
+                pending_participant_count = (
+                    SELECT COUNT(*) FROM participation
+                    WHERE event_id = OLD.event_id AND status = 'PENDING'
+                )
+            WHERE id = OLD.event_id;
+            UPDATE event
+            SET
+                approved_participant_count = (
+                    SELECT COUNT(*) FROM participation
+                    WHERE event_id = NEW.event_id AND status = 'APPROVED'
+                ),
+                pending_participant_count = (
+                    SELECT COUNT(*) FROM participation
+                    WHERE event_id = NEW.event_id AND status = 'PENDING'
+                )
+            WHERE id = NEW.event_id;
+        ELSE
+            UPDATE event
+            SET
+                approved_participant_count = (
+                    SELECT COUNT(*) FROM participation
+                    WHERE event_id = NEW.event_id AND status = 'APPROVED'
+                ),
+                pending_participant_count = (
+                    SELECT COUNT(*) FROM participation
+                    WHERE event_id = NEW.event_id AND status = 'PENDING'
+                )
+            WHERE id = NEW.event_id;
+        END IF;
+    END IF;
 
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_participation_counts
-AFTER INSERT OR UPDATE OF status OR DELETE ON participation
+AFTER INSERT OR DELETE OR UPDATE OF status, event_id ON participation
 FOR EACH ROW
 EXECUTE FUNCTION sync_participation_counts();
 
@@ -489,24 +537,42 @@ EXECUTE FUNCTION sync_participation_counts();
 -- FAVORITE COUNT SYNC
 -- =========================
 CREATE OR REPLACE FUNCTION sync_favorite_count() RETURNS trigger AS $$
-DECLARE
-    v_event_id UUID;
 BEGIN
-    v_event_id := COALESCE(NEW.event_id, OLD.event_id);
-
-    UPDATE event
-    SET favorite_count = (
-        SELECT COUNT(*) FROM favorite_event
-        WHERE event_id = v_event_id
-    )
-    WHERE id = v_event_id;
+    IF TG_OP = 'DELETE' THEN
+        UPDATE event
+        SET favorite_count = (
+            SELECT COUNT(*) FROM favorite_event
+            WHERE event_id = OLD.event_id
+        )
+        WHERE id = OLD.event_id;
+    ELSIF TG_OP = 'INSERT' THEN
+        UPDATE event
+        SET favorite_count = (
+            SELECT COUNT(*) FROM favorite_event
+            WHERE event_id = NEW.event_id
+        )
+        WHERE id = NEW.event_id;
+    ELSIF TG_OP = 'UPDATE' AND OLD.event_id IS DISTINCT FROM NEW.event_id THEN
+        UPDATE event
+        SET favorite_count = (
+            SELECT COUNT(*) FROM favorite_event
+            WHERE event_id = OLD.event_id
+        )
+        WHERE id = OLD.event_id;
+        UPDATE event
+        SET favorite_count = (
+            SELECT COUNT(*) FROM favorite_event
+            WHERE event_id = NEW.event_id
+        )
+        WHERE id = NEW.event_id;
+    END IF;
 
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_favorite_count
-AFTER INSERT OR DELETE ON favorite_event
+AFTER INSERT OR DELETE OR UPDATE OF event_id ON favorite_event
 FOR EACH ROW
 EXECUTE FUNCTION sync_favorite_count();
 
@@ -514,23 +580,41 @@ EXECUTE FUNCTION sync_favorite_count();
 -- COMMENT LIKES COUNT SYNC
 -- =========================
 CREATE OR REPLACE FUNCTION sync_comment_likes_count() RETURNS trigger AS $$
-DECLARE
-    v_comment_id UUID;
 BEGIN
-    v_comment_id := COALESCE(NEW.comment_id, OLD.comment_id);
-
-    UPDATE event_comment
-    SET likes_count = (
-        SELECT COUNT(*) FROM comment_like
-        WHERE comment_id = v_comment_id
-    )
-    WHERE id = v_comment_id;
+    IF TG_OP = 'DELETE' THEN
+        UPDATE event_comment
+        SET likes_count = (
+            SELECT COUNT(*) FROM comment_like
+            WHERE comment_id = OLD.comment_id
+        )
+        WHERE id = OLD.comment_id;
+    ELSIF TG_OP = 'INSERT' THEN
+        UPDATE event_comment
+        SET likes_count = (
+            SELECT COUNT(*) FROM comment_like
+            WHERE comment_id = NEW.comment_id
+        )
+        WHERE id = NEW.comment_id;
+    ELSIF TG_OP = 'UPDATE' AND OLD.comment_id IS DISTINCT FROM NEW.comment_id THEN
+        UPDATE event_comment
+        SET likes_count = (
+            SELECT COUNT(*) FROM comment_like
+            WHERE comment_id = OLD.comment_id
+        )
+        WHERE id = OLD.comment_id;
+        UPDATE event_comment
+        SET likes_count = (
+            SELECT COUNT(*) FROM comment_like
+            WHERE comment_id = NEW.comment_id
+        )
+        WHERE id = NEW.comment_id;
+    END IF;
 
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_comment_likes
-AFTER INSERT OR DELETE ON comment_like
+AFTER INSERT OR DELETE OR UPDATE OF comment_id ON comment_like
 FOR EACH ROW
 EXECUTE FUNCTION sync_comment_likes_count();
