@@ -14,5 +14,9 @@
 # Local env (see backend/.env.example)
 .env
 
-# Optional Compose merge for local Postgres port (see docker-compose.override.example.yml)
-docker-compose.override.yml
+# Optional Compose merge next to deploy/docker-compose.local.yml (e.g. expose Postgres on localhost)
+deploy/docker-compose.override.yml
+
+# TLS files for nginx on the droplet (see nginx/nginx.dev.conf, docs/deploy.md)
+/certs/*.pem
+/certs/*.key

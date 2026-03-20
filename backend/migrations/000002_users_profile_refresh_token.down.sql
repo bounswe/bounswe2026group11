@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS refresh_token;
+DROP TABLE IF EXISTS otp_challenge;
+DROP TABLE IF EXISTS profile;
+DROP TABLE IF EXISTS app_user;

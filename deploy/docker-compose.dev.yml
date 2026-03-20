@@ -1,6 +1,12 @@
-# Full stack: Postgres (PostGIS), Go API, static frontend, and nginx as the single entry
-# on port 80. Variables like DB_NAME, DB_USER, DB_PASSWORD, JWT_SECRET come from a `.env`
-# file next to this compose file (copy from `.env.example`).
+# Remote dev droplet: pulls pre-built images from Docker Hub (:latest). No `build:` — CI pushes images separately.
+#
+# Paths are relative to this file. On the server, mirror the repo layout under e.g. `/opt/sem/`
+# (`deploy/`, `nginx/`, `certs/` for TLS, `.env`) and run from that root:
+#   docker compose -f deploy/docker-compose.dev.yml pull && docker compose -f deploy/docker-compose.dev.yml up -d
+#
+# Requires `.env` with DB_*, JWT_SECRET, and DOCKERHUB_NAMESPACE (see root `.env.example` and docs/deploy.md).
+
+name: sem-dev
 
 services:
   postgres:
@@ -21,9 +27,8 @@ services:
       - app
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ${DOCKERHUB_NAMESPACE}/sem-backend-dev:latest
+    pull_policy: always
     depends_on:
       postgres:
         condition: service_healthy
@@ -39,9 +44,8 @@ services:
       - app
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: ${DOCKERHUB_NAMESPACE}/sem-frontend-dev:latest
+    pull_policy: always
     networks:
       - app
 
@@ -49,11 +53,14 @@ services:
     image: nginx:1.27-alpine
     ports:
       - "80:80"
+      - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+      - ../certs:/etc/nginx/certs:ro
     depends_on:
       - backend
       - frontend
+    restart: unless-stopped
     networks:
       - app
 

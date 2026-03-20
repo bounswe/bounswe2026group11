@@ -1,3 +1,0 @@
-DROP TABLE IF EXISTS session;
-DROP TABLE IF EXISTS profile;
-DROP TABLE IF EXISTS app_user;
