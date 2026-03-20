@@ -1,0 +1,48 @@
+# Application stack: PostgreSQL with PostGIS plus the Go backend API.
+# Variables like DB_NAME, DB_USER, DB_PASSWORD, JWT_SECRET come from a `.env` file
+# next to this compose file (copy from `.env.example`). Compose injects them here.
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    # We do not map 5432 to the host by default: only other services on this network
+    # can reach Postgres (the backend uses hostname `postgres`). Safer on a VPS.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Wait until Postgres accepts connections before the backend starts, so the API
+    # does not crash on startup while the database is still initializing.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # Built from ./backend; publishes HTTP on host port 8080. `depends_on` with
+  # `service_healthy` delays this container until Postgres passes its healthcheck.
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_PORT: "8080"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+
+# Database files live in a named volume so they persist across container restarts.
+# `docker compose down` keeps this data; add `-v` only when you intend to wipe the DB.
+volumes:
+  pgdata:
