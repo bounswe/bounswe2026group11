@@ -1,25 +1,22 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
-	"github.com/bounswe/bounswe2026group11/backend/infrastructure"
-	"github.com/gofiber/fiber/v2"
+	"github.com/bounswe/bounswe2026group11/backend/internal/deps"
+	"github.com/bounswe/bounswe2026group11/backend/internal/server"
 )
 
 func main() {
-	cfg, err := infrastructure.Load()
+	container, err := deps.New(context.Background())
 	if err != nil {
-		log.Fatalf("config: %v", err)
+		log.Fatalf("bootstrap: %v", err)
 	}
+	defer container.Close()
 
-	app := fiber.New()
-
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.SendStatus(fiber.StatusOK)
-	})
-
-	addr := fmt.Sprintf(":%d", cfg.AppPort)
+	app := server.NewHTTP(container.AuthService)
+	addr := fmt.Sprintf(":%d", container.Config.AppPort)
 	log.Fatal(app.Listen(addr))
 }

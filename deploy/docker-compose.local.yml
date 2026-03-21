@@ -1,26 +1,28 @@
 # Local development stack: builds backend and frontend from source. For remote dev using
 # pre-built Docker Hub images (:latest), use `docker-compose.dev.yml` in this directory.
 #
-# Run from the repository root so `.env` is picked up: `docker compose -f deploy/docker-compose.local.yml up --build`
+# Run from the repository root with project dir = repo root so root `.env` is loaded:
+# `docker compose --project-directory . -f deploy/docker-compose.local.yml up --build`
 #
 # Full stack: Postgres (PostGIS), Go API, static frontend, and nginx as the single entry
-# on port 80. Postgres is also published to the host at 127.0.0.1:5432 for local tools
-# (psql, GUI clients). Variables like DB_NAME, DB_USER, DB_PASSWORD, JWT_SECRET come
-# from `.env` at the repo root (copy from `.env.example`).
+# on port 80. Postgres is published to the host at 127.0.0.1:5433→5432 for local tools
+# (psql, GUI clients) — host port 5433 avoids clashing with a local Postgres on 5432.
+# The root `.env` only carries secrets such as DB_PASSWORD and
+# JWT_SECRET; non-secret runtime settings live in versioned config files and compose.
 
 services:
   postgres:
     image: postgis/postgis:16-3.4
     environment:
-      POSTGRES_USER: ${DB_USER}
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_DB: sem
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sem"]
       interval: 3s
       timeout: 5s
       retries: 10
@@ -30,17 +32,18 @@ services:
 
   backend:
     build:
-      context: ../backend
+      context: backend
       dockerfile: Dockerfile
     depends_on:
       postgres:
         condition: service_healthy
     environment:
+      APP_ENV: "local"
       APP_PORT: "8080"
       DB_HOST: postgres
       DB_PORT: "5432"
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
+      DB_NAME: sem
+      DB_USER: postgres
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
     networks:
@@ -48,7 +51,7 @@ services:
 
   frontend:
     build:
-      context: ../frontend
+      context: frontend
       dockerfile: Dockerfile
     networks:
       - app
@@ -58,7 +61,9 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ../nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro
+      - ./docs/openapi:/usr/share/nginx/html/docs/openapi:ro
+      - ./docs/swagger-ui:/usr/share/nginx/html/docs/swagger-ui:ro
     depends_on:
       - backend
       - frontend

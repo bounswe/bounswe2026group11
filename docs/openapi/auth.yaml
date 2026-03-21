@@ -1,0 +1,534 @@
+openapi: 3.1.0
+info:
+  title: Social Event Mapper Auth API
+  version: 0.1.0
+  description: |
+    Authentication endpoints for phase-one user registration and session management.
+
+    Registration uses email OTP only. Phone number is optional and is stored without
+    mandatory verification. Login uses username and password without an OTP step.
+
+    Session behavior for frontend clients:
+    - Access tokens live for 15 minutes.
+    - Refresh tokens are rotated on every successful `/auth/refresh` call.
+    - Each newly issued refresh token lives for up to 14 days.
+    - The full refresh-token family has a 60-day absolute maximum lifetime from the
+      original login or registration session start.
+    - After a successful refresh, the previous refresh token must be discarded by the client.
+
+    OTP delivery in this phase uses the backend's development/mock mailer and does not
+    represent a production email integration.
+servers:
+  - url: /api
+tags:
+  - name: Auth
+    description: Registration, login, session refresh, and logout endpoints.
+paths:
+  /auth/register/email/request-otp:
+    post:
+      tags: [Auth]
+      summary: Request an email OTP for registration
+      description: Submit an email address to start the registration flow. The response stays intentionally generic to reduce account enumeration.
+      operationId: requestRegistrationEmailOtp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestOtpRequest'
+            examples:
+              default:
+                value:
+                  email: user@example.com
+      responses:
+        '202':
+          description: Request accepted. The response stays generic to reduce email enumeration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestOtpResponse'
+              examples:
+                accepted:
+                  value:
+                    status: accepted
+                    message: If the email can be registered, an OTP has been sent.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+  /auth/register/email/verify:
+    post:
+      tags: [Auth]
+      summary: Verify an email OTP and create the account
+      description: Complete registration by submitting the received OTP and the user's initial credentials.
+      operationId: verifyRegistrationEmailOtp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRegistrationRequest'
+            examples:
+              default:
+                value:
+                  email: user@example.com
+                  otp: "123456"
+                  username: maplover
+                  password: StrongPassword123
+                  phone_number: "+905551112233"
+                  gender: female
+                  birth_date: "1998-05-14"
+      responses:
+        '201':
+          description: Account created and session issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+              examples:
+                created:
+                  value:
+                    access_token: eyJhbGciOi...
+                    refresh_token: 8bb5f3dce7...
+                    token_type: Bearer
+                    expires_in_seconds: 900
+                    user:
+                      id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                      username: maplover
+                      email: user@example.com
+                      phone_number: "+905551112233"
+                      email_verified: true
+                      status: active
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/InvalidOtpError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate with username and password
+      description: |
+        Create a new session by exchanging a username and password for access and refresh tokens.
+
+        The response contains:
+        - a 15-minute access token for authenticated API calls
+        - a refresh token that can be exchanged for a new session for up to 14 days
+
+        Refresh tokens are rotated. If the client later calls `/auth/refresh`, it must replace
+        the stored refresh token with the newly returned one.
+      operationId: loginWithPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              default:
+                value:
+                  username: maplover
+                  password: StrongPassword123
+      responses:
+        '200':
+          description: Session issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+              examples:
+                success:
+                  value:
+                    access_token: eyJhbGciOi...
+                    refresh_token: 8bb5f3dce7...
+                    token_type: Bearer
+                    expires_in_seconds: 900
+                    user:
+                      id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                      username: maplover
+                      email: user@example.com
+                      phone_number: "+905551112233"
+                      email_verified: true
+                      status: active
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/InvalidCredentialsError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate a refresh token and issue a new session
+      description: |
+        Exchange a valid refresh token for a new access token and a rotated refresh token.
+
+        Important client behavior:
+        - Every successful refresh invalidates the previously used refresh token.
+        - The client must persist the newly returned refresh token and stop using the old one.
+        - Each rotated refresh token lives for up to 14 days from when it is issued.
+        - The refresh-token family still has a 60-day absolute maximum lifetime from the
+          original session start, even if refresh calls continue to succeed before then.
+
+        Once the absolute session limit is reached, the user must log in again.
+      operationId: refreshSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+            examples:
+              default:
+                value:
+                  refresh_token: 8bb5f3dce7...
+      responses:
+        '200':
+          description: Session rotated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+              examples:
+                rotated:
+                  value:
+                    access_token: eyJhbGciOi...
+                    refresh_token: 2d4a735f9c...
+                    token_type: Bearer
+                    expires_in_seconds: 900
+                    user:
+                      id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                      username: maplover
+                      email: user@example.com
+                      phone_number: "+905551112233"
+                      email_verified: true
+                      status: active
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/InvalidRefreshTokenError'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke a refresh token
+      description: Invalidate a refresh token so it can no longer be used to mint new sessions.
+      operationId: logoutSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+            examples:
+              default:
+                value:
+                  refresh_token: 8bb5f3dce7...
+      responses:
+        '204':
+          description: Refresh token revoked.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/InvalidRefreshTokenError'
+components:
+  responses:
+    ValidationError:
+      description: The request body failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalidBody:
+              value:
+                error:
+                  code: validation_error
+                  message: The request body contains invalid fields.
+                  details:
+                    email: must be a valid email address
+    RateLimitedError:
+      description: Too many attempts in a short time window.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            tooManyRequests:
+              value:
+                error:
+                  code: rate_limited
+                  message: Too many requests. Try again later.
+    InvalidOtpError:
+      description: The OTP was invalid, expired, or exceeded the maximum allowed attempts.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalidOtp:
+              value:
+                error:
+                  code: invalid_otp
+                  message: The OTP is invalid or has expired.
+            otpAttemptsExceeded:
+              value:
+                error:
+                  code: otp_attempts_exceeded
+                  message: The OTP can no longer be used. Request a new code.
+    InvalidCredentialsError:
+      description: Username or password was incorrect.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalidCredentials:
+              value:
+                error:
+                  code: invalid_credentials
+                  message: Invalid username or password.
+    InvalidRefreshTokenError:
+      description: Refresh token was invalid, expired, revoked, or reused.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalidRefreshToken:
+              value:
+                error:
+                  code: invalid_refresh_token
+                  message: The refresh token is invalid or expired.
+            refreshTokenReuse:
+              value:
+                error:
+                  code: refresh_token_reused
+                  message: The refresh token has already been used.
+    ConflictError:
+      description: A unique field already exists or the account cannot be created.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            usernameConflict:
+              value:
+                error:
+                  code: username_already_exists
+                  message: The username is already in use.
+            phoneConflict:
+              value:
+                error:
+                  code: phone_number_already_exists
+                  message: The phone number is already in use.
+  schemas:
+    RequestOtpRequest:
+      type: object
+      description: Payload for requesting a registration OTP.
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+          description: Email address to verify for a new account.
+          example: user@example.com
+    RequestOtpResponse:
+      type: object
+      description: Generic acknowledgement returned after an OTP request.
+      additionalProperties: false
+      required: [status, message]
+      properties:
+        status:
+          type: string
+          enum: [accepted]
+          description: Processing outcome for the OTP request.
+          example: accepted
+        message:
+          type: string
+          description: Generic message to avoid revealing whether the email is already registered.
+          example: If the email can be registered, an OTP has been sent.
+    VerifyRegistrationRequest:
+      type: object
+      description: Payload for confirming a registration OTP and creating the account.
+      additionalProperties: false
+      required: [email, otp, username, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+          description: Email address that received the OTP.
+          example: user@example.com
+        otp:
+          type: string
+          pattern: '^[0-9]{6}$'
+          description: Six-digit one-time password sent to the email address.
+          example: "123456"
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: '^[A-Za-z0-9_]+$'
+          description: Public username used for sign-in.
+          example: maplover
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: Plain-text password that will be hashed by the backend.
+          example: StrongPassword123
+        phone_number:
+          type:
+            - string
+            - "null"
+          maxLength: 32
+          description: Optional phone number captured during registration.
+          example: "+905551112233"
+        gender:
+          type:
+            - string
+            - "null"
+          maxLength: 32
+          description: Optional gender value captured during registration.
+          example: female
+        birth_date:
+          type:
+            - string
+            - "null"
+          format: date
+          description: Optional birth date captured during registration.
+          example: "1998-05-14"
+    LoginRequest:
+      type: object
+      description: Username/password login payload.
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          description: Username used during sign-in.
+          example: maplover
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: User password.
+          example: StrongPassword123
+    RefreshRequest:
+      type: object
+      description: Refresh token payload used for token rotation and logout.
+      additionalProperties: false
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          minLength: 32
+          maxLength: 512
+          description: Long-lived token issued with the session.
+          example: 8bb5f3dce7...
+    AuthSessionResponse:
+      type: object
+      description: |
+        Session payload returned after registration, login, or token refresh.
+
+        `expires_in_seconds` describes the access token lifetime only. Refresh-token lifetime is
+        managed separately by the backend: up to 14 days per issued refresh token, with a
+        60-day absolute maximum session lifetime for the refresh-token family.
+      additionalProperties: false
+      required:
+        - access_token
+        - refresh_token
+        - token_type
+        - expires_in_seconds
+        - user
+      properties:
+        access_token:
+          type: string
+          description: Short-lived bearer token for authenticated API calls.
+          example: eyJhbGciOi...
+        refresh_token:
+          type: string
+          description: Token used to rotate the session.
+          example: 8bb5f3dce7...
+        token_type:
+          type: string
+          enum: [Bearer]
+          description: Authentication scheme for the access token.
+          example: Bearer
+        expires_in_seconds:
+          type: integer
+          minimum: 1
+          description: Access token lifetime in seconds.
+          example: 900
+        user:
+          $ref: '#/components/schemas/UserSummary'
+    UserSummary:
+      type: object
+      description: Public-facing summary of the authenticated user.
+      additionalProperties: false
+      required: [id, username, email, phone_number, email_verified, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stable unique identifier for the user.
+          example: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+        username:
+          type: string
+          description: Username for the account.
+          example: maplover
+        email:
+          type: string
+          format: email
+          description: Email stored for the account.
+          example: user@example.com
+        phone_number:
+          type:
+            - string
+            - "null"
+          description: Optional phone number saved for the user.
+          example: "+905551112233"
+        email_verified:
+          type: boolean
+          description: Indicates whether the email has been confirmed.
+          example: true
+        status:
+          type: string
+          description: Current account status.
+          example: active
+    ErrorResponse:
+      type: object
+      description: Standard error wrapper for failed requests.
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    ErrorBody:
+      type: object
+      description: Error metadata returned by the API.
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Stable application-specific error code.
+          example: validation_error
+        message:
+          type: string
+          description: Human-readable error summary.
+          example: The request body contains invalid fields.
+        details:
+          type: object
+          additionalProperties:
+            type: string
+          description: Optional field-level validation details keyed by field name.

@@ -1,0 +1,240 @@
+:root {
+  --docs-bg: #f3f6fb;
+  --docs-panel: #ffffff;
+  --docs-border: #dbe4f0;
+  --docs-border-strong: #c1d0e4;
+  --docs-text: #10233f;
+  --docs-text-muted: #5f718b;
+  --docs-primary: #2563eb;
+  --docs-primary-strong: #1d4ed8;
+  --docs-success-soft: #ecfdf3;
+  --docs-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 24%),
+    linear-gradient(180deg, #f8fbff 0%, var(--docs-bg) 100%);
+}
+
+body {
+  color: var(--docs-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#swagger-ui {
+  padding: 24px 0 40px;
+}
+
+.swagger-ui {
+  color: var(--docs-text);
+}
+
+.swagger-ui .wrapper {
+  max-width: 1180px;
+}
+
+.swagger-ui .topbar {
+  margin: 0 auto 24px;
+  max-width: 1180px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  box-shadow: var(--docs-shadow);
+}
+
+.swagger-ui .topbar .download-url-wrapper .select-label,
+.swagger-ui .topbar .download-url-wrapper label {
+  color: #e2e8f0;
+}
+
+.swagger-ui .topbar select {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+}
+
+.swagger-ui .information-container.wrapper {
+  margin-bottom: 24px;
+  padding: 0;
+}
+
+.swagger-ui .info {
+  margin: 0;
+  padding: 32px;
+  border: 1px solid var(--docs-border);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  box-shadow: var(--docs-shadow);
+}
+
+.swagger-ui .info .title {
+  color: var(--docs-text);
+  font-size: 42px;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.swagger-ui .info .base-url {
+  margin-top: 14px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: var(--docs-primary-strong);
+  font-weight: 600;
+}
+
+.swagger-ui .info p,
+.swagger-ui .info li,
+.swagger-ui .markdown p,
+.swagger-ui .markdown li,
+.swagger-ui .opblock-description-wrapper p {
+  color: var(--docs-text-muted);
+  line-height: 1.65;
+}
+
+.swagger-ui .scheme-container {
+  margin: 0 auto 24px;
+  max-width: 1180px;
+  padding: 18px 24px;
+  border: 1px solid var(--docs-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.06);
+}
+
+.swagger-ui .scheme-container .schemes-title {
+  color: var(--docs-text-muted);
+  font-weight: 700;
+}
+
+.swagger-ui .opblock-tag-section {
+  margin-bottom: 20px;
+}
+
+.swagger-ui .opblock-tag {
+  padding: 18px 8px 14px;
+  border-bottom: 1px solid var(--docs-border);
+  color: var(--docs-text);
+  font-size: 25px;
+  font-weight: 700;
+}
+
+.swagger-ui .opblock {
+  margin: 0 0 16px;
+  border-width: 1px;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.06);
+}
+
+.swagger-ui .opblock .opblock-summary {
+  align-items: center;
+  padding: 12px 18px;
+}
+
+.swagger-ui .opblock .opblock-summary-method {
+  min-width: 74px;
+  border-radius: 999px;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.swagger-ui .opblock .opblock-summary-path {
+  color: var(--docs-text);
+  font-weight: 700;
+}
+
+.swagger-ui .opblock .opblock-summary-description {
+  color: var(--docs-text-muted);
+  font-weight: 500;
+}
+
+.swagger-ui .opblock.opblock-post {
+  border-color: #8dd9a8;
+  background: linear-gradient(180deg, var(--docs-success-soft), #ffffff);
+}
+
+.swagger-ui .opblock.is-open .opblock-summary {
+  border-bottom: 1px solid var(--docs-border);
+}
+
+.swagger-ui .opblock-body {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.swagger-ui .responses-inner h4,
+.swagger-ui .responses-inner h5,
+.swagger-ui .opblock-section-header h4,
+.swagger-ui .parameters-col_description input,
+.swagger-ui .tab li,
+.swagger-ui table thead tr td,
+.swagger-ui table thead tr th {
+  color: var(--docs-text);
+}
+
+.swagger-ui .btn {
+  border-radius: 12px;
+}
+
+.swagger-ui .btn.execute {
+  background: var(--docs-primary);
+  border-color: var(--docs-primary);
+}
+
+.swagger-ui .btn.execute:hover {
+  background: var(--docs-primary-strong);
+  border-color: var(--docs-primary-strong);
+}
+
+.swagger-ui select,
+.swagger-ui input[type="text"],
+.swagger-ui input[type="password"],
+.swagger-ui input[type="search"],
+.swagger-ui textarea {
+  border: 1px solid var(--docs-border-strong);
+  border-radius: 12px;
+}
+
+.swagger-ui .model-box,
+.swagger-ui section.models {
+  border: 1px solid var(--docs-border);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.05);
+}
+
+.swagger-ui section.models {
+  margin-top: 32px;
+  padding: 12px 18px 18px;
+}
+
+.swagger-ui section.models h4 {
+  color: var(--docs-text);
+}
+
+.swagger-ui .model-title,
+.swagger-ui .model {
+  color: var(--docs-text);
+}
+
+.swagger-ui .prop-type,
+.swagger-ui .parameter__type,
+.swagger-ui .response-col_status {
+  color: var(--docs-primary-strong);
+  font-weight: 700;
+}
+
+.swagger-ui .model-box-control:focus,
+.swagger-ui .opblock-summary-control:focus,
+.swagger-ui .btn:focus,
+.swagger-ui select:focus,
+.swagger-ui input:focus,
+.swagger-ui textarea:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.18);
+  outline-offset: 2px;
+}
+
+.docs-error {
+  border: 1px solid var(--docs-border);
+}
