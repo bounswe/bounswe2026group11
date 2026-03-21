@@ -102,7 +102,7 @@ func TestVerifyRegistrationOTPRejectsInvalidBirthDate(t *testing.T) {
 		OTP:       mailer.lastCode,
 		Username:  "new_user",
 		Password:  "super-secret-password",
-		BirthDate: new("14-05-1998"),
+		BirthDate: stringPtr("14-05-1998"),
 	})
 	if err == nil {
 		t.Fatal("expected validation error, got nil")
