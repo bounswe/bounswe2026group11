@@ -1,0 +1,18 @@
+app_port: 8080
+
+db_host: localhost
+db_port: 5432
+db_name: sem
+db_user: postgres
+
+access_token_ttl: 15m
+refresh_token_ttl: 336h
+max_session_ttl: 1440h
+otp_ttl: 10m
+otp_max_attempts: 5
+otp_resend_cooldown: 1m
+otp_request_limit: 5
+otp_request_window: 10m
+login_rate_limit: 10
+login_rate_window: 15m
+otp_mailer_mode: mock

@@ -3,41 +3,55 @@ package infrastructure
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
 
-// Config holds application settings loaded via viper from .env (local) and
-// environment variables (CI/CD). Env vars override values from the file.
+const defaultAppEnv = "local"
+
+// Config holds application settings loaded from an environment-specific YAML
+// file first, then from .env for secrets, then from OS environment variables.
 type Config struct {
-	AppPort    int
-	DBHost     string
-	DBPort     int
-	DBName     string
-	DBUser     string
-	DBPassword string
-	JWTSecret  string
+	AppPort           int
+	DBHost            string
+	DBPort            int
+	DBName            string
+	DBUser            string
+	DBPassword        string
+	JWTSecret         string
+	AccessTokenTTL    time.Duration
+	RefreshTokenTTL   time.Duration
+	MaxSessionTTL     time.Duration
+	OTPTTL            time.Duration
+	OTPMaxAttempts    int
+	OTPResendCooldown time.Duration
+	OTPRequestLimit   int
+	OTPRequestWindow  time.Duration
+	LoginRateLimit    int
+	LoginRateWindow   time.Duration
+	OTPMailerMode     string
 }
 
-// Load reads configuration using viper. If a .env file exists in the current
-// working directory, it is loaded first; OS environment variables always take
-// precedence. Required values must be set (non-empty where noted); optional
-// keys use defaults from .env.example when unset.
+// Load reads configuration using the following precedence:
+// 1. config/application.<APP_ENV>.yaml (or APP_CONFIG_FILE if set)
+// 2. .env in the process working directory
+// 3. OS environment variables
 func Load() (*Config, error) {
 	v := viper.New()
 
-	v.SetDefault("app_port", 8080)
-	v.SetDefault("db_port", 5432)
+	appEnv := strings.TrimSpace(os.Getenv("APP_ENV"))
+	if appEnv == "" {
+		appEnv = defaultAppEnv
+	}
 
-	if st, err := os.Stat(".env"); err == nil && !st.IsDir() {
-		v.SetConfigFile(".env")
-		v.SetConfigType("env")
-		if err := v.ReadInConfig(); err != nil {
-			return nil, fmt.Errorf("load .env: %w", err)
-		}
-	} else if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("stat .env: %w", err)
+	if err := loadBaseConfig(v, appEnv); err != nil {
+		return nil, err
+	}
+	if err := mergeDotEnv(v); err != nil {
+		return nil, err
 	}
 
 	v.AutomaticEnv()
@@ -52,15 +66,37 @@ func Load() (*Config, error) {
 	bind("db_user", "DB_USER")
 	bind("db_password", "DB_PASSWORD")
 	bind("jwt_secret", "JWT_SECRET")
+	bind("access_token_ttl", "ACCESS_TOKEN_TTL")
+	bind("refresh_token_ttl", "REFRESH_TOKEN_TTL")
+	bind("max_session_ttl", "MAX_SESSION_TTL")
+	bind("otp_ttl", "OTP_TTL")
+	bind("otp_max_attempts", "OTP_MAX_ATTEMPTS")
+	bind("otp_resend_cooldown", "OTP_RESEND_COOLDOWN")
+	bind("otp_request_limit", "OTP_REQUEST_LIMIT")
+	bind("otp_request_window", "OTP_REQUEST_WINDOW")
+	bind("login_rate_limit", "LOGIN_RATE_LIMIT")
+	bind("login_rate_window", "LOGIN_RATE_WINDOW")
+	bind("otp_mailer_mode", "OTP_MAILER_MODE")
 
 	cfg := &Config{
-		AppPort:    v.GetInt("app_port"),
-		DBHost:     strings.TrimSpace(v.GetString("db_host")),
-		DBPort:     v.GetInt("db_port"),
-		DBName:     strings.TrimSpace(v.GetString("db_name")),
-		DBUser:     strings.TrimSpace(v.GetString("db_user")),
-		DBPassword: v.GetString("db_password"),
-		JWTSecret:  strings.TrimSpace(v.GetString("jwt_secret")),
+		AppPort:           v.GetInt("app_port"),
+		DBHost:            strings.TrimSpace(v.GetString("db_host")),
+		DBPort:            v.GetInt("db_port"),
+		DBName:            strings.TrimSpace(v.GetString("db_name")),
+		DBUser:            strings.TrimSpace(v.GetString("db_user")),
+		DBPassword:        v.GetString("db_password"),
+		JWTSecret:         strings.TrimSpace(v.GetString("jwt_secret")),
+		AccessTokenTTL:    v.GetDuration("access_token_ttl"),
+		RefreshTokenTTL:   v.GetDuration("refresh_token_ttl"),
+		MaxSessionTTL:     v.GetDuration("max_session_ttl"),
+		OTPTTL:            v.GetDuration("otp_ttl"),
+		OTPMaxAttempts:    v.GetInt("otp_max_attempts"),
+		OTPResendCooldown: v.GetDuration("otp_resend_cooldown"),
+		OTPRequestLimit:   v.GetInt("otp_request_limit"),
+		OTPRequestWindow:  v.GetDuration("otp_request_window"),
+		LoginRateLimit:    v.GetInt("login_rate_limit"),
+		LoginRateWindow:   v.GetDuration("login_rate_window"),
+		OTPMailerMode:     strings.TrimSpace(v.GetString("otp_mailer_mode")),
 	}
 
 	if err := validate(v, cfg); err != nil {
@@ -68,6 +104,49 @@ func Load() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func loadBaseConfig(v *viper.Viper, appEnv string) error {
+	configFile := strings.TrimSpace(os.Getenv("APP_CONFIG_FILE"))
+	if configFile != "" {
+		v.SetConfigFile(configFile)
+		if err := v.ReadInConfig(); err != nil {
+			return fmt.Errorf("load APP_CONFIG_FILE %q: %w", configFile, err)
+		}
+		return nil
+	}
+
+	configName := fmt.Sprintf("application.%s", appEnv)
+	for _, configPath := range []string{"config", filepath.Join("..", "config")} {
+		v.SetConfigName(configName)
+		v.SetConfigType("yaml")
+		v.AddConfigPath(configPath)
+		if err := v.ReadInConfig(); err == nil {
+			return nil
+		} else if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return fmt.Errorf("load %s.yaml from %s: %w", configName, configPath, err)
+		}
+	}
+
+	return fmt.Errorf(
+		"base configuration missing: expected config/%s.yaml (or APP_CONFIG_FILE) relative to the working directory",
+		configName,
+	)
+}
+
+func mergeDotEnv(v *viper.Viper) error {
+	if st, err := os.Stat(".env"); err == nil && !st.IsDir() {
+		v.SetConfigFile(".env")
+		v.SetConfigType("env")
+		if err := v.MergeInConfig(); err != nil {
+			return fmt.Errorf("load .env: %w", err)
+		}
+		return nil
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("stat .env: %w", err)
+	}
+
+	return nil
 }
 
 func validate(v *viper.Viper, c *Config) error {
@@ -108,6 +187,45 @@ func validate(v *viper.Viper, c *Config) error {
 	}
 	if c.DBPort < 1 || c.DBPort > 65535 {
 		return fmt.Errorf("DB_PORT must be between 1 and 65535, got %d", c.DBPort)
+	}
+	if c.AccessTokenTTL <= 0 {
+		return fmt.Errorf("ACCESS_TOKEN_TTL must be greater than zero")
+	}
+	if c.RefreshTokenTTL <= 0 {
+		return fmt.Errorf("REFRESH_TOKEN_TTL must be greater than zero")
+	}
+	if c.MaxSessionTTL <= 0 {
+		return fmt.Errorf("MAX_SESSION_TTL must be greater than zero")
+	}
+	if c.MaxSessionTTL < c.RefreshTokenTTL {
+		return fmt.Errorf("MAX_SESSION_TTL must be greater than or equal to REFRESH_TOKEN_TTL")
+	}
+	if c.OTPTTL <= 0 {
+		return fmt.Errorf("OTP_TTL must be greater than zero")
+	}
+	if c.OTPMaxAttempts < 1 {
+		return fmt.Errorf("OTP_MAX_ATTEMPTS must be at least 1")
+	}
+	if c.OTPResendCooldown < 0 {
+		return fmt.Errorf("OTP_RESEND_COOLDOWN cannot be negative")
+	}
+	if c.OTPRequestLimit < 1 {
+		return fmt.Errorf("OTP_REQUEST_LIMIT must be at least 1")
+	}
+	if c.OTPRequestWindow <= 0 {
+		return fmt.Errorf("OTP_REQUEST_WINDOW must be greater than zero")
+	}
+	if c.LoginRateLimit < 1 {
+		return fmt.Errorf("LOGIN_RATE_LIMIT must be at least 1")
+	}
+	if c.LoginRateWindow <= 0 {
+		return fmt.Errorf("LOGIN_RATE_WINDOW must be greater than zero")
+	}
+	if c.OTPMailerMode == "" {
+		return fmt.Errorf("OTP_MAILER_MODE cannot be empty")
+	}
+	if c.OTPMailerMode != "mock" {
+		return fmt.Errorf("OTP_MAILER_MODE must be \"mock\", got %q", c.OTPMailerMode)
 	}
 
 	return nil

@@ -4,7 +4,7 @@
 # and the migrate tool — not the full Go SDK. That keeps the image small and deploys faster.
 
 # --- Build the API binary (full Go SDK on Debian; output is still static / CGO-disabled). ---
-FROM golang:1.24-bookworm AS builder
+FROM golang:1.26.1-bookworm AS builder
 
 WORKDIR /src
 
@@ -32,6 +32,7 @@ RUN chmod +x /usr/local/bin/migrate
 WORKDIR /app
 
 COPY --from=builder /out/server /app/server
+COPY config /app/config
 COPY migrations /migrations
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

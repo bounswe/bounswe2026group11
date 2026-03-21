@@ -4,7 +4,8 @@
 # (`deploy/`, `nginx/`, `certs/` for TLS, `.env`) and run from that root:
 #   docker compose -f deploy/docker-compose.dev.yml pull && docker compose -f deploy/docker-compose.dev.yml up -d
 #
-# Requires `.env` with DB_*, JWT_SECRET, and DOCKERHUB_NAMESPACE (see root `.env.example` and docs/deploy.md).
+# Requires secrets in `.env` and a `DOCKERHUB_NAMESPACE` shell/CI variable for image names
+# (see root `.env.example` and docs/deploy.md).
 
 name: sem-dev
 
@@ -12,13 +13,13 @@ services:
   postgres:
     image: postgis/postgis:16-3.4
     environment:
-      POSTGRES_USER: ${DB_USER}
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_DB: sem
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sem"]
       interval: 3s
       timeout: 5s
       retries: 10
@@ -27,24 +28,25 @@ services:
       - app
 
   backend:
-    image: ${DOCKERHUB_NAMESPACE}/sem-backend-dev:latest
+    image: ${DOCKERHUB_NAMESPACE:?set DOCKERHUB_NAMESPACE in shell or CI}/sem-backend-dev:latest
     pull_policy: always
     depends_on:
       postgres:
         condition: service_healthy
     environment:
+      APP_ENV: "dev"
       APP_PORT: "8080"
       DB_HOST: postgres
       DB_PORT: "5432"
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
+      DB_NAME: sem
+      DB_USER: postgres
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
     networks:
       - app
 
   frontend:
-    image: ${DOCKERHUB_NAMESPACE}/sem-frontend-dev:latest
+    image: ${DOCKERHUB_NAMESPACE:?set DOCKERHUB_NAMESPACE in shell or CI}/sem-frontend-dev:latest
     pull_policy: always
     networks:
       - app

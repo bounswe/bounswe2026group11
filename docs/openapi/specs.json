@@ -1,0 +1,7 @@
+[
+  {
+    "name": "auth",
+    "displayName": "Auth API",
+    "url": "./openapi/auth.yaml"
+  }
+]
