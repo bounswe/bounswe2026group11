@@ -1,0 +1,72 @@
+# Local development stack: builds backend and frontend from source. For remote dev using
+# pre-built Docker Hub images (:latest), use `docker-compose.dev.yml` in this directory.
+#
+# Run from the repository root so `.env` is picked up: `docker compose -f deploy/docker-compose.local.yml up --build`
+#
+# Full stack: Postgres (PostGIS), Go API, static frontend, and nginx as the single entry
+# on port 80. Postgres is also published to the host at 127.0.0.1:5432 for local tools
+# (psql, GUI clients). Variables like DB_NAME, DB_USER, DB_PASSWORD, JWT_SECRET come
+# from `.env` at the repo root (copy from `.env.example`).
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - app
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_PORT: "8080"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - app
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    networks:
+      - app
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ../nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - app
+
+volumes:
+  pgdata:
+
+networks:
+  app:
