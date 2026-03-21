@@ -1,0 +1,86 @@
+package domain
+
+import (
+	"errors"
+	"fmt"
+)
+
+// HTTP status codes used by AppError to map domain errors to HTTP responses.
+const (
+	StatusBadRequest      = 400
+	StatusUnauthorized    = 401
+	StatusConflict        = 409
+	StatusTooManyRequests = 429
+	StatusInternalError   = 500
+)
+
+// Machine-readable error codes returned in the JSON "error.code" field.
+// Clients can switch on these codes to decide how to handle each error.
+const (
+	ErrorCodeValidation     = "validation_error"
+	ErrorCodeRateLimited    = "rate_limited"
+	ErrorCodeInvalidOTP     = "invalid_otp"
+	ErrorCodeOTPExhausted   = "otp_attempts_exceeded"
+	ErrorCodeInvalidCreds   = "invalid_credentials"
+	ErrorCodeInvalidRefresh = "invalid_refresh_token"
+	ErrorCodeRefreshReused  = "refresh_token_reused"
+	ErrorCodeEmailExists    = "email_already_exists"
+	ErrorCodeUsernameExists = "username_already_exists"
+	ErrorCodePhoneExists    = "phone_number_already_exists"
+)
+
+// ErrNotFound is a sentinel error returned when a queried entity does not exist.
+var ErrNotFound = errors.New("not found")
+
+// AppError is the structured error type used across the application. It carries
+// an HTTP status code, a machine-readable code, a human-readable message, and
+// optional per-field validation details.
+type AppError struct {
+	Code    string
+	Message string
+	Status  int
+	Details map[string]string
+}
+
+func (e *AppError) Error() string {
+	return fmt.Sprintf("%s: %s", e.Code, e.Message)
+}
+
+// ValidationError creates a 400 Bad Request error with per-field detail messages.
+func ValidationError(details map[string]string) *AppError {
+	return &AppError{
+		Code:    ErrorCodeValidation,
+		Message: "The request body contains invalid fields.",
+		Status:  StatusBadRequest,
+		Details: details,
+	}
+}
+
+// RateLimitedError creates a 429 Too Many Requests error.
+func RateLimitedError(message string) *AppError {
+	return &AppError{
+		Code:    ErrorCodeRateLimited,
+		Message: message,
+		Status:  StatusTooManyRequests,
+	}
+}
+
+// ConflictError creates a 409 Conflict error for unique-constraint violations
+// (e.g. duplicate email, username, or phone number).
+func ConflictError(code, message string) *AppError {
+	return &AppError{
+		Code:    code,
+		Message: message,
+		Status:  StatusConflict,
+	}
+}
+
+// AuthError creates a 401 Unauthorized error for authentication failures
+// (e.g. invalid credentials, expired OTP, revoked refresh token).
+func AuthError(code, message string) *AppError {
+	return &AppError{
+		Code:    code,
+		Message: message,
+		Status:  StatusUnauthorized,
+	}
+}

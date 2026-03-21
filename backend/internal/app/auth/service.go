@@ -13,11 +13,14 @@ import (
 	"github.com/google/uuid"
 )
 
+// Validation patterns for usernames (alphanumeric + underscore) and OTP codes (6 digits).
 var usernamePattern = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 var otpPattern = regexp.MustCompile(`^[0-9]{6}$`)
 
+// Service implements the authentication use cases: OTP-based registration,
+// password login, refresh-token rotation, and logout.
 type Service struct {
-	store             domain.AuthStore
+	repo              domain.AuthRepository
 	passwordHasher    domain.PasswordHasher
 	otpHasher         domain.PasswordHasher
 	tokenIssuer       domain.TokenIssuer
@@ -34,45 +37,9 @@ type Service struct {
 	maxSessionTTL     time.Duration
 }
 
-type Config struct {
-	OTPTTL            time.Duration
-	OTPMaxAttempts    int
-	OTPResendCooldown time.Duration
-	RefreshTokenTTL   time.Duration
-	MaxSessionTTL     time.Duration
-}
-
-type RequestOTPInput struct {
-	Email string
-}
-
-type VerifyRegistrationInput struct {
-	Email       string
-	OTP         string
-	Username    string
-	Password    string
-	PhoneNumber *string
-	Gender      *string
-	BirthDate   *string
-	DeviceInfo  *string
-}
-
-type LoginInput struct {
-	Username   string
-	Password   string
-	DeviceInfo *string
-}
-
-type Session struct {
-	AccessToken      string             `json:"access_token"`
-	RefreshToken     string             `json:"refresh_token"`
-	TokenType        string             `json:"token_type"`
-	ExpiresInSeconds int64              `json:"expires_in_seconds"`
-	User             domain.UserSummary `json:"user"`
-}
-
+// NewService constructs an auth Service with the given adapters and configuration.
 func NewService(
-	store domain.AuthStore,
+	repo domain.AuthRepository,
 	passwordHasher domain.PasswordHasher,
 	otpHasher domain.PasswordHasher,
 	tokenIssuer domain.TokenIssuer,
@@ -84,7 +51,7 @@ func NewService(
 	cfg Config,
 ) *Service {
 	return &Service{
-		store:             store,
+		repo:              repo,
 		passwordHasher:    passwordHasher,
 		otpHasher:         otpHasher,
 		tokenIssuer:       tokenIssuer,
@@ -102,6 +69,9 @@ func NewService(
 	}
 }
 
+// RequestRegistrationOTP generates an OTP code, stores its hash, and mails the
+// plaintext code to the user. If the email is already registered, the method
+// returns nil silently to avoid leaking account-existence information.
 func (s *Service) RequestRegistrationOTP(ctx context.Context, input RequestOTPInput) error {
 	email, err := normalizeEmail(input.Email)
 	if err != nil {
@@ -113,19 +83,21 @@ func (s *Service) RequestRegistrationOTP(ctx context.Context, input RequestOTPIn
 		return domain.RateLimitedError("Too many requests. Try again later.")
 	}
 
-	existingUser, err := s.store.GetUserByEmail(ctx, email)
+	existingUser, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil && !errors.Is(err, domain.ErrNotFound) {
 		return fmt.Errorf("lookup user by email: %w", err)
 	}
 	if err == nil && existingUser != nil {
+		// Silently succeed to avoid revealing that a user with this email exists.
 		return nil
 	}
 
-	challenge, err := s.store.GetActiveOTPChallenge(ctx, email, domain.OTPPurposeRegistration)
+	challenge, err := s.repo.GetActiveOTPChallenge(ctx, email, domain.OTPPurposeRegistration)
 	if err != nil && !errors.Is(err, domain.ErrNotFound) {
 		return fmt.Errorf("lookup otp challenge: %w", err)
 	}
 	if err == nil && challenge != nil && now.Before(challenge.CreatedAt.UTC().Add(s.otpResendCooldown)) {
+		// Enforce per-email cooldown to prevent OTP flooding.
 		return domain.RateLimitedError("Too many requests. Try again later.")
 	}
 
@@ -135,7 +107,7 @@ func (s *Service) RequestRegistrationOTP(ctx context.Context, input RequestOTPIn
 		return fmt.Errorf("hash otp code: %w", err)
 	}
 
-	if _, err := s.store.UpsertOTPChallenge(ctx, domain.UpsertOTPChallengeParams{
+	if _, err := s.repo.UpsertOTPChallenge(ctx, domain.UpsertOTPChallengeParams{
 		Channel:     domain.OTPChannelEmail,
 		Destination: email,
 		Purpose:     domain.OTPPurposeRegistration,
@@ -153,6 +125,9 @@ func (s *Service) RequestRegistrationOTP(ctx context.Context, input RequestOTPIn
 	return nil
 }
 
+// VerifyRegistrationOTP validates the OTP, creates the user and profile, marks
+// the challenge as consumed, and issues a session — all within a single DB
+// transaction to guarantee atomicity.
 func (s *Service) VerifyRegistrationOTP(ctx context.Context, input VerifyRegistrationInput) (*Session, error) {
 	email, username, password, phoneNumber, gender, birthDate, otp, appErr := validateVerifyRegistrationInput(input)
 	if appErr != nil {
@@ -160,7 +135,7 @@ func (s *Service) VerifyRegistrationOTP(ctx context.Context, input VerifyRegistr
 	}
 
 	now := s.now().UTC()
-	challenge, err := s.store.GetActiveOTPChallenge(ctx, email, domain.OTPPurposeRegistration)
+	challenge, err := s.repo.GetActiveOTPChallenge(ctx, email, domain.OTPPurposeRegistration)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return nil, domain.AuthError(domain.ErrorCodeInvalidOTP, "The OTP is invalid or has expired.")
@@ -168,6 +143,7 @@ func (s *Service) VerifyRegistrationOTP(ctx context.Context, input VerifyRegistr
 		return nil, fmt.Errorf("lookup otp challenge: %w", err)
 	}
 
+	// Reject already-consumed or expired challenges before comparing the code.
 	if challenge.ConsumedAt != nil || now.After(challenge.ExpiresAt.UTC()) {
 		return nil, domain.AuthError(domain.ErrorCodeInvalidOTP, "The OTP is invalid or has expired.")
 	}
@@ -175,8 +151,10 @@ func (s *Service) VerifyRegistrationOTP(ctx context.Context, input VerifyRegistr
 		return nil, domain.AuthError(domain.ErrorCodeOTPExhausted, "The OTP can no longer be used. Request a new code.")
 	}
 
+	// On code mismatch, increment the attempt counter. If the max is reached,
+	// the challenge becomes permanently exhausted and the user must request a new OTP.
 	if err := s.otpHasher.Compare(challenge.CodeHash, otp); err != nil {
-		updatedChallenge, incErr := s.store.IncrementOTPChallengeAttempts(ctx, challenge.ID, now)
+		updatedChallenge, incErr := s.repo.IncrementOTPChallengeAttempts(ctx, challenge.ID, now)
 		if incErr != nil {
 			return nil, fmt.Errorf("increment otp attempts: %w", incErr)
 		}
@@ -192,8 +170,8 @@ func (s *Service) VerifyRegistrationOTP(ctx context.Context, input VerifyRegistr
 	}
 
 	var session *Session
-	err = s.store.WithTx(ctx, func(store domain.AuthStore) error {
-		user, createErr := store.CreateUser(ctx, domain.CreateUserParams{
+	err = s.repo.WithTx(ctx, func(repo domain.AuthRepository) error {
+		user, createErr := repo.CreateUser(ctx, domain.CreateUserParams{
 			Username:        username,
 			Email:           email,
 			PhoneNumber:     phoneNumber,
@@ -207,14 +185,14 @@ func (s *Service) VerifyRegistrationOTP(ctx context.Context, input VerifyRegistr
 			return createErr
 		}
 
-		if err := store.CreateProfile(ctx, user.ID); err != nil {
+		if err := repo.CreateProfile(ctx, user.ID); err != nil {
 			return fmt.Errorf("create profile: %w", err)
 		}
-		if err := store.ConsumeOTPChallenge(ctx, challenge.ID, now); err != nil {
+		if err := repo.ConsumeOTPChallenge(ctx, challenge.ID, now); err != nil {
 			return fmt.Errorf("consume otp challenge: %w", err)
 		}
 
-		sessionValue, err := s.issueSession(ctx, store, *user, uuid.New(), input.DeviceInfo, now)
+		sessionValue, err := s.issueSession(ctx, repo, *user, uuid.New(), input.DeviceInfo, now)
 		if err != nil {
 			return err
 		}
@@ -222,12 +200,13 @@ func (s *Service) VerifyRegistrationOTP(ctx context.Context, input VerifyRegistr
 		return nil
 	})
 	if err != nil {
-		return nil, mapStoreError(err)
+		return nil, mapRepoError(err)
 	}
 
 	return session, nil
 }
 
+// Login authenticates a user by username and password and returns a new session.
 func (s *Service) Login(ctx context.Context, input LoginInput) (*Session, error) {
 	username, password, appErr := validateLoginInput(input)
 	if appErr != nil {
@@ -239,7 +218,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*Session, error)
 		return nil, domain.RateLimitedError("Too many requests. Try again later.")
 	}
 
-	user, err := s.store.GetUserByUsername(ctx, username)
+	user, err := s.repo.GetUserByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return nil, domain.AuthError(domain.ErrorCodeInvalidCreds, "Invalid username or password.")
@@ -247,17 +226,18 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*Session, error)
 		return nil, fmt.Errorf("lookup user by username: %w", err)
 	}
 
+	// Use a constant-time comparison via bcrypt; also reject users with no password set.
 	if user.PasswordHash == "" || s.passwordHasher.Compare(user.PasswordHash, password) != nil {
 		return nil, domain.AuthError(domain.ErrorCodeInvalidCreds, "Invalid username or password.")
 	}
 
 	var session *Session
-	err = s.store.WithTx(ctx, func(store domain.AuthStore) error {
-		if err := store.UpdateLastLogin(ctx, user.ID, now); err != nil {
+	err = s.repo.WithTx(ctx, func(repo domain.AuthRepository) error {
+		if err := repo.UpdateLastLogin(ctx, user.ID, now); err != nil {
 			return fmt.Errorf("update last login: %w", err)
 		}
 
-		sessionValue, err := s.issueSession(ctx, store, *user, uuid.New(), input.DeviceInfo, now)
+		sessionValue, err := s.issueSession(ctx, repo, *user, uuid.New(), input.DeviceInfo, now)
 		if err != nil {
 			return err
 		}
@@ -271,6 +251,10 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*Session, error)
 	return session, nil
 }
 
+// Refresh performs refresh-token rotation: it validates the current token,
+// issues a new access + refresh pair, revokes the old token, and links the
+// old token to its replacement. If a revoked token is replayed, the entire
+// token family is revoked to mitigate token theft.
 func (s *Service) Refresh(ctx context.Context, refreshToken string, deviceInfo *string) (*Session, error) {
 	refreshToken = strings.TrimSpace(refreshToken)
 	if refreshToken == "" {
@@ -281,8 +265,8 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, deviceInfo *
 	tokenHash := s.refreshTokens.HashToken(refreshToken)
 
 	var session *Session
-	err := s.store.WithTx(ctx, func(store domain.AuthStore) error {
-		current, err := store.GetRefreshTokenByHash(ctx, tokenHash)
+	err := s.repo.WithTx(ctx, func(repo domain.AuthRepository) error {
+		current, err := repo.GetRefreshTokenByHash(ctx, tokenHash)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
 				return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
@@ -290,8 +274,10 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, deviceInfo *
 			return fmt.Errorf("lookup refresh token: %w", err)
 		}
 
+		// Reuse detection: if the token was already revoked, an attacker may
+		// have stolen it. Revoke the entire family as a precaution.
 		if current.RevokedAt != nil {
-			if err := store.RevokeRefreshTokenFamily(ctx, current.FamilyID, now); err != nil {
+			if err := repo.RevokeRefreshTokenFamily(ctx, current.FamilyID, now); err != nil {
 				return fmt.Errorf("revoke refresh token family: %w", err)
 			}
 			return domain.AuthError(domain.ErrorCodeRefreshReused, "The refresh token has already been used.")
@@ -300,32 +286,34 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, deviceInfo *
 			return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
 		}
 
-		user, err := store.GetUserByID(ctx, current.UserID)
+		user, err := repo.GetUserByID(ctx, current.UserID)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
 				return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
 			}
 			return fmt.Errorf("lookup user by id: %w", err)
 		}
-		familyStartedAt, err := store.GetRefreshTokenFamilyCreatedAt(ctx, current.FamilyID)
+		familyStartedAt, err := repo.GetRefreshTokenFamilyCreatedAt(ctx, current.FamilyID)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
 				return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
 			}
 			return fmt.Errorf("lookup refresh token family start: %w", err)
 		}
+		// Enforce absolute session lifetime: no matter how many rotations
+		// occur, the session cannot exceed maxSessionTTL from the first login.
 		if !now.Before(familyStartedAt.UTC().Add(s.maxSessionTTL)) {
 			return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
 		}
 
-		sessionValue, newToken, err := s.issueRotatedSession(ctx, store, *user, current.FamilyID, familyStartedAt.UTC(), current.ID, deviceInfo, now)
+		sessionValue, newToken, err := s.issueRotatedSession(ctx, repo, *user, current.FamilyID, familyStartedAt.UTC(), current.ID, deviceInfo, now)
 		if err != nil {
 			return err
 		}
-		if err := store.RevokeRefreshToken(ctx, current.ID, now); err != nil {
+		if err := repo.RevokeRefreshToken(ctx, current.ID, now); err != nil {
 			return fmt.Errorf("revoke previous refresh token: %w", err)
 		}
-		if err := store.SetRefreshTokenReplacement(ctx, current.ID, newToken.ID, now); err != nil {
+		if err := repo.SetRefreshTokenReplacement(ctx, current.ID, newToken.ID, now); err != nil {
 			return fmt.Errorf("set refresh token replacement: %w", err)
 		}
 		session = sessionValue
@@ -338,6 +326,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, deviceInfo *
 	return session, nil
 }
 
+// Logout revokes the presented refresh token, ending the session.
 func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 	refreshToken = strings.TrimSpace(refreshToken)
 	if refreshToken == "" {
@@ -346,8 +335,8 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 
 	now := s.now().UTC()
 	tokenHash := s.refreshTokens.HashToken(refreshToken)
-	return s.store.WithTx(ctx, func(store domain.AuthStore) error {
-		current, err := store.GetRefreshTokenByHash(ctx, tokenHash)
+	return s.repo.WithTx(ctx, func(repo domain.AuthRepository) error {
+		current, err := repo.GetRefreshTokenByHash(ctx, tokenHash)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
 				return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
@@ -357,28 +346,30 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 		if current.RevokedAt != nil || now.After(current.ExpiresAt.UTC()) {
 			return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
 		}
-		if err := store.RevokeRefreshToken(ctx, current.ID, now); err != nil {
+		if err := repo.RevokeRefreshToken(ctx, current.ID, now); err != nil {
 			return fmt.Errorf("revoke refresh token: %w", err)
 		}
 		return nil
 	})
 }
 
+// issueSession creates a brand-new session (access + refresh tokens) for a fresh login.
 func (s *Service) issueSession(
 	ctx context.Context,
-	store domain.AuthStore,
+	repo domain.AuthRepository,
 	user domain.User,
 	familyID uuid.UUID,
 	deviceInfo *string,
 	issuedAt time.Time,
 ) (*Session, error) {
-	session, _, err := s.issueRotatedSession(ctx, store, user, familyID, issuedAt, uuid.Nil, deviceInfo, issuedAt)
+	session, _, err := s.issueRotatedSession(ctx, repo, user, familyID, issuedAt, uuid.Nil, deviceInfo, issuedAt)
 	return session, err
 }
 
+// issueRotatedSession creates a new access + refresh token pair during rotation.
 func (s *Service) issueRotatedSession(
 	ctx context.Context,
-	store domain.AuthStore,
+	repo domain.AuthRepository,
 	user domain.User,
 	familyID uuid.UUID,
 	familyStartedAt time.Time,
@@ -396,7 +387,7 @@ func (s *Service) issueRotatedSession(
 		return nil, nil, fmt.Errorf("generate refresh token: %w", err)
 	}
 
-	refreshRecord, err := store.CreateRefreshToken(ctx, domain.CreateRefreshTokenParams{
+	refreshRecord, err := repo.CreateRefreshToken(ctx, domain.CreateRefreshTokenParams{
 		UserID:     user.ID,
 		FamilyID:   familyID,
 		TokenHash:  refreshHash,
@@ -417,6 +408,8 @@ func (s *Service) issueRotatedSession(
 	}, refreshRecord, nil
 }
 
+// refreshExpiry returns the earlier of the per-token TTL and the absolute
+// session deadline, preventing rotated tokens from extending beyond maxSessionTTL.
 func (s *Service) refreshExpiry(issuedAt, familyStartedAt time.Time) time.Time {
 	refreshExpiresAt := issuedAt.Add(s.refreshTokenTTL)
 	absoluteExpiresAt := familyStartedAt.Add(s.maxSessionTTL)
@@ -426,6 +419,8 @@ func (s *Service) refreshExpiry(issuedAt, familyStartedAt time.Time) time.Time {
 	return refreshExpiresAt
 }
 
+// validateVerifyRegistrationInput normalizes and validates all registration fields,
+// returning cleaned values or a combined validation error.
 func validateVerifyRegistrationInput(input VerifyRegistrationInput) (email, username, password string, phoneNumber, gender *string, birthDate *time.Time, otp string, appErr *domain.AppError) {
 	email, err := normalizeEmail(input.Email)
 	if err != nil {
@@ -456,6 +451,7 @@ func validateVerifyRegistrationInput(input VerifyRegistrationInput) (email, user
 	return email, username, password, phoneNumber, gender, birthDate, otp, nil
 }
 
+// validateLoginInput normalizes and validates login credentials.
 func validateLoginInput(input LoginInput) (username, password string, appErr *domain.AppError) {
 	username = strings.TrimSpace(input.Username)
 	password = input.Password
@@ -474,6 +470,7 @@ func validateLoginInput(input LoginInput) (username, password string, appErr *do
 	return username, password, nil
 }
 
+// normalizeEmail trims whitespace, lowercases, and parses an email address.
 func normalizeEmail(value string) (string, error) {
 	value = strings.ToLower(strings.TrimSpace(value))
 	addr, err := mail.ParseAddress(value)
@@ -529,9 +526,10 @@ func sanitizeBirthDate(value *string, details map[string]string) *time.Time {
 	return &parsed
 }
 
-func mapStoreError(err error) error {
-	var appErr *domain.AppError
-	if errors.As(err, &appErr) {
+// mapRepoError extracts an AppError from a wrapped repository error so the
+// HTTP layer can return the correct status code instead of a generic 500.
+func mapRepoError(err error) error {
+	if appErr, ok := errors.AsType[*domain.AppError](err); ok {
 		return appErr
 	}
 	return err

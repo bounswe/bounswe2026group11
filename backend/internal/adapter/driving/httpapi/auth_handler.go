@@ -1,16 +1,15 @@
-package httpadapter
+package httpapi
 
 import (
 	"context"
-	"errors"
-	"log"
 	"strings"
 
-	"github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
+	"github.com/bounswe/bounswe2026group11/backend/internal/app/auth"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/gofiber/fiber/v2"
 )
 
+// AuthService is the driving port consumed by the HTTP adapter.
 type AuthService interface {
 	RequestRegistrationOTP(ctx context.Context, input auth.RequestOTPInput) error
 	VerifyRegistrationOTP(ctx context.Context, input auth.VerifyRegistrationInput) (*auth.Session, error)
@@ -19,7 +18,8 @@ type AuthService interface {
 	Logout(ctx context.Context, refreshToken string) error
 }
 
-type Handler struct {
+// AuthHandler groups HTTP handlers that delegate to the AuthService port.
+type AuthHandler struct {
 	service AuthService
 }
 
@@ -46,30 +46,31 @@ type refreshBody struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-type errorEnvelope struct {
-	Error errorBody `json:"error"`
+type sessionResponse struct {
+	AccessToken      string             `json:"access_token"`
+	RefreshToken     string             `json:"refresh_token"`
+	TokenType        string             `json:"token_type"`
+	ExpiresInSeconds int64              `json:"expires_in_seconds"`
+	User             domain.UserSummary `json:"user"`
 }
 
-type errorBody struct {
-	Code    string            `json:"code"`
-	Message string            `json:"message"`
-	Details map[string]string `json:"details,omitempty"`
+// NewAuthHandler creates a handler backed by the given auth service.
+func NewAuthHandler(service AuthService) *AuthHandler {
+	return &AuthHandler{service: service}
 }
 
-func NewHandler(service AuthService) *Handler {
-	return &Handler{service: service}
+// RegisterAuthRoutes mounts all authentication endpoints under /auth.
+func RegisterAuthRoutes(router fiber.Router, handler *AuthHandler) {
+	group := router.Group("/auth")
+	group.Post("/register/email/request-otp", handler.RequestRegistrationOTP)
+	group.Post("/register/email/verify", handler.VerifyRegistrationOTP)
+	group.Post("/login", handler.Login)
+	group.Post("/refresh", handler.Refresh)
+	group.Post("/logout", handler.Logout)
 }
 
-func RegisterAuthRoutes(router fiber.Router, handler *Handler) {
-	auth := router.Group("/auth")
-	auth.Post("/register/email/request-otp", handler.RequestRegistrationOTP)
-	auth.Post("/register/email/verify", handler.VerifyRegistrationOTP)
-	auth.Post("/login", handler.Login)
-	auth.Post("/refresh", handler.Refresh)
-	auth.Post("/logout", handler.Logout)
-}
-
-func (h *Handler) RequestRegistrationOTP(c *fiber.Ctx) error {
+// RequestRegistrationOTP handles POST /auth/register/email/request-otp.
+func (h *AuthHandler) RequestRegistrationOTP(c *fiber.Ctx) error {
 	var body requestOTPBody
 	if err := c.BodyParser(&body); err != nil {
 		return writeError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
@@ -88,7 +89,8 @@ func (h *Handler) RequestRegistrationOTP(c *fiber.Ctx) error {
 	})
 }
 
-func (h *Handler) VerifyRegistrationOTP(c *fiber.Ctx) error {
+// VerifyRegistrationOTP handles POST /auth/register/email/verify.
+func (h *AuthHandler) VerifyRegistrationOTP(c *fiber.Ctx) error {
 	var body verifyRegistrationBody
 	if err := c.BodyParser(&body); err != nil {
 		return writeError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
@@ -108,10 +110,11 @@ func (h *Handler) VerifyRegistrationOTP(c *fiber.Ctx) error {
 		return writeError(c, err)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(session)
+	return c.Status(fiber.StatusCreated).JSON(toSessionResponse(session))
 }
 
-func (h *Handler) Login(c *fiber.Ctx) error {
+// Login handles POST /auth/login.
+func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	var body loginBody
 	if err := c.BodyParser(&body); err != nil {
 		return writeError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
@@ -126,10 +129,11 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		return writeError(c, err)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(session)
+	return c.Status(fiber.StatusOK).JSON(toSessionResponse(session))
 }
 
-func (h *Handler) Refresh(c *fiber.Ctx) error {
+// Refresh handles POST /auth/refresh.
+func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
 	var body refreshBody
 	if err := c.BodyParser(&body); err != nil {
 		return writeError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
@@ -140,10 +144,11 @@ func (h *Handler) Refresh(c *fiber.Ctx) error {
 		return writeError(c, err)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(session)
+	return c.Status(fiber.StatusOK).JSON(toSessionResponse(session))
 }
 
-func (h *Handler) Logout(c *fiber.Ctx) error {
+// Logout handles POST /auth/logout.
+func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	var body refreshBody
 	if err := c.BodyParser(&body); err != nil {
 		return writeError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
@@ -156,27 +161,18 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func writeError(c *fiber.Ctx, err error) error {
-	var appErr *domain.AppError
-	if errors.As(err, &appErr) {
-		return c.Status(appErr.Status).JSON(errorEnvelope{
-			Error: errorBody{
-				Code:    appErr.Code,
-				Message: appErr.Message,
-				Details: appErr.Details,
-			},
-		})
+// toSessionResponse converts an auth.Session into the JSON response payload.
+func toSessionResponse(s *auth.Session) sessionResponse {
+	return sessionResponse{
+		AccessToken:      s.AccessToken,
+		RefreshToken:     s.RefreshToken,
+		TokenType:        s.TokenType,
+		ExpiresInSeconds: s.ExpiresInSeconds,
+		User:             s.User,
 	}
-
-	log.Printf("auth handler error: %v", err)
-	return c.Status(fiber.StatusInternalServerError).JSON(errorEnvelope{
-		Error: errorBody{
-			Code:    "internal_server_error",
-			Message: "An unexpected error occurred.",
-		},
-	})
 }
 
+// userAgent extracts the User-Agent header, returning nil if absent or empty.
 func userAgent(c *fiber.Ctx) *string {
 	value := strings.TrimSpace(c.Get(fiber.HeaderUserAgent))
 	if value == "" {

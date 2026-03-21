@@ -1,0 +1,53 @@
+package auth
+
+import (
+	"time"
+
+	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
+)
+
+// Config holds tuning parameters for the auth service such as token lifetimes,
+// OTP validity windows, and attempt limits.
+type Config struct {
+	OTPTTL            time.Duration
+	OTPMaxAttempts    int
+	OTPResendCooldown time.Duration
+	RefreshTokenTTL   time.Duration
+	MaxSessionTTL     time.Duration
+}
+
+// RequestOTPInput carries the validated input for requesting a registration OTP.
+type RequestOTPInput struct {
+	Email string
+}
+
+// VerifyRegistrationInput carries all fields submitted when a user verifies
+// their OTP and completes registration in a single step.
+type VerifyRegistrationInput struct {
+	Email       string
+	OTP         string
+	Username    string
+	Password    string
+	PhoneNumber *string
+	Gender      *string
+	BirthDate   *string
+	DeviceInfo  *string
+}
+
+// LoginInput carries the credentials submitted on the login endpoint.
+type LoginInput struct {
+	Username   string
+	Password   string
+	DeviceInfo *string
+}
+
+// Session is the response payload returned after a successful authentication
+// (registration, login, or token refresh). It contains both tokens and a
+// summary of the authenticated user.
+type Session struct {
+	AccessToken      string
+	RefreshToken     string
+	TokenType        string
+	ExpiresInSeconds int64
+	User             domain.UserSummary
+}

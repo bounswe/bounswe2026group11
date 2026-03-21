@@ -1,4 +1,4 @@
-package infrastructure
+package config
 
 import (
 	"fmt"
@@ -106,6 +106,8 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
+// loadBaseConfig reads the environment-specific YAML file. It checks APP_CONFIG_FILE
+// first, then probes config/ and ../config/ relative to the working directory.
 func loadBaseConfig(v *viper.Viper, appEnv string) error {
 	configFile := strings.TrimSpace(os.Getenv("APP_CONFIG_FILE"))
 	if configFile != "" {
@@ -117,6 +119,7 @@ func loadBaseConfig(v *viper.Viper, appEnv string) error {
 	}
 
 	configName := fmt.Sprintf("application.%s", appEnv)
+	// Try config/ first (normal run from repo root), then ../config/ (run from cmd/server).
 	for _, configPath := range []string{"config", filepath.Join("..", "config")} {
 		v.SetConfigName(configName)
 		v.SetConfigType("yaml")
@@ -134,6 +137,8 @@ func loadBaseConfig(v *viper.Viper, appEnv string) error {
 	)
 }
 
+// mergeDotEnv merges key=value pairs from a .env file if one exists in the
+// current working directory. Missing .env is silently ignored.
 func mergeDotEnv(v *viper.Viper) error {
 	if st, err := os.Stat(".env"); err == nil && !st.IsDir() {
 		v.SetConfigFile(".env")
@@ -149,6 +154,7 @@ func mergeDotEnv(v *viper.Viper) error {
 	return nil
 }
 
+// validate ensures all required config values are present and within valid ranges.
 func validate(v *viper.Viper, c *Config) error {
 	missing := func(envVar string) error {
 		return fmt.Errorf("required configuration missing: set %s in the environment or in a .env file next to the process working directory", envVar)

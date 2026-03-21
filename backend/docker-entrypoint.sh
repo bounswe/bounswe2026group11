@@ -1,4 +1,6 @@
 #!/bin/sh
+# docker-entrypoint.sh — Applies pending database migrations with golang-migrate,
+# then execs the Go HTTP server as PID 1 so it receives OS signals directly.
 set -eu
 
 : "${DB_HOST:?DB_HOST is required}"
