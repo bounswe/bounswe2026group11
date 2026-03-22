@@ -14,6 +14,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/app/auth"
 	"github.com/bounswe/bounswe2026group11/backend/internal/platform/config"
 	"github.com/bounswe/bounswe2026group11/backend/internal/platform/database"
+	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -23,6 +24,7 @@ type Container struct {
 	Config      *config.Config
 	DB          *pgxpool.Pool
 	AuthService httpapi.AuthService
+	TokenVerifier domain.TokenVerifier
 	// Extend with additional services as features are added, for example:
 	// EventService httpapi.EventService
 	// SearchService httpapi.SearchService
@@ -47,6 +49,10 @@ func New(ctx context.Context) (*Container, error) {
 	}
 
 	container.AuthService = newAuthService(container)
+	container.TokenVerifier = jwtadapter.Issuer{
+    Secret: []byte(cfg.JWTSecret),
+    TTL:    cfg.AccessTokenTTL,
+	}
 	return container, nil
 }
 

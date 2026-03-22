@@ -10,6 +10,8 @@ import (
 func NewHTTP(container *bootstrap.Container) *fiber.App {
 	app := fiber.New()
 
+	app.Use(httpapi.RequestLogger())
+
 	registerHealthRoute(app)
 
 	// Auth routes
