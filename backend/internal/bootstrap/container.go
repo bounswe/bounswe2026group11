@@ -33,27 +33,28 @@ type Container struct {
 // New initializes infrastructure (config, database) and wires all application
 // services. The returned Container must be closed when the application exits.
 func New(ctx context.Context) (*Container, error) {
-	cfg, err := config.Load()
-	if err != nil {
-		return nil, fmt.Errorf("load config: %w", err)
-	}
+    cfg, err := config.Load()
+    if err != nil {
+        return nil, fmt.Errorf("load config: %w", err)
+    }
 
-	db, err := database.OpenDB(ctx, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("open database: %w", err)
-	}
+    db, err := database.OpenDB(ctx, cfg)
+    if err != nil {
+        return nil, fmt.Errorf("open database: %w", err)
+    }
 
-	container := &Container{
-		Config: cfg,
-		DB:     db,
-	}
+    jwtIssuer := jwtadapter.Issuer{
+        Secret: []byte(cfg.JWTSecret),
+        TTL:    cfg.AccessTokenTTL,
+    }
 
-	container.AuthService = newAuthService(container)
-	container.TokenVerifier = jwtadapter.Issuer{
-    Secret: []byte(cfg.JWTSecret),
-    TTL:    cfg.AccessTokenTTL,
-	}
-	return container, nil
+    container := &Container{
+        Config:        cfg,
+        DB:            db,
+        TokenVerifier: jwtIssuer,
+    }
+    container.AuthService = newAuthService(container, jwtIssuer)
+    return container, nil
 }
 
 // Close releases all long-lived resources (e.g. database connections).
@@ -65,34 +66,30 @@ func (c *Container) Close() {
 }
 
 // newAuthService wires the auth use-case service with its driven adapters.
-func newAuthService(c *Container) *auth.Service {
-	repo := postgres.NewAuthRepository(c.DB)
-
-	return auth.NewService(
-		repo,
-		hasher.BcryptHasher{},
-		hasher.BcryptHasher{},
-		jwtadapter.Issuer{
-			Secret: []byte(c.Config.JWTSecret),
-			TTL:    c.Config.AccessTokenTTL,
-		},
-		security.RefreshTokenManager{ByteLength: 32},
-		otp.CodeGenerator{},
-		otp.MockMailer{},
-		ratelimit.NewInMemoryRateLimiter(
-			c.Config.OTPRequestLimit,
-			c.Config.OTPRequestWindow,
-		),
-		ratelimit.NewInMemoryRateLimiter(
-			c.Config.LoginRateLimit,
-			c.Config.LoginRateWindow,
-		),
-		auth.Config{
-			OTPTTL:            c.Config.OTPTTL,
-			OTPMaxAttempts:    c.Config.OTPMaxAttempts,
-			OTPResendCooldown: c.Config.OTPResendCooldown,
-			RefreshTokenTTL:   c.Config.RefreshTokenTTL,
-			MaxSessionTTL:     c.Config.MaxSessionTTL,
-		},
-	)
+func newAuthService(c *Container, jwtIssuer jwtadapter.Issuer) *auth.Service {
+    repo := postgres.NewAuthRepository(c.DB)
+    return auth.NewService(
+        repo,
+        hasher.BcryptHasher{},
+        hasher.BcryptHasher{},
+        jwtIssuer,   // ← dışarıdan geliyor artık
+        security.RefreshTokenManager{ByteLength: 32},
+        otp.CodeGenerator{},
+        otp.MockMailer{},
+        ratelimit.NewInMemoryRateLimiter(
+            c.Config.OTPRequestLimit,
+            c.Config.OTPRequestWindow,
+        ),
+        ratelimit.NewInMemoryRateLimiter(
+            c.Config.LoginRateLimit,
+            c.Config.LoginRateWindow,
+        ),
+        auth.Config{
+            OTPTTL:            c.Config.OTPTTL,
+            OTPMaxAttempts:    c.Config.OTPMaxAttempts,
+            OTPResendCooldown: c.Config.OTPResendCooldown,
+            RefreshTokenTTL:   c.Config.RefreshTokenTTL,
+            MaxSessionTTL:     c.Config.MaxSessionTTL,
+        },
+    )
 }
