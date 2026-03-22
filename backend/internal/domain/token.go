@@ -43,3 +43,15 @@ type RefreshTokenManager interface {
 	NewToken() (plain string, hash string, err error)
 	HashToken(token string) string
 }
+
+// AuthClaims holds the verified identity extracted from an access token.
+type AuthClaims struct {
+	UserID   uuid.UUID
+	Username string
+	Email    string
+}
+
+// TokenVerifier parses and validates access tokens, returning the embedded claims.
+type TokenVerifier interface {
+	VerifyAccessToken(token string) (*AuthClaims, error)
+}

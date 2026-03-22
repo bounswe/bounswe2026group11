@@ -14,6 +14,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/app/auth"
 	"github.com/bounswe/bounswe2026group11/backend/internal/platform/config"
 	"github.com/bounswe/bounswe2026group11/backend/internal/platform/database"
+	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -22,6 +23,8 @@ import (
 type Container struct {
 	Config      *config.Config
 	DB          *pgxpool.Pool
+	TokenIssuer   domain.TokenIssuer
+	TokenVerifier domain.TokenVerifier
 	AuthService httpapi.AuthService
 	// Extend with additional services as features are added, for example:
 	// EventService httpapi.EventService
@@ -42,10 +45,11 @@ func New(ctx context.Context) (*Container, error) {
 	}
 
 	container := &Container{
-		Config: cfg,
-		DB:     db,
+		Config:        cfg,
+		DB:            db,
+		TokenIssuer:   buildTokenIssuer(cfg),
+		TokenVerifier: buildTokenVerifier(cfg),
 	}
-
 	container.AuthService = newAuthService(container)
 	return container, nil
 }
@@ -58,18 +62,29 @@ func (c *Container) Close() {
 	c.DB.Close()
 }
 
+// buildTokenIssuer constructs the JWT token issuer adapter.
+func buildTokenIssuer(cfg *config.Config) jwtadapter.Issuer {
+	return jwtadapter.Issuer{
+		Secret: []byte(cfg.JWTSecret),
+		TTL:    cfg.AccessTokenTTL,
+	}
+}
+
+// buildTokenVerifier constructs the JWT token verifier adapter.
+func buildTokenVerifier(cfg *config.Config) jwtadapter.Verifier {
+	return jwtadapter.Verifier{
+		Secret: []byte(cfg.JWTSecret),
+	}
+}
+
 // newAuthService wires the auth use-case service with its driven adapters.
 func newAuthService(c *Container) *auth.Service {
 	repo := postgres.NewAuthRepository(c.DB)
-
 	return auth.NewService(
 		repo,
 		hasher.BcryptHasher{},
 		hasher.BcryptHasher{},
-		jwtadapter.Issuer{
-			Secret: []byte(c.Config.JWTSecret),
-			TTL:    c.Config.AccessTokenTTL,
-		},
+		c.TokenIssuer,
 		security.RefreshTokenManager{ByteLength: 32},
 		otp.CodeGenerator{},
 		otp.MockMailer{},
