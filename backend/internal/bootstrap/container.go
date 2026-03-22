@@ -24,6 +24,7 @@ type Container struct {
 	Config      *config.Config
 	DB          *pgxpool.Pool
 	AuthService httpapi.AuthService
+	TokenIssuer   domain.TokenIssuer
 	TokenVerifier domain.TokenVerifier
 	// Extend with additional services as features are added, for example:
 	// EventService httpapi.EventService
@@ -51,9 +52,10 @@ func New(ctx context.Context) (*Container, error) {
     container := &Container{
         Config:        cfg,
         DB:            db,
+		TokenIssuer:   jwtIssuer,
         TokenVerifier: jwtIssuer,
     }
-    container.AuthService = newAuthService(container, jwtIssuer)
+    container.AuthService = newAuthService(container)
     return container, nil
 }
 
@@ -66,13 +68,13 @@ func (c *Container) Close() {
 }
 
 // newAuthService wires the auth use-case service with its driven adapters.
-func newAuthService(c *Container, jwtIssuer jwtadapter.Issuer) *auth.Service {
+func newAuthService(c *Container) *auth.Service {
     repo := postgres.NewAuthRepository(c.DB)
     return auth.NewService(
         repo,
         hasher.BcryptHasher{},
         hasher.BcryptHasher{},
-        jwtIssuer,   // ← dışarıdan geliyor artık
+        c.TokenIssuer,
         security.RefreshTokenManager{ByteLength: 32},
         otp.CodeGenerator{},
         otp.MockMailer{},
