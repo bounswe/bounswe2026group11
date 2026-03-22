@@ -23,9 +23,9 @@ import (
 type Container struct {
 	Config      *config.Config
 	DB          *pgxpool.Pool
-	AuthService httpapi.AuthService
 	TokenIssuer   domain.TokenIssuer
 	TokenVerifier domain.TokenVerifier
+	AuthService httpapi.AuthService
 	// Extend with additional services as features are added, for example:
 	// EventService httpapi.EventService
 	// SearchService httpapi.SearchService
@@ -44,16 +44,11 @@ func New(ctx context.Context) (*Container, error) {
         return nil, fmt.Errorf("open database: %w", err)
     }
 
-    jwtIssuer := jwtadapter.Issuer{
-        Secret: []byte(cfg.JWTSecret),
-        TTL:    cfg.AccessTokenTTL,
-    }
-
     container := &Container{
         Config:        cfg,
         DB:            db,
-		TokenIssuer:   jwtIssuer,
-        TokenVerifier: jwtIssuer,
+        TokenIssuer:   buildTokenIssuer(cfg),
+        TokenVerifier: buildTokenVerifier(cfg),
     }
     container.AuthService = newAuthService(container)
     return container, nil
@@ -65,6 +60,21 @@ func (c *Container) Close() {
 		return
 	}
 	c.DB.Close()
+}
+
+// buildTokenIssuer constructs the JWT token issuer adapter.
+func buildTokenIssuer(cfg *config.Config) jwtadapter.Issuer {
+	return jwtadapter.Issuer{
+		Secret: []byte(cfg.JWTSecret),
+		TTL:    cfg.AccessTokenTTL,
+	}
+}
+
+// buildTokenVerifier constructs the JWT token verifier adapter.
+func buildTokenVerifier(cfg *config.Config) jwtadapter.Verifier {
+	return jwtadapter.Verifier{
+		Secret: []byte(cfg.JWTSecret),
+	}
 }
 
 // newAuthService wires the auth use-case service with its driven adapters.
