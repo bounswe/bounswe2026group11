@@ -1,4 +1,4 @@
-package httpadapter
+package httpapi
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
+	"github.com/bounswe/bounswe2026group11/backend/internal/app/auth"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -16,7 +16,7 @@ import (
 func TestRequestRegistrationOTPReturnsAcceptedResponse(t *testing.T) {
 	service := &stubAuthService{}
 	app := fiber.New()
-	RegisterAuthRoutes(app, NewHandler(service))
+	RegisterAuthRoutes(app, NewAuthHandler(service))
 
 	req := httptest.NewRequest(fiber.MethodPost, "/auth/register/email/request-otp", bytes.NewBufferString(`{"email":"user@example.com"}`))
 	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
@@ -40,7 +40,7 @@ func TestLoginReturnsErrorEnvelope(t *testing.T) {
 		loginErr: domain.AuthError(domain.ErrorCodeInvalidCreds, "Invalid username or password."),
 	}
 	app := fiber.New()
-	RegisterAuthRoutes(app, NewHandler(service))
+	RegisterAuthRoutes(app, NewAuthHandler(service))
 
 	req := httptest.NewRequest(fiber.MethodPost, "/auth/login", bytes.NewBufferString(`{"username":"user","password":"wrong-password"}`))
 	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
@@ -71,7 +71,7 @@ func TestLoginReturnsErrorEnvelope(t *testing.T) {
 func TestVerifyRegistrationOTPForwardsUserFields(t *testing.T) {
 	service := &stubAuthService{}
 	app := fiber.New()
-	RegisterAuthRoutes(app, NewHandler(service))
+	RegisterAuthRoutes(app, NewAuthHandler(service))
 
 	req := httptest.NewRequest(fiber.MethodPost, "/auth/register/email/verify", bytes.NewBufferString(`{"email":"user@example.com","otp":"123456","username":"maplover","password":"StrongPassword123","phone_number":"+905551112233","gender":"female","birth_date":"1998-05-14"}`))
 	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)

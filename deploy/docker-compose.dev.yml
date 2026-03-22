@@ -1,12 +1,3 @@
-# Remote dev droplet: pulls pre-built images from Docker Hub (:latest). No `build:` — CI pushes images separately.
-#
-# Paths are relative to this file. On the server, mirror the repo layout under e.g. `/opt/sem/`
-# (`deploy/`, `nginx/`, `certs/` for TLS, `.env`) and run from that root:
-#   docker compose -f deploy/docker-compose.dev.yml pull && docker compose -f deploy/docker-compose.dev.yml up -d
-#
-# Requires secrets in `.env` and a `DOCKERHUB_NAMESPACE` shell/CI variable for image names
-# (see root `.env.example` and docs/deploy.md).
-
 name: sem-dev
 
 services:
@@ -28,7 +19,7 @@ services:
       - app
 
   backend:
-    image: ${DOCKERHUB_NAMESPACE:?set DOCKERHUB_NAMESPACE in shell or CI}/sem-backend-dev:latest
+    image: ${DOCKERHUB_NAMESPACE}/sem-backend-dev:latest
     pull_policy: always
     depends_on:
       postgres:
@@ -46,7 +37,7 @@ services:
       - app
 
   frontend:
-    image: ${DOCKERHUB_NAMESPACE:?set DOCKERHUB_NAMESPACE in shell or CI}/sem-frontend-dev:latest
+    image: ${DOCKERHUB_NAMESPACE}/sem-frontend-dev:latest
     pull_policy: always
     networks:
       - app

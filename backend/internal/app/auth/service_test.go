@@ -12,14 +12,14 @@ import (
 )
 
 func TestRequestRegistrationOTPStoresHashedChallenge(t *testing.T) {
-	svc, store, mailer, _, now := newTestService()
+	svc, repo, mailer, _, now := newTestService()
 	svc.now = func() time.Time { return now }
 
 	if err := svc.RequestRegistrationOTP(context.Background(), RequestOTPInput{Email: "User@example.com"}); err != nil {
 		t.Fatalf("RequestRegistrationOTP() error = %v", err)
 	}
 
-	challenge, err := store.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposeRegistration)
+	challenge, err := repo.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposeRegistration)
 	if err != nil {
 		t.Fatalf("GetActiveOTPChallenge() error = %v", err)
 	}
@@ -32,7 +32,7 @@ func TestRequestRegistrationOTPStoresHashedChallenge(t *testing.T) {
 }
 
 func TestVerifyRegistrationOTPSuccessCreatesUserAndSession(t *testing.T) {
-	svc, store, mailer, _, now := newTestService()
+	svc, repo, mailer, _, now := newTestService()
 	svc.now = func() time.Time { return now }
 
 	if err := svc.RequestRegistrationOTP(context.Background(), RequestOTPInput{Email: "user@example.com"}); err != nil {
@@ -56,7 +56,7 @@ func TestVerifyRegistrationOTPSuccessCreatesUserAndSession(t *testing.T) {
 		t.Fatalf("VerifyRegistrationOTP() error = %v", err)
 	}
 
-	user, err := store.GetUserByEmail(context.Background(), "user@example.com")
+	user, err := repo.GetUserByEmail(context.Background(), "user@example.com")
 	if err != nil {
 		t.Fatalf("GetUserByEmail() error = %v", err)
 	}
@@ -72,11 +72,11 @@ func TestVerifyRegistrationOTPSuccessCreatesUserAndSession(t *testing.T) {
 	if user.BirthDate == nil || user.BirthDate.Format("2006-01-02") != birthDate {
 		t.Fatalf("expected birth date to be stored, got %#v", user.BirthDate)
 	}
-	if !store.profiles[user.ID] {
+	if !repo.profiles[user.ID] {
 		t.Fatal("expected profile to be created")
 	}
 
-	challenge, err := store.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposeRegistration)
+	challenge, err := repo.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposeRegistration)
 	if !errors.Is(err, domain.ErrNotFound) && challenge != nil {
 		t.Fatal("expected OTP challenge to be consumed")
 	}
@@ -97,13 +97,12 @@ func TestVerifyRegistrationOTPRejectsInvalidBirthDate(t *testing.T) {
 		t.Fatalf("RequestRegistrationOTP() error = %v", err)
 	}
 
-	birthDate := "14-05-1998"
 	_, err := svc.VerifyRegistrationOTP(context.Background(), VerifyRegistrationInput{
 		Email:     "user@example.com",
 		OTP:       mailer.lastCode,
 		Username:  "new_user",
 		Password:  "super-secret-password",
-		BirthDate: &birthDate,
+		BirthDate: stringPtr("14-05-1998"),
 	})
 	if err == nil {
 		t.Fatal("expected validation error, got nil")
@@ -118,7 +117,7 @@ func TestVerifyRegistrationOTPRejectsInvalidBirthDate(t *testing.T) {
 }
 
 func TestVerifyRegistrationOTPInvalidCodeIncrementsAttempts(t *testing.T) {
-	svc, store, _, _, now := newTestService()
+	svc, repo, _, _, now := newTestService()
 	svc.now = func() time.Time { return now }
 
 	if err := svc.RequestRegistrationOTP(context.Background(), RequestOTPInput{Email: "user@example.com"}); err != nil {
@@ -133,7 +132,7 @@ func TestVerifyRegistrationOTPInvalidCodeIncrementsAttempts(t *testing.T) {
 	})
 	assertAppErrorCode(t, err, domain.ErrorCodeInvalidOTP)
 
-	challenge, err := store.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposeRegistration)
+	challenge, err := repo.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposeRegistration)
 	if err != nil {
 		t.Fatalf("GetActiveOTPChallenge() error = %v", err)
 	}
@@ -185,14 +184,14 @@ func TestVerifyRegistrationOTPAttemptExhaustion(t *testing.T) {
 }
 
 func TestLoginWrongPasswordRejected(t *testing.T) {
-	svc, store, _, _, now := newTestService()
+	svc, repo, _, _, now := newTestService()
 	svc.now = func() time.Time { return now }
 
 	passwordHash, err := svc.passwordHasher.Hash("correct-password")
 	if err != nil {
 		t.Fatalf("Hash() error = %v", err)
 	}
-	if _, err := store.CreateUser(context.Background(), domain.CreateUserParams{
+	if _, err := repo.CreateUser(context.Background(), domain.CreateUserParams{
 		Username:        "existing_user",
 		Email:           "existing@example.com",
 		PasswordHash:    passwordHash,
@@ -210,7 +209,7 @@ func TestLoginWrongPasswordRejected(t *testing.T) {
 }
 
 func TestRefreshRotatesTokenAndRejectsReuse(t *testing.T) {
-	svc, store, mailer, refreshManager, now := newTestService()
+	svc, repo, mailer, refreshManager, now := newTestService()
 	svc.now = func() time.Time { return now }
 
 	if err := svc.RequestRegistrationOTP(context.Background(), RequestOTPInput{Email: "user@example.com"}); err != nil {
@@ -235,7 +234,7 @@ func TestRefreshRotatesTokenAndRejectsReuse(t *testing.T) {
 	}
 
 	oldHash := refreshManager.HashToken(session.RefreshToken)
-	oldRecord, err := store.GetRefreshTokenByHash(context.Background(), oldHash)
+	oldRecord, err := repo.GetRefreshTokenByHash(context.Background(), oldHash)
 	if err != nil {
 		t.Fatalf("GetRefreshTokenByHash(old) error = %v", err)
 	}
@@ -247,7 +246,7 @@ func TestRefreshRotatesTokenAndRejectsReuse(t *testing.T) {
 	assertAppErrorCode(t, err, domain.ErrorCodeRefreshReused)
 
 	newHash := refreshManager.HashToken(refreshed.RefreshToken)
-	newRecord, err := store.GetRefreshTokenByHash(context.Background(), newHash)
+	newRecord, err := repo.GetRefreshTokenByHash(context.Background(), newHash)
 	if err != nil {
 		t.Fatalf("GetRefreshTokenByHash(new) error = %v", err)
 	}
@@ -260,10 +259,10 @@ func TestRefreshRotatesTokenAndRejectsReuse(t *testing.T) {
 }
 
 func TestRefreshCapsRotatedTokenAtAbsoluteSessionLimit(t *testing.T) {
-	svc, store, _, refreshManager, now := newTestService()
+	svc, repo, _, refreshManager, now := newTestService()
 	svc.now = func() time.Time { return now }
 
-	user, err := store.CreateUser(context.Background(), domain.CreateUserParams{
+	user, err := repo.CreateUser(context.Background(), domain.CreateUserParams{
 		Username:        "cap_user",
 		Email:           "cap@example.com",
 		PasswordHash:    "hash:password",
@@ -280,7 +279,7 @@ func TestRefreshCapsRotatedTokenAtAbsoluteSessionLimit(t *testing.T) {
 	}
 	familyID := uuid.New()
 	familyStartedAt := now.Add(-55 * 24 * time.Hour)
-	if _, err := store.CreateRefreshToken(context.Background(), domain.CreateRefreshTokenParams{
+	if _, err := repo.CreateRefreshToken(context.Background(), domain.CreateRefreshTokenParams{
 		UserID:    user.ID,
 		FamilyID:  familyID,
 		TokenHash: hash,
@@ -296,7 +295,7 @@ func TestRefreshCapsRotatedTokenAtAbsoluteSessionLimit(t *testing.T) {
 	}
 
 	newHash := refreshManager.HashToken(refreshed.RefreshToken)
-	newRecord, err := store.GetRefreshTokenByHash(context.Background(), newHash)
+	newRecord, err := repo.GetRefreshTokenByHash(context.Background(), newHash)
 	if err != nil {
 		t.Fatalf("GetRefreshTokenByHash(new) error = %v", err)
 	}
@@ -307,10 +306,10 @@ func TestRefreshCapsRotatedTokenAtAbsoluteSessionLimit(t *testing.T) {
 }
 
 func TestRefreshRejectsExpiredAbsoluteSession(t *testing.T) {
-	svc, store, _, refreshManager, now := newTestService()
+	svc, repo, _, refreshManager, now := newTestService()
 	svc.now = func() time.Time { return now }
 
-	user, err := store.CreateUser(context.Background(), domain.CreateUserParams{
+	user, err := repo.CreateUser(context.Background(), domain.CreateUserParams{
 		Username:        "absolute_user",
 		Email:           "absolute@example.com",
 		PasswordHash:    "hash:password",
@@ -325,7 +324,7 @@ func TestRefreshRejectsExpiredAbsoluteSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewToken() error = %v", err)
 	}
-	if _, err := store.CreateRefreshToken(context.Background(), domain.CreateRefreshTokenParams{
+	if _, err := repo.CreateRefreshToken(context.Background(), domain.CreateRefreshTokenParams{
 		UserID:    user.ID,
 		FamilyID:  uuid.New(),
 		TokenHash: hash,
@@ -340,10 +339,10 @@ func TestRefreshRejectsExpiredAbsoluteSession(t *testing.T) {
 }
 
 func TestRefreshExpiredTokenRejected(t *testing.T) {
-	svc, store, _, refreshManager, now := newTestService()
+	svc, repo, _, refreshManager, now := newTestService()
 	svc.now = func() time.Time { return now }
 
-	user, err := store.CreateUser(context.Background(), domain.CreateUserParams{
+	user, err := repo.CreateUser(context.Background(), domain.CreateUserParams{
 		Username:        "expired_user",
 		Email:           "expired@example.com",
 		PasswordHash:    "hash:password",
@@ -358,7 +357,7 @@ func TestRefreshExpiredTokenRejected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewToken() error = %v", err)
 	}
-	if _, err := store.CreateRefreshToken(context.Background(), domain.CreateRefreshTokenParams{
+	if _, err := repo.CreateRefreshToken(context.Background(), domain.CreateRefreshTokenParams{
 		UserID:    user.ID,
 		FamilyID:  uuid.New(),
 		TokenHash: hash,
@@ -386,13 +385,13 @@ func assertAppErrorCode(t *testing.T, err error, expectedCode string) {
 	}
 }
 
-func newTestService() (*Service, *fakeStore, *fakeMailer, *fakeRefreshTokenManager, time.Time) {
-	store := newFakeStore()
+func newTestService() (*Service, *fakeRepo, *fakeMailer, *fakeRefreshTokenManager, time.Time) {
+	repo := newFakeRepo()
 	mailer := &fakeMailer{}
 	refreshManager := &fakeRefreshTokenManager{}
 	now := time.Date(2026, time.March, 21, 10, 0, 0, 0, time.UTC)
 	service := NewService(
-		store,
+		repo,
 		fakeHasher{},
 		fakeHasher{},
 		fakeTokenIssuer{},
@@ -409,10 +408,10 @@ func newTestService() (*Service, *fakeStore, *fakeMailer, *fakeRefreshTokenManag
 			MaxSessionTTL:     60 * 24 * time.Hour,
 		},
 	)
-	return service, store, mailer, refreshManager, now
+	return service, repo, mailer, refreshManager, now
 }
 
-type fakeStore struct {
+type fakeRepo struct {
 	usersByEmail    map[string]*domain.User
 	usersByUsername map[string]*domain.User
 	usersByID       map[uuid.UUID]*domain.User
@@ -424,8 +423,8 @@ type fakeStore struct {
 	refreshByFamily map[uuid.UUID][]uuid.UUID
 }
 
-func newFakeStore() *fakeStore {
-	return &fakeStore{
+func newFakeRepo() *fakeRepo {
+	return &fakeRepo{
 		usersByEmail:    make(map[string]*domain.User),
 		usersByUsername: make(map[string]*domain.User),
 		usersByID:       make(map[uuid.UUID]*domain.User),
@@ -438,43 +437,43 @@ func newFakeStore() *fakeStore {
 	}
 }
 
-func (s *fakeStore) WithTx(_ context.Context, fn func(store domain.AuthStore) error) error {
-	return fn(s)
+func (r *fakeRepo) WithTx(_ context.Context, fn func(repo domain.AuthRepository) error) error {
+	return fn(r)
 }
 
-func (s *fakeStore) GetUserByEmail(_ context.Context, email string) (*domain.User, error) {
-	user, ok := s.usersByEmail[email]
+func (r *fakeRepo) GetUserByEmail(_ context.Context, email string) (*domain.User, error) {
+	user, ok := r.usersByEmail[email]
 	if !ok {
 		return nil, domain.ErrNotFound
 	}
 	return user, nil
 }
 
-func (s *fakeStore) GetUserByUsername(_ context.Context, username string) (*domain.User, error) {
-	user, ok := s.usersByUsername[username]
+func (r *fakeRepo) GetUserByUsername(_ context.Context, username string) (*domain.User, error) {
+	user, ok := r.usersByUsername[username]
 	if !ok {
 		return nil, domain.ErrNotFound
 	}
 	return user, nil
 }
 
-func (s *fakeStore) GetUserByID(_ context.Context, userID uuid.UUID) (*domain.User, error) {
-	user, ok := s.usersByID[userID]
+func (r *fakeRepo) GetUserByID(_ context.Context, userID uuid.UUID) (*domain.User, error) {
+	user, ok := r.usersByID[userID]
 	if !ok {
 		return nil, domain.ErrNotFound
 	}
 	return user, nil
 }
 
-func (s *fakeStore) CreateUser(_ context.Context, params domain.CreateUserParams) (*domain.User, error) {
-	if _, exists := s.usersByEmail[params.Email]; exists {
+func (r *fakeRepo) CreateUser(_ context.Context, params domain.CreateUserParams) (*domain.User, error) {
+	if _, exists := r.usersByEmail[params.Email]; exists {
 		return nil, domain.ConflictError(domain.ErrorCodeEmailExists, "The email is already in use.")
 	}
-	if _, exists := s.usersByUsername[params.Username]; exists {
+	if _, exists := r.usersByUsername[params.Username]; exists {
 		return nil, domain.ConflictError(domain.ErrorCodeUsernameExists, "The username is already in use.")
 	}
 	if params.PhoneNumber != nil {
-		if _, exists := s.phoneToUser[*params.PhoneNumber]; exists {
+		if _, exists := r.phoneToUser[*params.PhoneNumber]; exists {
 			return nil, domain.ConflictError(domain.ErrorCodePhoneExists, "The phone number is already in use.")
 		}
 	}
@@ -492,22 +491,22 @@ func (s *fakeStore) CreateUser(_ context.Context, params domain.CreateUserParams
 		CreatedAt:       params.EmailVerifiedAt,
 		UpdatedAt:       params.EmailVerifiedAt,
 	}
-	s.usersByEmail[user.Email] = user
-	s.usersByUsername[user.Username] = user
-	s.usersByID[user.ID] = user
+	r.usersByEmail[user.Email] = user
+	r.usersByUsername[user.Username] = user
+	r.usersByID[user.ID] = user
 	if user.PhoneNumber != nil {
-		s.phoneToUser[*user.PhoneNumber] = user.ID
+		r.phoneToUser[*user.PhoneNumber] = user.ID
 	}
 	return user, nil
 }
 
-func (s *fakeStore) CreateProfile(_ context.Context, userID uuid.UUID) error {
-	s.profiles[userID] = true
+func (r *fakeRepo) CreateProfile(_ context.Context, userID uuid.UUID) error {
+	r.profiles[userID] = true
 	return nil
 }
 
-func (s *fakeStore) UpdateLastLogin(_ context.Context, userID uuid.UUID, lastLogin time.Time) error {
-	user, ok := s.usersByID[userID]
+func (r *fakeRepo) UpdateLastLogin(_ context.Context, userID uuid.UUID, lastLogin time.Time) error {
+	user, ok := r.usersByID[userID]
 	if !ok {
 		return domain.ErrNotFound
 	}
@@ -515,17 +514,17 @@ func (s *fakeStore) UpdateLastLogin(_ context.Context, userID uuid.UUID, lastLog
 	return nil
 }
 
-func (s *fakeStore) GetActiveOTPChallenge(_ context.Context, destination, purpose string) (*domain.OTPChallenge, error) {
-	challenge, ok := s.challenges[challengeKey(destination, purpose)]
+func (r *fakeRepo) GetActiveOTPChallenge(_ context.Context, destination, purpose string) (*domain.OTPChallenge, error) {
+	challenge, ok := r.challenges[challengeKey(destination, purpose)]
 	if !ok || challenge.ConsumedAt != nil {
 		return nil, domain.ErrNotFound
 	}
 	return challenge, nil
 }
 
-func (s *fakeStore) UpsertOTPChallenge(_ context.Context, params domain.UpsertOTPChallengeParams) (*domain.OTPChallenge, error) {
+func (r *fakeRepo) UpsertOTPChallenge(_ context.Context, params domain.UpsertOTPChallengeParams) (*domain.OTPChallenge, error) {
 	key := challengeKey(params.Destination, params.Purpose)
-	if existing, ok := s.challenges[key]; ok && existing.ConsumedAt == nil {
+	if existing, ok := r.challenges[key]; ok && existing.ConsumedAt == nil {
 		existing.Channel = params.Channel
 		existing.CodeHash = params.CodeHash
 		existing.ExpiresAt = params.ExpiresAt
@@ -545,12 +544,12 @@ func (s *fakeStore) UpsertOTPChallenge(_ context.Context, params domain.UpsertOT
 		CreatedAt:    params.UpdatedAt,
 		UpdatedAt:    params.UpdatedAt,
 	}
-	s.challenges[key] = challenge
+	r.challenges[key] = challenge
 	return challenge, nil
 }
 
-func (s *fakeStore) IncrementOTPChallengeAttempts(_ context.Context, challengeID uuid.UUID, updatedAt time.Time) (*domain.OTPChallenge, error) {
-	for _, challenge := range s.challenges {
+func (r *fakeRepo) IncrementOTPChallengeAttempts(_ context.Context, challengeID uuid.UUID, updatedAt time.Time) (*domain.OTPChallenge, error) {
+	for _, challenge := range r.challenges {
 		if challenge.ID == challengeID {
 			challenge.AttemptCount++
 			challenge.UpdatedAt = updatedAt
@@ -560,8 +559,8 @@ func (s *fakeStore) IncrementOTPChallengeAttempts(_ context.Context, challengeID
 	return nil, domain.ErrNotFound
 }
 
-func (s *fakeStore) ConsumeOTPChallenge(_ context.Context, challengeID uuid.UUID, consumedAt time.Time) error {
-	for _, challenge := range s.challenges {
+func (r *fakeRepo) ConsumeOTPChallenge(_ context.Context, challengeID uuid.UUID, consumedAt time.Time) error {
+	for _, challenge := range r.challenges {
 		if challenge.ID == challengeID {
 			challenge.ConsumedAt = timePtr(consumedAt)
 			challenge.UpdatedAt = consumedAt
@@ -571,7 +570,7 @@ func (s *fakeStore) ConsumeOTPChallenge(_ context.Context, challengeID uuid.UUID
 	return domain.ErrNotFound
 }
 
-func (s *fakeStore) CreateRefreshToken(_ context.Context, params domain.CreateRefreshTokenParams) (*domain.RefreshToken, error) {
+func (r *fakeRepo) CreateRefreshToken(_ context.Context, params domain.CreateRefreshTokenParams) (*domain.RefreshToken, error) {
 	record := &domain.RefreshToken{
 		ID:         uuid.New(),
 		UserID:     params.UserID,
@@ -582,29 +581,29 @@ func (s *fakeStore) CreateRefreshToken(_ context.Context, params domain.CreateRe
 		CreatedAt:  params.CreatedAt,
 		UpdatedAt:  params.CreatedAt,
 	}
-	s.refreshByHash[record.TokenHash] = record
-	s.refreshByID[record.ID] = record
-	s.refreshByFamily[record.FamilyID] = append(s.refreshByFamily[record.FamilyID], record.ID)
+	r.refreshByHash[record.TokenHash] = record
+	r.refreshByID[record.ID] = record
+	r.refreshByFamily[record.FamilyID] = append(r.refreshByFamily[record.FamilyID], record.ID)
 	return record, nil
 }
 
-func (s *fakeStore) GetRefreshTokenByHash(_ context.Context, tokenHash string) (*domain.RefreshToken, error) {
-	record, ok := s.refreshByHash[tokenHash]
+func (r *fakeRepo) GetRefreshTokenByHash(_ context.Context, tokenHash string) (*domain.RefreshToken, error) {
+	record, ok := r.refreshByHash[tokenHash]
 	if !ok {
 		return nil, domain.ErrNotFound
 	}
 	return record, nil
 }
 
-func (s *fakeStore) GetRefreshTokenFamilyCreatedAt(_ context.Context, familyID uuid.UUID) (time.Time, error) {
-	tokenIDs := s.refreshByFamily[familyID]
+func (r *fakeRepo) GetRefreshTokenFamilyCreatedAt(_ context.Context, familyID uuid.UUID) (time.Time, error) {
+	tokenIDs := r.refreshByFamily[familyID]
 	if len(tokenIDs) == 0 {
 		return time.Time{}, domain.ErrNotFound
 	}
 
-	createdAt := s.refreshByID[tokenIDs[0]].CreatedAt
+	createdAt := r.refreshByID[tokenIDs[0]].CreatedAt
 	for _, tokenID := range tokenIDs[1:] {
-		record := s.refreshByID[tokenID]
+		record := r.refreshByID[tokenID]
 		if record.CreatedAt.Before(createdAt) {
 			createdAt = record.CreatedAt
 		}
@@ -612,8 +611,8 @@ func (s *fakeStore) GetRefreshTokenFamilyCreatedAt(_ context.Context, familyID u
 	return createdAt, nil
 }
 
-func (s *fakeStore) RevokeRefreshToken(_ context.Context, tokenID uuid.UUID, revokedAt time.Time) error {
-	record, ok := s.refreshByID[tokenID]
+func (r *fakeRepo) RevokeRefreshToken(_ context.Context, tokenID uuid.UUID, revokedAt time.Time) error {
+	record, ok := r.refreshByID[tokenID]
 	if !ok {
 		return domain.ErrNotFound
 	}
@@ -622,8 +621,8 @@ func (s *fakeStore) RevokeRefreshToken(_ context.Context, tokenID uuid.UUID, rev
 	return nil
 }
 
-func (s *fakeStore) SetRefreshTokenReplacement(_ context.Context, tokenID, replacedByID uuid.UUID, updatedAt time.Time) error {
-	record, ok := s.refreshByID[tokenID]
+func (r *fakeRepo) SetRefreshTokenReplacement(_ context.Context, tokenID, replacedByID uuid.UUID, updatedAt time.Time) error {
+	record, ok := r.refreshByID[tokenID]
 	if !ok {
 		return domain.ErrNotFound
 	}
@@ -632,9 +631,9 @@ func (s *fakeStore) SetRefreshTokenReplacement(_ context.Context, tokenID, repla
 	return nil
 }
 
-func (s *fakeStore) RevokeRefreshTokenFamily(_ context.Context, familyID uuid.UUID, revokedAt time.Time) error {
-	for _, tokenID := range s.refreshByFamily[familyID] {
-		record := s.refreshByID[tokenID]
+func (r *fakeRepo) RevokeRefreshTokenFamily(_ context.Context, familyID uuid.UUID, revokedAt time.Time) error {
+	for _, tokenID := range r.refreshByFamily[familyID] {
+		record := r.refreshByID[tokenID]
 		if record.RevokedAt == nil {
 			record.RevokedAt = timePtr(revokedAt)
 			record.UpdatedAt = revokedAt

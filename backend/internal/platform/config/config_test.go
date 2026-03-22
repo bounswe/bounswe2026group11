@@ -1,4 +1,4 @@
-package infrastructure
+package config
 
 import (
 	"os"

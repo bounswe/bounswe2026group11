@@ -16,16 +16,16 @@ A **CMPE354 Group 11** project for discovering and managing social events on a m
 
 You need [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/).
 
-1. At the repository root, create an environment file (the example values are enough to start):
+1. At the repository root, create Compose env file (the example values are enough to start):
 
    ```bash
-   cp .env.example .env
+   cp deploy/.env.example deploy/.env
    ```
 
-2. Start the stack (from the repo root; `--project-directory .` makes Compose load the root `.env` — without it, the default project dir is `deploy/` and `.env` would be ignored):
+2. Start the stack from the repo root (Compose uses `deploy/` as the project directory and loads `deploy/.env` automatically):
 
    ```bash
-   docker compose --project-directory . -f deploy/docker-compose.local.yml up --build
+   docker compose -f deploy/docker-compose.local.yml up --build
    ```
 
 3. Open the app at **http://localhost**. Check the API with **http://localhost/api/health** — it should return `200`.
@@ -46,17 +46,17 @@ Only **`docs/openapi/`** and **`docs/swagger-ui/`** are mounted into the nginx c
 
 These docs routes are local-only; the remote dev deployment does not expose `/api/docs`. For the environment split, see [**Deployment → API documentation**](docs/deploy.md#api-documentation).
 
-**Postgres (local tools):** With this compose file, the database is reachable on your machine at **127.0.0.1:5433** (mapped to container port 5432; host 5433 avoids conflicting with a local Postgres on 5432). User/database: `postgres` / `sem`; password from the root `.env`. Example: `psql -h 127.0.0.1 -p 5433 -U postgres -d sem`. On Apple Silicon you may see a harmless Docker **platform** notice if the PostGIS image runs as `linux/amd64` under emulation.
+**Postgres (local tools):** With this compose file, the database is reachable on your machine at **127.0.0.1:5433** (mapped to container port 5432; host 5433 avoids conflicting with a local Postgres on 5432). User/database: `postgres` / `sem`; password from `deploy/.env`. Example: `psql -h 127.0.0.1 -p 5433 -U postgres -d sem`. On Apple Silicon you may see a harmless Docker **platform** notice if the PostGIS image runs as `linux/amd64` under emulation.
 
 > Use [`deploy/docker-compose.local.yml`](deploy/docker-compose.local.yml) for local development. [`deploy/docker-compose.dev.yml`](deploy/docker-compose.dev.yml) is for a remote server with pre-built images; see [`docs/deploy.md`](docs/deploy.md) for details.
 
 ### Backend only (Go)
 
-This does not run in isolation: you need a reachable PostGIS database, runtime settings from `backend/config/application.local.yaml`, and secrets in `backend/.env`.
+This does not run in isolation: you need a reachable PostGIS database, runtime settings from `backend/config/application.local.yaml`, and secrets in `backend/.env` (same keys as Compose: copy from [`deploy/.env.example`](deploy/.env.example); the Go server ignores `DOCKERHUB_NAMESPACE` if present).
 
 ```bash
 cd backend
-cp .env.example .env   # edit if needed
+cp ../deploy/.env.example .env   # fill in with secrets
 go run ./cmd/server
 ```
 

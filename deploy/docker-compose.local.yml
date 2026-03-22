@@ -1,14 +1,4 @@
-# Local development stack: builds backend and frontend from source. For remote dev using
-# pre-built Docker Hub images (:latest), use `docker-compose.dev.yml` in this directory.
-#
-# Run from the repository root with project dir = repo root so root `.env` is loaded:
-# `docker compose --project-directory . -f deploy/docker-compose.local.yml up --build`
-#
-# Full stack: Postgres (PostGIS), Go API, static frontend, and nginx as the single entry
-# on port 80. Postgres is published to the host at 127.0.0.1:5433→5432 for local tools
-# (psql, GUI clients) — host port 5433 avoids clashing with a local Postgres on 5432.
-# The root `.env` only carries secrets such as DB_PASSWORD and
-# JWT_SECRET; non-secret runtime settings live in versioned config files and compose.
+name: sem-local
 
 services:
   postgres:
@@ -32,7 +22,7 @@ services:
 
   backend:
     build:
-      context: backend
+      context: ../backend
       dockerfile: Dockerfile
     depends_on:
       postgres:
@@ -51,7 +41,7 @@ services:
 
   frontend:
     build:
-      context: frontend
+      context: ../frontend
       dockerfile: Dockerfile
     networks:
       - app
@@ -61,9 +51,9 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro
-      - ./docs/openapi:/usr/share/nginx/html/docs/openapi:ro
-      - ./docs/swagger-ui:/usr/share/nginx/html/docs/swagger-ui:ro
+      - ../nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro
+      - ../docs/openapi:/usr/share/nginx/html/docs/openapi:ro
+      - ../docs/swagger-ui:/usr/share/nginx/html/docs/swagger-ui:ro
     depends_on:
       - backend
       - frontend

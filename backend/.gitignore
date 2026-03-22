@@ -22,7 +22,6 @@ vendor/
 go.work
 go.work.sum
 
-# Local env (keep .env.example in repo if you use one)
+# Local secrets (template: ../deploy/.env.example → copy to .env here for go run)
 .env
 .env.*
-!.env.example

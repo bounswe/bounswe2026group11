@@ -1,13 +1,16 @@
-package infrastructure
+package database
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/bounswe/bounswe2026group11/backend/internal/platform/config"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func OpenDB(ctx context.Context, cfg *Config) (*pgxpool.Pool, error) {
+// OpenDB creates a pgx connection pool from the given config and verifies
+// connectivity with a ping. The caller is responsible for closing the pool.
+func OpenDB(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error) {
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s",
 		cfg.DBUser,
