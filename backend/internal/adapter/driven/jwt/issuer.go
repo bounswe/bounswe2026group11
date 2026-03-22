@@ -33,4 +33,3 @@ func (j Issuer) IssueAccessToken(user domain.User, issuedAt time.Time) (string, 
 
 	return signed, int64(j.TTL.Seconds()), nil
 }
-
