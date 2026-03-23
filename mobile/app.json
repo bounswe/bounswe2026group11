@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Social Event Mapper",
+    "slug": "social-event-mapper",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "social-event-mapper",
+    "userInterfaceStyle": "automatic",
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
