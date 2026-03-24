@@ -20,21 +20,22 @@ var otpPattern = regexp.MustCompile(`^[0-9]{6}$`)
 // Service implements the authentication use cases: OTP-based registration,
 // password login, refresh-token rotation, and logout.
 type Service struct {
-	repo              domain.AuthRepository
-	passwordHasher    domain.PasswordHasher
-	otpHasher         domain.PasswordHasher
-	tokenIssuer       domain.TokenIssuer
-	refreshTokens     domain.RefreshTokenManager
-	otpGenerator      domain.OTPCodeGenerator
-	mailer            domain.OTPMailer
-	otpRateLimiter    domain.RateLimiter
-	loginRateLimiter  domain.RateLimiter
-	now               func() time.Time
-	otpTTL            time.Duration
-	otpMaxAttempts    int
-	otpResendCooldown time.Duration
-	refreshTokenTTL   time.Duration
-	maxSessionTTL     time.Duration
+	repo                    domain.AuthRepository
+	passwordHasher          domain.PasswordHasher
+	otpHasher               domain.PasswordHasher
+	tokenIssuer             domain.TokenIssuer
+	refreshTokens           domain.RefreshTokenManager
+	otpGenerator            domain.OTPCodeGenerator
+	mailer                  domain.OTPMailer
+	otpRateLimiter          domain.RateLimiter
+	loginRateLimiter        domain.RateLimiter
+	availabilityRateLimiter domain.RateLimiter
+	now                     func() time.Time
+	otpTTL                  time.Duration
+	otpMaxAttempts          int
+	otpResendCooldown       time.Duration
+	refreshTokenTTL         time.Duration
+	maxSessionTTL           time.Duration
 }
 
 // NewService constructs an auth Service with the given adapters and configuration.
@@ -48,24 +49,26 @@ func NewService(
 	mailer domain.OTPMailer,
 	otpRateLimiter domain.RateLimiter,
 	loginRateLimiter domain.RateLimiter,
+	availabilityRateLimiter domain.RateLimiter,
 	cfg Config,
 ) *Service {
 	return &Service{
-		repo:              repo,
-		passwordHasher:    passwordHasher,
-		otpHasher:         otpHasher,
-		tokenIssuer:       tokenIssuer,
-		refreshTokens:     refreshTokens,
-		otpGenerator:      otpGenerator,
-		mailer:            mailer,
-		otpRateLimiter:    otpRateLimiter,
-		loginRateLimiter:  loginRateLimiter,
-		now:               time.Now,
-		otpTTL:            cfg.OTPTTL,
-		otpMaxAttempts:    cfg.OTPMaxAttempts,
-		otpResendCooldown: cfg.OTPResendCooldown,
-		refreshTokenTTL:   cfg.RefreshTokenTTL,
-		maxSessionTTL:     cfg.MaxSessionTTL,
+		repo:                    repo,
+		passwordHasher:          passwordHasher,
+		otpHasher:               otpHasher,
+		tokenIssuer:             tokenIssuer,
+		refreshTokens:           refreshTokens,
+		otpGenerator:            otpGenerator,
+		mailer:                  mailer,
+		otpRateLimiter:          otpRateLimiter,
+		loginRateLimiter:        loginRateLimiter,
+		availabilityRateLimiter: availabilityRateLimiter,
+		now:                     time.Now,
+		otpTTL:                  cfg.OTPTTL,
+		otpMaxAttempts:          cfg.OTPMaxAttempts,
+		otpResendCooldown:       cfg.OTPResendCooldown,
+		refreshTokenTTL:         cfg.RefreshTokenTTL,
+		maxSessionTTL:           cfg.MaxSessionTTL,
 	}
 }
 
@@ -353,6 +356,43 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 	})
 }
 
+// CheckAvailability reports whether the given username and email are available
+// for registration. Both fields are required.
+func (s *Service) CheckAvailability(ctx context.Context, input CheckAvailabilityInput) (*CheckAvailabilityResult, error) {
+	email, username, appErr := validateRegistrationIdentity(input.Email, input.Username)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	now := s.now().UTC()
+	clientKey := strings.TrimSpace(input.ClientKey)
+	if clientKey == "" {
+		clientKey = "unknown"
+	}
+	if allowed, _ := s.availabilityRateLimiter.Allow(clientKey, now); !allowed {
+		return nil, domain.RateLimitedError("Too many requests. Try again later.")
+	}
+
+	result := &CheckAvailabilityResult{
+		Username: "AVAILABLE",
+		Email:    "AVAILABLE",
+	}
+
+	if _, err := s.repo.GetUserByUsername(ctx, username); err == nil {
+		result.Username = "TAKEN"
+	} else if !errors.Is(err, domain.ErrNotFound) {
+		return nil, fmt.Errorf("lookup user by username: %w", err)
+	}
+
+	if _, err := s.repo.GetUserByEmail(ctx, email); err == nil {
+		result.Email = "TAKEN"
+	} else if !errors.Is(err, domain.ErrNotFound) {
+		return nil, fmt.Errorf("lookup user by email: %w", err)
+	}
+
+	return result, nil
+}
+
 // issueSession creates a brand-new session (access + refresh tokens) for a fresh login.
 func (s *Service) issueSession(
 	ctx context.Context,
@@ -422,19 +462,15 @@ func (s *Service) refreshExpiry(issuedAt, familyStartedAt time.Time) time.Time {
 // validateVerifyRegistrationInput normalizes and validates all registration fields,
 // returning cleaned values or a combined validation error.
 func validateVerifyRegistrationInput(input VerifyRegistrationInput) (email, username, password string, phoneNumber, gender *string, birthDate *time.Time, otp string, appErr *domain.AppError) {
-	email, err := normalizeEmail(input.Email)
-	if err != nil {
-		return "", "", "", nil, nil, nil, "", domain.ValidationError(map[string]string{"email": "must be a valid email address"})
+	email, username, appErr = validateRegistrationIdentity(input.Email, input.Username)
+	if appErr != nil {
+		return "", "", "", nil, nil, nil, "", appErr
 	}
 
-	username = strings.TrimSpace(input.Username)
 	password = input.Password
 	otp = strings.TrimSpace(input.OTP)
 
 	details := make(map[string]string)
-	if len(username) < 3 || len(username) > 32 || !usernamePattern.MatchString(username) {
-		details["username"] = "must be 3-32 characters using letters, numbers, or underscores"
-	}
 	if len(password) < 8 || len(password) > 128 {
 		details["password"] = "must be between 8 and 128 characters"
 	}
@@ -468,6 +504,24 @@ func validateLoginInput(input LoginInput) (username, password string, appErr *do
 	}
 
 	return username, password, nil
+}
+
+func validateRegistrationIdentity(rawEmail, rawUsername string) (email, username string, appErr *domain.AppError) {
+	email, err := normalizeEmail(rawEmail)
+	username = strings.TrimSpace(rawUsername)
+
+	details := make(map[string]string)
+	if err != nil {
+		details["email"] = "must be a valid email address"
+	}
+	if len(username) < 3 || len(username) > 32 || !usernamePattern.MatchString(username) {
+		details["username"] = "must be 3-32 characters using letters, numbers, or underscores"
+	}
+	if len(details) > 0 {
+		return "", "", domain.ValidationError(details)
+	}
+
+	return email, username, nil
 }
 
 // normalizeEmail trims whitespace, lowercases, and parses an email address.

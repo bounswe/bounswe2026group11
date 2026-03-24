@@ -34,53 +34,66 @@ func testApp(verifier domain.TokenVerifier) *fiber.App {
 }
 
 func TestRequireAuthMissingHeader(t *testing.T) {
+	// given
 	app := testApp(&fakeVerifier{})
 
 	req := httptest.NewRequest(fiber.MethodGet, "/protected", nil)
+
+	// when
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
 	defer resp.Body.Close()
 
+	// then
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", resp.StatusCode)
 	}
 }
 
 func TestRequireAuthMalformedHeader(t *testing.T) {
+	// given
 	app := testApp(&fakeVerifier{})
 
 	req := httptest.NewRequest(fiber.MethodGet, "/protected", nil)
 	req.Header.Set(fiber.HeaderAuthorization, "Token abc123")
+
+	// when
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
 	defer resp.Body.Close()
 
+	// then
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", resp.StatusCode)
 	}
 }
 
 func TestRequireAuthInvalidToken(t *testing.T) {
+	// given
 	app := testApp(&fakeVerifier{err: fmt.Errorf("token expired")})
 
 	req := httptest.NewRequest(fiber.MethodGet, "/protected", nil)
 	req.Header.Set(fiber.HeaderAuthorization, "Bearer expired.token.here")
+
+	// when
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
 	defer resp.Body.Close()
 
+	// then
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", resp.StatusCode)
 	}
 }
 
 func TestRequireAuthValidToken(t *testing.T) {
+	// given
 	userID := uuid.New()
 	app := testApp(&fakeVerifier{
 		claims: &domain.AuthClaims{
@@ -92,12 +105,15 @@ func TestRequireAuthValidToken(t *testing.T) {
 
 	req := httptest.NewRequest(fiber.MethodGet, "/protected", nil)
 	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token.here")
+
+	// when
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
 	defer resp.Body.Close()
 
+	// then
 	if resp.StatusCode != fiber.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected 200, got %d — body: %s", resp.StatusCode, body)
@@ -105,6 +121,7 @@ func TestRequireAuthValidToken(t *testing.T) {
 }
 
 func TestRequestLoggerPassesThrough(t *testing.T) {
+	// given
 	app := fiber.New()
 	app.Use(RequestLogger())
 	app.Get("/health", func(c *fiber.Ctx) error {
@@ -112,12 +129,15 @@ func TestRequestLoggerPassesThrough(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(fiber.MethodGet, "/health", nil)
+
+	// when
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
 	defer resp.Body.Close()
 
+	// then
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}

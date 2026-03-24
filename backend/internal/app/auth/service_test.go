@@ -12,13 +12,16 @@ import (
 )
 
 func TestRequestRegistrationOTPStoresHashedChallenge(t *testing.T) {
+	// given
 	svc, repo, mailer, _, now := newTestService()
 	svc.now = func() time.Time { return now }
 
+	// when
 	if err := svc.RequestRegistrationOTP(context.Background(), RequestOTPInput{Email: "User@example.com"}); err != nil {
 		t.Fatalf("RequestRegistrationOTP() error = %v", err)
 	}
 
+	// then
 	challenge, err := repo.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposeRegistration)
 	if err != nil {
 		t.Fatalf("GetActiveOTPChallenge() error = %v", err)
@@ -32,6 +35,7 @@ func TestRequestRegistrationOTPStoresHashedChallenge(t *testing.T) {
 }
 
 func TestVerifyRegistrationOTPSuccessCreatesUserAndSession(t *testing.T) {
+	// given
 	svc, repo, mailer, _, now := newTestService()
 	svc.now = func() time.Time { return now }
 
@@ -42,6 +46,8 @@ func TestVerifyRegistrationOTPSuccessCreatesUserAndSession(t *testing.T) {
 	phoneNumber := "+905551112233"
 	gender := "female"
 	birthDate := "1998-05-14"
+
+	// when
 	session, err := svc.VerifyRegistrationOTP(context.Background(), VerifyRegistrationInput{
 		Email:       "user@example.com",
 		OTP:         mailer.lastCode,
@@ -56,6 +62,7 @@ func TestVerifyRegistrationOTPSuccessCreatesUserAndSession(t *testing.T) {
 		t.Fatalf("VerifyRegistrationOTP() error = %v", err)
 	}
 
+	// then
 	user, err := repo.GetUserByEmail(context.Background(), "user@example.com")
 	if err != nil {
 		t.Fatalf("GetUserByEmail() error = %v", err)
@@ -90,6 +97,7 @@ func TestVerifyRegistrationOTPSuccessCreatesUserAndSession(t *testing.T) {
 }
 
 func TestVerifyRegistrationOTPRejectsInvalidBirthDate(t *testing.T) {
+	// given
 	svc, _, mailer, _, now := newTestService()
 	svc.now = func() time.Time { return now }
 
@@ -97,6 +105,7 @@ func TestVerifyRegistrationOTPRejectsInvalidBirthDate(t *testing.T) {
 		t.Fatalf("RequestRegistrationOTP() error = %v", err)
 	}
 
+	// when
 	_, err := svc.VerifyRegistrationOTP(context.Background(), VerifyRegistrationInput{
 		Email:     "user@example.com",
 		OTP:       mailer.lastCode,
@@ -104,6 +113,8 @@ func TestVerifyRegistrationOTPRejectsInvalidBirthDate(t *testing.T) {
 		Password:  "super-secret-password",
 		BirthDate: stringPtr("14-05-1998"),
 	})
+
+	// then
 	if err == nil {
 		t.Fatal("expected validation error, got nil")
 	}
@@ -117,6 +128,7 @@ func TestVerifyRegistrationOTPRejectsInvalidBirthDate(t *testing.T) {
 }
 
 func TestVerifyRegistrationOTPInvalidCodeIncrementsAttempts(t *testing.T) {
+	// given
 	svc, repo, _, _, now := newTestService()
 	svc.now = func() time.Time { return now }
 
@@ -124,12 +136,15 @@ func TestVerifyRegistrationOTPInvalidCodeIncrementsAttempts(t *testing.T) {
 		t.Fatalf("RequestRegistrationOTP() error = %v", err)
 	}
 
+	// when
 	_, err := svc.VerifyRegistrationOTP(context.Background(), VerifyRegistrationInput{
 		Email:    "user@example.com",
 		OTP:      "000000",
 		Username: "user_one",
 		Password: "super-secret-password",
 	})
+
+	// then
 	assertAppErrorCode(t, err, domain.ErrorCodeInvalidOTP)
 
 	challenge, err := repo.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposeRegistration)
@@ -142,6 +157,7 @@ func TestVerifyRegistrationOTPInvalidCodeIncrementsAttempts(t *testing.T) {
 }
 
 func TestVerifyRegistrationOTPExpiredCodeRejected(t *testing.T) {
+	// given
 	svc, _, mailer, _, now := newTestService()
 	svc.now = func() time.Time { return now }
 
@@ -150,16 +166,21 @@ func TestVerifyRegistrationOTPExpiredCodeRejected(t *testing.T) {
 	}
 
 	svc.now = func() time.Time { return now.Add(11 * time.Minute) }
+
+	// when
 	_, err := svc.VerifyRegistrationOTP(context.Background(), VerifyRegistrationInput{
 		Email:    "user@example.com",
 		OTP:      mailer.lastCode,
 		Username: "user_one",
 		Password: "super-secret-password",
 	})
+
+	// then
 	assertAppErrorCode(t, err, domain.ErrorCodeInvalidOTP)
 }
 
 func TestVerifyRegistrationOTPAttemptExhaustion(t *testing.T) {
+	// given
 	svc, _, _, _, now := newTestService()
 	svc.otpMaxAttempts = 2
 	svc.now = func() time.Time { return now }
@@ -168,6 +189,7 @@ func TestVerifyRegistrationOTPAttemptExhaustion(t *testing.T) {
 		t.Fatalf("RequestRegistrationOTP() error = %v", err)
 	}
 
+	// when
 	for i := 0; i < 2; i++ {
 		_, err := svc.VerifyRegistrationOTP(context.Background(), VerifyRegistrationInput{
 			Email:    "user@example.com",
@@ -175,6 +197,7 @@ func TestVerifyRegistrationOTPAttemptExhaustion(t *testing.T) {
 			Username: "user_one",
 			Password: "super-secret-password",
 		})
+		// then
 		if i == 0 {
 			assertAppErrorCode(t, err, domain.ErrorCodeInvalidOTP)
 			continue
@@ -184,6 +207,7 @@ func TestVerifyRegistrationOTPAttemptExhaustion(t *testing.T) {
 }
 
 func TestLoginWrongPasswordRejected(t *testing.T) {
+	// given
 	svc, repo, _, _, now := newTestService()
 	svc.now = func() time.Time { return now }
 
@@ -201,14 +225,18 @@ func TestLoginWrongPasswordRejected(t *testing.T) {
 		t.Fatalf("CreateUser() error = %v", err)
 	}
 
+	// when
 	_, err = svc.Login(context.Background(), LoginInput{
 		Username: "existing_user",
 		Password: "wrong-password",
 	})
+
+	// then
 	assertAppErrorCode(t, err, domain.ErrorCodeInvalidCreds)
 }
 
 func TestRefreshRotatesTokenAndRejectsReuse(t *testing.T) {
+	// given
 	svc, repo, mailer, refreshManager, now := newTestService()
 	svc.now = func() time.Time { return now }
 
@@ -225,10 +253,13 @@ func TestRefreshRotatesTokenAndRejectsReuse(t *testing.T) {
 		t.Fatalf("VerifyRegistrationOTP() error = %v", err)
 	}
 
+	// when
 	refreshed, err := svc.Refresh(context.Background(), session.RefreshToken, stringPtr("device"))
 	if err != nil {
 		t.Fatalf("Refresh() error = %v", err)
 	}
+
+	// then
 	if refreshed.RefreshToken == session.RefreshToken {
 		t.Fatal("expected refresh rotation to issue a new refresh token")
 	}
@@ -242,7 +273,10 @@ func TestRefreshRotatesTokenAndRejectsReuse(t *testing.T) {
 		t.Fatal("expected original refresh token to be revoked and linked to replacement")
 	}
 
+	// when
 	_, err = svc.Refresh(context.Background(), session.RefreshToken, stringPtr("device"))
+
+	// then
 	assertAppErrorCode(t, err, domain.ErrorCodeRefreshReused)
 
 	newHash := refreshManager.HashToken(refreshed.RefreshToken)
@@ -259,6 +293,7 @@ func TestRefreshRotatesTokenAndRejectsReuse(t *testing.T) {
 }
 
 func TestRefreshCapsRotatedTokenAtAbsoluteSessionLimit(t *testing.T) {
+	// given
 	svc, repo, _, refreshManager, now := newTestService()
 	svc.now = func() time.Time { return now }
 
@@ -289,11 +324,13 @@ func TestRefreshCapsRotatedTokenAtAbsoluteSessionLimit(t *testing.T) {
 		t.Fatalf("CreateRefreshToken() error = %v", err)
 	}
 
+	// when
 	refreshed, err := svc.Refresh(context.Background(), plain, nil)
 	if err != nil {
 		t.Fatalf("Refresh() error = %v", err)
 	}
 
+	// then
 	newHash := refreshManager.HashToken(refreshed.RefreshToken)
 	newRecord, err := repo.GetRefreshTokenByHash(context.Background(), newHash)
 	if err != nil {
@@ -306,6 +343,7 @@ func TestRefreshCapsRotatedTokenAtAbsoluteSessionLimit(t *testing.T) {
 }
 
 func TestRefreshRejectsExpiredAbsoluteSession(t *testing.T) {
+	// given
 	svc, repo, _, refreshManager, now := newTestService()
 	svc.now = func() time.Time { return now }
 
@@ -334,11 +372,15 @@ func TestRefreshRejectsExpiredAbsoluteSession(t *testing.T) {
 		t.Fatalf("CreateRefreshToken() error = %v", err)
 	}
 
+	// when
 	_, err = svc.Refresh(context.Background(), plain, nil)
+
+	// then
 	assertAppErrorCode(t, err, domain.ErrorCodeInvalidRefresh)
 }
 
 func TestRefreshExpiredTokenRejected(t *testing.T) {
+	// given
 	svc, repo, _, refreshManager, now := newTestService()
 	svc.now = func() time.Time { return now }
 
@@ -367,8 +409,114 @@ func TestRefreshExpiredTokenRejected(t *testing.T) {
 		t.Fatalf("CreateRefreshToken() error = %v", err)
 	}
 
+	// when
 	_, err = svc.Refresh(context.Background(), plain, nil)
+
+	// then
 	assertAppErrorCode(t, err, domain.ErrorCodeInvalidRefresh)
+}
+
+func TestCheckAvailabilityBothAvailable(t *testing.T) {
+	// given
+	svc, _, _, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+
+	// when
+	result, err := svc.CheckAvailability(context.Background(), CheckAvailabilityInput{
+		Username: "fresh_user",
+		Email:    "fresh@example.com",
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("CheckAvailability() error = %v", err)
+	}
+	if result.Username != "AVAILABLE" {
+		t.Fatalf("expected username AVAILABLE, got %q", result.Username)
+	}
+	if result.Email != "AVAILABLE" {
+		t.Fatalf("expected email AVAILABLE, got %q", result.Email)
+	}
+}
+
+func TestCheckAvailabilityBothTaken(t *testing.T) {
+	// given
+	svc, repo, _, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+
+	if _, err := repo.CreateUser(context.Background(), domain.CreateUserParams{
+		Username:        "taken_user",
+		Email:           "taken@example.com",
+		PasswordHash:    "hash:password",
+		EmailVerifiedAt: now,
+		Status:          domain.UserStatusActive,
+	}); err != nil {
+		t.Fatalf("CreateUser() error = %v", err)
+	}
+
+	// when
+	result, err := svc.CheckAvailability(context.Background(), CheckAvailabilityInput{
+		Username: "taken_user",
+		Email:    "taken@example.com",
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("CheckAvailability() error = %v", err)
+	}
+	if result.Username != "TAKEN" {
+		t.Fatalf("expected username TAKEN, got %q", result.Username)
+	}
+	if result.Email != "TAKEN" {
+		t.Fatalf("expected email TAKEN, got %q", result.Email)
+	}
+}
+
+func TestCheckAvailabilityValidationError(t *testing.T) {
+	// given
+	svc, _, _, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+
+	// when
+	_, err := svc.CheckAvailability(context.Background(), CheckAvailabilityInput{
+		Username: "ab",
+		Email:    "not-an-email",
+	})
+
+	// then
+	if err == nil {
+		t.Fatal("expected validation error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("expected AppError, got %T (%v)", err, err)
+	}
+	if appErr.Code != domain.ErrorCodeValidation {
+		t.Fatalf("expected error code %q, got %q", domain.ErrorCodeValidation, appErr.Code)
+	}
+	if _, ok := appErr.Details["username"]; !ok {
+		t.Fatal("expected username validation detail")
+	}
+	if _, ok := appErr.Details["email"]; !ok {
+		t.Fatal("expected email validation detail")
+	}
+}
+
+func TestCheckAvailabilityRateLimited(t *testing.T) {
+	// given
+	svc, _, _, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+	svc.availabilityRateLimiter = denyAllLimiter{}
+
+	// when
+	_, err := svc.CheckAvailability(context.Background(), CheckAvailabilityInput{
+		Username:  "fresh_user",
+		Email:     "fresh@example.com",
+		ClientKey: "203.0.113.10",
+	})
+
+	// then
+	assertAppErrorCode(t, err, domain.ErrorCodeRateLimited)
 }
 
 func assertAppErrorCode(t *testing.T, err error, expectedCode string) {
@@ -398,6 +546,7 @@ func newTestService() (*Service, *fakeRepo, *fakeMailer, *fakeRefreshTokenManage
 		refreshManager,
 		fakeOTPGenerator{code: "123456"},
 		mailer,
+		allowAllLimiter{},
 		allowAllLimiter{},
 		allowAllLimiter{},
 		Config{
@@ -698,6 +847,12 @@ type allowAllLimiter struct{}
 
 func (allowAllLimiter) Allow(string, time.Time) (bool, time.Duration) {
 	return true, 0
+}
+
+type denyAllLimiter struct{}
+
+func (denyAllLimiter) Allow(string, time.Time) (bool, time.Duration) {
+	return false, time.Minute
 }
 
 func challengeKey(destination, purpose string) string {

@@ -14,6 +14,7 @@ import (
 )
 
 func TestRequestRegistrationOTPReturnsAcceptedResponse(t *testing.T) {
+	// given
 	service := &stubAuthService{}
 	app := fiber.New()
 	RegisterAuthRoutes(app, NewAuthHandler(service))
@@ -21,12 +22,14 @@ func TestRequestRegistrationOTPReturnsAcceptedResponse(t *testing.T) {
 	req := httptest.NewRequest(fiber.MethodPost, "/auth/register/email/request-otp", bytes.NewBufferString(`{"email":"user@example.com"}`))
 	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 
+	// when
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
 	defer resp.Body.Close()
 
+	// then
 	if resp.StatusCode != fiber.StatusAccepted {
 		t.Fatalf("expected status %d, got %d", fiber.StatusAccepted, resp.StatusCode)
 	}
@@ -36,6 +39,7 @@ func TestRequestRegistrationOTPReturnsAcceptedResponse(t *testing.T) {
 }
 
 func TestLoginReturnsErrorEnvelope(t *testing.T) {
+	// given
 	service := &stubAuthService{
 		loginErr: domain.AuthError(domain.ErrorCodeInvalidCreds, "Invalid username or password."),
 	}
@@ -45,12 +49,14 @@ func TestLoginReturnsErrorEnvelope(t *testing.T) {
 	req := httptest.NewRequest(fiber.MethodPost, "/auth/login", bytes.NewBufferString(`{"username":"user","password":"wrong-password"}`))
 	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 
+	// when
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
 	defer resp.Body.Close()
 
+	// then
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("expected status %d, got %d", fiber.StatusUnauthorized, resp.StatusCode)
 	}
@@ -69,6 +75,7 @@ func TestLoginReturnsErrorEnvelope(t *testing.T) {
 }
 
 func TestVerifyRegistrationOTPForwardsUserFields(t *testing.T) {
+	// given
 	service := &stubAuthService{}
 	app := fiber.New()
 	RegisterAuthRoutes(app, NewAuthHandler(service))
@@ -76,12 +83,14 @@ func TestVerifyRegistrationOTPForwardsUserFields(t *testing.T) {
 	req := httptest.NewRequest(fiber.MethodPost, "/auth/register/email/verify", bytes.NewBufferString(`{"email":"user@example.com","otp":"123456","username":"maplover","password":"StrongPassword123","phone_number":"+905551112233","gender":"female","birth_date":"1998-05-14"}`))
 	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 
+	// when
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
 	defer resp.Body.Close()
 
+	// then
 	if resp.StatusCode != fiber.StatusCreated {
 		t.Fatalf("expected status %d, got %d", fiber.StatusCreated, resp.StatusCode)
 	}
@@ -93,15 +102,119 @@ func TestVerifyRegistrationOTPForwardsUserFields(t *testing.T) {
 	}
 }
 
+func TestCheckAvailabilityBothAvailable(t *testing.T) {
+	// given
+	service := &stubAuthService{}
+	app := fiber.New()
+	RegisterAuthRoutes(app, NewAuthHandler(service))
+
+	req := httptest.NewRequest(fiber.MethodPost, "/auth/register/check-availability", bytes.NewBufferString(`{"username":"new_user","email":"new@example.com"}`))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+	req.RemoteAddr = "203.0.113.10:12345"
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer resp.Body.Close()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+
+	var body map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	if body["username"] != "AVAILABLE" || body["email"] != "AVAILABLE" {
+		t.Fatalf("expected both AVAILABLE, got %v", body)
+	}
+	if service.lastAvailabilityRequest.ClientKey == "" {
+		t.Fatal("expected client key to be forwarded")
+	}
+}
+
+func TestCheckAvailabilityBothTaken(t *testing.T) {
+	// given
+	service := &stubAuthService{
+		availabilityResult: &auth.CheckAvailabilityResult{Username: "TAKEN", Email: "TAKEN"},
+	}
+	app := fiber.New()
+	RegisterAuthRoutes(app, NewAuthHandler(service))
+
+	req := httptest.NewRequest(fiber.MethodPost, "/auth/register/check-availability", bytes.NewBufferString(`{"username":"existing","email":"taken@example.com"}`))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer resp.Body.Close()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+
+	var body map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	if body["username"] != "TAKEN" || body["email"] != "TAKEN" {
+		t.Fatalf("expected both TAKEN, got %v", body)
+	}
+}
+
+func TestCheckAvailabilityValidationError(t *testing.T) {
+	// given
+	service := &stubAuthService{
+		availabilityErr: domain.ValidationError(map[string]string{"username": "must be 3-32 characters using letters, numbers, or underscores"}),
+	}
+	app := fiber.New()
+	RegisterAuthRoutes(app, NewAuthHandler(service))
+
+	req := httptest.NewRequest(fiber.MethodPost, "/auth/register/check-availability", bytes.NewBufferString(`{"username":"","email":"bad"}`))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer resp.Body.Close()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+}
+
 type stubAuthService struct {
-	lastOTPRequest    auth.RequestOTPInput
-	lastVerifyRequest auth.VerifyRegistrationInput
-	loginErr          error
+	lastOTPRequest          auth.RequestOTPInput
+	lastVerifyRequest       auth.VerifyRegistrationInput
+	lastAvailabilityRequest auth.CheckAvailabilityInput
+	loginErr                error
+	availabilityResult      *auth.CheckAvailabilityResult
+	availabilityErr         error
 }
 
 func (s *stubAuthService) RequestRegistrationOTP(_ context.Context, input auth.RequestOTPInput) error {
 	s.lastOTPRequest = input
 	return nil
+}
+
+func (s *stubAuthService) CheckAvailability(_ context.Context, input auth.CheckAvailabilityInput) (*auth.CheckAvailabilityResult, error) {
+	s.lastAvailabilityRequest = input
+	if s.availabilityErr != nil {
+		return nil, s.availabilityErr
+	}
+	if s.availabilityResult != nil {
+		return s.availabilityResult, nil
+	}
+	return &auth.CheckAvailabilityResult{Username: "AVAILABLE", Email: "AVAILABLE"}, nil
 }
 
 func (s *stubAuthService) VerifyRegistrationOTP(_ context.Context, input auth.VerifyRegistrationInput) (*auth.Session, error) {

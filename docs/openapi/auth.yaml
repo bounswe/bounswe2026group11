@@ -56,6 +56,48 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '429':
           $ref: '#/components/responses/RateLimitedError'
+  /auth/register/check-availability:
+    post:
+      tags: [Auth]
+      summary: Check whether registration username and email are available
+      description: |
+        Validate the registration identity fields before OTP verification and return whether each value is
+        currently available for a new account.
+
+        This endpoint intentionally returns explicit availability results for `username` and `email` to support
+        client-side registration flows. To reduce automated enumeration, the endpoint is rate-limited per client.
+      operationId: checkRegistrationAvailability
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckAvailabilityRequest'
+            examples:
+              default:
+                value:
+                  username: maplover
+                  email: user@example.com
+      responses:
+        '200':
+          description: Availability computed for both fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckAvailabilityResponse'
+              examples:
+                available:
+                  value:
+                    username: AVAILABLE
+                    email: AVAILABLE
+                mixed:
+                  value:
+                    username: TAKEN
+                    email: AVAILABLE
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
   /auth/register/email/verify:
     post:
       tags: [Auth]
@@ -352,6 +394,41 @@ components:
           type: string
           description: Generic message to avoid revealing whether the email is already registered.
           example: If the email can be registered, an OTP has been sent.
+    CheckAvailabilityRequest:
+      type: object
+      description: Payload used to check whether the registration username and email are available.
+      additionalProperties: false
+      required: [username, email]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: '^[A-Za-z0-9_]+$'
+          description: Candidate username for the new account.
+          example: maplover
+        email:
+          type: string
+          format: email
+          maxLength: 320
+          description: Candidate email for the new account.
+          example: user@example.com
+    CheckAvailabilityResponse:
+      type: object
+      description: Availability result for the submitted registration identity fields.
+      additionalProperties: false
+      required: [username, email]
+      properties:
+        username:
+          type: string
+          enum: [AVAILABLE, TAKEN]
+          description: Whether the submitted username can be registered.
+          example: AVAILABLE
+        email:
+          type: string
+          enum: [AVAILABLE, TAKEN]
+          description: Whether the submitted email can be registered.
+          example: TAKEN
     VerifyRegistrationRequest:
       type: object
       description: Payload for confirming a registration OTP and creating the account.

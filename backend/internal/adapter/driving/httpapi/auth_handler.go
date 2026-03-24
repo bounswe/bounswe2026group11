@@ -13,6 +13,7 @@ import (
 type AuthService interface {
 	RequestRegistrationOTP(ctx context.Context, input auth.RequestOTPInput) error
 	VerifyRegistrationOTP(ctx context.Context, input auth.VerifyRegistrationInput) (*auth.Session, error)
+	CheckAvailability(ctx context.Context, input auth.CheckAvailabilityInput) (*auth.CheckAvailabilityResult, error)
 	Login(ctx context.Context, input auth.LoginInput) (*auth.Session, error)
 	Refresh(ctx context.Context, refreshToken string, deviceInfo *string) (*auth.Session, error)
 	Logout(ctx context.Context, refreshToken string) error
@@ -35,6 +36,11 @@ type verifyRegistrationBody struct {
 	PhoneNumber *string `json:"phone_number"`
 	Gender      *string `json:"gender"`
 	BirthDate   *string `json:"birth_date"`
+}
+
+type checkAvailabilityBody struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
 }
 
 type loginBody struct {
@@ -64,6 +70,7 @@ func RegisterAuthRoutes(router fiber.Router, handler *AuthHandler) {
 	group := router.Group("/auth")
 	group.Post("/register/email/request-otp", handler.RequestRegistrationOTP)
 	group.Post("/register/email/verify", handler.VerifyRegistrationOTP)
+	group.Post("/register/check-availability", handler.CheckAvailability)
 	group.Post("/login", handler.Login)
 	group.Post("/refresh", handler.Refresh)
 	group.Post("/logout", handler.Logout)
@@ -86,6 +93,28 @@ func (h *AuthHandler) RequestRegistrationOTP(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 		"status":  "accepted",
 		"message": "If the email can be registered, an OTP has been sent.",
+	})
+}
+
+// CheckAvailability handles POST /auth/register/check-availability.
+func (h *AuthHandler) CheckAvailability(c *fiber.Ctx) error {
+	var body checkAvailabilityBody
+	if err := c.BodyParser(&body); err != nil {
+		return writeError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
+	}
+
+	result, err := h.service.CheckAvailability(c.UserContext(), auth.CheckAvailabilityInput{
+		Username:  body.Username,
+		Email:     body.Email,
+		ClientKey: availabilityClientKey(c),
+	})
+	if err != nil {
+		return writeError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"username": result.Username,
+		"email":    result.Email,
 	})
 }
 
@@ -179,4 +208,8 @@ func userAgent(c *fiber.Ctx) *string {
 		return nil
 	}
 	return &value
+}
+
+func availabilityClientKey(c *fiber.Ctx) string {
+	return strings.TrimSpace(c.IP())
 }

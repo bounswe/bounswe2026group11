@@ -25,8 +25,8 @@ type execer interface {
 // AuthRepository is the Postgres-backed implementation of domain.AuthRepository.
 type AuthRepository struct {
 	pool *pgxpool.Pool
-	db   execer   // points to pool normally, or to an active pgx.Tx inside WithTx
-	tx   pgx.Tx   // non-nil only when operating inside a transaction
+	db   execer // points to pool normally, or to an active pgx.Tx inside WithTx
+	tx   pgx.Tx // non-nil only when operating inside a transaction
 }
 
 // NewAuthRepository returns a repository that executes queries against the given connection pool.
@@ -34,6 +34,16 @@ func NewAuthRepository(pool *pgxpool.Pool) *AuthRepository {
 	return &AuthRepository{
 		pool: pool,
 		db:   pool,
+	}
+}
+
+// NewAuthRepositoryWithTx returns a repository bound to an existing transaction.
+// Repository methods run against tx and nested WithTx calls reuse it.
+func NewAuthRepositoryWithTx(pool *pgxpool.Pool, tx pgx.Tx) *AuthRepository {
+	return &AuthRepository{
+		pool: pool,
+		db:   tx,
+		tx:   tx,
 	}
 }
 

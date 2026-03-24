@@ -21,6 +21,7 @@ vendor/
 # Local workspace (remove if you commit go.work)
 go.work
 go.work.sum
+.cache/
 
 # Local secrets (template: ../deploy/.env.example → copy to .env here for go run)
 .env

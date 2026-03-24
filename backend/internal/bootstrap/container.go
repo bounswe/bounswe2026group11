@@ -12,20 +12,20 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/driven/security"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/driving/httpapi"
 	"github.com/bounswe/bounswe2026group11/backend/internal/app/auth"
+	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/bounswe/bounswe2026group11/backend/internal/platform/config"
 	"github.com/bounswe/bounswe2026group11/backend/internal/platform/database"
-	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Container is the backend composition root. It owns long-lived infrastructure
 // dependencies and exposes application services to the delivery layer.
 type Container struct {
-	Config      *config.Config
-	DB          *pgxpool.Pool
+	Config        *config.Config
+	DB            *pgxpool.Pool
 	TokenIssuer   domain.TokenIssuer
 	TokenVerifier domain.TokenVerifier
-	AuthService httpapi.AuthService
+	AuthService   httpapi.AuthService
 	// Extend with additional services as features are added, for example:
 	// EventService httpapi.EventService
 	// SearchService httpapi.SearchService
@@ -95,6 +95,10 @@ func newAuthService(c *Container) *auth.Service {
 		ratelimit.NewInMemoryRateLimiter(
 			c.Config.LoginRateLimit,
 			c.Config.LoginRateWindow,
+		),
+		ratelimit.NewInMemoryRateLimiter(
+			c.Config.AvailabilityRateLimit,
+			c.Config.AvailabilityRateWindow,
 		),
 		auth.Config{
 			OTPTTL:            c.Config.OTPTTL,

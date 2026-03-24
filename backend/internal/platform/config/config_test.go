@@ -8,11 +8,15 @@ import (
 )
 
 func TestLoad_RequiredMissing(t *testing.T) {
+	// given
 	dir := t.TempDir()
 	t.Chdir(dir)
 	clearConfigEnv(t)
 
+	// when
 	_, err := Load()
+
+	// then
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -22,14 +26,18 @@ func TestLoad_RequiredMissing(t *testing.T) {
 }
 
 func TestLoad_OK(t *testing.T) {
+	// given
 	dir := t.TempDir()
 	t.Chdir(dir)
-	writeConfigFile(t, dir, "local", "app_port: 8080\ndb_host: localhost\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\notp_mailer_mode: mock\n")
+	writeConfigFile(t, dir, "local", "app_port: 8080\ndb_host: localhost\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\navailability_rate_limit: 20\navailability_rate_window: 15m\notp_mailer_mode: mock\n")
 	clearConfigEnv(t)
 	t.Setenv("APP_PORT", "9090")
 	t.Setenv("JWT_SECRET", "test-secret-minimum")
 
+	// when
 	cfg, err := Load()
+
+	// then
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,9 +47,10 @@ func TestLoad_OK(t *testing.T) {
 }
 
 func TestLoad_FromDotEnv(t *testing.T) {
+	// given
 	dir := t.TempDir()
 	t.Chdir(dir)
-	writeConfigFile(t, dir, "local", "app_port: 8080\ndb_host: db.example\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\notp_mailer_mode: mock\n")
+	writeConfigFile(t, dir, "local", "app_port: 8080\ndb_host: db.example\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\navailability_rate_limit: 20\navailability_rate_window: 15m\notp_mailer_mode: mock\n")
 
 	envContent := strings.TrimSpace(`
 DB_PASSWORD=
@@ -53,7 +62,10 @@ JWT_SECRET=from-file
 
 	clearConfigEnv(t)
 
+	// when
 	cfg, err := Load()
+
+	// then
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,9 +75,10 @@ JWT_SECRET=from-file
 }
 
 func TestLoad_EnvOverridesYamlAndDotEnv(t *testing.T) {
+	// given
 	dir := t.TempDir()
 	t.Chdir(dir)
-	writeConfigFile(t, dir, "local", "app_port: 7070\ndb_host: file\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\notp_mailer_mode: mock\n")
+	writeConfigFile(t, dir, "local", "app_port: 7070\ndb_host: file\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\navailability_rate_limit: 20\navailability_rate_window: 15m\notp_mailer_mode: mock\n")
 
 	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("DB_PASSWORD=\nJWT_SECRET=file-secret\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -80,7 +93,11 @@ func TestLoad_EnvOverridesYamlAndDotEnv(t *testing.T) {
 	t.Setenv("DB_NAME", "")
 	t.Setenv("DB_USER", "")
 	t.Setenv("DB_PASSWORD", "")
+
+	// when
 	cfg, err := Load()
+
+	// then
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,13 +110,17 @@ func TestLoad_EnvOverridesYamlAndDotEnv(t *testing.T) {
 }
 
 func TestLoad_EmptyJWTSecret(t *testing.T) {
+	// given
 	dir := t.TempDir()
 	t.Chdir(dir)
-	writeConfigFile(t, dir, "local", "app_port: 8080\ndb_host: localhost\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\notp_mailer_mode: mock\n")
+	writeConfigFile(t, dir, "local", "app_port: 8080\ndb_host: localhost\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\navailability_rate_limit: 20\navailability_rate_window: 15m\notp_mailer_mode: mock\n")
 	clearConfigEnv(t)
 	t.Setenv("JWT_SECRET", "")
 
+	// when
 	_, err := Load()
+
+	// then
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -109,15 +130,19 @@ func TestLoad_EmptyJWTSecret(t *testing.T) {
 }
 
 func TestLoad_UsesAppEnvSpecificYaml(t *testing.T) {
+	// given
 	dir := t.TempDir()
 	t.Chdir(dir)
-	writeConfigFile(t, dir, "local", "app_port: 8080\ndb_host: localhost\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\notp_mailer_mode: mock\n")
-	writeConfigFile(t, dir, "dev", "app_port: 8080\ndb_host: postgres\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\notp_mailer_mode: mock\n")
+	writeConfigFile(t, dir, "local", "app_port: 8080\ndb_host: localhost\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\navailability_rate_limit: 20\navailability_rate_window: 15m\notp_mailer_mode: mock\n")
+	writeConfigFile(t, dir, "dev", "app_port: 8080\ndb_host: postgres\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\navailability_rate_limit: 20\navailability_rate_window: 15m\notp_mailer_mode: mock\n")
 	clearConfigEnv(t)
 	t.Setenv("APP_ENV", "dev")
 	t.Setenv("JWT_SECRET", "dev-secret")
 
+	// when
 	cfg, err := Load()
+
+	// then
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,6 +173,8 @@ func clearConfigEnv(t *testing.T) {
 		"OTP_REQUEST_WINDOW",
 		"LOGIN_RATE_LIMIT",
 		"LOGIN_RATE_WINDOW",
+		"AVAILABILITY_RATE_LIMIT",
+		"AVAILABILITY_RATE_WINDOW",
 		"OTP_MAILER_MODE",
 	} {
 		t.Setenv(k, "")

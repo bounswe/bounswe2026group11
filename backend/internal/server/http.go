@@ -8,7 +8,17 @@ import (
 
 // NewHTTP builds a Fiber app with all registered route groups and middleware.
 func NewHTTP(container *bootstrap.Container) *fiber.App {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		ProxyHeader:             "X-Real-IP",
+		EnableTrustedProxyCheck: true,
+		TrustedProxies: []string{
+			"127.0.0.1",
+			"::1",
+			"10.0.0.0/8",
+			"172.16.0.0/12",
+			"192.168.0.0/16",
+		},
+	})
 
 	app.Use(httpapi.RequestLogger())
 
