@@ -1,0 +1,37 @@
+# Backend Agent Guide
+
+Read `/AGENTS.md` first, then use this file for backend work.
+
+## Development rules
+
+- Before implementation, identify which backend layers, modules, and contracts will be affected. Make a short plan based on that impact analysis.
+- Check `frontend/` or `mobile/` only when you need to understand an existing user flow, API consumption pattern, or contract expectation. Do not spend context on those surfaces unless it is necessary.
+- Prefer changes that preserve or improve the current clean architecture and hexagonal architecture boundaries.
+- If the area you need to change does not currently follow those boundaries well, do not make it worse.
+- If the requested feature would be significantly cleaner with a local refactor, stop and ask for approval before reshaping that part of the codebase. After approval, place the new feature inside the improved structure instead of adding more ad hoc logic.
+- Write code that is aligned with SOLID, DRY, scalability, and long-term maintainability.
+- Use explicit, meaningful names for variables, methods, services, and types. Keep naming consistent with the existing backend structure and domain language.
+- Keep business rules inside the correct application or domain layer instead of leaking them into transport, bootstrap, or infrastructure code.
+- Prefer focused abstractions and composable services over large multipurpose handlers or services.
+
+## Comments and readability
+
+- Follow the existing backend style of placing explanatory comments above important methods, exported functions, and non-obvious domain logic.
+- Add inline comments inside methods when the flow is trivial-to-misread, constraint-heavy, or otherwise hard to infer from the code alone.
+- Do not add comments that only restate the code. Comments should explain intent, invariants, edge cases, or why a decision exists.
+
+## API documentation
+
+- After completing backend development, add or update the relevant OpenAPI documentation under `/docs/openapi/`.
+- Document the endpoint so frontend and mobile developers can implement against it without open questions.
+- Include request and response shapes, validation rules, authentication requirements, important error cases, and behavior notes that affect client implementation.
+- If a contract change affects an existing spec, update the current file instead of leaving stale documentation behind.
+
+## Testing rules
+
+- Add new unit tests or update existing ones for every backend behavior change.
+- Structure tests with explicit `given`, `when`, and `then` sections, matching the style already used in the backend test suite.
+- Keep tests deterministic and safe for parallel execution whenever flakiness can be avoided.
+- When writing or updating integration tests, make sure they continue to use the shared test container setup instead of creating isolated ad hoc infrastructure.
+- Test behavior and contracts, not just implementation details.
+- Cover success paths, validation failures, and the most relevant edge cases introduced by the change.

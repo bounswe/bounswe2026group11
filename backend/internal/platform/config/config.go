@@ -15,24 +15,26 @@ const defaultAppEnv = "local"
 // Config holds application settings loaded from an environment-specific YAML
 // file first, then from .env for secrets, then from OS environment variables.
 type Config struct {
-	AppPort           int
-	DBHost            string
-	DBPort            int
-	DBName            string
-	DBUser            string
-	DBPassword        string
-	JWTSecret         string
-	AccessTokenTTL    time.Duration
-	RefreshTokenTTL   time.Duration
-	MaxSessionTTL     time.Duration
-	OTPTTL            time.Duration
-	OTPMaxAttempts    int
-	OTPResendCooldown time.Duration
-	OTPRequestLimit   int
-	OTPRequestWindow  time.Duration
-	LoginRateLimit    int
-	LoginRateWindow   time.Duration
-	OTPMailerMode     string
+	AppPort                int
+	DBHost                 string
+	DBPort                 int
+	DBName                 string
+	DBUser                 string
+	DBPassword             string
+	JWTSecret              string
+	AccessTokenTTL         time.Duration
+	RefreshTokenTTL        time.Duration
+	MaxSessionTTL          time.Duration
+	OTPTTL                 time.Duration
+	OTPMaxAttempts         int
+	OTPResendCooldown      time.Duration
+	OTPRequestLimit        int
+	OTPRequestWindow       time.Duration
+	LoginRateLimit         int
+	LoginRateWindow        time.Duration
+	AvailabilityRateLimit  int
+	AvailabilityRateWindow time.Duration
+	OTPMailerMode          string
 }
 
 // Load reads configuration using the following precedence:
@@ -76,27 +78,31 @@ func Load() (*Config, error) {
 	bind("otp_request_window", "OTP_REQUEST_WINDOW")
 	bind("login_rate_limit", "LOGIN_RATE_LIMIT")
 	bind("login_rate_window", "LOGIN_RATE_WINDOW")
+	bind("availability_rate_limit", "AVAILABILITY_RATE_LIMIT")
+	bind("availability_rate_window", "AVAILABILITY_RATE_WINDOW")
 	bind("otp_mailer_mode", "OTP_MAILER_MODE")
 
 	cfg := &Config{
-		AppPort:           v.GetInt("app_port"),
-		DBHost:            strings.TrimSpace(v.GetString("db_host")),
-		DBPort:            v.GetInt("db_port"),
-		DBName:            strings.TrimSpace(v.GetString("db_name")),
-		DBUser:            strings.TrimSpace(v.GetString("db_user")),
-		DBPassword:        v.GetString("db_password"),
-		JWTSecret:         strings.TrimSpace(v.GetString("jwt_secret")),
-		AccessTokenTTL:    v.GetDuration("access_token_ttl"),
-		RefreshTokenTTL:   v.GetDuration("refresh_token_ttl"),
-		MaxSessionTTL:     v.GetDuration("max_session_ttl"),
-		OTPTTL:            v.GetDuration("otp_ttl"),
-		OTPMaxAttempts:    v.GetInt("otp_max_attempts"),
-		OTPResendCooldown: v.GetDuration("otp_resend_cooldown"),
-		OTPRequestLimit:   v.GetInt("otp_request_limit"),
-		OTPRequestWindow:  v.GetDuration("otp_request_window"),
-		LoginRateLimit:    v.GetInt("login_rate_limit"),
-		LoginRateWindow:   v.GetDuration("login_rate_window"),
-		OTPMailerMode:     strings.TrimSpace(v.GetString("otp_mailer_mode")),
+		AppPort:                v.GetInt("app_port"),
+		DBHost:                 strings.TrimSpace(v.GetString("db_host")),
+		DBPort:                 v.GetInt("db_port"),
+		DBName:                 strings.TrimSpace(v.GetString("db_name")),
+		DBUser:                 strings.TrimSpace(v.GetString("db_user")),
+		DBPassword:             v.GetString("db_password"),
+		JWTSecret:              strings.TrimSpace(v.GetString("jwt_secret")),
+		AccessTokenTTL:         v.GetDuration("access_token_ttl"),
+		RefreshTokenTTL:        v.GetDuration("refresh_token_ttl"),
+		MaxSessionTTL:          v.GetDuration("max_session_ttl"),
+		OTPTTL:                 v.GetDuration("otp_ttl"),
+		OTPMaxAttempts:         v.GetInt("otp_max_attempts"),
+		OTPResendCooldown:      v.GetDuration("otp_resend_cooldown"),
+		OTPRequestLimit:        v.GetInt("otp_request_limit"),
+		OTPRequestWindow:       v.GetDuration("otp_request_window"),
+		LoginRateLimit:         v.GetInt("login_rate_limit"),
+		LoginRateWindow:        v.GetDuration("login_rate_window"),
+		AvailabilityRateLimit:  v.GetInt("availability_rate_limit"),
+		AvailabilityRateWindow: v.GetDuration("availability_rate_window"),
+		OTPMailerMode:          strings.TrimSpace(v.GetString("otp_mailer_mode")),
 	}
 
 	if err := validate(v, cfg); err != nil {
@@ -226,6 +232,12 @@ func validate(v *viper.Viper, c *Config) error {
 	}
 	if c.LoginRateWindow <= 0 {
 		return fmt.Errorf("LOGIN_RATE_WINDOW must be greater than zero")
+	}
+	if c.AvailabilityRateLimit < 1 {
+		return fmt.Errorf("AVAILABILITY_RATE_LIMIT must be at least 1")
+	}
+	if c.AvailabilityRateWindow <= 0 {
+		return fmt.Errorf("AVAILABILITY_RATE_WINDOW must be greater than zero")
 	}
 	if c.OTPMailerMode == "" {
 		return fmt.Errorf("OTP_MAILER_MODE cannot be empty")

@@ -51,3 +51,17 @@ type Session struct {
 	ExpiresInSeconds int64
 	User             domain.UserSummary
 }
+
+// CheckAvailabilityInput carries the username and email to check.
+type CheckAvailabilityInput struct {
+	Username  string
+	Email     string
+	ClientKey string
+}
+
+// CheckAvailabilityResult reports whether a username and email are available
+// for registration. Each field is either "AVAILABLE" or "TAKEN".
+type CheckAvailabilityResult struct {
+	Username string // "AVAILABLE" or "TAKEN"
+	Email    string // "AVAILABLE" or "TAKEN"
+}
