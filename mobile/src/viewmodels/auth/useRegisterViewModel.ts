@@ -1,5 +1,9 @@
 import { useState, useCallback } from 'react';
-import { requestRegistrationOtp, verifyRegistration } from '@/services/authService';
+import {
+  checkRegistrationAvailability,
+  requestRegistrationOtp,
+  verifyRegistration,
+} from '@/services/authService';
 import { AuthSessionResponse } from '@/models/auth';
 import { ApiError } from '@/services/api';
 import {
@@ -95,6 +99,22 @@ export function useRegisterViewModel(): RegisterViewModel {
     setIsLoading(true);
     setApiError(null);
     try {
+      const availability = await checkRegistrationAvailability({
+        username: formData.username,
+        email: formData.email,
+      });
+      const taken: RegisterFormErrors = {};
+      if (availability.email === 'TAKEN') {
+        taken.email = 'This email is already in use.';
+      }
+      if (availability.username === 'TAKEN') {
+        taken.username = 'This username is already in use.';
+      }
+      if (Object.keys(taken).length > 0) {
+        setErrors((prev) => ({ ...prev, ...taken }));
+        return;
+      }
+
       await requestRegistrationOtp({ email: formData.email });
       setStep('otp');
     } catch (err) {

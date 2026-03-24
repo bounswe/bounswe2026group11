@@ -1,10 +1,21 @@
 import { apiPost } from './api';
 import {
+  CheckAvailabilityRequest,
+  CheckAvailabilityResponse,
   RequestOtpRequest,
   RequestOtpResponse,
   VerifyRegistrationRequest,
   AuthSessionResponse,
 } from '@/models/auth';
+
+export function checkRegistrationAvailability(
+  data: CheckAvailabilityRequest,
+): Promise<CheckAvailabilityResponse> {
+  return apiPost<CheckAvailabilityResponse>(
+    '/auth/register/check-availability',
+    data,
+  );
+}
 
 export function requestRegistrationOtp(
   data: RequestOtpRequest,

@@ -1,3 +1,16 @@
+/** Matches OpenAPI `CheckAvailabilityResponse` enum values. */
+export type AvailabilityStatus = 'AVAILABLE' | 'TAKEN';
+
+export interface CheckAvailabilityRequest {
+  username: string;
+  email: string;
+}
+
+export interface CheckAvailabilityResponse {
+  username: AvailabilityStatus;
+  email: AvailabilityStatus;
+}
+
 export interface RequestOtpRequest {
   email: string;
 }
