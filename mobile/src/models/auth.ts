@@ -20,6 +20,11 @@ export interface RequestOtpResponse {
   message: string;
 }
 
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
 export interface VerifyRegistrationRequest {
   email: string;
   otp: string;

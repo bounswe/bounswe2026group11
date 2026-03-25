@@ -253,6 +253,18 @@ export default function RegisterView() {
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
         )}
+
+        {vm.step === 'details' && (
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/')}
+              disabled={vm.isLoading}
+            >
+              <Text style={styles.footerLink}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -384,5 +396,19 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#6B7280',
     fontSize: 15,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 24,
+  },
+  footerText: {
+    fontSize: 15,
+    color: '#6B7280',
+  },
+  footerLink: {
+    fontSize: 15,
+    color: '#2563EB',
+    fontWeight: '600',
   },
 });
