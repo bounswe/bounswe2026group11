@@ -9,6 +9,7 @@ Read `/AGENTS.md` first, then use this file for mobile work.
 - Reuse shared mobile patterns before introducing new architectural conventions.
 - Keep screens, hooks, and service layers understandable and maintainable.
 - Use explicit names and keep platform-specific behavior visible where it matters.
+- For enums and API-backed string constants, use **UPPERCASE** serialized values (for example `"ACTIVE"`). Name enum cases or sealed variants per platform style, but keep wire/API strings uppercase.
 - When an API contract is ambiguous, align with the OpenAPI documentation or update it as part of the backend contract change.
 
 ## Documentation and testing

@@ -12,6 +12,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/driven/security"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/driving/httpapi"
 	"github.com/bounswe/bounswe2026group11/backend/internal/app/auth"
+	"github.com/bounswe/bounswe2026group11/backend/internal/app/event"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/bounswe/bounswe2026group11/backend/internal/platform/config"
 	"github.com/bounswe/bounswe2026group11/backend/internal/platform/database"
@@ -26,8 +27,8 @@ type Container struct {
 	TokenIssuer   domain.TokenIssuer
 	TokenVerifier domain.TokenVerifier
 	AuthService   httpapi.AuthService
+	EventService  httpapi.EventService
 	// Extend with additional services as features are added, for example:
-	// EventService httpapi.EventService
 	// SearchService httpapi.SearchService
 }
 
@@ -51,6 +52,7 @@ func New(ctx context.Context) (*Container, error) {
 		TokenVerifier: buildTokenVerifier(cfg),
 	}
 	container.AuthService = newAuthService(container)
+	container.EventService = newEventService(container)
 	return container, nil
 }
 
@@ -75,6 +77,12 @@ func buildTokenVerifier(cfg *config.Config) jwtadapter.Verifier {
 	return jwtadapter.Verifier{
 		Secret: []byte(cfg.JWTSecret),
 	}
+}
+
+// newEventService wires the event use-case service with its driven adapters.
+func newEventService(c *Container) *event.Service {
+	repo := postgres.NewEventRepository(c.DB)
+	return event.NewService(repo)
 }
 
 // newAuthService wires the auth use-case service with its driven adapters.

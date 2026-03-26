@@ -9,6 +9,7 @@ Read `/AGENTS.md` first, then use this file for frontend work.
 - Preserve established UI patterns unless the task explicitly asks for a redesign.
 - Keep components readable, composable, and easy to maintain.
 - Use clear names for components, hooks, state, and service modules.
+- For enums and union-of-string literals that represent fixed sets (status, type, role), use **UPPERCASE** values (for example `type Status = 'ACTIVE' | 'INACTIVE'`).
 - When backend contracts are unclear or outdated, update the relevant OpenAPI spec or ask for clarification instead of hard-coding assumptions.
 
 ## Documentation and testing

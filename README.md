@@ -41,8 +41,8 @@ Only **`docs/openapi/`** and **`docs/swagger-ui/`** are mounted into the nginx c
 | **Swagger UI** | **http://localhost/api/docs/** |
 | **OpenAPI specs** (YAML) | Under **http://localhost/api/docs/openapi/** (e.g. `auth.yaml`) |
 
-- **Multiple APIs:** Specs are listed in [`docs/openapi/specs.json`](docs/openapi/specs.json). The UI shows a dropdown; you can deep-link with `?spec=<name>` (e.g. `?spec=auth`).
-- **Adding a new spec:** Add a YAML file under [`docs/openapi/`](docs/openapi/) and register it in `specs.json`.
+- **Multiple APIs:** Swagger UI auto-discovers every `.yaml` or `.yml` file under [`docs/openapi/`](docs/openapi/) and shows them in the built-in dropdown. You can deep-link with `?spec=<name>` (e.g. `?spec=auth`).
+- **Adding a new spec:** Add a YAML file under [`docs/openapi/`](docs/openapi/). It will appear automatically in Swagger UI the next time you load `/api/docs/`.
 
 These docs routes are local-only; the remote dev deployment does not expose `/api/docs`. For the environment split, see [**Deployment → API documentation**](docs/deploy.md#api-documentation).
 

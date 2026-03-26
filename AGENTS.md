@@ -16,6 +16,7 @@ This repository keeps agent instructions in versioned Markdown files so every AI
 
 ## Global rules
 
+- **Enums**: Use uppercase letters for enum member names and their serialized values (for example `ACTIVE`, `PENDING`) across APIs, domain models, and clients unless an existing area already follows a different, documented convention.
 - Keep changes scoped to the requested surface unless the task explicitly requires a shared change.
 - Prefer small, reviewable changes that fit the current architecture of the touched area.
 - Do not silently introduce architectural drift. If a requested change would deepen an already weak structure, stop and propose a cleanup plan first.

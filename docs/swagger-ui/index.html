@@ -21,7 +21,7 @@
 
       body {
         margin: 0;
-        background: #f7f9fc;
+        background: transparent;
       }
 
       #swagger-ui {
@@ -33,10 +33,10 @@
         margin: 48px auto;
         padding: 20px 24px;
         border-radius: 12px;
-        background: #ffffff;
-        color: #1f2937;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-        font-family: Arial, sans-serif;
+        background: var(--docs-panel-strong, #ffffff);
+        color: var(--docs-text, #1f2937);
+        box-shadow: var(--docs-shadow, 0 10px 30px rgba(15, 23, 42, 0.08));
+        font-family: var(--docs-font, Arial, sans-serif);
         line-height: 1.5;
       }
 
@@ -47,11 +47,111 @@
 
       .docs-error p {
         margin: 0;
+        color: var(--docs-text-muted, inherit);
       }
     </style>
   </head>
-  <body>
-    <div id="swagger-ui"></div>
+  <body data-theme="dark">
+    <div class="docs-shell">
+      <header class="docs-shell__header">
+        <div>
+          <p class="docs-shell__eyebrow">Social Event Mapper</p>
+          <h1 class="docs-shell__title">API Docs</h1>
+          <p class="docs-shell__subtitle">
+            Auth and protected APIs share the same browser session here. Sign in once,
+            then keep testing without re-pasting bearer tokens.
+          </p>
+        </div>
+        <button id="theme-toggle" class="docs-shell__theme-toggle" type="button" aria-pressed="true">
+          Toggle theme
+        </button>
+      </header>
+
+      <section class="docs-session-panel" aria-labelledby="docs-session-title">
+        <div class="docs-session-panel__header">
+          <p class="docs-session-panel__eyebrow">Quick Session</p>
+          <h2 id="docs-session-title">Reusable test auth</h2>
+          <p class="docs-session-panel__description">
+            Access token login, sign up, refresh and protected endpoint calls are connected here.
+            Once a session exists, the docs reuse it automatically without manual token paste.
+          </p>
+        </div>
+
+        <p id="session-status" class="docs-session-panel__status" aria-live="polite">
+          No saved session yet.
+        </p>
+
+        <div class="docs-session-panel__grid">
+          <section class="docs-session-card" aria-labelledby="quick-login-title">
+            <p class="docs-session-card__eyebrow">Quick Login</p>
+            <h3 id="quick-login-title">Use existing test account</h3>
+            <label class="docs-field">
+              <span>Username</span>
+              <input id="quick-login-username" type="text" autocomplete="username" spellcheck="false" />
+            </label>
+            <label class="docs-field">
+              <span>Password</span>
+              <input id="quick-login-password" type="password" autocomplete="current-password" />
+            </label>
+            <div class="docs-session-panel__actions">
+              <button id="quick-login-submit" class="docs-button docs-button--primary" type="button">
+                Sign in
+              </button>
+            </div>
+          </section>
+
+          <section class="docs-session-card" aria-labelledby="quick-signup-title">
+            <p class="docs-session-card__eyebrow">Quick Sign Up</p>
+            <h3 id="quick-signup-title">Request OTP and create account</h3>
+            <label class="docs-field">
+              <span>Email</span>
+              <input id="quick-signup-email" type="email" autocomplete="email" spellcheck="false" />
+            </label>
+            <label class="docs-field">
+              <span>OTP</span>
+              <input id="quick-signup-otp" type="text" inputmode="numeric" spellcheck="false" />
+            </label>
+            <label class="docs-field">
+              <span>Username</span>
+              <input id="quick-signup-username" type="text" autocomplete="username" spellcheck="false" />
+            </label>
+            <label class="docs-field">
+              <span>Password</span>
+              <input id="quick-signup-password" type="password" autocomplete="new-password" />
+            </label>
+            <div class="docs-session-panel__actions">
+              <button id="quick-signup-request-otp" class="docs-button" type="button">
+                Request OTP
+              </button>
+              <button id="quick-signup-submit" class="docs-button docs-button--primary" type="button">
+                Sign up
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <div class="docs-session-panel__utility">
+          <button id="quick-refresh-submit" class="docs-button" type="button">
+            Refresh session
+          </button>
+          <button id="copy-access-token-submit" class="docs-button" type="button">
+            Copy current access token
+          </button>
+          <button id="copy-refresh-token-submit" class="docs-button" type="button">
+            Copy current refresh token
+          </button>
+          <button id="clear-session-submit" class="docs-button docs-button--ghost" type="button">
+            Clear
+          </button>
+        </div>
+
+        <p class="docs-session-panel__hint">
+          Saved auth data stays only in your browser. Protected endpoints below receive the current access token automatically, and refresh/logout request bodies can reuse the saved refresh token automatically.
+        </p>
+      </section>
+
+      <div id="swagger-ui"></div>
+    </div>
     <script src="./vendor/swagger-ui-dist/swagger-ui-bundle.js"></script>
     <script src="./vendor/swagger-ui-dist/swagger-ui-standalone-preset.js"></script>
     <script src="./swagger-initializer.js"></script>

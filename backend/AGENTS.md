@@ -11,6 +11,9 @@ Read `/AGENTS.md` first, then use this file for backend work.
 - If the requested feature would be significantly cleaner with a local refactor, stop and ask for approval before reshaping that part of the codebase. After approval, place the new feature inside the improved structure instead of adding more ad hoc logic.
 - Write code that is aligned with SOLID, DRY, scalability, and long-term maintainability.
 - Use explicit, meaningful names for variables, methods, services, and types. Keep naming consistent with the existing backend structure and domain language.
+- For enumerated values (constants, domain status/type strings, API and OpenAPI enum values), use **UPPERCASE** identifiers and wire/string values (for example `PUBLISHED`, `DRAFT`).
+- **Enum-like closed sets**: Do not scatter raw `string` values for the same concept across handlers, repos, and SQL. In `internal/domain`, add a dedicated named type (`type FooStatus string`), one **const** per allowed value using the **UPPERCASE** wire string, and short comments where the set is not obvious. As the set grows, extend the same type with shared helpers (parse/validate from untrusted input, list valid values, `String()`), so new cases live in one place and call sites stay type-safe.
+- **Where those types live**: Parse and map wire strings to domain types at adapter boundaries (HTTP, persistence). Application services should take and return domain enum-like types, not ad hoc strings. When you add or change a set, update the relevant OpenAPI spec under `docs/openapi/` like any other API contract change.
 - Keep business rules inside the correct application or domain layer instead of leaking them into transport, bootstrap, or infrastructure code.
 - Prefer focused abstractions and composable services over large multipurpose handlers or services.
 
@@ -35,3 +38,8 @@ Read `/AGENTS.md` first, then use this file for backend work.
 - When writing or updating integration tests, make sure they continue to use the shared test container setup instead of creating isolated ad hoc infrastructure.
 - Test behavior and contracts, not just implementation details.
 - Cover success paths, validation failures, and the most relevant edge cases introduced by the change.
+
+## Ship check (before marking work complete)
+
+- Before you tell the user that backend work is finished, run `./shipcheck.sh` from the `backend/` directory. It runs the full local gate (modules, format, vet, static analysis, vulnerability scan, build, unit tests, and integration tests; see the script header for details).
+- If `./shipcheck.sh` fails, fix the reported issues and re-run until it passes. Do not treat the task as complete while the script is red.
