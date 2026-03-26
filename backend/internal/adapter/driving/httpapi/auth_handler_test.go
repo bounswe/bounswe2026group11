@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http/httptest"
 	"testing"
 
@@ -35,6 +36,150 @@ func TestRequestRegistrationOTPReturnsAcceptedResponse(t *testing.T) {
 	}
 	if service.lastOTPRequest.Email != "user@example.com" {
 		t.Fatalf("expected service to receive email, got %#v", service.lastOTPRequest)
+	}
+}
+
+func TestRequestPasswordResetOTPReturnsGenericSuccessResponse(t *testing.T) {
+	// given
+	service := &stubAuthService{}
+	app := fiber.New()
+	RegisterAuthRoutes(app, NewAuthHandler(service))
+
+	req := httptest.NewRequest(fiber.MethodPost, "/auth/forgot-password/request-otp", bytes.NewBufferString(`{"email":"user@example.com"}`))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if service.lastPasswordResetOTPRequest.Email != "user@example.com" {
+		t.Fatalf("expected service to receive email, got %#v", service.lastPasswordResetOTPRequest)
+	}
+
+	var body map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	if body["status"] != "ok" {
+		t.Fatalf("expected status body %q, got %q", "ok", body["status"])
+	}
+	if body["message"] != "If an account with that email exists, a password-reset OTP has been sent." {
+		t.Fatalf("unexpected message %q", body["message"])
+	}
+}
+
+func TestRequestPasswordResetOTPReturnsInternalServerError(t *testing.T) {
+	// given
+	service := &stubAuthService{
+		passwordResetErr: errors.New("smtp down"),
+	}
+	app := fiber.New()
+	RegisterAuthRoutes(app, NewAuthHandler(service))
+
+	req := httptest.NewRequest(fiber.MethodPost, "/auth/forgot-password/request-otp", bytes.NewBufferString(`{"email":"user@example.com"}`))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", fiber.StatusInternalServerError, resp.StatusCode)
+	}
+
+	var body struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	if body.Error.Code != "internal_server_error" {
+		t.Fatalf("expected error code %q, got %q", "internal_server_error", body.Error.Code)
+	}
+}
+
+func TestVerifyPasswordResetOTPReturnsResetGrant(t *testing.T) {
+	// given
+	service := &stubAuthService{}
+	app := fiber.New()
+	RegisterAuthRoutes(app, NewAuthHandler(service))
+
+	req := httptest.NewRequest(fiber.MethodPost, "/auth/forgot-password/verify-otp", bytes.NewBufferString(`{"email":"user@example.com","otp":"123456"}`))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if service.lastVerifyPasswordResetRequest.Email != "user@example.com" || service.lastVerifyPasswordResetRequest.OTP != "123456" {
+		t.Fatalf("expected verify request to be forwarded, got %#v", service.lastVerifyPasswordResetRequest)
+	}
+
+	var body struct {
+		Status           string `json:"status"`
+		ResetToken       string `json:"reset_token"`
+		ExpiresInSeconds int64  `json:"expires_in_seconds"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	if body.Status != "ok" || body.ResetToken != "reset-token" || body.ExpiresInSeconds != 600 {
+		t.Fatalf("unexpected body %#v", body)
+	}
+}
+
+func TestResetPasswordReturnsSuccessResponse(t *testing.T) {
+	// given
+	service := &stubAuthService{}
+	app := fiber.New()
+	RegisterAuthRoutes(app, NewAuthHandler(service))
+
+	req := httptest.NewRequest(fiber.MethodPost, "/auth/forgot-password/reset-password", bytes.NewBufferString(`{"email":"user@example.com","reset_token":"reset-token-abcdefghijklmnopqrstuvwxyz","new_password":"NewStrongPassword123"}`))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if service.lastResetPasswordRequest.Email != "user@example.com" ||
+		service.lastResetPasswordRequest.ResetToken != "reset-token-abcdefghijklmnopqrstuvwxyz" ||
+		service.lastResetPasswordRequest.NewPassword != "NewStrongPassword123" {
+		t.Fatalf("expected reset request to be forwarded, got %#v", service.lastResetPasswordRequest)
+	}
+
+	var body map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	if body["status"] != "ok" || body["message"] != "Password has been reset." {
+		t.Fatalf("unexpected body %#v", body)
 	}
 }
 
@@ -193,17 +338,44 @@ func TestCheckAvailabilityValidationError(t *testing.T) {
 }
 
 type stubAuthService struct {
-	lastOTPRequest          auth.RequestOTPInput
-	lastVerifyRequest       auth.VerifyRegistrationInput
-	lastAvailabilityRequest auth.CheckAvailabilityInput
-	loginErr                error
-	availabilityResult      *auth.CheckAvailabilityResult
-	availabilityErr         error
+	lastOTPRequest                 auth.RequestOTPInput
+	lastPasswordResetOTPRequest    auth.RequestOTPInput
+	lastVerifyPasswordResetRequest auth.VerifyPasswordResetInput
+	lastResetPasswordRequest       auth.ResetPasswordInput
+	lastVerifyRequest              auth.VerifyRegistrationInput
+	lastAvailabilityRequest        auth.CheckAvailabilityInput
+	loginErr                       error
+	passwordResetErr               error
+	verifyPasswordResetErr         error
+	resetPasswordErr               error
+	availabilityResult             *auth.CheckAvailabilityResult
+	availabilityErr                error
 }
 
 func (s *stubAuthService) RequestRegistrationOTP(_ context.Context, input auth.RequestOTPInput) error {
 	s.lastOTPRequest = input
 	return nil
+}
+
+func (s *stubAuthService) RequestPasswordResetOTP(_ context.Context, input auth.RequestOTPInput) error {
+	s.lastPasswordResetOTPRequest = input
+	return s.passwordResetErr
+}
+
+func (s *stubAuthService) VerifyPasswordResetOTP(_ context.Context, input auth.VerifyPasswordResetInput) (*auth.PasswordResetGrant, error) {
+	s.lastVerifyPasswordResetRequest = input
+	if s.verifyPasswordResetErr != nil {
+		return nil, s.verifyPasswordResetErr
+	}
+	return &auth.PasswordResetGrant{
+		ResetToken:       "reset-token",
+		ExpiresInSeconds: 600,
+	}, nil
+}
+
+func (s *stubAuthService) ResetPassword(_ context.Context, input auth.ResetPasswordInput) error {
+	s.lastResetPasswordRequest = input
+	return s.resetPasswordErr
 }
 
 func (s *stubAuthService) CheckAvailability(_ context.Context, input auth.CheckAvailabilityInput) (*auth.CheckAvailabilityResult, error) {

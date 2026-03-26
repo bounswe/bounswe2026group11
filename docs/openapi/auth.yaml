@@ -3,7 +3,8 @@ info:
   title: Social Event Mapper Auth API
   version: 0.1.0
   description: |
-    Authentication endpoints for phase-one user registration and session management.
+    Authentication endpoints for phase-one user registration, password-reset OTP requests,
+    and session management.
 
     Registration uses email OTP only. Phone number is optional and is stored without
     mandatory verification. Login uses username and password without an OTP step.
@@ -25,7 +26,7 @@ servers:
   - url: /api
 tags:
   - name: Auth
-    description: Registration, login, session refresh, and logout endpoints.
+    description: Registration, password-reset, login, session refresh, and logout endpoints.
 paths:
   /auth/register/email/request-otp:
     post:
@@ -59,6 +60,125 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '429':
           $ref: '#/components/responses/RateLimitedError'
+  /auth/forgot-password/request-otp:
+    post:
+      tags: [Auth]
+      summary: Request a password-reset OTP
+      description: |
+        Submit an email address to start the forgot-password flow.
+
+        The response is intentionally generic and always returns `200 OK` for valid requests,
+        whether or not an account exists for the email address. Unknown emails, resend cooldowns,
+        and request throttling are all handled silently to reduce account enumeration and OTP abuse.
+      operationId: requestPasswordResetOtp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestOtpRequest'
+            examples:
+              default:
+                value:
+                  email: user@example.com
+      responses:
+        '200':
+          description: Generic acknowledgement returned for any valid forgot-password request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForgotPasswordRequestResponse'
+              examples:
+                success:
+                  value:
+                    status: ok
+                    message: If an account with that email exists, a password-reset OTP has been sent.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /auth/forgot-password/verify-otp:
+    post:
+      tags: [Auth]
+      summary: Verify a password-reset OTP
+      description: |
+        Validate the six-digit OTP sent during the forgot-password request flow.
+
+        On success, the backend returns a short-lived `reset_token`. The client must
+        submit that token to `/auth/forgot-password/reset-password` together with the
+        email address and the new password.
+      operationId: verifyPasswordResetOtp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyPasswordResetRequest'
+            examples:
+              default:
+                value:
+                  email: user@example.com
+                  otp: "123456"
+      responses:
+        '200':
+          description: OTP verified and password reset grant issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetGrantResponse'
+              examples:
+                success:
+                  value:
+                    status: ok
+                    reset_token: bQf-8bUjA4U4YVvS6x9x8W1x3Xx0r3mPxrS8y1Zf2KQ
+                    expires_in_seconds: 600
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/InvalidOtpError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /auth/forgot-password/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset the password after OTP verification
+      description: |
+        Replace the account password using the short-lived `reset_token` issued by
+        `/auth/forgot-password/verify-otp`.
+
+        The `reset_token` is single-use and expires automatically. After a successful
+        password reset, the previous password can no longer be used for login.
+      operationId: resetForgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+            examples:
+              default:
+                value:
+                  email: user@example.com
+                  reset_token: bQf-8bUjA4U4YVvS6x9x8W1x3Xx0r3mPxrS8y1Zf2KQ
+                  new_password: StrongPassword123
+      responses:
+        '200':
+          description: Password has been replaced successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetSuccessResponse'
+              examples:
+                success:
+                  value:
+                    status: ok
+                    message: Password has been reset.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/InvalidPasswordResetTokenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /auth/register/check-availability:
     post:
       tags: [Auth]
@@ -357,6 +477,18 @@ components:
                 error:
                   code: refresh_token_reused
                   message: The refresh token has already been used.
+    InvalidPasswordResetTokenError:
+      description: Password reset token was invalid, expired, or already consumed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalidResetToken:
+              value:
+                error:
+                  code: invalid_password_reset_token
+                  message: The password reset session is invalid or has expired.
     ConflictError:
       description: A unique field already exists or the account cannot be created.
       content:
@@ -374,10 +506,22 @@ components:
                 error:
                   code: phone_number_already_exists
                   message: The phone number is already in use.
+    InternalServerError:
+      description: An unexpected backend or mail delivery error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            unexpected:
+              value:
+                error:
+                  code: internal_server_error
+                  message: An unexpected error occurred.
   schemas:
     RequestOtpRequest:
       type: object
-      description: Payload for requesting a registration OTP.
+      description: Payload for requesting an email OTP challenge.
       additionalProperties: false
       required: [email]
       properties:
@@ -385,7 +529,7 @@ components:
           type: string
           format: email
           maxLength: 320
-          description: Email address to verify for a new account.
+          description: Email address that should receive the OTP challenge.
           example: user@example.com
     RequestOtpResponse:
       type: object
@@ -402,6 +546,101 @@ components:
           type: string
           description: Generic message to avoid revealing whether the email is already registered.
           example: If the email can be registered, an OTP has been sent.
+    ForgotPasswordRequestResponse:
+      type: object
+      description: Generic acknowledgement returned after a forgot-password OTP request.
+      additionalProperties: false
+      required: [status, message]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          description: Processing outcome for the forgot-password request.
+          example: ok
+        message:
+          type: string
+          description: Generic message to avoid revealing whether the email belongs to an account.
+          example: If an account with that email exists, a password-reset OTP has been sent.
+    VerifyPasswordResetRequest:
+      type: object
+      description: Payload for verifying a forgot-password OTP.
+      additionalProperties: false
+      required: [email, otp]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+          description: Email address that received the password-reset OTP.
+          example: user@example.com
+        otp:
+          type: string
+          pattern: '^[0-9]{6}$'
+          description: Six-digit OTP sent to the email address.
+          example: "123456"
+    PasswordResetGrantResponse:
+      type: object
+      description: Response returned after a password-reset OTP is verified.
+      additionalProperties: false
+      required: [status, reset_token, expires_in_seconds]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          description: Processing outcome for the OTP verification.
+          example: ok
+        reset_token:
+          type: string
+          minLength: 32
+          maxLength: 512
+          description: Short-lived token authorizing the final password reset step.
+          example: bQf-8bUjA4U4YVvS6x9x8W1x3Xx0r3mPxrS8y1Zf2KQ
+        expires_in_seconds:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Number of seconds until the reset token expires.
+          example: 600
+    ResetPasswordRequest:
+      type: object
+      description: Payload for replacing the password after OTP verification.
+      additionalProperties: false
+      required: [email, reset_token, new_password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+          description: Email address used during the forgot-password flow.
+          example: user@example.com
+        reset_token:
+          type: string
+          minLength: 32
+          maxLength: 512
+          description: Short-lived token returned by `/auth/forgot-password/verify-otp`.
+          example: bQf-8bUjA4U4YVvS6x9x8W1x3Xx0r3mPxrS8y1Zf2KQ
+        new_password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: New plain-text password that will replace the previous one.
+          example: StrongPassword123
+    PasswordResetSuccessResponse:
+      type: object
+      description: Success response returned after the password has been reset.
+      additionalProperties: false
+      required: [status, message]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          description: Processing outcome for the password reset.
+          example: ok
+        message:
+          type: string
+          description: Human-readable success confirmation.
+          example: Password has been reset.
     CheckAvailabilityRequest:
       type: object
       description: Payload used to check whether the registration username and email are available.

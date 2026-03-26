@@ -91,13 +91,22 @@ func NewEventHarness(t *testing.T) *EventHarness {
 
 // CapturingMailer stores the last OTP email sent by the auth service.
 type CapturingMailer struct {
-	LastEmail string
-	LastCode  string
+	LastEmail   string
+	LastCode    string
+	LastPurpose string
 }
 
 func (m *CapturingMailer) SendRegistrationOTP(_ context.Context, email, code string) error {
 	m.LastEmail = email
 	m.LastCode = code
+	m.LastPurpose = domain.OTPPurposeRegistration
+	return nil
+}
+
+func (m *CapturingMailer) SendPasswordResetOTP(_ context.Context, email, code string) error {
+	m.LastEmail = email
+	m.LastCode = code
+	m.LastPurpose = domain.OTPPurposePasswordReset
 	return nil
 }
 

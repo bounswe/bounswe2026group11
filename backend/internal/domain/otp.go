@@ -9,8 +9,10 @@ import (
 
 // OTP delivery channel and purpose constants used to key challenges in the DB.
 const (
-	OTPChannelEmail        = "email"
-	OTPPurposeRegistration = "registration"
+	OTPChannelEmail              = "email"
+	OTPPurposeRegistration       = "registration"
+	OTPPurposePasswordReset      = "password_reset"
+	OTPPurposePasswordResetGrant = "password_reset_grant"
 )
 
 // OTPChallenge represents a one-time-password verification attempt. A challenge
@@ -33,6 +35,7 @@ type OTPChallenge struct {
 // UpsertOTPChallengeParams carries the fields needed to insert or update an
 // unconsumed OTP challenge for the same (destination, purpose) pair.
 type UpsertOTPChallengeParams struct {
+	UserID      *uuid.UUID
 	Channel     string
 	Destination string
 	Purpose     string
@@ -49,4 +52,5 @@ type OTPCodeGenerator interface {
 // OTPMailer delivers OTP codes to the user via an external channel (e.g. email).
 type OTPMailer interface {
 	SendRegistrationOTP(ctx context.Context, email, code string) error
+	SendPasswordResetOTP(ctx context.Context, email, code string) error
 }

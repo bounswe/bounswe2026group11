@@ -15,6 +15,7 @@ type AuthRepository interface {
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 	GetUserByID(ctx context.Context, userID uuid.UUID) (*User, error)
 	CreateUser(ctx context.Context, params CreateUserParams) (*User, error)
+	UpdatePassword(ctx context.Context, userID uuid.UUID, passwordHash string, updatedAt time.Time) error
 	CreateProfile(ctx context.Context, userID uuid.UUID) error
 	UpdateLastLogin(ctx context.Context, userID uuid.UUID, lastLogin time.Time) error
 	GetActiveOTPChallenge(ctx context.Context, destination, purpose string) (*OTPChallenge, error)

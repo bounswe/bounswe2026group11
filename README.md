@@ -7,8 +7,19 @@ A **CMPE354 Group 11** project for discovering and managing social events on a m
 | Layer | Technology |
 |--------|------------|
 | **Backend** | Go 1.26.1, [Fiber](https://gofiber.io/), PostgreSQL + PostGIS, [golang-migrate](https://github.com/golang-migrate/migrate) |
-| **Frontend** | *Placeholder — under development* |
-| **Mobile** | *Placeholder — under development* |
+| **Frontend** | [React](https://react.dev/) - maps with [MapLibre GL JS](https://maplibre.org/). |
+| **Mobile** | React Native, [Expo](https://expo.dev) ~55, [Expo Router](https://docs.expo.dev/router/introduction/) |
+
+## Repository layout
+
+| Path | Role |
+|------|------|
+| [`backend/`](backend/) | Go API (`cmd/server`), domain/application layers, Postgres adapters, migrations |
+| [`frontend/`](frontend/) | Web client (React + MapLibre GL planned); Compose currently uses a placeholder static image |
+| [`mobile/`](mobile/) | React Native client (login, registration, API client) |
+| [`deploy/`](deploy/) | Docker Compose files and env templates |
+| [`docs/openapi/`](docs/openapi/) | OpenAPI 3.x specs consumed by Swagger UI and client teams |
+| [`docs/db/schema.sql`](docs/db/schema.sql) | Reference DDL (migrations under `backend/migrations/` are authoritative at runtime) |
 
 ## Running locally
 
@@ -39,9 +50,9 @@ Only **`docs/openapi/`** and **`docs/swagger-ui/`** are mounted into the nginx c
 | What | URL (local Docker) |
 |------|---------------------|
 | **Swagger UI** | **http://localhost/api/docs/** |
-| **OpenAPI specs** (YAML) | Under **http://localhost/api/docs/openapi/** (e.g. `auth.yaml`) |
+| **OpenAPI specs** (YAML) | Under **http://localhost/api/docs/openapi/** (e.g. `auth.yaml`, `event.yaml`) |
 
-- **Multiple APIs:** Swagger UI auto-discovers every `.yaml` or `.yml` file under [`docs/openapi/`](docs/openapi/) and shows them in the built-in dropdown. You can deep-link with `?spec=<name>` (e.g. `?spec=auth`).
+- **Multiple APIs:** Swagger UI auto-discovers every `.yaml` or `.yml` file under [`docs/openapi/`](docs/openapi/) and shows them in the built-in dropdown. You can deep-link with `?spec=<name>` (e.g. `?spec=auth`, `?spec=event`).
 - **Adding a new spec:** Add a YAML file under [`docs/openapi/`](docs/openapi/). It will appear automatically in Swagger UI the next time you load `/api/docs/`.
 
 These docs routes are local-only; the remote dev deployment does not expose `/api/docs`. For the environment split, see [**Deployment → API documentation**](docs/deploy.md#api-documentation).
@@ -60,27 +71,38 @@ cp ../deploy/.env.example .env   # fill in with secrets
 go run ./cmd/server
 ```
 
-By default the API listens on **http://localhost:8080** (e.g. `GET /health`).
+By default the API listens on **http://localhost:8080** (e.g. `GET /health`). Before finishing backend changes, run **`./shipcheck.sh`** from `backend/` (format, vet, tests, integration tests).
 
-## Auth Session Behavior
+## Authentication and sessions
 
-The current authentication flow is username/password login with short-lived access tokens and rotated refresh tokens.
+### Registration and login
+
+- **Registration** is **email OTP–based**: request an OTP, verify it, then complete account creation (username, password, optional phone). See [`docs/openapi/auth.yaml`](docs/openapi/auth.yaml) for `POST /auth/register/email/request-otp`, `POST /auth/register/email/verify`, and related routes (`check-availability`, and optional **forgot-password** OTP request).
+- **Login** uses **username and password** (`POST /auth/login`) — no OTP step for sign-in.
+- In development, OTP email is handled by a **mock mailer** (not production email delivery).
+
+### Access and refresh tokens
 
 - `access_token_ttl`: **15 minutes**
 - `refresh_token_ttl`: **14 days** (`336h`)
 - `max_session_ttl`: **60 days** (`1440h`)
 
-How frontend clients should use this:
+How clients should use this:
 
-1. `POST /auth/login` or `POST /auth/register/email/verify` returns both an access token and a refresh token.
+1. Successful registration verification (`POST /auth/register/email/verify`) or `POST /auth/login` returns both an access token and a refresh token.
 2. Use the access token for authenticated API calls until it expires.
 3. When the access token expires, call `POST /auth/refresh` with the latest refresh token.
 4. Every successful refresh returns a **new access token** and a **new refresh token**. The previous refresh token becomes invalid immediately.
 5. Each rotated refresh token lives for at most **14 days from the time it is issued**, but the full refresh-token family cannot live longer than **60 days from the original login/registration session start**.
-6. Once the 60-day absolute session limit is reached, the client must send the user back through login again.
+6. Once the 60-day absolute session limit is reached, the client must send the user through login again.
 
-In practice, this means an active user can stay signed in without entering credentials every few days, but a session will still be forced to end after at most 60 days even if refresh calls keep succeeding before then.
+In practice, an active user can stay signed in without entering credentials every few days, but a session still ends after at most 60 days even if refresh calls keep succeeding before then.
 
 ## Database
 
 Canonical DDL: [`docs/db/schema.sql`](docs/db/schema.sql) · Migrations: `backend/migrations/`
+
+## Further reading
+
+- [Deployment (local vs dev droplet)](docs/deploy.md)
+- [Repository conventions](docs/conventions.md)

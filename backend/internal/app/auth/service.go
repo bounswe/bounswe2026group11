@@ -18,7 +18,7 @@ var usernamePattern = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 var otpPattern = regexp.MustCompile(`^[0-9]{6}$`)
 
 // Service implements the authentication use cases: OTP-based registration,
-// password login, refresh-token rotation, and logout.
+// forgot-password flows, password login, refresh-token rotation, and logout.
 type Service struct {
 	repo                    domain.AuthRepository
 	passwordHasher          domain.PasswordHasher
@@ -82,7 +82,7 @@ func (s *Service) RequestRegistrationOTP(ctx context.Context, input RequestOTPIn
 	}
 
 	now := s.now().UTC()
-	if allowed, _ := s.otpRateLimiter.Allow(email, now); !allowed {
+	if allowed, _ := s.otpRateLimiter.Allow(otpRateLimitKey(domain.OTPPurposeRegistration, email), now); !allowed {
 		return domain.RateLimitedError("Too many requests. Try again later.")
 	}
 
@@ -95,34 +95,152 @@ func (s *Service) RequestRegistrationOTP(ctx context.Context, input RequestOTPIn
 		return nil
 	}
 
-	challenge, err := s.repo.GetActiveOTPChallenge(ctx, email, domain.OTPPurposeRegistration)
-	if err != nil && !errors.Is(err, domain.ErrNotFound) {
-		return fmt.Errorf("lookup otp challenge: %w", err)
-	}
-	if err == nil && challenge != nil && now.Before(challenge.CreatedAt.UTC().Add(s.otpResendCooldown)) {
-		// Enforce per-email cooldown to prevent OTP flooding.
-		return domain.RateLimitedError("Too many requests. Try again later.")
-	}
+	return s.sendEmailOTPChallenge(
+		ctx,
+		now,
+		nil,
+		email,
+		domain.OTPPurposeRegistration,
+		s.mailer.SendRegistrationOTP,
+		"send registration otp",
+	)
+}
 
-	code := s.otpGenerator.NewCode()
-	codeHash, err := s.otpHasher.Hash(code)
+// RequestPasswordResetOTP generates an OTP for password reset if the account
+// exists. Unknown emails, resend cooldowns, and rate-limited requests all
+// return nil so the caller cannot infer account existence.
+func (s *Service) RequestPasswordResetOTP(ctx context.Context, input RequestOTPInput) error {
+	email, err := normalizeEmail(input.Email)
 	if err != nil {
-		return fmt.Errorf("hash otp code: %w", err)
+		return domain.ValidationError(map[string]string{"email": "must be a valid email address"})
 	}
 
-	if _, err := s.repo.UpsertOTPChallenge(ctx, domain.UpsertOTPChallengeParams{
-		Channel:     domain.OTPChannelEmail,
-		Destination: email,
-		Purpose:     domain.OTPPurposeRegistration,
-		CodeHash:    codeHash,
-		ExpiresAt:   now.Add(s.otpTTL),
-		UpdatedAt:   now,
-	}); err != nil {
-		return fmt.Errorf("store otp challenge: %w", err)
+	now := s.now().UTC()
+	if allowed, _ := s.otpRateLimiter.Allow(otpRateLimitKey(domain.OTPPurposePasswordReset, email), now); !allowed {
+		return nil
 	}
 
-	if err := s.mailer.SendRegistrationOTP(ctx, email, code); err != nil {
-		return fmt.Errorf("send registration otp: %w", err)
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil
+		}
+		return fmt.Errorf("lookup user by email: %w", err)
+	}
+
+	if err := s.sendEmailOTPChallenge(
+		ctx,
+		now,
+		&user.ID,
+		email,
+		domain.OTPPurposePasswordReset,
+		s.mailer.SendPasswordResetOTP,
+		"send password reset otp",
+	); err != nil {
+		if isAppErrorCode(err, domain.ErrorCodeRateLimited) {
+			return nil
+		}
+		return err
+	}
+
+	return nil
+}
+
+// VerifyPasswordResetOTP validates a password-reset OTP and returns a short-lived
+// reset token that authorizes the final password change step.
+func (s *Service) VerifyPasswordResetOTP(ctx context.Context, input VerifyPasswordResetInput) (*PasswordResetGrant, error) {
+	email, otp, appErr := validateEmailOTPInput(input.Email, input.OTP)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	now := s.now().UTC()
+	challenge, err := s.verifyOTPChallenge(ctx, now, email, domain.OTPPurposePasswordReset, otp)
+	if err != nil {
+		return nil, err
+	}
+
+	resetToken, resetTokenHash, err := s.refreshTokens.NewToken()
+	if err != nil {
+		return nil, fmt.Errorf("generate password reset token: %w", err)
+	}
+
+	expiresAt := now.Add(s.otpTTL)
+	err = s.repo.WithTx(ctx, func(repo domain.AuthRepository) error {
+		if err := repo.ConsumeOTPChallenge(ctx, challenge.ID, now); err != nil {
+			return fmt.Errorf("consume otp challenge: %w", err)
+		}
+
+		if _, err := repo.UpsertOTPChallenge(ctx, domain.UpsertOTPChallengeParams{
+			UserID:      challenge.UserID,
+			Channel:     domain.OTPChannelEmail,
+			Destination: email,
+			Purpose:     domain.OTPPurposePasswordResetGrant,
+			CodeHash:    resetTokenHash,
+			ExpiresAt:   expiresAt,
+			UpdatedAt:   now,
+		}); err != nil {
+			return fmt.Errorf("store password reset grant: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, mapRepoError(err)
+	}
+
+	return &PasswordResetGrant{
+		ResetToken:       resetToken,
+		ExpiresInSeconds: int64(expiresAt.Sub(now) / time.Second),
+	}, nil
+}
+
+// ResetPassword finalizes a forgot-password flow using a previously issued
+// password reset token and replaces the user's password hash.
+func (s *Service) ResetPassword(ctx context.Context, input ResetPasswordInput) error {
+	email, resetToken, newPassword, appErr := validateResetPasswordInput(input)
+	if appErr != nil {
+		return appErr
+	}
+
+	now := s.now().UTC()
+	grant, err := s.repo.GetActiveOTPChallenge(ctx, email, domain.OTPPurposePasswordResetGrant)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return passwordResetTokenError()
+		}
+		return fmt.Errorf("lookup password reset grant: %w", err)
+	}
+	if grant.ConsumedAt != nil || now.After(grant.ExpiresAt.UTC()) {
+		return passwordResetTokenError()
+	}
+	if s.refreshTokens.HashToken(resetToken) != grant.CodeHash {
+		return passwordResetTokenError()
+	}
+
+	passwordHash, err := s.passwordHasher.Hash(newPassword)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	err = s.repo.WithTx(ctx, func(repo domain.AuthRepository) error {
+		userID, err := s.resolvePasswordResetUserID(ctx, repo, email, grant)
+		if err != nil {
+			return err
+		}
+
+		if err := repo.UpdatePassword(ctx, userID, passwordHash, now); err != nil {
+			if errors.Is(err, domain.ErrNotFound) {
+				return passwordResetTokenError()
+			}
+			return fmt.Errorf("update password: %w", err)
+		}
+		if err := repo.ConsumeOTPChallenge(ctx, grant.ID, now); err != nil {
+			return fmt.Errorf("consume password reset grant: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return mapRepoError(err)
 	}
 
 	return nil
@@ -138,33 +256,9 @@ func (s *Service) VerifyRegistrationOTP(ctx context.Context, input VerifyRegistr
 	}
 
 	now := s.now().UTC()
-	challenge, err := s.repo.GetActiveOTPChallenge(ctx, email, domain.OTPPurposeRegistration)
+	challenge, err := s.verifyOTPChallenge(ctx, now, email, domain.OTPPurposeRegistration, otp)
 	if err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return nil, domain.AuthError(domain.ErrorCodeInvalidOTP, "The OTP is invalid or has expired.")
-		}
-		return nil, fmt.Errorf("lookup otp challenge: %w", err)
-	}
-
-	// Reject already-consumed or expired challenges before comparing the code.
-	if challenge.ConsumedAt != nil || now.After(challenge.ExpiresAt.UTC()) {
-		return nil, domain.AuthError(domain.ErrorCodeInvalidOTP, "The OTP is invalid or has expired.")
-	}
-	if challenge.AttemptCount >= s.otpMaxAttempts {
-		return nil, domain.AuthError(domain.ErrorCodeOTPExhausted, "The OTP can no longer be used. Request a new code.")
-	}
-
-	// On code mismatch, increment the attempt counter. If the max is reached,
-	// the challenge becomes permanently exhausted and the user must request a new OTP.
-	if err := s.otpHasher.Compare(challenge.CodeHash, otp); err != nil {
-		updatedChallenge, incErr := s.repo.IncrementOTPChallengeAttempts(ctx, challenge.ID, now)
-		if incErr != nil {
-			return nil, fmt.Errorf("increment otp attempts: %w", incErr)
-		}
-		if updatedChallenge.AttemptCount >= s.otpMaxAttempts {
-			return nil, domain.AuthError(domain.ErrorCodeOTPExhausted, "The OTP can no longer be used. Request a new code.")
-		}
-		return nil, domain.AuthError(domain.ErrorCodeInvalidOTP, "The OTP is invalid or has expired.")
+		return nil, err
 	}
 
 	passwordHash, err := s.passwordHasher.Hash(password)
@@ -459,6 +553,108 @@ func (s *Service) refreshExpiry(issuedAt, familyStartedAt time.Time) time.Time {
 	return refreshExpiresAt
 }
 
+func (s *Service) sendEmailOTPChallenge(
+	ctx context.Context,
+	now time.Time,
+	userID *uuid.UUID,
+	email string,
+	purpose string,
+	send func(context.Context, string, string) error,
+	sendLabel string,
+) error {
+	challenge, err := s.repo.GetActiveOTPChallenge(ctx, email, purpose)
+	if err != nil && !errors.Is(err, domain.ErrNotFound) {
+		return fmt.Errorf("lookup otp challenge: %w", err)
+	}
+	if err == nil && challenge != nil && now.Before(challenge.CreatedAt.UTC().Add(s.otpResendCooldown)) {
+		// Enforce per-email cooldown to prevent OTP flooding.
+		return domain.RateLimitedError("Too many requests. Try again later.")
+	}
+
+	code := s.otpGenerator.NewCode()
+	codeHash, err := s.otpHasher.Hash(code)
+	if err != nil {
+		return fmt.Errorf("hash otp code: %w", err)
+	}
+
+	if _, err := s.repo.UpsertOTPChallenge(ctx, domain.UpsertOTPChallengeParams{
+		UserID:      userID,
+		Channel:     domain.OTPChannelEmail,
+		Destination: email,
+		Purpose:     purpose,
+		CodeHash:    codeHash,
+		ExpiresAt:   now.Add(s.otpTTL),
+		UpdatedAt:   now,
+	}); err != nil {
+		return fmt.Errorf("store otp challenge: %w", err)
+	}
+
+	if err := send(ctx, email, code); err != nil {
+		return fmt.Errorf("%s: %w", sendLabel, err)
+	}
+
+	return nil
+}
+
+func (s *Service) verifyOTPChallenge(
+	ctx context.Context,
+	now time.Time,
+	email string,
+	purpose string,
+	otp string,
+) (*domain.OTPChallenge, error) {
+	challenge, err := s.repo.GetActiveOTPChallenge(ctx, email, purpose)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.AuthError(domain.ErrorCodeInvalidOTP, "The OTP is invalid or has expired.")
+		}
+		return nil, fmt.Errorf("lookup otp challenge: %w", err)
+	}
+
+	// Reject already-consumed or expired challenges before comparing the code.
+	if challenge.ConsumedAt != nil || now.After(challenge.ExpiresAt.UTC()) {
+		return nil, domain.AuthError(domain.ErrorCodeInvalidOTP, "The OTP is invalid or has expired.")
+	}
+	if challenge.AttemptCount >= s.otpMaxAttempts {
+		return nil, domain.AuthError(domain.ErrorCodeOTPExhausted, "The OTP can no longer be used. Request a new code.")
+	}
+
+	// On code mismatch, increment the attempt counter. If the max is reached,
+	// the challenge becomes permanently exhausted and the user must request a new OTP.
+	if err := s.otpHasher.Compare(challenge.CodeHash, otp); err != nil {
+		updatedChallenge, incErr := s.repo.IncrementOTPChallengeAttempts(ctx, challenge.ID, now)
+		if incErr != nil {
+			return nil, fmt.Errorf("increment otp attempts: %w", incErr)
+		}
+		if updatedChallenge.AttemptCount >= s.otpMaxAttempts {
+			return nil, domain.AuthError(domain.ErrorCodeOTPExhausted, "The OTP can no longer be used. Request a new code.")
+		}
+		return nil, domain.AuthError(domain.ErrorCodeInvalidOTP, "The OTP is invalid or has expired.")
+	}
+
+	return challenge, nil
+}
+
+func (s *Service) resolvePasswordResetUserID(
+	ctx context.Context,
+	repo domain.AuthRepository,
+	email string,
+	grant *domain.OTPChallenge,
+) (uuid.UUID, error) {
+	if grant.UserID != nil {
+		return *grant.UserID, nil
+	}
+
+	user, err := repo.GetUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return uuid.Nil, passwordResetTokenError()
+		}
+		return uuid.Nil, fmt.Errorf("lookup user by email: %w", err)
+	}
+	return user.ID, nil
+}
+
 // validateVerifyRegistrationInput normalizes and validates all registration fields,
 // returning cleaned values or a combined validation error.
 func validateVerifyRegistrationInput(input VerifyRegistrationInput) (email, username, password string, phoneNumber, gender *string, birthDate *time.Time, otp string, appErr *domain.AppError) {
@@ -485,6 +681,46 @@ func validateVerifyRegistrationInput(input VerifyRegistrationInput) (email, user
 	}
 
 	return email, username, password, phoneNumber, gender, birthDate, otp, nil
+}
+
+func validateEmailOTPInput(rawEmail, rawOTP string) (email, otp string, appErr *domain.AppError) {
+	email, err := normalizeEmail(rawEmail)
+	otp = strings.TrimSpace(rawOTP)
+
+	details := make(map[string]string)
+	if err != nil {
+		details["email"] = "must be a valid email address"
+	}
+	if !otpPattern.MatchString(otp) {
+		details["otp"] = "must be a 6-digit code"
+	}
+	if len(details) > 0 {
+		return "", "", domain.ValidationError(details)
+	}
+
+	return email, otp, nil
+}
+
+func validateResetPasswordInput(input ResetPasswordInput) (email, resetToken, newPassword string, appErr *domain.AppError) {
+	email, err := normalizeEmail(input.Email)
+	resetToken = strings.TrimSpace(input.ResetToken)
+	newPassword = input.NewPassword
+
+	details := make(map[string]string)
+	if err != nil {
+		details["email"] = "must be a valid email address"
+	}
+	if len(resetToken) < 32 || len(resetToken) > 512 {
+		details["reset_token"] = "must be between 32 and 512 characters"
+	}
+	if len(newPassword) < 8 || len(newPassword) > 128 {
+		details["new_password"] = "must be between 8 and 128 characters"
+	}
+	if len(details) > 0 {
+		return "", "", "", domain.ValidationError(details)
+	}
+
+	return email, resetToken, newPassword, nil
 }
 
 // validateLoginInput normalizes and validates login credentials.
@@ -587,4 +823,19 @@ func mapRepoError(err error) error {
 		return appErr
 	}
 	return err
+}
+
+func otpRateLimitKey(purpose, email string) string {
+	return purpose + ":" + email
+}
+
+func isAppErrorCode(err error, code string) bool {
+	if appErr, ok := errors.AsType[*domain.AppError](err); ok {
+		return appErr.Code == code
+	}
+	return false
+}
+
+func passwordResetTokenError() error {
+	return domain.AuthError(domain.ErrorCodeInvalidResetToken, "The password reset session is invalid or has expired.")
 }
