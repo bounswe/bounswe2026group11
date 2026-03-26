@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useLoginViewModel } from '@/viewmodels/auth/useLoginViewModel';
 
 export default function LoginView() {
@@ -76,6 +76,14 @@ export default function LoginView() {
             <Text style={styles.fieldError}>{vm.errors.password}</Text>
           )}
         </View>
+
+        <TouchableOpacity
+          style={styles.forgotPasswordLink}
+          onPress={() => router.push('/forgot-password' as Href)}
+          disabled={vm.isLoading}
+        >
+          <Text style={styles.footerLink}>Forgot password?</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, vm.isLoading && styles.buttonDisabled]}
@@ -164,6 +172,10 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 13,
     marginTop: 4,
+  },
+  forgotPasswordLink: {
+    alignSelf: 'flex-end',
+    marginBottom: 8,
   },
   button: {
     backgroundColor: '#2563EB',

@@ -5,6 +5,11 @@ import {
   LoginRequest,
   RequestOtpRequest,
   RequestOtpResponse,
+  ForgotPasswordRequestResponse,
+  VerifyPasswordResetRequest,
+  PasswordResetGrantResponse,
+  ResetPasswordRequest,
+  PasswordResetSuccessResponse,
   VerifyRegistrationRequest,
   AuthSessionResponse,
 } from '@/models/auth';
@@ -35,4 +40,31 @@ export function verifyRegistration(
 
 export function login(data: LoginRequest): Promise<AuthSessionResponse> {
   return apiPost<AuthSessionResponse>('/auth/login', data);
+}
+
+export function requestPasswordResetOtp(
+  data: RequestOtpRequest,
+): Promise<ForgotPasswordRequestResponse> {
+  return apiPost<ForgotPasswordRequestResponse>(
+    '/auth/forgot-password/request-otp',
+    data,
+  );
+}
+
+export function verifyPasswordResetOtp(
+  data: VerifyPasswordResetRequest,
+): Promise<PasswordResetGrantResponse> {
+  return apiPost<PasswordResetGrantResponse>(
+    '/auth/forgot-password/verify-otp',
+    data,
+  );
+}
+
+export function resetPassword(
+  data: ResetPasswordRequest,
+): Promise<PasswordResetSuccessResponse> {
+  return apiPost<PasswordResetSuccessResponse>(
+    '/auth/forgot-password/reset-password',
+    data,
+  );
 }
