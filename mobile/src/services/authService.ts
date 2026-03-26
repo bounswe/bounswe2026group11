@@ -2,6 +2,7 @@ import { apiPost } from './api';
 import {
   CheckAvailabilityRequest,
   CheckAvailabilityResponse,
+  LoginRequest,
   RequestOtpRequest,
   RequestOtpResponse,
   VerifyRegistrationRequest,
@@ -30,4 +31,8 @@ export function verifyRegistration(
   data: VerifyRegistrationRequest,
 ): Promise<AuthSessionResponse> {
   return apiPost<AuthSessionResponse>('/auth/register/email/verify', data);
+}
+
+export function login(data: LoginRequest): Promise<AuthSessionResponse> {
+  return apiPost<AuthSessionResponse>('/auth/login', data);
 }
