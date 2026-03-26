@@ -12,8 +12,8 @@ import (
 type RefreshToken struct {
 	ID           uuid.UUID
 	UserID       uuid.UUID
-	FamilyID     uuid.UUID  // groups tokens from the same login session
-	TokenHash    string     // SHA-256 hash of the plaintext token
+	FamilyID     uuid.UUID // groups tokens from the same login session
+	TokenHash    string    // SHA-256 hash of the plaintext token
 	ExpiresAt    time.Time
 	RevokedAt    *time.Time // set when the token is revoked (rotation or logout)
 	ReplacedByID *uuid.UUID // points to the successor token after rotation

@@ -1,0 +1,114 @@
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: backend-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: backend
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Static Checks and Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Verify module checksums
+        run: go mod verify
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          working-directory: backend
+          version: v2.11.4
+
+      - name: go build
+        run: go build ./...
+
+      - name: Unit tests
+        run: go test ./... -race -count=1
+
+  integration:
+    name: Integration Tests
+    needs: build-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Ensure Docker is available
+        run: docker version
+
+      - name: Integration tests
+        run: go test -tags=integration -timeout 15m ./tests/integration/... -count=1
+
+  docker-image:
+    name: Docker Image Build and Verification
+    needs: build-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          load: true
+          tags: backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify binary and layout inside image
+        run: |
+          docker run --rm --entrypoint /bin/sh backend:ci -ec '
+            set -e
+            test -f /app/server && test -x /app/server
+            test -x /usr/local/bin/migrate
+            test -d /migrations && test -d /app/config
+            test -x /docker-entrypoint.sh
+            # CGO_ENABLED=0: glibc ldd says "not a dynamic executable"; Alpine musl ldd often:
+            # "Not a valid dynamic program" — both mean no dynamic deps to resolve.
+            out=$(ldd /app/server 2>&1) || true
+            case "$out" in
+              *"not a dynamic executable"*) ;;
+              *"statically linked"*) ;;
+              *"Not a valid dynamic program"*) ;;
+              *) echo "unexpected ldd output for /app/server: $out" >&2; exit 1 ;;
+            esac
+          '
