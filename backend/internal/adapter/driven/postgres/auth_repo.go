@@ -118,6 +118,21 @@ func (r *AuthRepository) CreateUser(ctx context.Context, params domain.CreateUse
 	return user, nil
 }
 
+func (r *AuthRepository) UpdatePassword(ctx context.Context, userID uuid.UUID, passwordHash string, updatedAt time.Time) error {
+	result, err := r.db.Exec(ctx, `
+		UPDATE app_user
+		SET password_hash = $2, updated_at = $3
+		WHERE id = $1
+	`, userID, passwordHash, updatedAt)
+	if err != nil {
+		return fmt.Errorf("update password_hash: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 func (r *AuthRepository) CreateProfile(ctx context.Context, userID uuid.UUID) error {
 	if _, err := r.db.Exec(ctx, `
 		INSERT INTO profile (user_id)
@@ -153,17 +168,18 @@ func (r *AuthRepository) GetActiveOTPChallenge(ctx context.Context, destination,
 
 func (r *AuthRepository) UpsertOTPChallenge(ctx context.Context, params domain.UpsertOTPChallengeParams) (*domain.OTPChallenge, error) {
 	row := r.db.QueryRow(ctx, `
-		INSERT INTO otp_challenge (channel, destination, purpose, code_hash, expires_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO otp_challenge (user_id, channel, destination, purpose, code_hash, expires_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (destination, purpose) WHERE consumed_at IS NULL
 		DO UPDATE SET
+			user_id = EXCLUDED.user_id,
 			channel = EXCLUDED.channel,
 			code_hash = EXCLUDED.code_hash,
 			expires_at = EXCLUDED.expires_at,
 			attempt_count = 0,
 			updated_at = EXCLUDED.updated_at
 		RETURNING id, user_id, channel, destination, purpose, code_hash, expires_at, consumed_at, attempt_count, created_at, updated_at
-	`, params.Channel, params.Destination, params.Purpose, params.CodeHash, params.ExpiresAt, params.UpdatedAt)
+	`, params.UserID, params.Channel, params.Destination, params.Purpose, params.CodeHash, params.ExpiresAt, params.UpdatedAt)
 	return scanOTPChallenge(row)
 }
 

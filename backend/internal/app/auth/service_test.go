@@ -34,6 +34,366 @@ func TestRequestRegistrationOTPStoresHashedChallenge(t *testing.T) {
 	}
 }
 
+func TestRequestPasswordResetOTPStoresHashedChallengeForExistingUser(t *testing.T) {
+	// given
+	svc, repo, mailer, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+
+	user, err := repo.CreateUser(context.Background(), domain.CreateUserParams{
+		Username:        "existing_user",
+		Email:           "user@example.com",
+		PasswordHash:    "hash:password",
+		EmailVerifiedAt: now,
+		Status:          domain.UserStatusActive,
+	})
+	if err != nil {
+		t.Fatalf("CreateUser() error = %v", err)
+	}
+
+	// when
+	if err := svc.RequestPasswordResetOTP(context.Background(), RequestOTPInput{Email: "User@example.com"}); err != nil {
+		t.Fatalf("RequestPasswordResetOTP() error = %v", err)
+	}
+
+	// then
+	challenge, err := repo.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposePasswordReset)
+	if err != nil {
+		t.Fatalf("GetActiveOTPChallenge() error = %v", err)
+	}
+	if challenge.CodeHash == mailer.lastCode {
+		t.Fatal("expected OTP to be stored as a hash, got plaintext")
+	}
+	if challenge.UserID == nil || *challenge.UserID != user.ID {
+		t.Fatalf("expected challenge user id %s, got %#v", user.ID, challenge.UserID)
+	}
+	if mailer.lastEmail != "user@example.com" {
+		t.Fatalf("expected mail to be sent to normalized email, got %q", mailer.lastEmail)
+	}
+	if mailer.lastPurpose != domain.OTPPurposePasswordReset {
+		t.Fatalf("expected password reset mail purpose, got %q", mailer.lastPurpose)
+	}
+}
+
+func TestRequestPasswordResetOTPUnknownEmailReturnsSilently(t *testing.T) {
+	// given
+	svc, repo, mailer, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+
+	// when
+	if err := svc.RequestPasswordResetOTP(context.Background(), RequestOTPInput{Email: "missing@example.com"}); err != nil {
+		t.Fatalf("RequestPasswordResetOTP() error = %v", err)
+	}
+
+	// then
+	challenge, err := repo.GetActiveOTPChallenge(context.Background(), "missing@example.com", domain.OTPPurposePasswordReset)
+	if !errors.Is(err, domain.ErrNotFound) || challenge != nil {
+		t.Fatalf("expected no password reset challenge, got challenge=%#v err=%v", challenge, err)
+	}
+	if mailer.passwordResetSendCount != 0 {
+		t.Fatalf("expected no password reset email, got %d sends", mailer.passwordResetSendCount)
+	}
+}
+
+func TestRequestPasswordResetOTPValidationError(t *testing.T) {
+	// given
+	svc, _, _, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+
+	// when
+	err := svc.RequestPasswordResetOTP(context.Background(), RequestOTPInput{Email: "not-an-email"})
+
+	// then
+	assertAppErrorCode(t, err, domain.ErrorCodeValidation)
+}
+
+func TestRequestPasswordResetOTPIsSilentlyRateLimited(t *testing.T) {
+	// given
+	svc, repo, mailer, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+	svc.otpRateLimiter = denyAllLimiter{}
+
+	if _, err := repo.CreateUser(context.Background(), domain.CreateUserParams{
+		Username:        "existing_user",
+		Email:           "user@example.com",
+		PasswordHash:    "hash:password",
+		EmailVerifiedAt: now,
+		Status:          domain.UserStatusActive,
+	}); err != nil {
+		t.Fatalf("CreateUser() error = %v", err)
+	}
+
+	// when
+	if err := svc.RequestPasswordResetOTP(context.Background(), RequestOTPInput{Email: "user@example.com"}); err != nil {
+		t.Fatalf("RequestPasswordResetOTP() error = %v", err)
+	}
+
+	// then
+	challenge, err := repo.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposePasswordReset)
+	if !errors.Is(err, domain.ErrNotFound) || challenge != nil {
+		t.Fatalf("expected no password reset challenge, got challenge=%#v err=%v", challenge, err)
+	}
+	if mailer.passwordResetSendCount != 0 {
+		t.Fatalf("expected no password reset email, got %d sends", mailer.passwordResetSendCount)
+	}
+}
+
+func TestRequestPasswordResetOTPCooldownReturnsSilently(t *testing.T) {
+	// given
+	svc, repo, mailer, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+
+	if _, err := repo.CreateUser(context.Background(), domain.CreateUserParams{
+		Username:        "existing_user",
+		Email:           "user@example.com",
+		PasswordHash:    "hash:password",
+		EmailVerifiedAt: now,
+		Status:          domain.UserStatusActive,
+	}); err != nil {
+		t.Fatalf("CreateUser() error = %v", err)
+	}
+
+	if err := svc.RequestPasswordResetOTP(context.Background(), RequestOTPInput{Email: "user@example.com"}); err != nil {
+		t.Fatalf("first RequestPasswordResetOTP() error = %v", err)
+	}
+
+	// when
+	if err := svc.RequestPasswordResetOTP(context.Background(), RequestOTPInput{Email: "user@example.com"}); err != nil {
+		t.Fatalf("second RequestPasswordResetOTP() error = %v", err)
+	}
+
+	// then
+	if mailer.passwordResetSendCount != 1 {
+		t.Fatalf("expected one password reset email, got %d sends", mailer.passwordResetSendCount)
+	}
+}
+
+func TestRequestPasswordResetOTPMailerErrorReturned(t *testing.T) {
+	// given
+	svc, repo, mailer, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+	mailer.passwordResetErr = errors.New("smtp down")
+
+	if _, err := repo.CreateUser(context.Background(), domain.CreateUserParams{
+		Username:        "existing_user",
+		Email:           "user@example.com",
+		PasswordHash:    "hash:password",
+		EmailVerifiedAt: now,
+		Status:          domain.UserStatusActive,
+	}); err != nil {
+		t.Fatalf("CreateUser() error = %v", err)
+	}
+
+	// when
+	err := svc.RequestPasswordResetOTP(context.Background(), RequestOTPInput{Email: "user@example.com"})
+
+	// then
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestVerifyPasswordResetOTPReturnsResetGrantAndConsumesOTP(t *testing.T) {
+	// given
+	svc, repo, mailer, refreshManager, now := newTestService()
+	svc.now = func() time.Time { return now }
+
+	if _, err := repo.CreateUser(context.Background(), domain.CreateUserParams{
+		Username:        "existing_user",
+		Email:           "user@example.com",
+		PasswordHash:    "hash:password",
+		EmailVerifiedAt: now,
+		Status:          domain.UserStatusActive,
+	}); err != nil {
+		t.Fatalf("CreateUser() error = %v", err)
+	}
+	if err := svc.RequestPasswordResetOTP(context.Background(), RequestOTPInput{Email: "user@example.com"}); err != nil {
+		t.Fatalf("RequestPasswordResetOTP() error = %v", err)
+	}
+
+	// when
+	grant, err := svc.VerifyPasswordResetOTP(context.Background(), VerifyPasswordResetInput{
+		Email: "user@example.com",
+		OTP:   mailer.lastCode,
+	})
+	if err != nil {
+		t.Fatalf("VerifyPasswordResetOTP() error = %v", err)
+	}
+
+	// then
+	challenge, err := repo.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposePasswordReset)
+	if !errors.Is(err, domain.ErrNotFound) || challenge != nil {
+		t.Fatalf("expected password reset OTP challenge to be consumed, got challenge=%#v err=%v", challenge, err)
+	}
+
+	grantChallenge, err := repo.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposePasswordResetGrant)
+	if err != nil {
+		t.Fatalf("GetActiveOTPChallenge(grant) error = %v", err)
+	}
+	if grant.ResetToken == "" {
+		t.Fatal("expected reset token to be returned")
+	}
+	if grantChallenge.CodeHash != refreshManager.HashToken(grant.ResetToken) {
+		t.Fatal("expected password reset grant to store the hashed reset token")
+	}
+	if grant.ExpiresInSeconds != int64((10*time.Minute)/time.Second) {
+		t.Fatalf("expected 600 seconds, got %d", grant.ExpiresInSeconds)
+	}
+}
+
+func TestVerifyPasswordResetOTPInvalidCodeIncrementsAttempts(t *testing.T) {
+	// given
+	svc, repo, _, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+
+	if _, err := repo.CreateUser(context.Background(), domain.CreateUserParams{
+		Username:        "existing_user",
+		Email:           "user@example.com",
+		PasswordHash:    "hash:password",
+		EmailVerifiedAt: now,
+		Status:          domain.UserStatusActive,
+	}); err != nil {
+		t.Fatalf("CreateUser() error = %v", err)
+	}
+	if err := svc.RequestPasswordResetOTP(context.Background(), RequestOTPInput{Email: "user@example.com"}); err != nil {
+		t.Fatalf("RequestPasswordResetOTP() error = %v", err)
+	}
+
+	// when
+	_, err := svc.VerifyPasswordResetOTP(context.Background(), VerifyPasswordResetInput{
+		Email: "user@example.com",
+		OTP:   "000000",
+	})
+
+	// then
+	assertAppErrorCode(t, err, domain.ErrorCodeInvalidOTP)
+
+	challenge, err := repo.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposePasswordReset)
+	if err != nil {
+		t.Fatalf("GetActiveOTPChallenge() error = %v", err)
+	}
+	if challenge.AttemptCount != 1 {
+		t.Fatalf("expected attempt count to increment, got %d", challenge.AttemptCount)
+	}
+}
+
+func TestResetPasswordUpdatesPasswordAndConsumesGrant(t *testing.T) {
+	// given
+	svc, repo, mailer, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+
+	if _, err := repo.CreateUser(context.Background(), domain.CreateUserParams{
+		Username:        "existing_user",
+		Email:           "user@example.com",
+		PasswordHash:    "hash:old-password",
+		EmailVerifiedAt: now,
+		Status:          domain.UserStatusActive,
+	}); err != nil {
+		t.Fatalf("CreateUser() error = %v", err)
+	}
+	if err := svc.RequestPasswordResetOTP(context.Background(), RequestOTPInput{Email: "user@example.com"}); err != nil {
+		t.Fatalf("RequestPasswordResetOTP() error = %v", err)
+	}
+	grant, err := svc.VerifyPasswordResetOTP(context.Background(), VerifyPasswordResetInput{
+		Email: "user@example.com",
+		OTP:   mailer.lastCode,
+	})
+	if err != nil {
+		t.Fatalf("VerifyPasswordResetOTP() error = %v", err)
+	}
+
+	// when
+	if err := svc.ResetPassword(context.Background(), ResetPasswordInput{
+		Email:       "user@example.com",
+		ResetToken:  grant.ResetToken,
+		NewPassword: "new-password-123",
+	}); err != nil {
+		t.Fatalf("ResetPassword() error = %v", err)
+	}
+
+	// then
+	user, err := repo.GetUserByEmail(context.Background(), "user@example.com")
+	if err != nil {
+		t.Fatalf("GetUserByEmail() error = %v", err)
+	}
+	if user.PasswordHash != "hash:new-password-123" {
+		t.Fatalf("expected updated password hash, got %q", user.PasswordHash)
+	}
+
+	challenge, err := repo.GetActiveOTPChallenge(context.Background(), "user@example.com", domain.OTPPurposePasswordResetGrant)
+	if !errors.Is(err, domain.ErrNotFound) || challenge != nil {
+		t.Fatalf("expected password reset grant to be consumed, got challenge=%#v err=%v", challenge, err)
+	}
+
+	_, err = svc.Login(context.Background(), LoginInput{
+		Username: "existing_user",
+		Password: "old-password",
+	})
+	assertAppErrorCode(t, err, domain.ErrorCodeInvalidCreds)
+
+	session, err := svc.Login(context.Background(), LoginInput{
+		Username: "existing_user",
+		Password: "new-password-123",
+	})
+	if err != nil {
+		t.Fatalf("Login(new password) error = %v", err)
+	}
+	if session.AccessToken == "" {
+		t.Fatal("expected login with new password to succeed")
+	}
+}
+
+func TestResetPasswordRejectsInvalidGrant(t *testing.T) {
+	// given
+	svc, repo, mailer, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+
+	if _, err := repo.CreateUser(context.Background(), domain.CreateUserParams{
+		Username:        "existing_user",
+		Email:           "user@example.com",
+		PasswordHash:    "hash:old-password",
+		EmailVerifiedAt: now,
+		Status:          domain.UserStatusActive,
+	}); err != nil {
+		t.Fatalf("CreateUser() error = %v", err)
+	}
+	if err := svc.RequestPasswordResetOTP(context.Background(), RequestOTPInput{Email: "user@example.com"}); err != nil {
+		t.Fatalf("RequestPasswordResetOTP() error = %v", err)
+	}
+	grant, err := svc.VerifyPasswordResetOTP(context.Background(), VerifyPasswordResetInput{
+		Email: "user@example.com",
+		OTP:   mailer.lastCode,
+	})
+	if err != nil {
+		t.Fatalf("VerifyPasswordResetOTP() error = %v", err)
+	}
+
+	// when
+	err = svc.ResetPassword(context.Background(), ResetPasswordInput{
+		Email:       "user@example.com",
+		ResetToken:  grant.ResetToken + "-wrong",
+		NewPassword: "new-password-123",
+	})
+
+	// then
+	assertAppErrorCode(t, err, domain.ErrorCodeInvalidResetToken)
+}
+
+func TestResetPasswordValidationError(t *testing.T) {
+	// given
+	svc, _, _, _, now := newTestService()
+	svc.now = func() time.Time { return now }
+
+	// when
+	err := svc.ResetPassword(context.Background(), ResetPasswordInput{
+		Email:       "not-an-email",
+		ResetToken:  "short",
+		NewPassword: "short",
+	})
+
+	// then
+	assertAppErrorCode(t, err, domain.ErrorCodeValidation)
+}
+
 func TestVerifyRegistrationOTPSuccessCreatesUserAndSession(t *testing.T) {
 	// given
 	svc, repo, mailer, _, now := newTestService()
@@ -649,6 +1009,16 @@ func (r *fakeRepo) CreateUser(_ context.Context, params domain.CreateUserParams)
 	return user, nil
 }
 
+func (r *fakeRepo) UpdatePassword(_ context.Context, userID uuid.UUID, passwordHash string, updatedAt time.Time) error {
+	user, ok := r.usersByID[userID]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	user.PasswordHash = passwordHash
+	user.UpdatedAt = updatedAt
+	return nil
+}
+
 func (r *fakeRepo) CreateProfile(_ context.Context, userID uuid.UUID) error {
 	r.profiles[userID] = true
 	return nil
@@ -674,6 +1044,7 @@ func (r *fakeRepo) GetActiveOTPChallenge(_ context.Context, destination, purpose
 func (r *fakeRepo) UpsertOTPChallenge(_ context.Context, params domain.UpsertOTPChallengeParams) (*domain.OTPChallenge, error) {
 	key := challengeKey(params.Destination, params.Purpose)
 	if existing, ok := r.challenges[key]; ok && existing.ConsumedAt == nil {
+		existing.UserID = params.UserID
 		existing.Channel = params.Channel
 		existing.CodeHash = params.CodeHash
 		existing.ExpiresAt = params.ExpiresAt
@@ -684,6 +1055,7 @@ func (r *fakeRepo) UpsertOTPChallenge(_ context.Context, params domain.UpsertOTP
 
 	challenge := &domain.OTPChallenge{
 		ID:           uuid.New(),
+		UserID:       params.UserID,
 		Channel:      params.Channel,
 		Destination:  params.Destination,
 		Purpose:      params.Purpose,
@@ -816,7 +1188,7 @@ type fakeRefreshTokenManager struct {
 
 func (m *fakeRefreshTokenManager) NewToken() (string, string, error) {
 	m.counter++
-	plain := fmt.Sprintf("refresh-%d", m.counter)
+	plain := fmt.Sprintf("reset-token-%032d", m.counter)
 	return plain, m.HashToken(plain), nil
 }
 
@@ -833,14 +1205,28 @@ func (g fakeOTPGenerator) NewCode() string {
 }
 
 type fakeMailer struct {
-	lastEmail string
-	lastCode  string
+	lastEmail              string
+	lastCode               string
+	lastPurpose            string
+	passwordResetErr       error
+	registrationSendCount  int
+	passwordResetSendCount int
 }
 
 func (m *fakeMailer) SendRegistrationOTP(_ context.Context, email, code string) error {
+	m.registrationSendCount++
 	m.lastEmail = email
 	m.lastCode = code
+	m.lastPurpose = domain.OTPPurposeRegistration
 	return nil
+}
+
+func (m *fakeMailer) SendPasswordResetOTP(_ context.Context, email, code string) error {
+	m.passwordResetSendCount++
+	m.lastEmail = email
+	m.lastCode = code
+	m.lastPurpose = domain.OTPPurposePasswordReset
+	return m.passwordResetErr
 }
 
 type allowAllLimiter struct{}

@@ -2,6 +2,11 @@
 
 Read `/AGENTS.md` first, then use this file for frontend work.
 
+## Stack
+
+- **UI:** React.
+- **Map:** [MapLibre GL JS](https://maplibre.org/) for the web map (vector tiles, camera, layers).
+
 ## Development rules
 
 - Scope frontend changes to the smallest surface that satisfies the request.

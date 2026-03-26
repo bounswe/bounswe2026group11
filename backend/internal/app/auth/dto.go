@@ -16,9 +16,29 @@ type Config struct {
 	MaxSessionTTL     time.Duration
 }
 
-// RequestOTPInput carries the validated input for requesting a registration OTP.
+// RequestOTPInput carries the validated input for requesting an email OTP challenge.
 type RequestOTPInput struct {
 	Email string
+}
+
+// VerifyPasswordResetInput carries the email OTP submitted during forgot-password verification.
+type VerifyPasswordResetInput struct {
+	Email string
+	OTP   string
+}
+
+// PasswordResetGrant is returned after a password-reset OTP is verified.
+// The ResetToken must be presented on the password reset endpoint.
+type PasswordResetGrant struct {
+	ResetToken       string
+	ExpiresInSeconds int64
+}
+
+// ResetPasswordInput carries the data required to finalize a forgot-password flow.
+type ResetPasswordInput struct {
+	Email       string
+	ResetToken  string
+	NewPassword string
 }
 
 // VerifyRegistrationInput carries all fields submitted when a user verifies
