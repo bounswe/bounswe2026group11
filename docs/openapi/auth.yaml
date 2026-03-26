@@ -18,6 +18,9 @@ info:
 
     OTP delivery in this phase uses the backend's development/mock mailer and does not
     represent a production email integration.
+
+    The `access_token` returned by successful sign-in and refresh responses is the same
+    bearer token used by protected APIs such as the Event API under the `/api` server.
 servers:
   - url: /api
 tags:
@@ -276,6 +279,11 @@ paths:
         '401':
           $ref: '#/components/responses/InvalidRefreshTokenError'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   responses:
     ValidationError:
       description: The request body failed validation.

@@ -17,16 +17,17 @@ const (
 // Machine-readable error codes returned in the JSON "error.code" field.
 // Clients can switch on these codes to decide how to handle each error.
 const (
-	ErrorCodeValidation     = "validation_error"
-	ErrorCodeRateLimited    = "rate_limited"
-	ErrorCodeInvalidOTP     = "invalid_otp"
-	ErrorCodeOTPExhausted   = "otp_attempts_exceeded"
-	ErrorCodeInvalidCreds   = "invalid_credentials"
-	ErrorCodeInvalidRefresh = "invalid_refresh_token"
-	ErrorCodeRefreshReused  = "refresh_token_reused"
-	ErrorCodeEmailExists    = "email_already_exists"
-	ErrorCodeUsernameExists = "username_already_exists"
-	ErrorCodePhoneExists    = "phone_number_already_exists"
+	ErrorCodeValidation       = "validation_error"
+	ErrorCodeRateLimited      = "rate_limited"
+	ErrorCodeInvalidOTP       = "invalid_otp"
+	ErrorCodeOTPExhausted     = "otp_attempts_exceeded"
+	ErrorCodeInvalidCreds     = "invalid_credentials" // #nosec G101 -- wire error code, not a secret
+	ErrorCodeInvalidRefresh   = "invalid_refresh_token"
+	ErrorCodeRefreshReused    = "refresh_token_reused"
+	ErrorCodeEmailExists      = "email_already_exists"
+	ErrorCodeUsernameExists   = "username_already_exists"
+	ErrorCodePhoneExists      = "phone_number_already_exists"
+	ErrorCodeEventTitleExists = "event_title_already_exists"
 )
 
 // ErrNotFound is a sentinel error returned when a queried entity does not exist.
@@ -50,7 +51,7 @@ func (e *AppError) Error() string {
 func ValidationError(details map[string]string) *AppError {
 	return &AppError{
 		Code:    ErrorCodeValidation,
-		Message: "The request body contains invalid fields.",
+		Message: "The request body contains invalid fields. See error.details for field-specific messages.",
 		Status:  StatusBadRequest,
 		Details: details,
 	}

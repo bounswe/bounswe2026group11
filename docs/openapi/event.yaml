@@ -1,0 +1,439 @@
+openapi: 3.1.0
+info:
+  title: Social Event Mapper Event API
+  version: 0.1.0
+  description: |
+    Authenticated event-management endpoints for creating and managing social events.
+
+    Obtain an access token from the Auth API (`POST /auth/login` or
+    `POST /auth/register/email/verify`) and send it as `Authorization: Bearer <token>`
+    when calling protected operations in this definition.
+
+    Behavioral notes for create-event clients:
+    - The authenticated user becomes the event host.
+    - A host can create at most one event with a given `title`. Reusing the same trimmed title for the same host returns `409 Conflict`.
+    - Tags and constraints are persisted in the same transaction as the event.
+    - Enum-like fields are case-sensitive and must be sent in uppercase.
+    - `start_time` and `end_time` must be RFC 3339 date-times with a timezone designator such as `Z` or `+03:00`.
+    - Each event has **exactly one** category: send a single `category_id` (not a list). It must reference an existing row in `event_category`. The default database seed defines twenty categories (ids `1`–`20`); see `CreateEventRequestBase.category_id` for the id-to-name map.
+servers:
+  - url: /api
+tags:
+  - name: Events
+    description: Event creation and related request/response contracts.
+paths:
+  /events:
+    post:
+      tags: [Events]
+      summary: Create a new event
+      description: |
+        Create a point-based or route-based event. The request shape depends on `location_type`.
+
+        Point events require `lat` and `lon`.
+        Route events require at least two `route_points`.
+
+        Each event accepts **one** `category_id` only. Use a value that exists in `event_category` (default seed: ids `1`–`20`, see schema).
+        A host cannot create two events with the same `title`; duplicate host-title pairs return `409`.
+      operationId: createEvent
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+            examples:
+              point_event:
+                summary: Point-based event
+                value:
+                  title: Istanbul Trail Run
+                  description: A 10 km trail run through Belgrad Forest.
+                  image_url: https://example.com/trail.jpg
+                  category_id: 1
+                  address: Belgrad Forest, Istanbul
+                  location_type: POINT
+                  lat: 41.1722
+                  lon: 28.9744
+                  start_time: "2026-05-01T08:00:00+03:00"
+                  end_time: "2026-05-01T12:00:00+03:00"
+                  privacy_level: PUBLIC
+                  capacity: 50
+                  minimum_age: 16
+                  preferred_gender: MALE
+                  tags: [trail, running, outdoor]
+                  constraints:
+                    - type: equipment
+                      info: Trail running shoes required
+              route_event:
+                summary: Route-based event
+                value:
+                  title: Bosphorus Ride
+                  description: A route-based cycling meetup.
+                  category_id: 8
+                  address: Besiktas, Istanbul
+                  location_type: ROUTE
+                  route_points:
+                    - lat: 41.0400
+                      lon: 29.0000
+                    - lat: 41.0500
+                      lon: 29.0200
+                    - lat: 41.0600
+                      lon: 29.0400
+                  start_time: "2026-06-12T07:30:00+03:00"
+                  privacy_level: PROTECTED
+                  tags: [cycling, group-ride]
+      responses:
+        '201':
+          description: Event created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateEventResponse'
+              examples:
+                created:
+                  value:
+                    id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                    title: Istanbul Trail Run
+                    privacy_level: PUBLIC
+                    status: ACTIVE
+                    start_time: "2026-05-01T08:00:00+03:00"
+                    end_time: "2026-05-01T12:00:00+03:00"
+                    created_at: "2026-03-26T11:00:00+03:00"
+        '400':
+          description: |
+            Validation error. The response message stays generic and
+            `error.details` contains field-specific messages keyed by the problematic field path.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                invalid_point_payload:
+                  summary: Missing required fields and invalid enum values
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        description: description is required
+                        category_id: category_id is required
+                        privacy_level: "must be one of: PUBLIC, PROTECTED, PRIVATE"
+                        preferred_gender: "must be one of: MALE, FEMALE, OTHER"
+                invalid_route_payload:
+                  summary: Nested validation details for route and constraints
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        route_points: route_points must contain at least 2 points when location_type is ROUTE
+                        constraints[0].type: type is required
+                        constraints[1].info: info is required
+                invalid_category_id:
+                  summary: category_id does not exist in event_category
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        category_id: must reference an existing event category id
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                missing_token:
+                  value:
+                    error:
+                      code: missing_token
+                      message: Authorization header with Bearer token is required.
+        '409':
+          description: The authenticated host already has an event with the same title.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                duplicate_host_title:
+                  value:
+                    error:
+                      code: event_title_already_exists
+                      message: The host already has an event with this title.
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    CreateEventRequest:
+      oneOf:
+        - $ref: '#/components/schemas/CreatePointEventRequest'
+        - $ref: '#/components/schemas/CreateRouteEventRequest'
+
+    CreateEventRequestBase:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - description
+        - category_id
+        - location_type
+        - start_time
+        - privacy_level
+      properties:
+        title:
+          type: string
+          description: Event title. Must be unique per host after server-side trimming.
+          example: Istanbul Trail Run
+        description:
+          type: string
+          description: Event description.
+          example: A 10 km trail run through Belgrad Forest.
+        image_url:
+          type:
+            - string
+            - "null"
+          description: Optional URL of the event cover image.
+        category_id:
+          type: integer
+          minimum: 1
+          description: |
+            **Exactly one** category per event: this field is a single integer foreign key to
+            `event_category.id` (not an array of categories). With the default migration seed
+            (`000011_event_category_seed`), ids `1`–`20` are defined as follows:
+
+            | id | name |
+            |---:|------|
+            | 1 | Sports |
+            | 2 | Music |
+            | 3 | Education |
+            | 4 | Technology |
+            | 5 | Art |
+            | 6 | Food & Drink |
+            | 7 | Outdoors |
+            | 8 | Fitness |
+            | 9 | Networking |
+            | 10 | Gaming |
+            | 11 | Charity |
+            | 12 | Photography |
+            | 13 | Travel |
+            | 14 | Workshops |
+            | 15 | Conferences |
+            | 16 | Movies & Cinema |
+            | 17 | Theatre |
+            | 18 | Books & Literature |
+            | 19 | Wellness |
+            | 20 | Volunteering |
+
+            If your database adds more categories later, valid ids may exceed `20`; the API
+            accepts any positive integer that exists in `event_category`. Unknown ids return
+            `400` with `error.details.category_id` describing the problem.
+          example: 1
+        address:
+          type:
+            - string
+            - "null"
+          description: Optional human-readable address of the event location.
+        start_time:
+          type: string
+          format: date-time
+          description: RFC 3339 date-time with timezone, for example `2026-05-01T08:00:00+03:00`.
+          example: "2026-05-01T08:00:00+03:00"
+        end_time:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Optional RFC 3339 date-time with timezone. Must be after `start_time`.
+          example: "2026-05-01T12:00:00+03:00"
+        capacity:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          description: Optional maximum participant count. Omit or send `null` for unlimited capacity.
+        privacy_level:
+          type: string
+          enum: [PUBLIC, PROTECTED, PRIVATE]
+          description: |
+            - `PUBLIC`: visible to all, joinable without approval.
+            - `PROTECTED`: discoverable but requires host approval.
+            - `PRIVATE`: only visible to invited users.
+        minimum_age:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 120
+          description: Optional minimum participant age.
+        preferred_gender:
+          oneOf:
+            - type: string
+              enum: [MALE, FEMALE, OTHER]
+            - type: "null"
+          description: Optional preferred gender for participants.
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 20
+          maxItems: 5
+          description: Optional tags. At most 5 tags, each at most 20 characters.
+          example: [trail, running]
+        constraints:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConstraintInput'
+          maxItems: 5
+          description: Optional participation constraints. At most 5 items.
+
+    CreatePointEventRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateEventRequestBase'
+        - type: object
+          additionalProperties: false
+          required:
+            - location_type
+            - lat
+            - lon
+          properties:
+            location_type:
+              type: string
+              enum: [POINT]
+              description: Geometry type of the event location.
+            lat:
+              type: number
+              format: double
+              description: Latitude of the event location (WGS 84). Required when `location_type` is `POINT`.
+              example: 41.1722
+            lon:
+              type: number
+              format: double
+              description: Longitude of the event location (WGS 84). Required when `location_type` is `POINT`.
+              example: 28.9744
+
+    CreateRouteEventRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateEventRequestBase'
+        - type: object
+          additionalProperties: false
+          required:
+            - location_type
+            - route_points
+          properties:
+            location_type:
+              type: string
+              enum: [ROUTE]
+              description: Geometry type of the event location.
+            route_points:
+              type: array
+              minItems: 2
+              description: Route coordinates in order. Required when `location_type` is `ROUTE`.
+              items:
+                $ref: '#/components/schemas/RoutePointInput'
+
+    RoutePointInput:
+      type: object
+      additionalProperties: false
+      required: [lat, lon]
+      properties:
+        lat:
+          type: number
+          format: double
+          example: 41.0400
+        lon:
+          type: number
+          format: double
+          example: 29.0000
+
+    ConstraintInput:
+      type: object
+      additionalProperties: false
+      required: [type, info]
+      properties:
+        type:
+          type: string
+          description: Category of the constraint.
+          example: equipment
+        info:
+          type: string
+          description: Human-readable description of the constraint.
+          example: Trail running shoes required
+
+    CreateEventResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - privacy_level
+        - status
+        - start_time
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID of the newly created event.
+          example: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+        title:
+          type: string
+          description: Title of the created event.
+          example: Istanbul Trail Run
+        privacy_level:
+          type: string
+          enum: [PUBLIC, PROTECTED, PRIVATE]
+          example: PUBLIC
+        status:
+          type: string
+          enum: [ACTIVE]
+          example: ACTIVE
+        start_time:
+          type: string
+          format: date-time
+          example: "2026-05-01T08:00:00+03:00"
+        end_time:
+          type:
+            - string
+            - "null"
+          format: date-time
+          example: "2026-05-01T12:00:00+03:00"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-03-26T11:00:00+03:00"
+
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: validation_error
+        message:
+          type: string
+          example: The request body contains invalid fields.
+        details:
+          type: object
+          additionalProperties:
+            type: string
+          description: Optional field-level validation details keyed by field name.

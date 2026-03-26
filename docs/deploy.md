@@ -49,12 +49,12 @@ Swagger UI assets are **vendored** in git (see [`docs/swagger-ui/vendor/README.m
 
 ### Multiple OpenAPI specs
 
-The UI loads a small manifest: [`docs/openapi/specs.json`](../docs/openapi/specs.json). Each entry has a stable `name`, a `displayName` for the dropdown, and a `url` relative to the UI (typically `./openapi/<file>.yaml`).
+Swagger UI auto-discovers every `.yaml` or `.yml` file under [`docs/openapi/`](../docs/openapi/) from the nginx-served directory listing.
 
 To add another API:
 
-1. Add `docs/openapi/<your-spec>.yaml`.
-2. Append an object to `specs.json` with a unique `name` and the correct `url`.
+1. Add `docs/openapi/<your-spec>.yaml` or `docs/openapi/<your-spec>.yml`.
+2. Reload `/api/docs/`; the new spec will appear automatically in the dropdown.
 3. Open the UI with `?spec=<name>` to select that spec by default, or use the built-in spec picker.
 
 OpenAPI `servers` in each YAML should match how clients call the API (this repo uses `url: /api` for same-origin requests from the browser).

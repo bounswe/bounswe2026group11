@@ -28,9 +28,9 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 	authHandler := httpapi.NewAuthHandler(container.AuthService)
 	httpapi.RegisterAuthRoutes(app, authHandler)
 
-	// Register additional route groups below as new services are added, e.g.:
-	// eventHandler := httpapi.NewEventHandler(container.EventService)
-	// httpapi.RegisterEventRoutes(app, eventHandler)
+	// Event routes
+	eventHandler := httpapi.NewEventHandler(container.EventService)
+	httpapi.RegisterEventRoutes(app, eventHandler, httpapi.RequireAuth(container.TokenVerifier))
 
 	return app
 }
