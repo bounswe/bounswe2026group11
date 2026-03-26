@@ -44,7 +44,7 @@ func TestRequireAuthMissingHeader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	// then
 	if resp.StatusCode != fiber.StatusUnauthorized {
@@ -64,7 +64,7 @@ func TestRequireAuthMalformedHeader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	// then
 	if resp.StatusCode != fiber.StatusUnauthorized {
@@ -84,7 +84,7 @@ func TestRequireAuthInvalidToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	// then
 	if resp.StatusCode != fiber.StatusUnauthorized {
@@ -111,7 +111,7 @@ func TestRequireAuthValidToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	// then
 	if resp.StatusCode != fiber.StatusOK {
@@ -135,7 +135,7 @@ func TestRequestLoggerPassesThrough(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	// then
 	if resp.StatusCode != fiber.StatusOK {

@@ -27,7 +27,7 @@ func TestRequestRegistrationOTPReturnsAcceptedResponse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	// then
 	if resp.StatusCode != fiber.StatusAccepted {
@@ -54,7 +54,7 @@ func TestLoginReturnsErrorEnvelope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	// then
 	if resp.StatusCode != fiber.StatusUnauthorized {
@@ -88,7 +88,7 @@ func TestVerifyRegistrationOTPForwardsUserFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	// then
 	if resp.StatusCode != fiber.StatusCreated {
@@ -117,7 +117,7 @@ func TestCheckAvailabilityBothAvailable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	// then
 	if resp.StatusCode != fiber.StatusOK {
@@ -152,7 +152,7 @@ func TestCheckAvailabilityBothTaken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	// then
 	if resp.StatusCode != fiber.StatusOK {
@@ -184,7 +184,7 @@ func TestCheckAvailabilityValidationError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	// then
 	if resp.StatusCode != fiber.StatusBadRequest {
