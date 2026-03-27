@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { EventSummary } from '@/models/event';
+import { formatEventDateLabel } from '@/utils/eventDate';
 
 interface EventCardProps {
   event: EventSummary;
@@ -45,7 +46,9 @@ export default function EventCard({ event, onPress }: EventCardProps) {
 
           <View style={styles.metaRow}>
             <Feather name="clock" size={17} color="#6B7280" />
-            <Text style={styles.metaText}>{event.dateLabel}</Text>
+            <Text style={styles.metaText}>
+              {formatEventDateLabel(event.startTime)}
+            </Text>
           </View>
         </View>
 
@@ -58,12 +61,12 @@ export default function EventCard({ event, onPress }: EventCardProps) {
           </View>
 
           <View style={styles.statItem}>
-            <Ionicons name="heart-outline" size={18} color="#EF4444" />
+            <Ionicons name="heart-outline" size={18} color="#4B5563" />
             <Text style={styles.statText}>{event.favoriteCount}</Text>
           </View>
 
           <View style={styles.statItem}>
-            <Ionicons name="star" size={18} color="#F59E0B" />
+            <Ionicons name="star" size={18} color="#4B5563" />
             <Text style={styles.ratingText}>{event.rating.toFixed(1)}</Text>
           </View>
         </View>
@@ -105,7 +108,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   visibilityBadge: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.78)',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
@@ -117,7 +120,7 @@ const styles = StyleSheet.create({
     textTransform: 'lowercase',
   },
   categoryBadge: {
-    backgroundColor: '#0F172A',
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,

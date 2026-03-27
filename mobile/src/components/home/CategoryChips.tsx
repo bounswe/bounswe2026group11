@@ -59,8 +59,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipSelected: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: '#000000',
+    borderColor: '#000000',
   },
   chipText: {
     color: '#374151',

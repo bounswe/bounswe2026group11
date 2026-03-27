@@ -7,7 +7,9 @@ import {
   PaginatedEventsResponse,
 } from '@/models/event';
 
+
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
+
 
 export async function createEvent(
   request: CreateEventRequest,
@@ -70,9 +72,11 @@ export async function listEvents(
     params.set('q', query.q.trim());
   }
 
+
   appendArrayParam(params, 'privacy_levels', query.privacy_levels);
   appendArrayParam(params, 'category_ids', query.category_ids);
   appendArrayParam(params, 'tag_names', query.tag_names);
+
 
   if (query.start_from) {
     params.set('start_from', query.start_from);
