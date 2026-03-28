@@ -22,7 +22,7 @@ export default function LoginView() {
     const session = await vm.handleLogin();
     if (session) {
       setSession(session.access_token, session.refresh_token);
-      router.replace('/event/create' as Href);
+      router.replace('/home' as Href);
     }
   };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { EventSummary } from '@/models/event';
 import { formatEventDateLabel } from '@/utils/eventDate';
@@ -9,26 +9,48 @@ interface EventCardProps {
   onPress?: (eventId: string) => void;
 }
 
+function formatPrivacyLabel(value: EventSummary['privacy_level']) {
+  return value.charAt(0) + value.slice(1).toLowerCase();
+}
+
 export default function EventCard({ event, onPress }: EventCardProps) {
+  const capacity = event.capacity ?? 300;
+  const favoriteCount = event.favorite_count ?? 0;
+  const rating = event.rating ?? 4.5;
+
   return (
     <TouchableOpacity
       activeOpacity={0.92}
       onPress={() => onPress?.(event.id)}
       style={styles.card}
     >
-      <View
-        style={[styles.imagePlaceholder, { backgroundColor: event.imageAccent }]}
-      >
-        <View style={styles.imageTopRow}>
-          <View style={styles.topSpacer} />
-          <View style={styles.visibilityBadge}>
-            <Text style={styles.visibilityBadgeText}>{event.visibility}</Text>
+      <View style={styles.imageContainer}>
+        {event.image_url ? (
+          <Image
+            source={{ uri: event.image_url }}
+            style={styles.image}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Feather name="image" size={34} color="#9CA3AF" />
           </View>
-        </View>
+        )}
 
-        <View style={styles.imageBottomRow}>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryBadgeText}>{event.category}</Text>
+        <View style={styles.imageOverlay}>
+          <View style={styles.imageTopRow}>
+            <View style={styles.topSpacer} />
+            <View style={styles.visibilityBadge}>
+              <Text style={styles.visibilityBadgeText}>
+                {formatPrivacyLabel(event.privacy_level)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.imageBottomRow}>
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>{event.category_name}</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -41,13 +63,15 @@ export default function EventCard({ event, onPress }: EventCardProps) {
         <View style={styles.metaGroup}>
           <View style={styles.metaRow}>
             <Ionicons name="location-outline" size={18} color="#6B7280" />
-            <Text style={styles.metaText}>{event.locationName}</Text>
+            <Text style={styles.metaText}>
+              {event.location_address ?? 'Location not specified'}
+            </Text>
           </View>
 
           <View style={styles.metaRow}>
             <Feather name="clock" size={17} color="#6B7280" />
             <Text style={styles.metaText}>
-              {formatEventDateLabel(event.startTime)}
+              {formatEventDateLabel(event.start_time)}
             </Text>
           </View>
         </View>
@@ -56,18 +80,22 @@ export default function EventCard({ event, onPress }: EventCardProps) {
           <View style={styles.statItem}>
             <Ionicons name="people-outline" size={18} color="#94A3B8" />
             <Text style={styles.statText}>
-              {event.attendeeCount}/{event.capacity}
+              {event.approved_participant_count}/{capacity}
             </Text>
           </View>
 
           <View style={styles.statItem}>
-            <Ionicons name="heart-outline" size={18} color="#4B5563" />
-            <Text style={styles.statText}>{event.favoriteCount}</Text>
+            <Ionicons
+              name={event.is_favorited ? 'heart' : 'heart-outline'}
+              size={18}
+              color="#4B5563"
+            />
+            <Text style={styles.statText}>{favoriteCount}</Text>
           </View>
 
           <View style={styles.statItem}>
             <Ionicons name="star" size={18} color="#4B5563" />
-            <Text style={styles.ratingText}>{event.rating.toFixed(1)}</Text>
+            <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
           </View>
         </View>
       </View>
@@ -87,8 +115,23 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
   },
-  imagePlaceholder: {
+  imageContainer: {
     height: 210,
+    position: 'relative',
+    backgroundColor: '#E5E7EB',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E5E7EB',
+  },
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
     paddingHorizontal: 14,
     paddingTop: 14,
     paddingBottom: 14,
@@ -117,7 +160,6 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontSize: 12,
     fontWeight: '700',
-    textTransform: 'lowercase',
   },
   categoryBadge: {
     backgroundColor: 'rgba(15, 23, 42, 0.72)',
@@ -157,6 +199,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '500',
+    flex: 1,
   },
   statsRow: {
     flexDirection: 'row',

@@ -1,14 +1,29 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { EVENT_CATEGORIES, EventCategory, EventSummary } from '@/models/event';
-import { listEvents } from '@/services/eventService';
+import { useCallback, useEffect, useState } from 'react';
+import { EventCategory, EventSummary } from '@/models/event';
+import { listCategories, listEvents } from '@/services/eventService';
+import { useAuth } from '@/contexts/AuthContext';
 
-const PAGE_SIZE = 4;
+const FALLBACK_CATEGORIES: EventCategory[] = [
+  { id: 1, name: 'Sports' },
+  { id: 2, name: 'Music' },
+  { id: 3, name: 'Education' },
+  { id: 4, name: 'Technology' },
+  { id: 5, name: 'Art' },
+  { id: 6, name: 'Food & Drink' },
+];
+
+const PAGE_SIZE = 2;
+
+const DEFAULT_LOCATION = {
+  lat: 41.0082,
+  lon: 28.9784,
+};
 
 export interface HomeViewModel {
   locationLabel: string;
   notificationCount: number;
   categories: readonly EventCategory[];
-  selectedCategory: EventCategory;
+  selectedCategoryId: number | null;
   searchText: string;
   events: EventSummary[];
   totalCount: number;
@@ -18,44 +33,76 @@ export interface HomeViewModel {
   apiError: string | null;
   hasMore: boolean;
   updateSearchText: (value: string) => void;
-  selectCategory: (category: EventCategory) => void;
+  selectCategory: (categoryId: number | null) => void;
   loadMoreEvents: () => Promise<void>;
   refreshEvents: () => Promise<void>;
 }
 
 export function useHomeViewModel(): HomeViewModel {
+  const { token } = useAuth();
+
+  const [categories, setCategories] = useState<EventCategory[]>([]);
   const [events, setEvents] = useState<EventSummary[]>([]);
   const [searchText, setSearchText] = useState('');
-  const [selectedCategory, setSelectedCategory] =
-    useState<EventCategory>('All');
-  const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const loadPage = useCallback(
-    async (targetPage: number, mode: 'initial' | 'refresh' | 'loadMore') => {
+  const loadCategories = useCallback(async () => {
+    try {
+      const response = await listCategories();
+      setCategories(response.items);
+    } catch {
+      setCategories(FALLBACK_CATEGORIES);
+    }
+  }, []);
+
+  const loadEvents = useCallback(
+    async (mode: 'initial' | 'refresh' | 'loadMore') => {
+      if (!token) {
+        setEvents([]);
+        setHasMore(false);
+        setNextCursor(null);
+        setApiError('You must be logged in to view events.');
+        setIsLoading(false);
+        setIsRefreshing(false);
+        setIsLoadingMore(false);
+        return;
+      }
+
       try {
         if (mode === 'initial') setIsLoading(true);
         if (mode === 'refresh') setIsRefreshing(true);
         if (mode === 'loadMore') setIsLoadingMore(true);
 
+        if (mode !== 'loadMore') {
+          setNextCursor(null);
+          setHasMore(false);
+        }
+
         setApiError(null);
 
-        const response = await listEvents({
-          page: targetPage,
-          limit: PAGE_SIZE,
-          search: searchText,
-          category: selectedCategory,
-        });
+        const response = await listEvents(
+          {
+            lat: DEFAULT_LOCATION.lat,
+            lon: DEFAULT_LOCATION.lon,
+            radius_meters: 50000,
+            q: searchText.trim() || undefined,
+            category_ids:
+              selectedCategoryId != null ? [selectedCategoryId] : undefined,
+            limit: PAGE_SIZE,
+            cursor: mode === 'loadMore' ? nextCursor ?? undefined : undefined,
+          },
+          token,
+        );
 
-        setTotalCount(response.totalCount);
-        setHasMore(response.hasMore);
-        setPage(targetPage);
+        setHasMore(response.page_info.has_next);
+        setNextCursor(response.page_info.next_cursor);
 
         if (mode === 'loadMore') {
           setEvents((prev) => [...prev, ...response.items]);
@@ -70,44 +117,49 @@ export function useHomeViewModel(): HomeViewModel {
         if (mode === 'loadMore') setIsLoadingMore(false);
       }
     },
-    [searchText, selectedCategory],
+    [token, nextCursor, searchText, selectedCategoryId],
   );
 
   useEffect(() => {
+      loadCategories();
+    }, [loadCategories]);
+
+    useEffect(() => {
     const timeout = setTimeout(() => {
-      loadPage(1, 'initial');
-    }, 250);
+      void loadEvents('initial');
+    }, 300);
 
     return () => clearTimeout(timeout);
-  }, [loadPage]);
+  }, [token, searchText, selectedCategoryId]);
 
   const updateSearchText = useCallback((value: string) => {
     setSearchText(value);
   }, []);
 
-  const selectCategory = useCallback((category: EventCategory) => {
-    setSelectedCategory(category);
+  const selectCategory = useCallback((categoryId: number | null) => {
+    setSelectedCategoryId(categoryId);
   }, []);
 
   const loadMoreEvents = useCallback(async () => {
-    if (isLoading || isLoadingMore || isRefreshing || !hasMore) return;
-    await loadPage(page + 1, 'loadMore');
-  }, [hasMore, isLoading, isLoadingMore, isRefreshing, loadPage, page]);
+    if (isLoading || isLoadingMore || isRefreshing || !hasMore || !nextCursor) {
+      return;
+    }
+
+    await loadEvents('loadMore');
+  }, [hasMore, isLoading, isLoadingMore, isRefreshing, loadEvents, nextCursor]);
 
   const refreshEvents = useCallback(async () => {
-    await loadPage(1, 'refresh');
-  }, [loadPage]);
-
-  const categories = useMemo(() => EVENT_CATEGORIES, []);
+    await loadEvents('refresh');
+  }, [loadEvents]);
 
   return {
-    locationLabel: 'New York City',
+    locationLabel: 'Istanbul',
     notificationCount: 2,
     categories,
-    selectedCategory,
+    selectedCategoryId,
     searchText,
     events,
-    totalCount,
+    totalCount: events.length,
     isLoading,
     isLoadingMore,
     isRefreshing,

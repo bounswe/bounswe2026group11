@@ -30,13 +30,13 @@ export default function HomeView() {
           />
 
           <SearchSection
-            searchText={vm.searchText}
-            onChangeSearch={vm.updateSearchText}
+            query={vm.searchText}
+            onChangeQuery={vm.updateSearchText}
           />
 
           <CategoryChips
             categories={vm.categories}
-            selectedCategory={vm.selectedCategory}
+            selectedCategoryId={vm.selectedCategoryId}
             onSelectCategory={vm.selectCategory}
           />
 

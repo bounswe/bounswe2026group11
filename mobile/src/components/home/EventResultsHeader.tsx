@@ -10,7 +10,7 @@ export default function EventResultsHeader({
 }: EventResultsHeaderProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>{count} events found</Text>
+      <Text style={styles.text}>{count} events</Text>
     </View>
   );
 }

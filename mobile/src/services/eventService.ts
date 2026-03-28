@@ -4,6 +4,7 @@ import {
   CreateEventResponse,
   LocationSuggestion,
   ListEventsQuery,
+  ListCategoriesResponse,
   PaginatedEventsResponse,
 } from '@/models/event';
 
@@ -44,6 +45,22 @@ export async function searchLocation(
       lon: item.lon,
     }),
   );
+}
+
+export async function listCategories(): Promise<ListCategoriesResponse> {
+  const response = await fetch(`${BASE_URL}/categories`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json();
+    throw new ApiError(response.status, errorBody);
+  }
+
+  return (await response.json()) as ListCategoriesResponse;
 }
 
 function appendArrayParam(

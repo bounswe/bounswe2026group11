@@ -3,26 +3,34 @@ import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 
 interface SearchSectionProps {
-  searchText: string;
-  onChangeSearch: (value: string) => void;
+  query: string;
+  onChangeQuery: (value: string) => void;
   onPressFilter?: () => void;
 }
 
 export default function SearchSection({
-  searchText,
-  onChangeSearch,
+  query,
+  onChangeQuery,
   onPressFilter,
 }: SearchSectionProps) {
   return (
     <View style={styles.row}>
       <View style={styles.searchContainer}>
-        <Feather name="search" size={18} color="#6B7280" style={styles.searchIcon} />
+        <Feather
+          name="search"
+          size={18}
+          color="#6B7280"
+          style={styles.searchIcon}
+        />
         <TextInput
-          value={searchText}
-          onChangeText={onChangeSearch}
-          placeholder="Search events..."
+          value={query}
+          onChangeText={onChangeQuery}
+          placeholder="Search title, tags..."
           placeholderTextColor="#9CA3AF"
           style={styles.input}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
         />
       </View>
 

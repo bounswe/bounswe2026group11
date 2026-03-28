@@ -4,13 +4,13 @@ import { EventCategory } from '@/models/event';
 
 interface CategoryChipsProps {
   categories: readonly EventCategory[];
-  selectedCategory: EventCategory;
-  onSelectCategory: (category: EventCategory) => void;
+  selectedCategoryId: number | null;
+  onSelectCategory: (categoryId: number | null) => void;
 }
 
 export default function CategoryChips({
   categories,
-  selectedCategory,
+  selectedCategoryId,
   onSelectCategory,
 }: CategoryChipsProps) {
   return (
@@ -19,21 +19,37 @@ export default function CategoryChips({
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.container}
     >
+      <TouchableOpacity
+        style={[styles.chip, selectedCategoryId === null && styles.chipSelected]}
+        onPress={() => onSelectCategory(null)}
+        activeOpacity={0.8}
+      >
+        <Text
+          style={[
+            styles.chipText,
+            selectedCategoryId === null && styles.chipTextSelected,
+          ]}
+          numberOfLines={1}
+        >
+          All
+        </Text>
+      </TouchableOpacity>
+
       {categories.map((category) => {
-        const isSelected = selectedCategory === category;
+        const isSelected = selectedCategoryId === category.id;
 
         return (
           <TouchableOpacity
-            key={category}
+            key={category.id}
             style={[styles.chip, isSelected && styles.chipSelected]}
-            onPress={() => onSelectCategory(category)}
+            onPress={() => onSelectCategory(category.id)}
             activeOpacity={0.8}
           >
             <Text
               style={[styles.chipText, isSelected && styles.chipTextSelected]}
               numberOfLines={1}
             >
-              {category}
+              {category.name}
             </Text>
           </TouchableOpacity>
         );

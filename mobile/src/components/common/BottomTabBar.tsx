@@ -1,16 +1,16 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { router, usePathname, type Href } from 'expo-router';
 
 type TabItem = {
   key: 'explore' | 'favorites' | 'create' | 'events' | 'profile';
   label: string;
-  active?: boolean;
   primary?: boolean;
 };
 
 const TABS: TabItem[] = [
-  { key: 'explore', label: 'Explore', active: true },
+  { key: 'explore', label: 'Explore' },
   { key: 'favorites', label: 'Favorites' },
   { key: 'create', label: 'Create', primary: true },
   { key: 'events', label: 'Events' },
@@ -18,17 +18,29 @@ const TABS: TabItem[] = [
 ];
 
 export default function BottomTabBar() {
+  const pathname = usePathname();
+
   return (
     <View style={styles.container}>
       {TABS.map((tab) => {
+        const active = tab.key === 'explore' ? pathname === '/home' : false;
+
         if (tab.primary) {
+          const createActive = pathname === '/event/create';
+
           return (
             <TouchableOpacity
               key={tab.key}
               activeOpacity={0.85}
               style={styles.primaryWrapper}
+              onPress={() => router.push('/event/create')}
             >
-              <View style={styles.primaryButton}>
+              <View
+                style={[
+                  styles.primaryButton,
+                  createActive && styles.primaryButtonActive,
+                ]}
+              >
                 <Feather name="plus" size={28} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
@@ -36,12 +48,21 @@ export default function BottomTabBar() {
         }
 
         return (
-          <TouchableOpacity key={tab.key} activeOpacity={0.85} style={styles.tab}>
+          <TouchableOpacity
+            key={tab.key}
+            activeOpacity={0.85}
+            style={styles.tab}
+            onPress={() => {
+              if (tab.key === 'explore') {
+                router.push('/home' as Href);
+              }
+            }}
+          >
             {tab.key === 'explore' && (
               <Feather
                 name="compass"
                 size={22}
-                color={tab.active ? '#111827' : '#9CA3AF'}
+                color={active ? '#111827' : '#9CA3AF'}
               />
             )}
 
@@ -49,7 +70,7 @@ export default function BottomTabBar() {
               <Ionicons
                 name="heart-outline"
                 size={22}
-                color={tab.active ? '#111827' : '#9CA3AF'}
+                color="#9CA3AF"
               />
             )}
 
@@ -57,7 +78,7 @@ export default function BottomTabBar() {
               <Ionicons
                 name="calendar-outline"
                 size={22}
-                color={tab.active ? '#111827' : '#9CA3AF'}
+                color="#9CA3AF"
               />
             )}
 
@@ -65,11 +86,11 @@ export default function BottomTabBar() {
               <Ionicons
                 name="person-outline"
                 size={22}
-                color={tab.active ? '#111827' : '#9CA3AF'}
+                color="#9CA3AF"
               />
             )}
 
-            <Text style={[styles.label, tab.active && styles.activeText]}>
+            <Text style={[styles.label, active && styles.activeText]}>
               {tab.label}
             </Text>
           </TouchableOpacity>
@@ -121,5 +142,8 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
+  },
+  primaryButtonActive: {
+    backgroundColor: '#111827',
   },
 });

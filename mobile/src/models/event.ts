@@ -60,6 +60,9 @@ export interface EventSummary {
   privacy_level: Extract<PrivacyLevel, 'PUBLIC' | 'PROTECTED'>;
   approved_participant_count: number;
   is_favorited: boolean;
+  capacity?: number;
+  favorite_count?: number;
+  rating?: number;
 }
 
 export type DiscoverEventsSortBy = 'START_TIME' | 'DISTANCE' | 'RELEVANCE';
@@ -88,4 +91,8 @@ export interface DiscoverEventsPageInfo {
 export interface PaginatedEventsResponse {
   items: EventSummary[];
   page_info: DiscoverEventsPageInfo;
+}
+
+export interface ListCategoriesResponse {
+  items: EventCategory[];
 }

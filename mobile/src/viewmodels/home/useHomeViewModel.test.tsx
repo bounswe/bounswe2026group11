@@ -3,48 +3,78 @@
  */
 import { renderHook, act, waitFor } from '@testing-library/react';
 import * as eventService from '@/services/eventService';
-import type { PaginatedEventsResponse } from '@/models/event';
+import type {
+  EventCategory,
+  ListCategoriesResponse,
+  PaginatedEventsResponse,
+} from '@/models/event';
 import { useHomeViewModel } from './useHomeViewModel';
 
 jest.mock('@/services/eventService');
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    token: 'mock-token',
+    refreshToken: 'mock-refresh-token',
+    setSession: jest.fn(),
+    clearAuth: jest.fn(),
+  }),
+}));
 
 const mockListEvents = jest.mocked(eventService.listEvents);
+const mockListCategories = jest.mocked(eventService.listCategories);
+
+const fallbackCategories: EventCategory[] = [
+  { id: 1, name: 'Sports' },
+  { id: 2, name: 'Music' },
+  { id: 3, name: 'Education' },
+  { id: 4, name: 'Technology' },
+  { id: 5, name: 'Art' },
+  { id: 6, name: 'Food & Drink' },
+];
+
+const categoriesFixture: ListCategoriesResponse = {
+  items: [
+    { id: 1, name: 'Sports' },
+    { id: 2, name: 'Music' },
+    { id: 4, name: 'Technology' },
+  ],
+};
 
 const page1Fixture: PaginatedEventsResponse = {
   items: [
     {
       id: '1',
       title: 'Summer Night Jazz Concert',
-      category: 'Music',
-      visibility: 'public',
-      locationName: 'Brooklyn Bridge Park',
-      startTime: '2026-03-29T20:30:00+03:00',
-      endTime: '2026-03-29T23:00:00+03:00',
-      attendeeCount: 96,
+      category_name: 'Music',
+      image_url: null,
+      start_time: '2026-03-29T20:30:00+03:00',
+      location_address: 'Brooklyn Bridge Park',
+      privacy_level: 'PUBLIC',
+      approved_participant_count: 96,
+      is_favorited: true,
       capacity: 150,
-      favoriteCount: 72,
+      favorite_count: 72,
       rating: 4.7,
-      imageAccent: '#8B5CF6',
     },
     {
       id: '2',
       title: 'AI for Product Managers Workshop',
-      category: 'Technology',
-      visibility: 'protected',
-      locationName: 'SoHo Tech Hub',
-      startTime: '2026-03-30T18:00:00+03:00',
-      endTime: '2026-03-30T20:00:00+03:00',
-      attendeeCount: 41,
+      category_name: 'Technology',
+      image_url: null,
+      start_time: '2026-03-30T18:00:00+03:00',
+      location_address: 'SoHo Tech Hub',
+      privacy_level: 'PROTECTED',
+      approved_participant_count: 41,
+      is_favorited: false,
       capacity: 60,
-      favoriteCount: 35,
+      favorite_count: 35,
       rating: 4.9,
-      imageAccent: '#2563EB',
     },
   ],
-  page: 1,
-  limit: 4,
-  hasMore: true,
-  totalCount: 6,
+  page_info: {
+    next_cursor: 'cursor-2',
+    has_next: true,
+  },
 };
 
 const page2Fixture: PaginatedEventsResponse = {
@@ -52,31 +82,32 @@ const page2Fixture: PaginatedEventsResponse = {
     {
       id: '3',
       title: 'Creative Writing Bootcamp',
-      category: 'Education',
-      visibility: 'public',
-      locationName: 'NY Public Library',
-      startTime: '2026-03-31T13:00:00+03:00',
-      endTime: '2026-03-31T15:30:00+03:00',
-      attendeeCount: 58,
+      category_name: 'Education',
+      image_url: null,
+      start_time: '2026-03-31T13:00:00+03:00',
+      location_address: 'NY Public Library',
+      privacy_level: 'PUBLIC',
+      approved_participant_count: 58,
+      is_favorited: false,
       capacity: 80,
-      favoriteCount: 22,
+      favorite_count: 22,
       rating: 4.6,
-      imageAccent: '#14B8A6',
     },
   ],
-  page: 2,
-  limit: 4,
-  hasMore: false,
-  totalCount: 6,
+  page_info: {
+    next_cursor: null,
+    has_next: false,
+  },
 };
 
 describe('useHomeViewModel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockListCategories.mockResolvedValue(categoriesFixture);
     mockListEvents.mockResolvedValue(page1Fixture);
   });
 
-  it('loads initial events on mount', async () => {
+  it('loads initial categories and events on mount', async () => {
     const { result } = renderHook(() => useHomeViewModel());
 
     expect(result.current.isLoading).toBe(true);
@@ -85,15 +116,36 @@ describe('useHomeViewModel', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(mockListEvents).toHaveBeenCalledWith({
-      page: 1,
-      limit: 4,
-      search: '',
-      category: 'All',
-    });
+    expect(mockListCategories).toHaveBeenCalledTimes(1);
+    expect(mockListEvents).toHaveBeenCalledWith(
+      {
+        lat: 41.0082,
+        lon: 28.9784,
+        radius_meters: 50000,
+        q: undefined,
+        category_ids: undefined,
+        limit: 2,
+        cursor: undefined,
+      },
+      'mock-token',
+    );
+
+    expect(result.current.categories).toEqual(categoriesFixture.items);
     expect(result.current.events).toEqual(page1Fixture.items);
-    expect(result.current.totalCount).toBe(6);
+    expect(result.current.totalCount).toBe(2);
     expect(result.current.hasMore).toBe(true);
+  });
+
+  it('falls back to local categories when categories request fails', async () => {
+    mockListCategories.mockRejectedValueOnce(new Error('network'));
+
+    const { result } = renderHook(() => useHomeViewModel());
+
+    await waitFor(() => {
+      expect(result.current.categories).toEqual(fallbackCategories);
+    });
+
+    expect(result.current.apiError).toBeNull();
   });
 
   it('updates search text', async () => {
@@ -106,17 +158,17 @@ describe('useHomeViewModel', () => {
     expect(result.current.searchText).toBe('music');
   });
 
-  it('updates selected category', async () => {
+  it('updates selected category id', async () => {
     const { result } = renderHook(() => useHomeViewModel());
 
     await act(async () => {
-      result.current.selectCategory('Music');
+      result.current.selectCategory(2);
     });
 
-    expect(result.current.selectedCategory).toBe('Music');
+    expect(result.current.selectedCategoryId).toBe(2);
   });
 
-  it('refreshes events from page 1', async () => {
+  it('refreshes events from the first page', async () => {
     const { result } = renderHook(() => useHomeViewModel());
 
     await waitFor(() => {
@@ -124,24 +176,33 @@ describe('useHomeViewModel', () => {
     });
 
     mockListEvents.mockResolvedValueOnce({
-      ...page1Fixture,
       items: [page1Fixture.items[0]],
-      totalCount: 1,
-      hasMore: false,
+      page_info: {
+        next_cursor: null,
+        has_next: false,
+      },
     });
 
     await act(async () => {
       await result.current.refreshEvents();
     });
 
-    expect(mockListEvents).toHaveBeenLastCalledWith({
-      page: 1,
-      limit: 4,
-      search: '',
-      category: 'All',
-    });
+    expect(mockListEvents).toHaveBeenLastCalledWith(
+      {
+        lat: 41.0082,
+        lon: 28.9784,
+        radius_meters: 50000,
+        q: undefined,
+        category_ids: undefined,
+        limit: 2,
+        cursor: undefined,
+      },
+      'mock-token',
+    );
+
     expect(result.current.events).toHaveLength(1);
     expect(result.current.totalCount).toBe(1);
+    expect(result.current.hasMore).toBe(false);
   });
 
   it('loads more events and appends them', async () => {
@@ -157,18 +218,25 @@ describe('useHomeViewModel', () => {
       await result.current.loadMoreEvents();
     });
 
-    expect(mockListEvents).toHaveBeenLastCalledWith({
-      page: 2,
-      limit: 4,
-      search: '',
-      category: 'All',
-    });
+    expect(mockListEvents).toHaveBeenLastCalledWith(
+      {
+        lat: 41.0082,
+        lon: 28.9784,
+        radius_meters: 50000,
+        q: undefined,
+        category_ids: undefined,
+        limit: 2,
+        cursor: 'cursor-2',
+      },
+      'mock-token',
+    );
+
     expect(result.current.events).toHaveLength(3);
     expect(result.current.events[2].id).toBe('3');
     expect(result.current.hasMore).toBe(false);
   });
 
-  it('sets apiError when loading fails', async () => {
+  it('sets apiError when loading events fails', async () => {
     mockListEvents.mockRejectedValueOnce(new Error('network'));
 
     const { result } = renderHook(() => useHomeViewModel());
@@ -177,6 +245,8 @@ describe('useHomeViewModel', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.apiError).toBe('Failed to load events. Please try again.');
+    expect(result.current.apiError).toBe(
+      'Failed to load events. Please try again.',
+    );
   });
 });
