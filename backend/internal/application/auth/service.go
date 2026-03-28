@@ -555,7 +555,7 @@ func (s *Service) sendEmailOTPChallenge(
 	userID *uuid.UUID,
 	email string,
 	purpose string,
-	send func(context.Context, string, string) error,
+	send func(context.Context, OTPMailInput) error,
 	sendLabel string,
 ) error {
 	challenge, err := s.repo.GetActiveOTPChallenge(ctx, email, purpose)
@@ -585,7 +585,11 @@ func (s *Service) sendEmailOTPChallenge(
 		return fmt.Errorf("store otp challenge: %w", err)
 	}
 
-	if err := send(ctx, email, code); err != nil {
+	if err := send(ctx, OTPMailInput{
+		Email:     email,
+		Code:      code,
+		ExpiresIn: s.otpTTL,
+	}); err != nil {
 		return fmt.Errorf("%s: %w", sendLabel, err)
 	}
 

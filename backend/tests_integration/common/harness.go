@@ -105,19 +105,22 @@ func NewEventHarness(t *testing.T) *EventHarness {
 type CapturingMailer struct {
 	LastEmail   string
 	LastCode    string
+	LastExpiry  time.Duration
 	LastPurpose string
 }
 
-func (m *CapturingMailer) SendRegistrationOTP(_ context.Context, email, code string) error {
-	m.LastEmail = email
-	m.LastCode = code
+func (m *CapturingMailer) SendRegistrationOTP(_ context.Context, input authapp.OTPMailInput) error {
+	m.LastEmail = input.Email
+	m.LastCode = input.Code
+	m.LastExpiry = input.ExpiresIn
 	m.LastPurpose = domain.OTPPurposeRegistration
 	return nil
 }
 
-func (m *CapturingMailer) SendPasswordResetOTP(_ context.Context, email, code string) error {
-	m.LastEmail = email
-	m.LastCode = code
+func (m *CapturingMailer) SendPasswordResetOTP(_ context.Context, input authapp.OTPMailInput) error {
+	m.LastEmail = input.Email
+	m.LastCode = input.Code
+	m.LastExpiry = input.ExpiresIn
 	m.LastPurpose = domain.OTPPurposePasswordReset
 	return nil
 }

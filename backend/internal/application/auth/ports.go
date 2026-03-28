@@ -35,8 +35,15 @@ type OTPCodeGenerator interface {
 	NewCode() string
 }
 
+// OTPMailInput carries the OTP email payload needed by the mail adapter.
+type OTPMailInput struct {
+	Email     string
+	Code      string
+	ExpiresIn time.Duration
+}
+
 // OTPMailer delivers OTP codes to the user via an external channel (e.g. email).
 type OTPMailer interface {
-	SendRegistrationOTP(ctx context.Context, email, code string) error
-	SendPasswordResetOTP(ctx context.Context, email, code string) error
+	SendRegistrationOTP(ctx context.Context, input OTPMailInput) error
+	SendPasswordResetOTP(ctx context.Context, input OTPMailInput) error
 }

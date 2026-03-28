@@ -32,6 +32,9 @@ func TestRequestRegistrationOTPStoresHashedChallenge(t *testing.T) {
 	if mailer.lastEmail != "user@example.com" {
 		t.Fatalf("expected mail to be sent to normalized email, got %q", mailer.lastEmail)
 	}
+	if mailer.lastExpiresIn != 10*time.Minute {
+		t.Fatalf("expected registration otp to expire in 10 minutes, got %s", mailer.lastExpiresIn)
+	}
 }
 
 func TestRequestPasswordResetOTPStoresHashedChallengeForExistingUser(t *testing.T) {
@@ -71,6 +74,9 @@ func TestRequestPasswordResetOTPStoresHashedChallengeForExistingUser(t *testing.
 	}
 	if mailer.lastPurpose != domain.OTPPurposePasswordReset {
 		t.Fatalf("expected password reset mail purpose, got %q", mailer.lastPurpose)
+	}
+	if mailer.lastExpiresIn != 10*time.Minute {
+		t.Fatalf("expected password reset otp to expire in 10 minutes, got %s", mailer.lastExpiresIn)
 	}
 }
 
@@ -1207,24 +1213,27 @@ func (g fakeOTPGenerator) NewCode() string {
 type fakeMailer struct {
 	lastEmail              string
 	lastCode               string
+	lastExpiresIn          time.Duration
 	lastPurpose            string
 	passwordResetErr       error
 	registrationSendCount  int
 	passwordResetSendCount int
 }
 
-func (m *fakeMailer) SendRegistrationOTP(_ context.Context, email, code string) error {
+func (m *fakeMailer) SendRegistrationOTP(_ context.Context, input OTPMailInput) error {
 	m.registrationSendCount++
-	m.lastEmail = email
-	m.lastCode = code
+	m.lastEmail = input.Email
+	m.lastCode = input.Code
+	m.lastExpiresIn = input.ExpiresIn
 	m.lastPurpose = domain.OTPPurposeRegistration
 	return nil
 }
 
-func (m *fakeMailer) SendPasswordResetOTP(_ context.Context, email, code string) error {
+func (m *fakeMailer) SendPasswordResetOTP(_ context.Context, input OTPMailInput) error {
 	m.passwordResetSendCount++
-	m.lastEmail = email
-	m.lastCode = code
+	m.lastEmail = input.Email
+	m.lastCode = input.Code
+	m.lastExpiresIn = input.ExpiresIn
 	m.lastPurpose = domain.OTPPurposePasswordReset
 	return m.passwordResetErr
 }
