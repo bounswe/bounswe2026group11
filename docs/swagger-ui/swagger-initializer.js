@@ -520,7 +520,7 @@ function syncSwaggerAuthorization() {
       try {
         window.ui.authActions.logout([AUTH_SCHEME_NAME]);
       } catch (_error) {
-        // Ignore Swagger auth state cleanup failures.
+        // Ignore Swagger UI authorization cleanup failures.
       }
     }
     return;
@@ -531,7 +531,7 @@ function syncSwaggerAuthorization() {
       window.ui.preauthorizeApiKey(AUTH_SCHEME_NAME, session.accessToken);
       return;
     } catch (_error) {
-      // Fall through to the lower-level auth action.
+      // Fall through to the lower-level authorization action.
     }
   }
 
@@ -549,7 +549,7 @@ function syncSwaggerAuthorization() {
         },
       });
     } catch (_error) {
-      // Ignore Swagger auth state sync failures.
+      // Ignore Swagger UI authorization sync failures.
     }
   }
 }

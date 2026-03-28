@@ -1,12 +1,14 @@
 package server
 
 import (
-	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/driving/httpapi"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/bootstrap"
 	"github.com/gofiber/fiber/v2"
 )
 
-// NewHTTP builds a Fiber app with all registered route groups and middleware.
+// NewHTTP builds a Fiber application with all registered route groups and middleware.
 func NewHTTP(container *bootstrap.Container) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ProxyHeader:             "X-Real-IP",
@@ -25,12 +27,12 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 	registerHealthRoute(app)
 
 	// Auth routes
-	authHandler := httpapi.NewAuthHandler(container.AuthService)
-	httpapi.RegisterAuthRoutes(app, authHandler)
+	authHandler := auth_handler.NewAuthHandler(container.AuthService)
+	auth_handler.RegisterAuthRoutes(app, authHandler)
 
 	// Event routes
-	eventHandler := httpapi.NewEventHandler(container.EventService)
-	httpapi.RegisterEventRoutes(app, eventHandler, httpapi.RequireAuth(container.TokenVerifier))
+	eventHandler := event_handler.NewEventHandler(container.EventService)
+	event_handler.RegisterEventRoutes(app, eventHandler, httpapi.RequireAuth(container.TokenVerifier))
 
 	return app
 }

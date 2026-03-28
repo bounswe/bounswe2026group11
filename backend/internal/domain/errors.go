@@ -9,6 +9,8 @@ import (
 const (
 	StatusBadRequest      = 400
 	StatusUnauthorized    = 401
+	StatusForbidden       = 403
+	StatusNotFound        = 404
 	StatusConflict        = 409
 	StatusTooManyRequests = 429
 	StatusInternalError   = 500
@@ -29,6 +31,13 @@ const (
 	ErrorCodeUsernameExists    = "username_already_exists"
 	ErrorCodePhoneExists       = "phone_number_already_exists"
 	ErrorCodeEventTitleExists  = "event_title_already_exists"
+
+	ErrorCodeEventNotFound        = "event_not_found"
+	ErrorCodeAlreadyParticipating = "already_participating"
+	ErrorCodeAlreadyRequested     = "already_requested"
+	ErrorCodeEventJoinNotAllowed  = "event_join_not_allowed"
+	ErrorCodeHostCannotJoin       = "host_cannot_join"
+	ErrorCodeCapacityExceeded     = "capacity_exceeded"
 )
 
 // ErrNotFound is a sentinel error returned when a queried entity does not exist.
@@ -84,5 +93,24 @@ func AuthError(code, message string) *AppError {
 		Code:    code,
 		Message: message,
 		Status:  StatusUnauthorized,
+	}
+}
+
+// ForbiddenError creates a 403 Forbidden error for operations the caller is
+// not permitted to perform (e.g. host attempting to join their own event).
+func ForbiddenError(code, message string) *AppError {
+	return &AppError{
+		Code:    code,
+		Message: message,
+		Status:  StatusForbidden,
+	}
+}
+
+// NotFoundError creates a 404 Not Found error for entities that do not exist.
+func NotFoundError(code, message string) *AppError {
+	return &AppError{
+		Code:    code,
+		Message: message,
+		Status:  StatusNotFound,
 	}
 }
