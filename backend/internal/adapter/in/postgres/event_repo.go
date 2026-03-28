@@ -481,6 +481,676 @@ func toPrivacyLevelStringSlice(values []domain.EventPrivacyLevel) []string {
 	return converted
 }
 
+// GetEventDetail loads the full detail projection for an event if the
+// authenticated user is allowed to read it.
+func (r *EventRepository) GetEventDetail(
+	ctx context.Context,
+	userID, eventID uuid.UUID,
+) (*eventapp.EventDetailRecord, error) {
+	record, err := r.loadEventDetailCore(ctx, userID, eventID)
+	if err != nil {
+		return nil, err
+	}
+
+	location, err := r.loadEventDetailLocation(ctx, eventID, record.Location.Type)
+	if err != nil {
+		return nil, err
+	}
+	location.Address = record.Location.Address
+	record.Location = location
+
+	tags, err := r.loadEventTags(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+	record.Tags = tags
+
+	constraints, err := r.loadEventConstraints(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+	record.Constraints = constraints
+
+	if record.ViewerContext.IsHost {
+		hostContext, err := r.loadEventHostContext(ctx, eventID)
+		if err != nil {
+			return nil, err
+		}
+		record.HostContext = hostContext
+	}
+
+	return record, nil
+}
+
+func (r *EventRepository) loadEventDetailCore(
+	ctx context.Context,
+	userID, eventID uuid.UUID,
+) (*eventapp.EventDetailRecord, error) {
+	var (
+		id                       uuid.UUID
+		title                    string
+		description              pgtype.Text
+		imageURL                 pgtype.Text
+		privacyLevel             string
+		status                   string
+		startTime                time.Time
+		endTime                  pgtype.Timestamptz
+		capacity                 pgtype.Int4
+		minimumAge               pgtype.Int4
+		preferredGender          pgtype.Text
+		approvedParticipantCount int
+		pendingParticipantCount  int
+		favoriteCount            int
+		createdAt                time.Time
+		updatedAt                time.Time
+		categoryID               pgtype.Int4
+		categoryName             pgtype.Text
+		hostID                   uuid.UUID
+		hostUsername             string
+		hostDisplayName          pgtype.Text
+		hostAvatarURL            pgtype.Text
+		locationType             string
+		locationAddress          pgtype.Text
+		isHost                   bool
+		isFavorited              bool
+		participationStatus      string
+	)
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT
+			e.id,
+			e.title,
+			e.description,
+			e.image_url,
+			e.privacy_level,
+			e.status,
+			e.start_time,
+			e.end_time,
+			e.capacity,
+			e.minimum_age,
+			e.preferred_gender,
+			e.approved_participant_count,
+			e.pending_participant_count,
+			e.favorite_count,
+			e.created_at,
+			e.updated_at,
+			ec.id,
+			ec.name,
+			host.id,
+			host.username,
+			hp.display_name,
+			hp.avatar_url,
+			e.location_type,
+			el.address,
+			(e.host_id = $2) AS is_host,
+			EXISTS (
+				SELECT 1
+				FROM favorite_event fav
+				WHERE fav.event_id = e.id
+				  AND fav.user_id = $2
+			) AS is_favorited,
+			CASE
+				WHEN e.host_id = $2 THEN $3
+				WHEN EXISTS (
+					SELECT 1
+					FROM participation p
+					WHERE p.event_id = e.id
+					  AND p.user_id = $2
+					  AND p.status = $4
+				) THEN $5
+				WHEN EXISTS (
+					SELECT 1
+					FROM join_request jr
+					WHERE jr.event_id = e.id
+					  AND jr.user_id = $2
+					  AND jr.status = $6
+				) THEN $7
+				WHEN EXISTS (
+					SELECT 1
+					FROM invitation inv
+					WHERE inv.event_id = e.id
+					  AND inv.invited_user_id = $2
+				) THEN $8
+				ELSE $3
+			END AS participation_status
+		FROM event e
+		JOIN event_location el ON el.event_id = e.id
+		LEFT JOIN event_category ec ON ec.id = e.category_id
+		JOIN app_user host ON host.id = e.host_id
+		LEFT JOIN profile hp ON hp.user_id = host.id
+		WHERE e.id = $1
+		  AND (
+			e.privacy_level IN ($9, $10)
+			OR e.host_id = $2
+			OR EXISTS (
+				SELECT 1
+				FROM participation p
+				WHERE p.event_id = e.id
+				  AND p.user_id = $2
+				  AND p.status = $4
+			)
+			OR EXISTS (
+				SELECT 1
+				FROM invitation inv
+				WHERE inv.event_id = e.id
+				  AND inv.invited_user_id = $2
+				  AND inv.status = $11
+			)
+		  )
+	`,
+		eventID,
+		userID,
+		string(domain.EventDetailParticipationStatusNone),
+		domain.ParticipationStatusApproved,
+		string(domain.EventDetailParticipationStatusJoined),
+		domain.ParticipationStatusPending,
+		string(domain.EventDetailParticipationStatusPending),
+		string(domain.EventDetailParticipationStatusInvited),
+		string(domain.PrivacyPublic),
+		string(domain.PrivacyProtected),
+		string(domain.InvitationStatusAccepted),
+	).Scan(
+		&id,
+		&title,
+		&description,
+		&imageURL,
+		&privacyLevel,
+		&status,
+		&startTime,
+		&endTime,
+		&capacity,
+		&minimumAge,
+		&preferredGender,
+		&approvedParticipantCount,
+		&pendingParticipantCount,
+		&favoriteCount,
+		&createdAt,
+		&updatedAt,
+		&categoryID,
+		&categoryName,
+		&hostID,
+		&hostUsername,
+		&hostDisplayName,
+		&hostAvatarURL,
+		&locationType,
+		&locationAddress,
+		&isHost,
+		&isFavorited,
+		&participationStatus,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("get event detail: %w", err)
+	}
+
+	record := &eventapp.EventDetailRecord{
+		ID:                       id,
+		Title:                    title,
+		PrivacyLevel:             domain.EventPrivacyLevel(privacyLevel),
+		Status:                   domain.EventStatus(status),
+		StartTime:                startTime,
+		ApprovedParticipantCount: approvedParticipantCount,
+		PendingParticipantCount:  pendingParticipantCount,
+		FavoriteCount:            favoriteCount,
+		CreatedAt:                createdAt,
+		UpdatedAt:                updatedAt,
+		Host: eventapp.EventDetailPersonRecord{
+			ID:       hostID,
+			Username: hostUsername,
+		},
+		Location: eventapp.EventDetailLocationRecord{
+			Type: domain.EventLocationType(locationType),
+		},
+		ViewerContext: eventapp.EventDetailViewerContextRecord{
+			IsHost:              isHost,
+			IsFavorited:         isFavorited,
+			ParticipationStatus: domain.EventDetailParticipationStatus(participationStatus),
+		},
+		Tags:        make([]string, 0),
+		Constraints: make([]eventapp.EventDetailConstraintRecord, 0),
+	}
+	if description.Valid {
+		record.Description = &description.String
+	}
+	if imageURL.Valid {
+		record.ImageURL = &imageURL.String
+	}
+	if endTime.Valid {
+		record.EndTime = &endTime.Time
+	}
+	if capacity.Valid {
+		record.Capacity = new(int)
+		*record.Capacity = int(capacity.Int32)
+	}
+	if minimumAge.Valid {
+		record.MinimumAge = new(int)
+		*record.MinimumAge = int(minimumAge.Int32)
+	}
+	if preferredGender.Valid {
+		gender := domain.EventParticipantGender(preferredGender.String)
+		record.PreferredGender = &gender
+	}
+	if categoryID.Valid {
+		record.Category = &eventapp.EventDetailCategoryRecord{
+			ID: int(categoryID.Int32),
+		}
+		if categoryName.Valid {
+			record.Category.Name = categoryName.String
+		}
+	}
+	if hostDisplayName.Valid {
+		record.Host.DisplayName = &hostDisplayName.String
+	}
+	if hostAvatarURL.Valid {
+		record.Host.AvatarURL = &hostAvatarURL.String
+	}
+	if locationAddress.Valid {
+		record.Location.Address = &locationAddress.String
+	}
+
+	return record, nil
+}
+
+func (r *EventRepository) loadEventDetailLocation(
+	ctx context.Context,
+	eventID uuid.UUID,
+	locationType domain.EventLocationType,
+) (eventapp.EventDetailLocationRecord, error) {
+	location := eventapp.EventDetailLocationRecord{
+		Type:        locationType,
+		RoutePoints: make([]domain.GeoPoint, 0),
+	}
+
+	switch locationType {
+	case domain.LocationPoint:
+		var point domain.GeoPoint
+		err := r.pool.QueryRow(ctx, `
+			SELECT
+				ST_Y(el.geom::geometry) AS lat,
+				ST_X(el.geom::geometry) AS lon
+			FROM event_location el
+			WHERE el.event_id = $1
+		`, eventID).Scan(&point.Lat, &point.Lon)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return location, domain.ErrNotFound
+			}
+			return location, fmt.Errorf("load event detail point: %w", err)
+		}
+		location.Point = &point
+	case domain.LocationRoute:
+		rows, err := r.pool.Query(ctx, `
+			SELECT
+				ST_Y(dp.geom) AS lat,
+				ST_X(dp.geom) AS lon
+			FROM event_location el
+			CROSS JOIN LATERAL ST_DumpPoints(el.geom::geometry) AS dp
+			WHERE el.event_id = $1
+			ORDER BY dp.path
+		`, eventID)
+		if err != nil {
+			return location, fmt.Errorf("load event detail route points: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var point domain.GeoPoint
+			if err := rows.Scan(&point.Lat, &point.Lon); err != nil {
+				return location, fmt.Errorf("scan event detail route point: %w", err)
+			}
+			location.RoutePoints = append(location.RoutePoints, point)
+		}
+		if err := rows.Err(); err != nil {
+			return location, fmt.Errorf("iterate event detail route points: %w", err)
+		}
+	default:
+		return location, nil
+	}
+
+	return location, nil
+}
+
+func (r *EventRepository) loadEventTags(ctx context.Context, eventID uuid.UUID) ([]string, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT name
+		FROM event_tag
+		WHERE event_id = $1
+		ORDER BY name ASC
+	`, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("load event tags: %w", err)
+	}
+	defer rows.Close()
+
+	tags := make([]string, 0)
+	for rows.Next() {
+		var tag string
+		if err := rows.Scan(&tag); err != nil {
+			return nil, fmt.Errorf("scan event tag: %w", err)
+		}
+		tags = append(tags, tag)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate event tags: %w", err)
+	}
+
+	return tags, nil
+}
+
+func (r *EventRepository) loadEventConstraints(
+	ctx context.Context,
+	eventID uuid.UUID,
+) ([]eventapp.EventDetailConstraintRecord, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT constraint_type, constraint_info
+		FROM event_constraint
+		WHERE event_id = $1
+		ORDER BY created_at ASC, id ASC
+	`, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("load event constraints: %w", err)
+	}
+	defer rows.Close()
+
+	constraints := make([]eventapp.EventDetailConstraintRecord, 0)
+	for rows.Next() {
+		var (
+			constraintType string
+			constraintInfo pgtype.Text
+		)
+		if err := rows.Scan(&constraintType, &constraintInfo); err != nil {
+			return nil, fmt.Errorf("scan event constraint: %w", err)
+		}
+
+		constraint := eventapp.EventDetailConstraintRecord{Type: constraintType}
+		if constraintInfo.Valid {
+			constraint.Info = constraintInfo.String
+		}
+		constraints = append(constraints, constraint)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate event constraints: %w", err)
+	}
+
+	return constraints, nil
+}
+
+func (r *EventRepository) loadEventHostContext(
+	ctx context.Context,
+	eventID uuid.UUID,
+) (*eventapp.EventDetailHostContextRecord, error) {
+	approvedParticipants, err := r.loadApprovedParticipants(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+
+	pendingJoinRequests, err := r.loadPendingJoinRequests(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+
+	invitations, err := r.loadInvitations(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &eventapp.EventDetailHostContextRecord{
+		ApprovedParticipants: approvedParticipants,
+		PendingJoinRequests:  pendingJoinRequests,
+		Invitations:          invitations,
+	}, nil
+}
+
+func (r *EventRepository) loadApprovedParticipants(
+	ctx context.Context,
+	eventID uuid.UUID,
+) ([]eventapp.EventDetailApprovedParticipantRecord, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			p.id,
+			p.status,
+			p.created_at,
+			p.updated_at,
+			u.id,
+			u.username,
+			pr.display_name,
+			pr.avatar_url
+		FROM participation p
+		JOIN app_user u ON u.id = p.user_id
+		LEFT JOIN profile pr ON pr.user_id = u.id
+		WHERE p.event_id = $1
+		  AND p.status = $2
+		ORDER BY p.created_at ASC, p.id ASC
+	`, eventID, domain.ParticipationStatusApproved)
+	if err != nil {
+		return nil, fmt.Errorf("load approved participants: %w", err)
+	}
+	defer rows.Close()
+
+	participants := make([]eventapp.EventDetailApprovedParticipantRecord, 0)
+	for rows.Next() {
+		var (
+			participationID uuid.UUID
+			status          string
+			createdAt       time.Time
+			updatedAt       time.Time
+			userID          uuid.UUID
+			username        string
+			displayName     pgtype.Text
+			avatarURL       pgtype.Text
+		)
+		if err := rows.Scan(
+			&participationID,
+			&status,
+			&createdAt,
+			&updatedAt,
+			&userID,
+			&username,
+			&displayName,
+			&avatarURL,
+		); err != nil {
+			return nil, fmt.Errorf("scan approved participant: %w", err)
+		}
+
+		participant := eventapp.EventDetailApprovedParticipantRecord{
+			ParticipationID: participationID,
+			Status:          status,
+			CreatedAt:       createdAt,
+			UpdatedAt:       updatedAt,
+			User: eventapp.EventDetailPersonRecord{
+				ID:       userID,
+				Username: username,
+			},
+		}
+		if displayName.Valid {
+			participant.User.DisplayName = &displayName.String
+		}
+		if avatarURL.Valid {
+			participant.User.AvatarURL = &avatarURL.String
+		}
+
+		participants = append(participants, participant)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate approved participants: %w", err)
+	}
+
+	return participants, nil
+}
+
+func (r *EventRepository) loadPendingJoinRequests(
+	ctx context.Context,
+	eventID uuid.UUID,
+) ([]eventapp.EventDetailPendingJoinRequestRecord, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			jr.id,
+			jr.status,
+			jr.message,
+			jr.created_at,
+			jr.updated_at,
+			u.id,
+			u.username,
+			pr.display_name,
+			pr.avatar_url
+		FROM join_request jr
+		JOIN app_user u ON u.id = jr.user_id
+		LEFT JOIN profile pr ON pr.user_id = u.id
+		WHERE jr.event_id = $1
+		  AND jr.status = $2
+		ORDER BY jr.created_at ASC, jr.id ASC
+	`, eventID, domain.ParticipationStatusPending)
+	if err != nil {
+		return nil, fmt.Errorf("load pending join requests: %w", err)
+	}
+	defer rows.Close()
+
+	requests := make([]eventapp.EventDetailPendingJoinRequestRecord, 0)
+	for rows.Next() {
+		var (
+			joinRequestID uuid.UUID
+			status        string
+			message       pgtype.Text
+			createdAt     time.Time
+			updatedAt     time.Time
+			userID        uuid.UUID
+			username      string
+			displayName   pgtype.Text
+			avatarURL     pgtype.Text
+		)
+		if err := rows.Scan(
+			&joinRequestID,
+			&status,
+			&message,
+			&createdAt,
+			&updatedAt,
+			&userID,
+			&username,
+			&displayName,
+			&avatarURL,
+		); err != nil {
+			return nil, fmt.Errorf("scan pending join request: %w", err)
+		}
+
+		request := eventapp.EventDetailPendingJoinRequestRecord{
+			JoinRequestID: joinRequestID,
+			Status:        status,
+			CreatedAt:     createdAt,
+			UpdatedAt:     updatedAt,
+			User: eventapp.EventDetailPersonRecord{
+				ID:       userID,
+				Username: username,
+			},
+		}
+		if message.Valid {
+			request.Message = &message.String
+		}
+		if displayName.Valid {
+			request.User.DisplayName = &displayName.String
+		}
+		if avatarURL.Valid {
+			request.User.AvatarURL = &avatarURL.String
+		}
+
+		requests = append(requests, request)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate pending join requests: %w", err)
+	}
+
+	return requests, nil
+}
+
+func (r *EventRepository) loadInvitations(
+	ctx context.Context,
+	eventID uuid.UUID,
+) ([]eventapp.EventDetailInvitationRecord, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			inv.id,
+			inv.status,
+			inv.message,
+			inv.expires_at,
+			inv.created_at,
+			inv.updated_at,
+			u.id,
+			u.username,
+			pr.display_name,
+			pr.avatar_url
+		FROM invitation inv
+		JOIN app_user u ON u.id = inv.invited_user_id
+		LEFT JOIN profile pr ON pr.user_id = u.id
+		WHERE inv.event_id = $1
+		ORDER BY inv.created_at ASC, inv.id ASC
+	`, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("load invitations: %w", err)
+	}
+	defer rows.Close()
+
+	invitations := make([]eventapp.EventDetailInvitationRecord, 0)
+	for rows.Next() {
+		var (
+			invitationID uuid.UUID
+			status       string
+			message      pgtype.Text
+			expiresAt    pgtype.Timestamptz
+			createdAt    time.Time
+			updatedAt    time.Time
+			userID       uuid.UUID
+			username     string
+			displayName  pgtype.Text
+			avatarURL    pgtype.Text
+		)
+		if err := rows.Scan(
+			&invitationID,
+			&status,
+			&message,
+			&expiresAt,
+			&createdAt,
+			&updatedAt,
+			&userID,
+			&username,
+			&displayName,
+			&avatarURL,
+		); err != nil {
+			return nil, fmt.Errorf("scan invitation: %w", err)
+		}
+
+		invitation := eventapp.EventDetailInvitationRecord{
+			InvitationID: invitationID,
+			Status:       domain.InvitationStatus(status),
+			CreatedAt:    createdAt,
+			UpdatedAt:    updatedAt,
+			User: eventapp.EventDetailPersonRecord{
+				ID:       userID,
+				Username: username,
+			},
+		}
+		if message.Valid {
+			invitation.Message = &message.String
+		}
+		if expiresAt.Valid {
+			invitation.ExpiresAt = &expiresAt.Time
+		}
+		if displayName.Valid {
+			invitation.User.DisplayName = &displayName.String
+		}
+		if avatarURL.Valid {
+			invitation.User.AvatarURL = &avatarURL.String
+		}
+
+		invitations = append(invitations, invitation)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate invitations: %w", err)
+	}
+
+	return invitations, nil
+}
+
 // GetEventByID fetches a single event row by its primary key.
 // Returns domain.ErrNotFound when no matching row exists.
 func (r *EventRepository) GetEventByID(ctx context.Context, eventID uuid.UUID) (*domain.Event, error) {

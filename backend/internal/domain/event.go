@@ -27,6 +27,10 @@ type EventCategory struct {
 	Name string
 }
 
+// EventDetailParticipationStatus describes the authenticated viewer's relation
+// to an event detail payload.
+type EventDetailParticipationStatus string
+
 // Accepted values for event fields.
 const (
 	PrivacyPublic    EventPrivacyLevel = "PUBLIC"
@@ -40,11 +44,18 @@ const (
 	GenderFemale EventParticipantGender = "FEMALE"
 	GenderOther  EventParticipantGender = "OTHER"
 
-	EventStatusActive EventStatus = "ACTIVE"
+	EventStatusActive    EventStatus = "ACTIVE"
+	EventStatusCanceled  EventStatus = "CANCELED"
+	EventStatusCompleted EventStatus = "COMPLETED"
 
 	EventDiscoverySortStartTime EventDiscoverySort = "START_TIME"
 	EventDiscoverySortDistance  EventDiscoverySort = "DISTANCE"
 	EventDiscoverySortRelevance EventDiscoverySort = "RELEVANCE"
+
+	EventDetailParticipationStatusJoined  EventDetailParticipationStatus = "JOINED"
+	EventDetailParticipationStatusPending EventDetailParticipationStatus = "PENDING"
+	EventDetailParticipationStatusInvited EventDetailParticipationStatus = "INVITED"
+	EventDetailParticipationStatusNone    EventDetailParticipationStatus = "NONE"
 
 	MaxEventTags        = 5
 	MaxEventConstraints = 5

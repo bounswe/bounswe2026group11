@@ -22,6 +22,201 @@ tags:
   - name: Events
     description: Event creation and related request/response contracts.
 paths:
+  /events/{id}:
+    get:
+      tags: [Events]
+      summary: Get event detail
+      description: |
+        Returns the full event-detail payload for the authenticated user.
+
+        Visibility rules:
+        - `PUBLIC` and `PROTECTED` events are readable by any authenticated user.
+        - `PRIVATE` events are readable only by the host, users with an `APPROVED`
+          participation, or users with an `ACCEPTED` invitation.
+        - When a `PRIVATE` event is not readable by the caller, the API responds with
+          `404 event_not_found` to avoid leaking the event's existence.
+
+        Response notes:
+        - `status` is returned exactly as stored on the event row; canceled and completed
+          events remain readable.
+        - `viewer_context` is always present and resolves the caller's favorite and
+          participation state.
+        - `host_context` is included only when the authenticated user is the event host.
+      operationId: getEventDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event to fetch.
+          example: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+      responses:
+        '200':
+          description: Event detail returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetEventDetailResponse'
+              examples:
+                non_host:
+                  value:
+                    id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                    title: Istanbul Trail Run
+                    description: A 10 km trail run through Belgrad Forest.
+                    image_url: https://example.com/trail.jpg
+                    privacy_level: PROTECTED
+                    status: ACTIVE
+                    start_time: "2026-05-01T08:00:00+03:00"
+                    end_time: "2026-05-01T12:00:00+03:00"
+                    capacity: 25
+                    minimum_age: 18
+                    preferred_gender: null
+                    approved_participant_count: 12
+                    pending_participant_count: 0
+                    favorite_count: 8
+                    created_at: "2026-03-26T11:00:00+03:00"
+                    updated_at: "2026-03-27T09:30:00+03:00"
+                    category:
+                      id: 7
+                      name: Outdoors
+                    host:
+                      id: 2df86e13-2d2b-4dca-8d60-f6d9f8d6bb1d
+                      username: host_user
+                      display_name: Host User
+                      avatar_url: https://example.com/avatar.png
+                    location:
+                      type: POINT
+                      address: Belgrad Forest, Istanbul
+                      point:
+                        lat: 41.1722
+                        lon: 28.9744
+                    tags: [trail, running]
+                    constraints:
+                      - type: equipment
+                        info: Trail running shoes required
+                    viewer_context:
+                      is_host: false
+                      is_favorited: true
+                      participation_status: PENDING
+                host:
+                  value:
+                    id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                    title: Istanbul Trail Run
+                    description: A 10 km trail run through Belgrad Forest.
+                    image_url: https://example.com/trail.jpg
+                    privacy_level: PRIVATE
+                    status: CANCELED
+                    start_time: "2026-05-01T08:00:00+03:00"
+                    end_time: "2026-05-01T12:00:00+03:00"
+                    capacity: 25
+                    minimum_age: 18
+                    preferred_gender: FEMALE
+                    approved_participant_count: 12
+                    pending_participant_count: 0
+                    favorite_count: 8
+                    created_at: "2026-03-26T11:00:00+03:00"
+                    updated_at: "2026-03-27T09:30:00+03:00"
+                    category:
+                      id: 7
+                      name: Outdoors
+                    host:
+                      id: 2df86e13-2d2b-4dca-8d60-f6d9f8d6bb1d
+                      username: host_user
+                      display_name: Host User
+                      avatar_url: https://example.com/avatar.png
+                    location:
+                      type: ROUTE
+                      address: Belgrad Forest, Istanbul
+                      route_points:
+                        - lat: 41.1722
+                          lon: 28.9744
+                        - lat: 41.1780
+                          lon: 28.9801
+                    tags: [trail, running]
+                    constraints:
+                      - type: equipment
+                        info: Trail running shoes required
+                    viewer_context:
+                      is_host: true
+                      is_favorited: false
+                      participation_status: NONE
+                    host_context:
+                      approved_participants:
+                        - participation_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                          status: APPROVED
+                          created_at: "2026-03-26T13:00:00+03:00"
+                          updated_at: "2026-03-26T13:00:00+03:00"
+                          user:
+                            id: 6a5d08d6-b9f2-49c8-baea-0f39c34082f8
+                            username: approved_user
+                            display_name: Approved User
+                            avatar_url: https://example.com/approved.png
+                      pending_join_requests:
+                        - join_request_id: b2c3d4e5-f6a7-8901-bcde-f01234567890
+                          status: PENDING
+                          message: I have attended similar events before.
+                          created_at: "2026-03-26T14:00:00+03:00"
+                          updated_at: "2026-03-26T14:00:00+03:00"
+                          user:
+                            id: 48095dc7-6dc1-4479-955f-70ce45e0ef64
+                            username: pending_user
+                            display_name: Pending User
+                            avatar_url: https://example.com/pending.png
+                      invitations:
+                        - invitation_id: c3d4e5f6-a7b8-9012-cdef-012345678901
+                          status: ACCEPTED
+                          message: Join us if you are available.
+                          expires_at: "2026-04-30T23:59:59+03:00"
+                          created_at: "2026-03-26T15:00:00+03:00"
+                          updated_at: "2026-03-26T15:00:00+03:00"
+                          user:
+                            id: 27b3b93d-5f4c-4958-b0e1-0d4df6fc5c02
+                            username: invited_user
+                            display_name: Invited User
+                            avatar_url: https://example.com/invited.png
+        '400':
+          description: Invalid event ID format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                invalid_id:
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        id: must be a valid UUID
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event does not exist or is not visible to the authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                not_found:
+                  value:
+                    error:
+                      code: event_not_found
+                      message: The requested event does not exist.
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /events/{id}/join:
     post:
       tags: [Events]
@@ -902,6 +1097,303 @@ components:
           type: boolean
           description: Indicates whether more results are available.
           example: true
+
+    GetEventDetailResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - privacy_level
+        - status
+        - start_time
+        - approved_participant_count
+        - pending_participant_count
+        - favorite_count
+        - created_at
+        - updated_at
+        - host
+        - location
+        - tags
+        - constraints
+        - viewer_context
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+        title:
+          type: string
+          example: Istanbul Trail Run
+        description:
+          type:
+            - string
+            - "null"
+          example: A 10 km trail run through Belgrad Forest.
+        image_url:
+          type:
+            - string
+            - "null"
+          example: https://example.com/trail.jpg
+        privacy_level:
+          type: string
+          enum: [PUBLIC, PROTECTED, PRIVATE]
+        status:
+          type: string
+          description: Current event status as stored in the database, for example `ACTIVE`, `CANCELED`, or `COMPLETED`.
+          example: ACTIVE
+        start_time:
+          type: string
+          format: date-time
+          example: "2026-05-01T08:00:00+03:00"
+        end_time:
+          type:
+            - string
+            - "null"
+          format: date-time
+          example: "2026-05-01T12:00:00+03:00"
+        capacity:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          example: 25
+        minimum_age:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 120
+          example: 18
+        preferred_gender:
+          oneOf:
+            - type: string
+              enum: [MALE, FEMALE, OTHER]
+            - type: "null"
+        approved_participant_count:
+          type: integer
+          minimum: 0
+          example: 12
+        pending_participant_count:
+          type: integer
+          minimum: 0
+          example: 0
+        favorite_count:
+          type: integer
+          minimum: 0
+          example: 8
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-03-26T11:00:00+03:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-03-27T09:30:00+03:00"
+        category:
+          oneOf:
+            - $ref: '#/components/schemas/EventDetailCategory'
+            - type: "null"
+        host:
+          $ref: '#/components/schemas/EventDetailUserSummary'
+        location:
+          $ref: '#/components/schemas/EventDetailLocation'
+        tags:
+          type: array
+          items:
+            type: string
+          example: [trail, running]
+        constraints:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConstraintInput'
+        viewer_context:
+          $ref: '#/components/schemas/EventDetailViewerContext'
+        host_context:
+          $ref: '#/components/schemas/EventDetailHostContext'
+          description: Present only when the authenticated user is the event host.
+
+    EventDetailCategory:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          example: 7
+        name:
+          type: string
+          example: Outdoors
+
+    EventDetailUserSummary:
+      type: object
+      additionalProperties: false
+      required: [id, username]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          example: host_user
+        display_name:
+          type:
+            - string
+            - "null"
+          example: Host User
+        avatar_url:
+          type:
+            - string
+            - "null"
+          example: https://example.com/avatar.png
+
+    EventDetailLocation:
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [POINT, ROUTE]
+        address:
+          type:
+            - string
+            - "null"
+          example: Belgrad Forest, Istanbul
+        point:
+          oneOf:
+            - $ref: '#/components/schemas/EventDetailPoint'
+            - type: "null"
+        route_points:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventDetailPoint'
+
+    EventDetailPoint:
+      type: object
+      additionalProperties: false
+      required: [lat, lon]
+      properties:
+        lat:
+          type: number
+          format: double
+          example: 41.1722
+        lon:
+          type: number
+          format: double
+          example: 28.9744
+
+    EventDetailViewerContext:
+      type: object
+      additionalProperties: false
+      required: [is_host, is_favorited, participation_status]
+      properties:
+        is_host:
+          type: boolean
+        is_favorited:
+          type: boolean
+        participation_status:
+          type: string
+          enum: [JOINED, PENDING, INVITED, NONE]
+          description: |
+            Resolved for the authenticated user with the following precedence:
+            approved participation -> `JOINED`, pending join request -> `PENDING`,
+            invitation row -> `INVITED`, otherwise `NONE`.
+
+    EventDetailHostContext:
+      type: object
+      additionalProperties: false
+      required: [approved_participants, pending_join_requests, invitations]
+      properties:
+        approved_participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventDetailApprovedParticipant'
+        pending_join_requests:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventDetailPendingJoinRequest'
+        invitations:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventDetailInvitation'
+
+    EventDetailApprovedParticipant:
+      type: object
+      additionalProperties: false
+      required: [participation_id, status, created_at, updated_at, user]
+      properties:
+        participation_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: APPROVED
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/EventDetailUserSummary'
+
+    EventDetailPendingJoinRequest:
+      type: object
+      additionalProperties: false
+      required: [join_request_id, status, created_at, updated_at, user]
+      properties:
+        join_request_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: PENDING
+        message:
+          type:
+            - string
+            - "null"
+          example: I have attended similar events before.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/EventDetailUserSummary'
+
+    EventDetailInvitation:
+      type: object
+      additionalProperties: false
+      required: [invitation_id, status, created_at, updated_at, user]
+      properties:
+        invitation_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, ACCEPTED, DECLINED, EXPIRED]
+        message:
+          type:
+            - string
+            - "null"
+          example: Join us if you are available.
+        expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          example: "2026-04-30T23:59:59+03:00"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/EventDetailUserSummary'
 
     CreateEventResponse:
       type: object

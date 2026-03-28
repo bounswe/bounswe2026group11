@@ -77,6 +77,142 @@ func toDiscoverableEventItem(record DiscoverableEventRecord) DiscoverableEventIt
 	}
 }
 
+func toEventDetailResult(record *EventDetailRecord) *GetEventDetailResult {
+	result := &GetEventDetailResult{
+		ID:                       record.ID.String(),
+		Title:                    record.Title,
+		Description:              record.Description,
+		ImageURL:                 record.ImageURL,
+		PrivacyLevel:             string(record.PrivacyLevel),
+		Status:                   string(record.Status),
+		StartTime:                record.StartTime,
+		EndTime:                  record.EndTime,
+		Capacity:                 record.Capacity,
+		MinimumAge:               record.MinimumAge,
+		ApprovedParticipantCount: record.ApprovedParticipantCount,
+		PendingParticipantCount:  record.PendingParticipantCount,
+		FavoriteCount:            record.FavoriteCount,
+		CreatedAt:                record.CreatedAt,
+		UpdatedAt:                record.UpdatedAt,
+		Host:                     toEventDetailPerson(record.Host),
+		Location:                 toEventDetailLocation(record.Location),
+		Tags:                     append([]string{}, record.Tags...),
+		Constraints:              toEventDetailConstraints(record.Constraints),
+		ViewerContext: EventDetailViewerContext{
+			IsHost:              record.ViewerContext.IsHost,
+			IsFavorited:         record.ViewerContext.IsFavorited,
+			ParticipationStatus: string(record.ViewerContext.ParticipationStatus),
+		},
+	}
+
+	if record.Category != nil {
+		result.Category = &EventDetailCategory{
+			ID:   record.Category.ID,
+			Name: record.Category.Name,
+		}
+	}
+	if record.PreferredGender != nil {
+		preferredGender := string(*record.PreferredGender)
+		result.PreferredGender = &preferredGender
+	}
+	if record.HostContext != nil {
+		result.HostContext = &EventDetailHostContext{
+			ApprovedParticipants: toEventDetailApprovedParticipants(record.HostContext.ApprovedParticipants),
+			PendingJoinRequests:  toEventDetailPendingJoinRequests(record.HostContext.PendingJoinRequests),
+			Invitations:          toEventDetailInvitations(record.HostContext.Invitations),
+		}
+	}
+
+	return result
+}
+
+func toEventDetailLocation(record EventDetailLocationRecord) EventDetailLocation {
+	location := EventDetailLocation{
+		Type:    string(record.Type),
+		Address: record.Address,
+	}
+
+	if record.Point != nil {
+		location.Point = &EventDetailPoint{
+			Lat: record.Point.Lat,
+			Lon: record.Point.Lon,
+		}
+	}
+	if len(record.RoutePoints) > 0 {
+		location.RoutePoints = make([]EventDetailPoint, len(record.RoutePoints))
+		for i, point := range record.RoutePoints {
+			location.RoutePoints[i] = EventDetailPoint{
+				Lat: point.Lat,
+				Lon: point.Lon,
+			}
+		}
+	}
+
+	return location
+}
+
+func toEventDetailConstraints(records []EventDetailConstraintRecord) []EventDetailConstraint {
+	constraints := make([]EventDetailConstraint, len(records))
+	for i, record := range records {
+		constraints[i] = EventDetailConstraint(record)
+	}
+	return constraints
+}
+
+func toEventDetailApprovedParticipants(records []EventDetailApprovedParticipantRecord) []EventDetailApprovedParticipant {
+	participants := make([]EventDetailApprovedParticipant, len(records))
+	for i, record := range records {
+		participants[i] = EventDetailApprovedParticipant{
+			ParticipationID: record.ParticipationID.String(),
+			Status:          record.Status,
+			CreatedAt:       record.CreatedAt,
+			UpdatedAt:       record.UpdatedAt,
+			User:            toEventDetailPerson(record.User),
+		}
+	}
+	return participants
+}
+
+func toEventDetailPendingJoinRequests(records []EventDetailPendingJoinRequestRecord) []EventDetailPendingJoinRequest {
+	requests := make([]EventDetailPendingJoinRequest, len(records))
+	for i, record := range records {
+		requests[i] = EventDetailPendingJoinRequest{
+			JoinRequestID: record.JoinRequestID.String(),
+			Status:        record.Status,
+			Message:       record.Message,
+			CreatedAt:     record.CreatedAt,
+			UpdatedAt:     record.UpdatedAt,
+			User:          toEventDetailPerson(record.User),
+		}
+	}
+	return requests
+}
+
+func toEventDetailInvitations(records []EventDetailInvitationRecord) []EventDetailInvitation {
+	invitations := make([]EventDetailInvitation, len(records))
+	for i, record := range records {
+		invitations[i] = EventDetailInvitation{
+			InvitationID: record.InvitationID.String(),
+			Status:       string(record.Status),
+			Message:      record.Message,
+			ExpiresAt:    record.ExpiresAt,
+			CreatedAt:    record.CreatedAt,
+			UpdatedAt:    record.UpdatedAt,
+			User:         toEventDetailPerson(record.User),
+		}
+	}
+	return invitations
+}
+
+func toEventDetailPerson(record EventDetailPersonRecord) EventDetailPerson {
+	return EventDetailPerson{
+		ID:          record.ID.String(),
+		Username:    record.Username,
+		DisplayName: record.DisplayName,
+		AvatarURL:   record.AvatarURL,
+	}
+}
+
 func toDomainRoutePoints(points []RoutePointInput) []domain.GeoPoint {
 	domainPoints := make([]domain.GeoPoint, len(points))
 	for i, point := range points {

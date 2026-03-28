@@ -118,6 +118,20 @@ func (s *Service) DiscoverEvents(ctx context.Context, userID uuid.UUID, input Di
 	}, nil
 }
 
+// GetEventDetail returns the maximum event detail payload visible to the
+// authenticated user, enforcing event visibility rules in the repository read path.
+func (s *Service) GetEventDetail(ctx context.Context, userID, eventID uuid.UUID) (*GetEventDetailResult, error) {
+	record, err := s.eventRepo.GetEventDetail(ctx, userID, eventID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+		}
+		return nil, err
+	}
+
+	return toEventDetailResult(record), nil
+}
+
 // JoinEvent allows a user to join a PUBLIC event directly. The resulting
 // participation record has status APPROVED.
 //

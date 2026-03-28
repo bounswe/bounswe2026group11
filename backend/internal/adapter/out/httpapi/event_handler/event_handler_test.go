@@ -19,12 +19,15 @@ import (
 type stubEventService struct {
 	result               *event.CreateEventResult
 	discoverResult       *event.DiscoverEventsResult
+	detailResult         *event.GetEventDetailResult
 	err                  error
 	callCount            int
 	discoverCallCount    int
+	detailCallCount      int
 	requestJoinCallCount int
 	lastInput            event.CreateEventInput
 	lastDiscoverInput    event.DiscoverEventsInput
+	lastDetailEventID    uuid.UUID
 	lastRequestJoinInput event.RequestJoinInput
 }
 
@@ -61,6 +64,42 @@ func (s *stubEventService) DiscoverEvents(_ context.Context, _ uuid.UUID, input 
 		Items: []event.DiscoverableEventItem{},
 		PageInfo: event.DiscoverEventsPageInfo{
 			HasNext: false,
+		},
+	}, nil
+}
+
+func (s *stubEventService) GetEventDetail(_ context.Context, _, eventID uuid.UUID) (*event.GetEventDetailResult, error) {
+	s.detailCallCount++
+	s.lastDetailEventID = eventID
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.detailResult != nil {
+		return s.detailResult, nil
+	}
+	return &event.GetEventDetailResult{
+		ID:           eventID.String(),
+		Title:        "Detailed Event",
+		PrivacyLevel: string(domain.PrivacyPublic),
+		Status:       string(domain.EventStatusActive),
+		StartTime:    time.Now().UTC(),
+		Host: event.EventDetailPerson{
+			ID:       uuid.NewString(),
+			Username: "host_user",
+		},
+		Location: event.EventDetailLocation{
+			Type: string(domain.LocationPoint),
+			Point: &event.EventDetailPoint{
+				Lat: 41,
+				Lon: 29,
+			},
+		},
+		Tags:        []string{},
+		Constraints: []event.EventDetailConstraint{},
+		ViewerContext: event.EventDetailViewerContext{
+			IsHost:              false,
+			IsFavorited:         false,
+			ParticipationStatus: string(domain.EventDetailParticipationStatusNone),
 		},
 	}, nil
 }
@@ -273,6 +312,86 @@ func TestDiscoverEventsIgnoresEmptyOptionalListParams(t *testing.T) {
 	}
 	if len(svc.lastDiscoverInput.TagNames) != 0 {
 		t.Fatalf("expected empty tag_names, got %v", svc.lastDiscoverInput.TagNames)
+	}
+}
+
+func TestGetEventDetailReturns200(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+	eventID := uuid.New()
+
+	req := httptest.NewRequest(fiber.MethodGet, "/events/"+eventID.String(), nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if svc.detailCallCount != 1 {
+		t.Fatalf("expected detail service to be called once, got %d", svc.detailCallCount)
+	}
+	if svc.lastDetailEventID != eventID {
+		t.Fatalf("expected detail service to receive event %s, got %s", eventID, svc.lastDetailEventID)
+	}
+
+	var body event.GetEventDetailResult
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	if body.ID != eventID.String() {
+		t.Fatalf("expected response id %s, got %s", eventID, body.ID)
+	}
+}
+
+func TestGetEventDetailInvalidIDReturns400(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodGet, "/events/not-a-uuid", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+	if svc.detailCallCount != 0 {
+		t.Fatalf("expected detail service not to be called, got %d", svc.detailCallCount)
+	}
+}
+
+func TestGetEventDetailWithoutAuthReturns401(t *testing.T) {
+	// given
+	app := newEventTestApp(&stubEventService{}, &fakeVerifier{err: fiber.ErrUnauthorized})
+	eventID := uuid.New()
+
+	req := httptest.NewRequest(fiber.MethodGet, "/events/"+eventID.String(), nil)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", fiber.StatusUnauthorized, resp.StatusCode)
 	}
 }
 

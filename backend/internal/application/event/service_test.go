@@ -15,11 +15,15 @@ import (
 type fakeEventRepo struct {
 	err                error
 	discoverErr        error
+	detailErr          error
 	events             map[uuid.UUID]*domain.Event
 	discoverRecords    []DiscoverableEventRecord
+	detailRecord       *EventDetailRecord
 	discoverCallCount  int
 	lastDiscoverUserID uuid.UUID
 	lastDiscoverParams DiscoverEventsParams
+	lastDetailUserID   uuid.UUID
+	lastDetailEventID  uuid.UUID
 }
 
 func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams) (*domain.Event, error) {
@@ -44,6 +48,19 @@ func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams)
 func (r *fakeEventRepo) GetEventByID(_ context.Context, id uuid.UUID) (*domain.Event, error) {
 	if e, ok := r.events[id]; ok {
 		return e, nil
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (r *fakeEventRepo) GetEventDetail(_ context.Context, userID, eventID uuid.UUID) (*EventDetailRecord, error) {
+	r.lastDetailUserID = userID
+	r.lastDetailEventID = eventID
+
+	if r.detailErr != nil {
+		return nil, r.detailErr
+	}
+	if r.detailRecord != nil {
+		return r.detailRecord, nil
 	}
 	return nil, domain.ErrNotFound
 }
@@ -193,6 +210,168 @@ func TestCreateEventWithEndTime(t *testing.T) {
 	}
 	if result.EndTime == nil {
 		t.Fatal("expected non-nil end_time")
+	}
+}
+
+func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
+	// given
+	svc, eventRepo, _, _ := newTestEventService()
+	userID := uuid.New()
+	eventID := uuid.New()
+	createdAt := time.Now().UTC().Add(-time.Hour)
+	updatedAt := createdAt.Add(10 * time.Minute)
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+	categoryID := 7
+	preferredGender := domain.GenderOther
+
+	eventRepo.detailRecord = &EventDetailRecord{
+		ID:                       eventID,
+		Title:                    "Detail Event",
+		Description:              stringPtr("Full payload"),
+		ImageURL:                 stringPtr("https://example.com/event.png"),
+		PrivacyLevel:             domain.PrivacyPrivate,
+		Status:                   domain.EventStatusCanceled,
+		StartTime:                startTime,
+		Capacity:                 intPtr(15),
+		MinimumAge:               intPtr(21),
+		PreferredGender:          &preferredGender,
+		ApprovedParticipantCount: 3,
+		PendingParticipantCount:  1,
+		FavoriteCount:            5,
+		CreatedAt:                createdAt,
+		UpdatedAt:                updatedAt,
+		Category: &EventDetailCategoryRecord{
+			ID:   categoryID,
+			Name: "Outdoors",
+		},
+		Host: EventDetailPersonRecord{
+			ID:          uuid.New(),
+			Username:    "host_user",
+			DisplayName: stringPtr("Host User"),
+			AvatarURL:   stringPtr("https://example.com/avatar.png"),
+		},
+		Location: EventDetailLocationRecord{
+			Type:    domain.LocationRoute,
+			Address: stringPtr("Belgrad Forest"),
+			RoutePoints: []domain.GeoPoint{
+				{Lat: 41.01, Lon: 29.02},
+				{Lat: 41.02, Lon: 29.03},
+			},
+		},
+		Tags: []string{"trail", "forest"},
+		Constraints: []EventDetailConstraintRecord{
+			{Type: "equipment", Info: "Bring hiking boots"},
+		},
+		ViewerContext: EventDetailViewerContextRecord{
+			IsHost:              false,
+			IsFavorited:         true,
+			ParticipationStatus: domain.EventDetailParticipationStatusJoined,
+		},
+	}
+
+	// when
+	result, err := svc.GetEventDetail(context.Background(), userID, eventID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if eventRepo.lastDetailUserID != userID || eventRepo.lastDetailEventID != eventID {
+		t.Fatalf("expected detail repo to receive user %s and event %s", userID, eventID)
+	}
+	if result.ID != eventID.String() {
+		t.Fatalf("expected event id %s, got %s", eventID, result.ID)
+	}
+	if result.Status != string(domain.EventStatusCanceled) {
+		t.Fatalf("expected status %q, got %q", domain.EventStatusCanceled, result.Status)
+	}
+	if result.HostContext != nil {
+		t.Fatal("expected non-host result to omit host_context")
+	}
+	if result.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
+		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusJoined, result.ViewerContext.ParticipationStatus)
+	}
+	if len(result.Location.RoutePoints) != 2 {
+		t.Fatalf("expected 2 route points, got %d", len(result.Location.RoutePoints))
+	}
+}
+
+func TestGetEventDetailIncludesHostContextForHostViewer(t *testing.T) {
+	// given
+	svc, eventRepo, _, _ := newTestEventService()
+	eventRepo.detailRecord = &EventDetailRecord{
+		ID:           uuid.New(),
+		Title:        "Hosted Event",
+		PrivacyLevel: domain.PrivacyPublic,
+		Status:       domain.EventStatusCompleted,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		Host: EventDetailPersonRecord{
+			ID:       uuid.New(),
+			Username: "host_user",
+		},
+		Location: EventDetailLocationRecord{
+			Type: domain.LocationPoint,
+			Point: &domain.GeoPoint{
+				Lat: 40,
+				Lon: 29,
+			},
+		},
+		Tags:        []string{},
+		Constraints: []EventDetailConstraintRecord{},
+		ViewerContext: EventDetailViewerContextRecord{
+			IsHost:              true,
+			IsFavorited:         false,
+			ParticipationStatus: domain.EventDetailParticipationStatusNone,
+		},
+		HostContext: &EventDetailHostContextRecord{
+			ApprovedParticipants: []EventDetailApprovedParticipantRecord{
+				{
+					ParticipationID: uuid.New(),
+					Status:          domain.ParticipationStatusApproved,
+					CreatedAt:       time.Now().UTC().Add(-time.Hour),
+					UpdatedAt:       time.Now().UTC(),
+					User: EventDetailPersonRecord{
+						ID:       uuid.New(),
+						Username: "participant_user",
+					},
+				},
+			},
+			PendingJoinRequests: []EventDetailPendingJoinRequestRecord{},
+			Invitations:         []EventDetailInvitationRecord{},
+		},
+	}
+
+	// when
+	result, err := svc.GetEventDetail(context.Background(), uuid.New(), uuid.New())
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if result.HostContext == nil {
+		t.Fatal("expected host_context for host viewer")
+	}
+	if len(result.HostContext.ApprovedParticipants) != 1 {
+		t.Fatalf("expected 1 approved participant, got %d", len(result.HostContext.ApprovedParticipants))
+	}
+}
+
+func TestGetEventDetailReturnsNotFoundWhenRepositoryMisses(t *testing.T) {
+	// given
+	svc, eventRepo, _, _ := newTestEventService()
+	eventRepo.detailErr = domain.ErrNotFound
+
+	// when
+	_, err := svc.GetEventDetail(context.Background(), uuid.New(), uuid.New())
+
+	// then
+	commonAppErrCode := domain.ErrorCodeEventNotFound
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("expected *domain.AppError, got %T", err)
+	}
+	if appErr.Code != commonAppErrCode {
+		t.Fatalf("expected error code %q, got %q", commonAppErrCode, appErr.Code)
 	}
 }
 
@@ -957,5 +1136,7 @@ func TestRequestJoinRejectsPublicEvent(t *testing.T) {
 }
 
 func stringPtr(v string) *string { return &v }
+
+func intPtr(v int) *int { return &v }
 
 func floatPtr(v float64) *float64 { return &v }
