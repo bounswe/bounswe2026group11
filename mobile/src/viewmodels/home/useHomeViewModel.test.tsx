@@ -4,7 +4,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import * as eventService from '@/services/eventService';
 import type {
-  EventCategory,
   ListCategoriesResponse,
   PaginatedEventsResponse,
 } from '@/models/event';
@@ -22,15 +21,6 @@ jest.mock('@/contexts/AuthContext', () => ({
 
 const mockListEvents = jest.mocked(eventService.listEvents);
 const mockListCategories = jest.mocked(eventService.listCategories);
-
-const fallbackCategories: EventCategory[] = [
-  { id: 1, name: 'Sports' },
-  { id: 2, name: 'Music' },
-  { id: 3, name: 'Education' },
-  { id: 4, name: 'Technology' },
-  { id: 5, name: 'Art' },
-  { id: 6, name: 'Food & Drink' },
-];
 
 const categoriesFixture: ListCategoriesResponse = {
   items: [
@@ -136,18 +126,6 @@ describe('useHomeViewModel', () => {
     expect(result.current.hasMore).toBe(true);
   });
 
-  it('falls back to local categories when categories request fails', async () => {
-    mockListCategories.mockRejectedValueOnce(new Error('network'));
-
-    const { result } = renderHook(() => useHomeViewModel());
-
-    await waitFor(() => {
-      expect(result.current.categories).toEqual(fallbackCategories);
-    });
-
-    expect(result.current.apiError).toBeNull();
-  });
-
   it('updates search text', async () => {
     const { result } = renderHook(() => useHomeViewModel());
 
@@ -247,6 +225,79 @@ describe('useHomeViewModel', () => {
 
     expect(result.current.apiError).toBe(
       'Failed to load events. Please try again.',
+    );
+  });
+
+  it('sets apiError when loading categories fails', async () => {
+    mockListCategories.mockRejectedValueOnce(new Error('network'));
+
+    const { result } = renderHook(() => useHomeViewModel());
+
+    await waitFor(() => {
+      expect(result.current.apiError).toBe(
+        'Failed to load categories. Please try again.',
+      );
+    });
+  });
+  it('sends selected category id as category_ids when category changes', async () => {
+    const { result } = renderHook(() => useHomeViewModel());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    mockListEvents.mockClear();
+
+    await act(async () => {
+      result.current.selectCategory(2);
+    });
+
+    await waitFor(() => {
+      expect(mockListEvents).toHaveBeenCalled();
+    });
+
+    expect(mockListEvents).toHaveBeenLastCalledWith(
+      {
+        lat: 41.0082,
+        lon: 28.9784,
+        radius_meters: 50000,
+        q: undefined,
+        category_ids: [2],
+        limit: 2,
+        cursor: undefined,
+      },
+      'mock-token',
+    );
+  });
+
+  it('sends search text as q when search changes', async () => {
+    const { result } = renderHook(() => useHomeViewModel());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    mockListEvents.mockClear();
+
+    await act(async () => {
+      result.current.updateSearchText('coffee');
+    });
+
+    await waitFor(() => {
+      expect(mockListEvents).toHaveBeenCalled();
+    });
+
+    expect(mockListEvents).toHaveBeenLastCalledWith(
+      {
+        lat: 41.0082,
+        lon: 28.9784,
+        radius_meters: 50000,
+        q: 'coffee',
+        category_ids: undefined,
+        limit: 2,
+        cursor: undefined,
+      },
+      'mock-token',
     );
   });
 });

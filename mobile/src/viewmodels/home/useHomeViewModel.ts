@@ -3,14 +3,6 @@ import { EventCategory, EventSummary } from '@/models/event';
 import { listCategories, listEvents } from '@/services/eventService';
 import { useAuth } from '@/contexts/AuthContext';
 
-const FALLBACK_CATEGORIES: EventCategory[] = [
-  { id: 1, name: 'Sports' },
-  { id: 2, name: 'Music' },
-  { id: 3, name: 'Education' },
-  { id: 4, name: 'Technology' },
-  { id: 5, name: 'Art' },
-  { id: 6, name: 'Food & Drink' },
-];
 
 const PAGE_SIZE = 2;
 
@@ -58,7 +50,7 @@ export function useHomeViewModel(): HomeViewModel {
       const response = await listCategories();
       setCategories(response.items);
     } catch {
-      setCategories(FALLBACK_CATEGORIES);
+      setApiError('Failed to load categories. Please try again.');
     }
   }, []);
 
