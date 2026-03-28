@@ -21,6 +21,12 @@ type EventStatus string
 // EventDiscoverySort defines the supported event discovery ordering modes.
 type EventDiscoverySort string
 
+// EventCategory represents a predefined event category row.
+type EventCategory struct {
+	ID   int
+	Name string
+}
+
 // Accepted values for event fields.
 const (
 	PrivacyPublic    EventPrivacyLevel = "PUBLIC"

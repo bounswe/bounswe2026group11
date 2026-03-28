@@ -1,0 +1,90 @@
+openapi: 3.1.0
+info:
+  title: Social Event Mapper Category API
+  version: 0.1.0
+  description: |
+    Public read-only endpoint for listing available event categories.
+
+    No authentication is required. Use the returned `id` values as `category_id`
+    when creating events or as `category_ids` filter values when discovering events.
+servers:
+  - url: /api
+tags:
+  - name: Categories
+    description: Event category lookup.
+paths:
+  /categories:
+    get:
+      tags: [Categories]
+      summary: List all event categories
+      description: |
+        Returns all available event categories ordered by `id` ascending.
+
+        The default database seed provides 20 categories (ids `1`–`20`).
+        This endpoint requires no authentication and is safe to call before login.
+      operationId: listCategories
+      responses:
+        '200':
+          description: List of all event categories.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListCategoriesResponse'
+              example:
+                items:
+                  - id: 1
+                    name: Sports
+                  - id: 2
+                    name: Music
+                  - id: 3
+                    name: Food & Drink
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    ListCategoriesResponse:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryItem'
+          description: All event categories ordered by id ascending.
+
+    CategoryItem:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          description: Unique category identifier.
+          example: 1
+        name:
+          type: string
+          description: Human-readable category name.
+          example: Sports
+
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: internal_server_error
+            message:
+              type: string
+              example: An unexpected error occurred.
