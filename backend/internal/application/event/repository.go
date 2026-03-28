@@ -10,5 +10,6 @@ import (
 // Repository is the application-layer persistence port for event flows.
 type Repository interface {
 	CreateEvent(ctx context.Context, params CreateEventParams) (*domain.Event, error)
+	ListDiscoverableEvents(ctx context.Context, userID uuid.UUID, params DiscoverEventsParams) ([]DiscoverableEventRecord, error)
 	GetEventByID(ctx context.Context, eventID uuid.UUID) (*domain.Event, error)
 }

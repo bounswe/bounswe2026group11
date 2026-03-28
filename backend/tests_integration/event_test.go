@@ -320,6 +320,589 @@ func TestCreateRouteEventSuccessPath(t *testing.T) {
 	}
 }
 
+func TestDiscoverEventsReturnsOnlyNearbyActivePublicAndProtectedEvents(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
+	categoryID := common.GivenEventCategory(t)
+	originLat := 39.9208
+	originLon := 32.8541
+	baseStart := time.Now().UTC().Add(24 * time.Hour)
+
+	nearPublic := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Near Public",
+		Description:  "close by",
+		CategoryID:   categoryID,
+		Lat:          39.9212,
+		Lon:          32.8548,
+		StartTime:    baseStart,
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	nearProtected := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Near Protected",
+		Description:  "also close by",
+		CategoryID:   categoryID,
+		Lat:          39.9240,
+		Lon:          32.8580,
+		StartTime:    baseStart.Add(time.Hour),
+		PrivacyLevel: domain.PrivacyProtected,
+	})
+	_ = createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Far Public",
+		Description:  "too far away",
+		CategoryID:   categoryID,
+		Lat:          40.0400,
+		Lon:          32.9800,
+		StartTime:    baseStart.Add(2 * time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	_ = createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Near Private",
+		Description:  "should stay hidden",
+		CategoryID:   categoryID,
+		Lat:          39.9215,
+		Lon:          32.8552,
+		StartTime:    baseStart.Add(3 * time.Hour),
+		PrivacyLevel: domain.PrivacyPrivate,
+	})
+	inactiveID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Near Inactive",
+		Description:  "should be excluded",
+		CategoryID:   categoryID,
+		Lat:          39.9220,
+		Lon:          32.8558,
+		StartTime:    baseStart.Add(4 * time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	updateEventStatus(t, inactiveID, "ARCHIVED")
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat: &originLat,
+		Lon: &originLon,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	assertDiscoverEventIDsInOrder(t, result.Items, nearPublic, nearProtected)
+}
+
+func TestDiscoverEventsIncludesRouteWhenAnyRoutePointFallsWithinRadius(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
+	categoryID := common.GivenEventCategory(t)
+	originLat := 35.1856
+	originLon := 33.3823
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+
+	routeID := createRouteDiscoveryEvent(t, harness, routeDiscoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Route Event",
+		Description:  "passes near the viewer",
+		CategoryID:   categoryID,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyProtected,
+		RoutePoints: []eventapp.RoutePointInput{
+			{Lat: common.Float64Ptr(35.3000), Lon: common.Float64Ptr(33.5000)},
+			{Lat: common.Float64Ptr(35.1860), Lon: common.Float64Ptr(33.3830)},
+			{Lat: common.Float64Ptr(35.1700), Lon: common.Float64Ptr(33.3600)},
+		},
+	})
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat: &originLat,
+		Lon: &originLon,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	assertDiscoverEventIDsInOrder(t, result.Items, routeID)
+}
+
+func TestDiscoverEventsSortsRouteByFirstPointWhenUsingDistance(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
+	categoryID := common.GivenEventCategory(t)
+	originLat := 34.6793
+	originLon := 33.0413
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+	sortBy := domain.EventDiscoverySortDistance
+
+	pointID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Point Event",
+		Description:  "nearby point",
+		CategoryID:   categoryID,
+		Lat:          34.6850,
+		Lon:          33.0450,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	routeID := createRouteDiscoveryEvent(t, harness, routeDiscoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Route Event",
+		Description:  "first point is farther away",
+		CategoryID:   categoryID,
+		StartTime:    startTime.Add(time.Hour),
+		PrivacyLevel: domain.PrivacyProtected,
+		RoutePoints: []eventapp.RoutePointInput{
+			{Lat: common.Float64Ptr(34.7000), Lon: common.Float64Ptr(33.0700)},
+			{Lat: common.Float64Ptr(34.6795), Lon: common.Float64Ptr(33.0415)},
+			{Lat: common.Float64Ptr(34.6780), Lon: common.Float64Ptr(33.0400)},
+		},
+	})
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat:    &originLat,
+		Lon:    &originLon,
+		SortBy: &sortBy,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	assertDiscoverEventIDsInOrder(t, result.Items, pointID, routeID)
+}
+
+func TestDiscoverEventsSearchMatchesTitleDescriptionAndTags(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
+	categoryID := common.GivenEventCategory(t)
+	originLat := 38.4237
+	originLon := 27.1428
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+
+	titleID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Istanbul Run",
+		Description:  "group cardio",
+		CategoryID:   categoryID,
+		Lat:          38.4242,
+		Lon:          27.1432,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	descriptionID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Board Game Night",
+		Description:  "casual tabletop session",
+		CategoryID:   categoryID,
+		Lat:          38.4248,
+		Lon:          27.1438,
+		StartTime:    startTime.Add(time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	tagID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Morning Stretch",
+		Description:  "easy pace",
+		CategoryID:   categoryID,
+		Lat:          38.4254,
+		Lon:          27.1444,
+		StartTime:    startTime.Add(2 * time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+		Tags:         []string{"yoga"},
+	})
+
+	// when
+	titleQuery := "ist"
+	titleResult, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat:   &originLat,
+		Lon:   &originLon,
+		Query: &titleQuery,
+	})
+	if err != nil {
+		t.Fatalf("DiscoverEvents() title query error = %v", err)
+	}
+
+	descriptionQuery := "tabl"
+	descriptionResult, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat:   &originLat,
+		Lon:   &originLon,
+		Query: &descriptionQuery,
+	})
+	if err != nil {
+		t.Fatalf("DiscoverEvents() description query error = %v", err)
+	}
+
+	tagQuery := "yog"
+	tagResult, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat:   &originLat,
+		Lon:   &originLon,
+		Query: &tagQuery,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() tag query error = %v", err)
+	}
+	assertDiscoverEventIDsInOrder(t, titleResult.Items, titleID)
+	assertDiscoverEventIDsInOrder(t, descriptionResult.Items, descriptionID)
+	assertDiscoverEventIDsInOrder(t, tagResult.Items, tagID)
+}
+
+func TestDiscoverEventsAppliesPrivacyLevelFilter(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
+	categoryID := common.GivenEventCategory(t)
+	originLat := 35.8989
+	originLon := 14.5146
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+
+	publicID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Public Event",
+		Description:  "visible to everyone",
+		CategoryID:   categoryID,
+		Lat:          35.8992,
+		Lon:          14.5150,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	_ = createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Protected Event",
+		Description:  "needs approval",
+		CategoryID:   categoryID,
+		Lat:          35.8994,
+		Lon:          14.5152,
+		StartTime:    startTime.Add(time.Hour),
+		PrivacyLevel: domain.PrivacyProtected,
+	})
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat:           &originLat,
+		Lon:           &originLon,
+		PrivacyLevels: []domain.EventPrivacyLevel{domain.PrivacyPublic},
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	assertDiscoverEventIDsInOrder(t, result.Items, publicID)
+}
+
+func TestDiscoverEventsAppliesSearchAndFiltersTogether(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
+	originLat := 36.8969
+	originLon := 30.7133
+	targetCategoryID := common.GivenEventCategory(t)
+	otherCategoryID := common.GivenEventCategory(t)
+	startTime := time.Now().UTC().Add(48 * time.Hour)
+	startFrom := startTime.Add(-time.Hour)
+	startTo := startTime.Add(time.Hour)
+	query := "trail"
+
+	matchID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Trail Coffee Meetup",
+		Description:  "best trail stories",
+		CategoryID:   targetCategoryID,
+		Lat:          36.8975,
+		Lon:          30.7140,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+		Tags:         []string{"outdoor", "coffee"},
+	})
+	insertFavoriteEvent(t, viewer.ID, matchID)
+
+	otherCategoryEventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Trail Category Mismatch",
+		Description:  "same text, wrong category",
+		CategoryID:   otherCategoryID,
+		Lat:          36.8977,
+		Lon:          30.7142,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+		Tags:         []string{"outdoor"},
+	})
+	insertFavoriteEvent(t, viewer.ID, otherCategoryEventID)
+
+	_ = createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Trail Tag Mismatch",
+		Description:  "same text, wrong tag",
+		CategoryID:   targetCategoryID,
+		Lat:          36.8979,
+		Lon:          30.7144,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+		Tags:         []string{"indoor"},
+	})
+	_ = createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Trail Not Favorite",
+		Description:  "same text, not favorited",
+		CategoryID:   targetCategoryID,
+		Lat:          36.8981,
+		Lon:          30.7146,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+		Tags:         []string{"outdoor"},
+	})
+	_ = createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Trail Date Mismatch",
+		Description:  "same text, wrong date",
+		CategoryID:   targetCategoryID,
+		Lat:          36.8983,
+		Lon:          30.7148,
+		StartTime:    startTime.Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+		Tags:         []string{"outdoor"},
+	})
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat:           &originLat,
+		Lon:           &originLon,
+		Query:         &query,
+		CategoryIDs:   []int{targetCategoryID},
+		StartFrom:     &startFrom,
+		StartTo:       &startTo,
+		TagNames:      []string{"outdoor"},
+		OnlyFavorited: true,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	assertDiscoverEventIDsInOrder(t, result.Items, matchID)
+}
+
+func TestDiscoverEventsSortsByDistance(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
+	categoryID := common.GivenEventCategory(t)
+	originLat := 37.0000
+	originLon := 35.3213
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+	sortBy := domain.EventDiscoverySortDistance
+
+	nearest := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Nearest",
+		Description:  "closest",
+		CategoryID:   categoryID,
+		Lat:          37.0004,
+		Lon:          35.3217,
+		StartTime:    startTime.Add(2 * time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	middle := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Middle",
+		Description:  "middle distance",
+		CategoryID:   categoryID,
+		Lat:          37.0120,
+		Lon:          35.3290,
+		StartTime:    startTime.Add(time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	farthest := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Farthest",
+		Description:  "still within radius",
+		CategoryID:   categoryID,
+		Lat:          37.0350,
+		Lon:          35.3450,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat:    &originLat,
+		Lon:    &originLon,
+		SortBy: &sortBy,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	assertDiscoverEventIDsInOrder(t, result.Items, nearest, middle, farthest)
+}
+
+func TestDiscoverEventsReflectsFavoriteStateForCurrentUser(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
+	categoryID := common.GivenEventCategory(t)
+	originLat := 40.7667
+	originLon := 29.9167
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+
+	favoritedID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Favorited Event",
+		Description:  "saved by viewer",
+		CategoryID:   categoryID,
+		Lat:          40.7672,
+		Lon:          29.9172,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	plainID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Plain Event",
+		Description:  "not saved",
+		CategoryID:   categoryID,
+		Lat:          40.7680,
+		Lon:          29.9180,
+		StartTime:    startTime.Add(time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	insertFavoriteEvent(t, viewer.ID, favoritedID)
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat: &originLat,
+		Lon: &originLon,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	if len(result.Items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(result.Items))
+	}
+
+	favoriteState := make(map[string]bool, len(result.Items))
+	for _, item := range result.Items {
+		favoriteState[item.ID] = item.IsFavorited
+	}
+	if !favoriteState[favoritedID.String()] {
+		t.Fatalf("expected event %s to be favorited", favoritedID)
+	}
+	if favoriteState[plainID.String()] {
+		t.Fatalf("expected event %s to not be favorited", plainID)
+	}
+}
+
+func TestDiscoverEventsCursorPaginationIsStableAndNonOverlapping(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
+	categoryID := common.GivenEventCategory(t)
+	originLat := 41.2867
+	originLon := 36.3300
+	limit := 2
+	now := time.Now().UTC()
+
+	first := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "First Page Item",
+		Description:  "first",
+		CategoryID:   categoryID,
+		Lat:          41.2872,
+		Lon:          36.3305,
+		StartTime:    now.Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	second := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Second Page Item",
+		Description:  "second",
+		CategoryID:   categoryID,
+		Lat:          41.2874,
+		Lon:          36.3307,
+		StartTime:    now.Add(25 * time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	third := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Third Page Item",
+		Description:  "third",
+		CategoryID:   categoryID,
+		Lat:          41.2876,
+		Lon:          36.3309,
+		StartTime:    now.Add(26 * time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+
+	// when
+	firstPage, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat:   &originLat,
+		Lon:   &originLon,
+		Limit: &limit,
+	})
+	if err != nil {
+		t.Fatalf("DiscoverEvents() first page error = %v", err)
+	}
+	if firstPage.PageInfo.NextCursor == nil {
+		t.Fatal("expected first page to return next_cursor")
+	}
+
+	secondPage, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat:    &originLat,
+		Lon:    &originLon,
+		Limit:  &limit,
+		Cursor: firstPage.PageInfo.NextCursor,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() second page error = %v", err)
+	}
+	assertDiscoverEventIDsInOrder(t, firstPage.Items, first, second)
+	assertDiscoverEventIDsInOrder(t, secondPage.Items, third)
+	if secondPage.PageInfo.HasNext {
+		t.Fatal("expected second page to be terminal")
+	}
+}
+
 // ---------------------------------------------------------
 // JoinEvent tests
 // ---------------------------------------------------------
@@ -522,4 +1105,120 @@ func TestRequestJoinRejectsNonExistentEvent(t *testing.T) {
 	_, err := harness.Service.RequestJoin(context.Background(), requester.ID, uuid.New(), eventapp.RequestJoinInput{})
 
 	common.RequireAppErrorCode(t, err, domain.ErrorCodeEventNotFound)
+}
+
+type discoveryEventSeed struct {
+	HostID       uuid.UUID
+	Title        string
+	Description  string
+	CategoryID   int
+	Lat          float64
+	Lon          float64
+	StartTime    time.Time
+	PrivacyLevel domain.EventPrivacyLevel
+	Tags         []string
+}
+
+type routeDiscoveryEventSeed struct {
+	HostID       uuid.UUID
+	Title        string
+	Description  string
+	CategoryID   int
+	StartTime    time.Time
+	PrivacyLevel domain.EventPrivacyLevel
+	RoutePoints  []eventapp.RoutePointInput
+}
+
+func createDiscoveryEvent(t *testing.T, harness *common.EventHarness, seed discoveryEventSeed) uuid.UUID {
+	t.Helper()
+
+	result, err := harness.Service.CreateEvent(context.Background(), seed.HostID, eventapp.CreateEventInput{
+		Title:        seed.Title,
+		Description:  common.StringPtr(seed.Description),
+		CategoryID:   &seed.CategoryID,
+		LocationType: domain.LocationPoint,
+		Lat:          &seed.Lat,
+		Lon:          &seed.Lon,
+		StartTime:    seed.StartTime,
+		PrivacyLevel: seed.PrivacyLevel,
+		Tags:         seed.Tags,
+	})
+	if err != nil {
+		t.Fatalf("CreateEvent() discovery seed error = %v", err)
+	}
+
+	eventID, err := uuid.Parse(result.ID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() error = %v", err)
+	}
+
+	return eventID
+}
+
+func createRouteDiscoveryEvent(t *testing.T, harness *common.EventHarness, seed routeDiscoveryEventSeed) uuid.UUID {
+	t.Helper()
+
+	result, err := harness.Service.CreateEvent(context.Background(), seed.HostID, eventapp.CreateEventInput{
+		Title:        seed.Title,
+		Description:  common.StringPtr(seed.Description),
+		CategoryID:   &seed.CategoryID,
+		LocationType: domain.LocationRoute,
+		StartTime:    seed.StartTime,
+		PrivacyLevel: seed.PrivacyLevel,
+		RoutePoints:  seed.RoutePoints,
+	})
+	if err != nil {
+		t.Fatalf("CreateEvent() route discovery seed error = %v", err)
+	}
+
+	eventID, err := uuid.Parse(result.ID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() error = %v", err)
+	}
+
+	return eventID
+}
+
+func updateEventStatus(t *testing.T, eventID uuid.UUID, status string) {
+	t.Helper()
+
+	commandTag, err := common.RequirePool(t).Exec(
+		context.Background(),
+		`UPDATE event SET status = $2 WHERE id = $1`,
+		eventID,
+		status,
+	)
+	if err != nil {
+		t.Fatalf("update event status error = %v", err)
+	}
+	if commandTag.RowsAffected() != 1 {
+		t.Fatalf("expected 1 updated row, got %d", commandTag.RowsAffected())
+	}
+}
+
+func insertFavoriteEvent(t *testing.T, userID, eventID uuid.UUID) {
+	t.Helper()
+
+	if _, err := common.RequirePool(t).Exec(
+		context.Background(),
+		`INSERT INTO favorite_event (user_id, event_id) VALUES ($1, $2)`,
+		userID,
+		eventID,
+	); err != nil {
+		t.Fatalf("insert favorite_event error = %v", err)
+	}
+}
+
+func assertDiscoverEventIDsInOrder(t *testing.T, items []eventapp.DiscoverableEventItem, want ...uuid.UUID) {
+	t.Helper()
+
+	if len(items) != len(want) {
+		t.Fatalf("expected %d items, got %d", len(want), len(items))
+	}
+
+	for i, expectedID := range want {
+		if items[i].ID != expectedID.String() {
+			t.Fatalf("expected item %d to be %s, got %s", i, expectedID, items[i].ID)
+		}
+	}
 }

@@ -63,6 +63,20 @@ func toCreateEventParams(hostID uuid.UUID, input CreateEventInput) CreateEventPa
 	return params
 }
 
+func toDiscoverableEventItem(record DiscoverableEventRecord) DiscoverableEventItem {
+	return DiscoverableEventItem{
+		ID:                       record.ID.String(),
+		Title:                    record.Title,
+		CategoryName:             record.CategoryName,
+		ImageURL:                 record.ImageURL,
+		StartTime:                record.StartTime,
+		LocationAddress:          record.LocationAddress,
+		PrivacyLevel:             string(record.PrivacyLevel),
+		ApprovedParticipantCount: record.ApprovedParticipantCount,
+		IsFavorited:              record.IsFavorited,
+	}
+}
+
 func toDomainRoutePoints(points []RoutePointInput) []domain.GeoPoint {
 	domainPoints := make([]domain.GeoPoint, len(points))
 	for i, point := range points {

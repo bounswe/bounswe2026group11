@@ -51,6 +51,73 @@ func (s *Service) CreateEvent(ctx context.Context, hostID uuid.UUID, input Creat
 	return toCreateEventResult(created), nil
 }
 
+// DiscoverEvents returns nearby discoverable events using combined full-text,
+// structured filters, and keyset pagination.
+func (s *Service) DiscoverEvents(ctx context.Context, userID uuid.UUID, input DiscoverEventsInput) (*DiscoverEventsResult, error) {
+	params, errs := normalizeAndValidateDiscoverEventsInput(input)
+	if len(errs) > 0 {
+		return nil, domain.ValidationError(errs)
+	}
+
+	fingerprint, err := buildDiscoverEventsFilterFingerprint(params)
+	if err != nil {
+		return nil, err
+	}
+	params.FilterFingerprint = fingerprint
+	params.RepositoryFetchLimit = params.Limit + 1
+
+	if params.CursorToken != "" {
+		cursor, err := decodeDiscoverEventsCursor(params.CursorToken)
+		if err != nil {
+			return nil, domain.ValidationError(map[string]string{
+				"cursor": "cursor is invalid",
+			})
+		}
+		if cursor.SortBy != params.SortBy || cursor.FilterFingerprint != params.FilterFingerprint {
+			return nil, domain.ValidationError(map[string]string{
+				"cursor": "cursor does not match the active filters or sort order",
+			})
+		}
+		params.DecodedCursor = cursor
+	}
+
+	records, err := s.eventRepo.ListDiscoverableEvents(ctx, userID, params)
+	if err != nil {
+		return nil, err
+	}
+
+	hasNext := len(records) > params.Limit
+	if hasNext {
+		records = records[:params.Limit]
+	}
+
+	items := make([]DiscoverableEventItem, len(records))
+	for i, record := range records {
+		items[i] = toDiscoverableEventItem(record)
+	}
+
+	var nextCursor *string
+	if hasNext && len(records) > 0 {
+		cursor, err := buildNextDiscoverEventsCursor(params, records[len(records)-1])
+		if err != nil {
+			return nil, err
+		}
+		encoded, err := encodeDiscoverEventsCursor(cursor)
+		if err != nil {
+			return nil, err
+		}
+		nextCursor = &encoded
+	}
+
+	return &DiscoverEventsResult{
+		Items: items,
+		PageInfo: DiscoverEventsPageInfo{
+			NextCursor: nextCursor,
+			HasNext:    hasNext,
+		},
+	}, nil
+}
+
 // JoinEvent allows a user to join a PUBLIC event directly. The resulting
 // participation record has status APPROVED.
 //
