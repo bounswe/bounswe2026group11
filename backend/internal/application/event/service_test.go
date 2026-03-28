@@ -13,8 +13,13 @@ import (
 
 // fakeEventRepo is an in-memory implementation of Repository.
 type fakeEventRepo struct {
-	err    error
-	events map[uuid.UUID]*domain.Event
+	err                error
+	discoverErr        error
+	events             map[uuid.UUID]*domain.Event
+	discoverRecords    []DiscoverableEventRecord
+	discoverCallCount  int
+	lastDiscoverUserID uuid.UUID
+	lastDiscoverParams DiscoverEventsParams
 }
 
 func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams) (*domain.Event, error) {
@@ -41,6 +46,18 @@ func (r *fakeEventRepo) GetEventByID(_ context.Context, id uuid.UUID) (*domain.E
 		return e, nil
 	}
 	return nil, domain.ErrNotFound
+}
+
+func (r *fakeEventRepo) ListDiscoverableEvents(_ context.Context, userID uuid.UUID, params DiscoverEventsParams) ([]DiscoverableEventRecord, error) {
+	r.discoverCallCount++
+	r.lastDiscoverUserID = userID
+	r.lastDiscoverParams = params
+
+	if r.discoverErr != nil {
+		return nil, r.discoverErr
+	}
+
+	return r.discoverRecords, nil
 }
 
 // fakeParticipationService is an in-memory implementation of ParticipationService.
@@ -486,6 +503,266 @@ func TestCreateEventRepoErrorPropagates(t *testing.T) {
 	// then
 	if err == nil {
 		t.Fatal("expected error from repo, got nil")
+	}
+}
+
+func TestDiscoverEventsAppliesDefaultsAndMapsResults(t *testing.T) {
+	// given
+	svc, eventRepo, _, _ := newTestEventService()
+	userID := uuid.New()
+	lat := 41.0082
+	lon := 28.9784
+	startTime := time.Date(2030, time.January, 1, 18, 0, 0, 0, time.UTC)
+	imageURL := "https://example.com/event.jpg"
+	address := "Bebek, Istanbul"
+
+	eventRepo.discoverRecords = []DiscoverableEventRecord{
+		{
+			ID:                       uuid.New(),
+			Title:                    "Nearby Event",
+			CategoryName:             "Sports",
+			ImageURL:                 &imageURL,
+			StartTime:                startTime,
+			LocationAddress:          &address,
+			PrivacyLevel:             domain.PrivacyPublic,
+			ApprovedParticipantCount: 7,
+			IsFavorited:              true,
+			DistanceMeters:           1200,
+		},
+	}
+
+	// when
+	result, err := svc.DiscoverEvents(context.Background(), userID, DiscoverEventsInput{
+		Lat: &lat,
+		Lon: &lon,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	if eventRepo.discoverCallCount != 1 {
+		t.Fatalf("expected repository to be called once, got %d", eventRepo.discoverCallCount)
+	}
+	if eventRepo.lastDiscoverUserID != userID {
+		t.Fatalf("expected repository to receive user %s, got %s", userID, eventRepo.lastDiscoverUserID)
+	}
+	if eventRepo.lastDiscoverParams.RadiusMeters != defaultDiscoverRadiusMeters {
+		t.Fatalf("expected default radius %d, got %d", defaultDiscoverRadiusMeters, eventRepo.lastDiscoverParams.RadiusMeters)
+	}
+	if eventRepo.lastDiscoverParams.Limit != defaultDiscoverLimit {
+		t.Fatalf("expected default limit %d, got %d", defaultDiscoverLimit, eventRepo.lastDiscoverParams.Limit)
+	}
+	if eventRepo.lastDiscoverParams.RepositoryFetchLimit != defaultDiscoverLimit+1 {
+		t.Fatalf("expected fetch limit %d, got %d", defaultDiscoverLimit+1, eventRepo.lastDiscoverParams.RepositoryFetchLimit)
+	}
+	if eventRepo.lastDiscoverParams.SortBy != domain.EventDiscoverySortStartTime {
+		t.Fatalf("expected default sort %q, got %q", domain.EventDiscoverySortStartTime, eventRepo.lastDiscoverParams.SortBy)
+	}
+	if len(eventRepo.lastDiscoverParams.PrivacyLevels) != 2 ||
+		eventRepo.lastDiscoverParams.PrivacyLevels[0] != domain.PrivacyPublic ||
+		eventRepo.lastDiscoverParams.PrivacyLevels[1] != domain.PrivacyProtected {
+		t.Fatalf("expected default privacy levels [PUBLIC PROTECTED], got %v", eventRepo.lastDiscoverParams.PrivacyLevels)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(result.Items))
+	}
+	if result.Items[0].Title != "Nearby Event" {
+		t.Fatalf("expected title %q, got %q", "Nearby Event", result.Items[0].Title)
+	}
+	if result.Items[0].CategoryName != "Sports" {
+		t.Fatalf("expected category name %q, got %q", "Sports", result.Items[0].CategoryName)
+	}
+	if !result.Items[0].IsFavorited {
+		t.Fatal("expected event to be favorited")
+	}
+	if result.PageInfo.HasNext {
+		t.Fatal("expected has_next to be false")
+	}
+	if result.PageInfo.NextCursor != nil {
+		t.Fatalf("expected nil next_cursor, got %v", result.PageInfo.NextCursor)
+	}
+}
+
+func TestDiscoverEventsDefaultsToRelevanceWhenQueryProvided(t *testing.T) {
+	// given
+	svc, eventRepo, _, _ := newTestEventService()
+	lat := 41.0082
+	lon := 28.9784
+	query := "live music"
+
+	// when
+	_, err := svc.DiscoverEvents(context.Background(), uuid.New(), DiscoverEventsInput{
+		Lat:   &lat,
+		Lon:   &lon,
+		Query: &query,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	if eventRepo.lastDiscoverParams.SortBy != domain.EventDiscoverySortRelevance {
+		t.Fatalf("expected default sort %q, got %q", domain.EventDiscoverySortRelevance, eventRepo.lastDiscoverParams.SortBy)
+	}
+	if eventRepo.lastDiscoverParams.Query != query {
+		t.Fatalf("expected query %q, got %q", query, eventRepo.lastDiscoverParams.Query)
+	}
+}
+
+func TestDiscoverEventsRejectsRelevanceWithoutQuery(t *testing.T) {
+	// given
+	svc, _, _, _ := newTestEventService()
+	lat := 41.0082
+	lon := 28.9784
+	sortBy := domain.EventDiscoverySortRelevance
+
+	// when
+	_, err := svc.DiscoverEvents(context.Background(), uuid.New(), DiscoverEventsInput{
+		Lat:    &lat,
+		Lon:    &lon,
+		SortBy: &sortBy,
+	})
+
+	// then
+	assertValidationDetail(t, err, "sort_by")
+}
+
+func TestDiscoverEventsRejectsInvalidCursor(t *testing.T) {
+	// given
+	svc, _, _, _ := newTestEventService()
+	lat := 41.0082
+	lon := 28.9784
+	cursor := "%%%invalid%%%"
+
+	// when
+	_, err := svc.DiscoverEvents(context.Background(), uuid.New(), DiscoverEventsInput{
+		Lat:    &lat,
+		Lon:    &lon,
+		Cursor: &cursor,
+	})
+
+	// then
+	assertValidationDetail(t, err, "cursor")
+}
+
+func TestDiscoverEventsRejectsCursorMismatch(t *testing.T) {
+	// given
+	svc, _, _, _ := newTestEventService()
+	lat := 41.0082
+	lon := 28.9784
+	cursorValue, err := encodeDiscoverEventsCursor(DiscoverEventsCursor{
+		SortBy:            domain.EventDiscoverySortStartTime,
+		FilterFingerprint: "different-filter",
+		StartTime:         time.Now().UTC(),
+		EventID:           uuid.New(),
+	})
+	if err != nil {
+		t.Fatalf("encodeDiscoverEventsCursor() error = %v", err)
+	}
+
+	// when
+	_, err = svc.DiscoverEvents(context.Background(), uuid.New(), DiscoverEventsInput{
+		Lat:    &lat,
+		Lon:    &lon,
+		Cursor: &cursorValue,
+	})
+
+	// then
+	assertValidationDetail(t, err, "cursor")
+}
+
+func TestDiscoverEventsRejectsOutOfRangeRadiusAndLimit(t *testing.T) {
+	// given
+	svc, _, _, _ := newTestEventService()
+	lat := 41.0082
+	lon := 28.9784
+	radius := 50001
+	limit := 0
+
+	// when
+	_, err := svc.DiscoverEvents(context.Background(), uuid.New(), DiscoverEventsInput{
+		Lat:          &lat,
+		Lon:          &lon,
+		RadiusMeters: &radius,
+		Limit:        &limit,
+	})
+
+	// then
+	assertValidationDetail(t, err, "radius_meters")
+	assertValidationDetail(t, err, "limit")
+}
+
+func TestDiscoverEventsRejectsPrivateVisibilityFilter(t *testing.T) {
+	// given
+	svc, _, _, _ := newTestEventService()
+	lat := 41.0082
+	lon := 28.9784
+
+	// when
+	_, err := svc.DiscoverEvents(context.Background(), uuid.New(), DiscoverEventsInput{
+		Lat:           &lat,
+		Lon:           &lon,
+		PrivacyLevels: []domain.EventPrivacyLevel{domain.PrivacyPrivate},
+	})
+
+	// then
+	assertValidationDetail(t, err, "privacy_levels")
+}
+
+func TestDiscoverEventsBuildsNextCursorFromLastReturnedItem(t *testing.T) {
+	// given
+	svc, eventRepo, _, _ := newTestEventService()
+	lat := 41.0082
+	lon := 28.9784
+	limit := 1
+	first := DiscoverableEventRecord{
+		ID:                       uuid.New(),
+		Title:                    "First Event",
+		CategoryName:             "Sports",
+		StartTime:                time.Date(2030, time.January, 1, 18, 0, 0, 0, time.UTC),
+		PrivacyLevel:             domain.PrivacyPublic,
+		ApprovedParticipantCount: 5,
+		DistanceMeters:           100,
+	}
+	second := DiscoverableEventRecord{
+		ID:                       uuid.New(),
+		Title:                    "Second Event",
+		CategoryName:             "Sports",
+		StartTime:                time.Date(2030, time.January, 2, 18, 0, 0, 0, time.UTC),
+		PrivacyLevel:             domain.PrivacyPublic,
+		ApprovedParticipantCount: 6,
+		DistanceMeters:           200,
+	}
+	eventRepo.discoverRecords = []DiscoverableEventRecord{first, second}
+
+	// when
+	result, err := svc.DiscoverEvents(context.Background(), uuid.New(), DiscoverEventsInput{
+		Lat:   &lat,
+		Lon:   &lon,
+		Limit: &limit,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	if !result.PageInfo.HasNext {
+		t.Fatal("expected has_next to be true")
+	}
+	if result.PageInfo.NextCursor == nil {
+		t.Fatal("expected next_cursor to be present")
+	}
+
+	cursor, err := decodeDiscoverEventsCursor(*result.PageInfo.NextCursor)
+	if err != nil {
+		t.Fatalf("decodeDiscoverEventsCursor() error = %v", err)
+	}
+	if cursor.EventID != first.ID {
+		t.Fatalf("expected cursor event_id %s, got %s", first.ID, cursor.EventID)
+	}
+	if cursor.StartTime != first.StartTime {
+		t.Fatalf("expected cursor start_time %v, got %v", first.StartTime, cursor.StartTime)
 	}
 }
 

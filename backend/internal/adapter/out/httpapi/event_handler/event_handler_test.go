@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -17,10 +18,13 @@ import (
 
 type stubEventService struct {
 	result               *event.CreateEventResult
+	discoverResult       *event.DiscoverEventsResult
 	err                  error
 	callCount            int
+	discoverCallCount    int
 	requestJoinCallCount int
 	lastInput            event.CreateEventInput
+	lastDiscoverInput    event.DiscoverEventsInput
 	lastRequestJoinInput event.RequestJoinInput
 }
 
@@ -41,6 +45,23 @@ func (s *stubEventService) CreateEvent(_ context.Context, _ uuid.UUID, input eve
 		Status:       string(domain.EventStatusActive),
 		StartTime:    now.Add(time.Hour),
 		CreatedAt:    now,
+	}, nil
+}
+
+func (s *stubEventService) DiscoverEvents(_ context.Context, _ uuid.UUID, input event.DiscoverEventsInput) (*event.DiscoverEventsResult, error) {
+	s.discoverCallCount++
+	s.lastDiscoverInput = input
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.discoverResult != nil {
+		return s.discoverResult, nil
+	}
+	return &event.DiscoverEventsResult{
+		Items: []event.DiscoverableEventItem{},
+		PageInfo: event.DiscoverEventsPageInfo{
+			HasNext: false,
+		},
 	}, nil
 }
 
@@ -99,6 +120,159 @@ func authedVerifier() *fakeVerifier {
 			Username: "testuser",
 			Email:    "test@example.com",
 		},
+	}
+}
+
+func TestDiscoverEventsParsesQueryParamsBeforeCallingService(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+	startFrom := url.QueryEscape("2030-01-01T10:00:00+03:00")
+	startTo := url.QueryEscape("2030-01-02T10:00:00+03:00")
+
+	req := httptest.NewRequest(
+		fiber.MethodGet,
+		"/events/?lat=41.01&lon=29.02&radius_meters=9000&q=trail&privacy_levels=PUBLIC,PROTECTED&category_ids=1,3&tag_names=hiking,outdoor&start_from="+startFrom+"&start_to="+startTo+"&only_favorited=true&sort_by=DISTANCE&limit=15&cursor=test-cursor",
+		nil,
+	)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if svc.discoverCallCount != 1 {
+		t.Fatalf("expected discover service to be called once, got %d", svc.discoverCallCount)
+	}
+	if svc.lastDiscoverInput.Lat == nil || *svc.lastDiscoverInput.Lat != 41.01 {
+		t.Fatalf("expected parsed lat 41.01, got %v", svc.lastDiscoverInput.Lat)
+	}
+	if svc.lastDiscoverInput.Lon == nil || *svc.lastDiscoverInput.Lon != 29.02 {
+		t.Fatalf("expected parsed lon 29.02, got %v", svc.lastDiscoverInput.Lon)
+	}
+	if svc.lastDiscoverInput.RadiusMeters == nil || *svc.lastDiscoverInput.RadiusMeters != 9000 {
+		t.Fatalf("expected parsed radius 9000, got %v", svc.lastDiscoverInput.RadiusMeters)
+	}
+	if svc.lastDiscoverInput.Query == nil || *svc.lastDiscoverInput.Query != "trail" {
+		t.Fatalf("expected parsed q %q, got %v", "trail", svc.lastDiscoverInput.Query)
+	}
+	if len(svc.lastDiscoverInput.PrivacyLevels) != 2 ||
+		svc.lastDiscoverInput.PrivacyLevels[0] != domain.PrivacyPublic ||
+		svc.lastDiscoverInput.PrivacyLevels[1] != domain.PrivacyProtected {
+		t.Fatalf("expected parsed privacy_levels [PUBLIC PROTECTED], got %v", svc.lastDiscoverInput.PrivacyLevels)
+	}
+	if len(svc.lastDiscoverInput.CategoryIDs) != 2 || svc.lastDiscoverInput.CategoryIDs[0] != 1 || svc.lastDiscoverInput.CategoryIDs[1] != 3 {
+		t.Fatalf("expected parsed category_ids [1 3], got %v", svc.lastDiscoverInput.CategoryIDs)
+	}
+	if len(svc.lastDiscoverInput.TagNames) != 2 || svc.lastDiscoverInput.TagNames[0] != "hiking" || svc.lastDiscoverInput.TagNames[1] != "outdoor" {
+		t.Fatalf("expected parsed tag_names [hiking outdoor], got %v", svc.lastDiscoverInput.TagNames)
+	}
+	if svc.lastDiscoverInput.StartFrom == nil || svc.lastDiscoverInput.StartTo == nil {
+		t.Fatal("expected parsed start_from and start_to")
+	}
+	if !svc.lastDiscoverInput.OnlyFavorited {
+		t.Fatal("expected only_favorited to be true")
+	}
+	if svc.lastDiscoverInput.SortBy == nil || *svc.lastDiscoverInput.SortBy != domain.EventDiscoverySortDistance {
+		t.Fatalf("expected parsed sort_by %q, got %v", domain.EventDiscoverySortDistance, svc.lastDiscoverInput.SortBy)
+	}
+	if svc.lastDiscoverInput.Limit == nil || *svc.lastDiscoverInput.Limit != 15 {
+		t.Fatalf("expected parsed limit 15, got %v", svc.lastDiscoverInput.Limit)
+	}
+	if svc.lastDiscoverInput.Cursor == nil || *svc.lastDiscoverInput.Cursor != "test-cursor" {
+		t.Fatalf("expected parsed cursor %q, got %v", "test-cursor", svc.lastDiscoverInput.Cursor)
+	}
+}
+
+func TestDiscoverEventsInvalidLatitudeReturns400(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodGet, "/events/?lat=not-a-number&lon=29.02", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+	if svc.discoverCallCount != 0 {
+		t.Fatalf("expected discover service not to be called, got %d", svc.discoverCallCount)
+	}
+}
+
+func TestDiscoverEventsInvalidSortReturns400(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodGet, "/events/?lat=41.01&lon=29.02&sort_by=POPULAR", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+	if svc.discoverCallCount != 0 {
+		t.Fatalf("expected discover service not to be called, got %d", svc.discoverCallCount)
+	}
+}
+
+func TestDiscoverEventsIgnoresEmptyOptionalListParams(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+
+	req := httptest.NewRequest(
+		fiber.MethodGet,
+		"/events/?lat=41.01&lon=29.02&privacy_levels=&category_ids=&tag_names=",
+		nil,
+	)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if svc.discoverCallCount != 1 {
+		t.Fatalf("expected discover service to be called once, got %d", svc.discoverCallCount)
+	}
+	if len(svc.lastDiscoverInput.PrivacyLevels) != 0 {
+		t.Fatalf("expected empty privacy_levels, got %v", svc.lastDiscoverInput.PrivacyLevels)
+	}
+	if len(svc.lastDiscoverInput.CategoryIDs) != 0 {
+		t.Fatalf("expected empty category_ids, got %v", svc.lastDiscoverInput.CategoryIDs)
+	}
+	if len(svc.lastDiscoverInput.TagNames) != 0 {
+		t.Fatalf("expected empty tag_names, got %v", svc.lastDiscoverInput.TagNames)
 	}
 }
 

@@ -18,6 +18,9 @@ type EventParticipantGender string
 // EventStatus defines the lifecycle state of an event.
 type EventStatus string
 
+// EventDiscoverySort defines the supported event discovery ordering modes.
+type EventDiscoverySort string
+
 // Accepted values for event fields.
 const (
 	PrivacyPublic    EventPrivacyLevel = "PUBLIC"
@@ -32,6 +35,10 @@ const (
 	GenderOther  EventParticipantGender = "OTHER"
 
 	EventStatusActive EventStatus = "ACTIVE"
+
+	EventDiscoverySortStartTime EventDiscoverySort = "START_TIME"
+	EventDiscoverySortDistance  EventDiscoverySort = "DISTANCE"
+	EventDiscoverySortRelevance EventDiscoverySort = "RELEVANCE"
 
 	MaxEventTags        = 5
 	MaxEventConstraints = 5
@@ -56,6 +63,12 @@ var eventParticipantGenders = map[string]EventParticipantGender{
 	string(GenderOther):  GenderOther,
 }
 
+var eventDiscoverySorts = map[string]EventDiscoverySort{
+	string(EventDiscoverySortStartTime): EventDiscoverySortStartTime,
+	string(EventDiscoverySortDistance):  EventDiscoverySortDistance,
+	string(EventDiscoverySortRelevance): EventDiscoverySortRelevance,
+}
+
 // ParseEventPrivacyLevel converts a wire string to an EventPrivacyLevel.
 func ParseEventPrivacyLevel(value string) (EventPrivacyLevel, bool) {
 	level, ok := eventPrivacyLevels[value]
@@ -72,6 +85,12 @@ func ParseEventLocationType(value string) (EventLocationType, bool) {
 func ParseEventParticipantGender(value string) (EventParticipantGender, bool) {
 	gender, ok := eventParticipantGenders[value]
 	return gender, ok
+}
+
+// ParseEventDiscoverySort converts a wire string to an EventDiscoverySort.
+func ParseEventDiscoverySort(value string) (EventDiscoverySort, bool) {
+	sort, ok := eventDiscoverySorts[value]
+	return sort, ok
 }
 
 // GeoPoint is a single WGS84 coordinate used for event locations.

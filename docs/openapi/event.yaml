@@ -251,6 +251,226 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
   /events:
+    get:
+      tags: [Events]
+      summary: Discover nearby events
+      description: |
+        Returns a cursor-paginated list of nearby discoverable events for the authenticated user.
+
+        Discovery rules:
+        - Only events with `status: ACTIVE` are returned.
+        - Only events with `privacy_level: PUBLIC` or `PROTECTED` are returned.
+        - The caller must provide `lat` and `lon`; the server filters within a radius around that origin.
+        - Text search (`q`) and structured filters can be combined in the same request.
+        - `is_favorited` is resolved for the authenticated user.
+        - For `ROUTE` events, radius filtering matches when any stored route point falls within the requested radius.
+
+        Sorting defaults:
+        - If `q` is omitted and `sort_by` is omitted, sorting defaults to `START_TIME`.
+        - If `q` is present and `sort_by` is omitted, sorting defaults to `RELEVANCE`.
+        - `sort_by=RELEVANCE` is only valid when `q` is present.
+        - When sorting by distance, `ROUTE` events use the first route point as their anchor location.
+
+        Pagination:
+        - Uses opaque keyset cursors returned in `page_info.next_cursor`.
+        - Reuse the same filters and sort order when requesting the next page.
+      operationId: discoverEvents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+          description: Latitude of the search origin in WGS 84.
+          example: 41.0082
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+          description: Longitude of the search origin in WGS 84.
+          example: 28.9784
+        - name: radius_meters
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50000
+          description: Radius around (`lat`, `lon`) in meters. Defaults to `10000` when omitted.
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional prefix-aware full-text search query applied to title, description, and denormalized tags.
+        - name: privacy_levels
+          in: query
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [PUBLIC, PROTECTED]
+          description: Optional comma-separated discoverability filter. `PRIVATE` is not allowed because private events are never returned by this endpoint.
+        - name: category_ids
+          in: query
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: integer
+              minimum: 1
+          description: Optional comma-separated category ids. Matches events whose `category_id` is in the provided set.
+        - name: start_from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Optional inclusive lower bound for `event.start_time`.
+        - name: start_to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Optional inclusive upper bound for `event.start_time`.
+        - name: tag_names
+          in: query
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: Optional comma-separated tags. v1 uses OR semantics, so an event matches if it has any listed tag.
+        - name: only_favorited
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: When `true`, only returns events favorited by the authenticated user. Defaults to `false` when omitted.
+        - name: sort_by
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [START_TIME, DISTANCE, RELEVANCE]
+          description: |
+            Optional sort mode.
+            - `START_TIME`: soonest starting events first.
+            - `DISTANCE`: nearest events first.
+            - `RELEVANCE`: highest full-text rank first; requires `q`.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+          description: Maximum number of items to return in one page. Defaults to `20` when omitted.
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque cursor returned by a previous page of the same query.
+      responses:
+        '200':
+          description: Discovery results returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverEventsResponse'
+              examples:
+                nearby_events:
+                  value:
+                    items:
+                      - id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                        title: Istanbul Trail Run
+                        category_name: Sports
+                        image_url: https://example.com/trail.jpg
+                        start_time: "2026-05-01T08:00:00+03:00"
+                        location_address: Belgrad Forest, Istanbul
+                        privacy_level: PUBLIC
+                        approved_participant_count: 42
+                        is_favorited: true
+                      - id: 7a2c8b1e-3d4f-5e6a-bcde-f90123456789
+                        title: Bosphorus Ride
+                        category_name: Fitness
+                        image_url: null
+                        start_time: "2026-05-01T09:30:00+03:00"
+                        location_address: Besiktas, Istanbul
+                        privacy_level: PROTECTED
+                        approved_participant_count: 18
+                        is_favorited: false
+                    page_info:
+                      next_cursor: eyJzb3J0X2J5IjoiU1RBUlRfVElNRSIsImZpbHRlcl9maW5nZXJwcmludCI6IjQ2MmEifQ
+                      has_next: true
+        '400':
+          description: |
+            Validation error for query parameters, cursor reuse, or unsupported sort combinations.
+            `error.details` contains field-specific messages.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                invalid_query:
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        lat: lat is required
+                        lon: lon is required
+                invalid_sort:
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        sort_by: sort_by=RELEVANCE requires q
+                invalid_privacy_filter:
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        privacy_levels: "privacy_levels must contain only: PUBLIC, PROTECTED"
+                invalid_cursor:
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        cursor: cursor does not match the active filters or sort order
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
     post:
       tags: [Events]
       summary: Create a new event
@@ -597,6 +817,91 @@ components:
           type: string
           description: Human-readable description of the constraint.
           example: Trail running shoes required
+
+    DiscoverEventsResponse:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscoverEventItem'
+        page_info:
+          $ref: '#/components/schemas/DiscoverEventsPageInfo'
+
+    DiscoverEventItem:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - category_name
+        - start_time
+        - privacy_level
+        - approved_participant_count
+        - is_favorited
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID of the event.
+          example: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+        title:
+          type: string
+          description: Event title.
+          example: Istanbul Trail Run
+        category_name:
+          type: string
+          description: Human-readable event category name.
+          example: Sports
+        image_url:
+          type:
+            - string
+            - "null"
+          description: Optional event cover image URL.
+          example: https://example.com/trail.jpg
+        start_time:
+          type: string
+          format: date-time
+          description: Event start time.
+          example: "2026-05-01T08:00:00+03:00"
+        location_address:
+          type:
+            - string
+            - "null"
+          description: Optional human-readable location address.
+          example: Belgrad Forest, Istanbul
+        privacy_level:
+          type: string
+          enum: [PUBLIC, PROTECTED]
+          description: Visibility level for the discoverable event.
+          example: PUBLIC
+        approved_participant_count:
+          type: integer
+          minimum: 0
+          description: Current count of approved participants.
+          example: 42
+        is_favorited:
+          type: boolean
+          description: Whether the authenticated user has favorited the event.
+          example: true
+
+    DiscoverEventsPageInfo:
+      type: object
+      additionalProperties: false
+      required: [next_cursor, has_next]
+      properties:
+        next_cursor:
+          type:
+            - string
+            - "null"
+          description: Opaque cursor for the next page, or `null` when there is no next page.
+          example: eyJzb3J0X2J5IjoiU1RBUlRfVElNRSIsImZpbHRlcl9maW5nZXJwcmludCI6IjQ2MmEifQ
+        has_next:
+          type: boolean
+          description: Indicates whether more results are available.
+          example: true
 
     CreateEventResponse:
       type: object

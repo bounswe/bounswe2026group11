@@ -1,6 +1,9 @@
 package event_handler
 
 import (
+	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
@@ -25,9 +28,26 @@ func NewEventHandler(service event.UseCase) *EventHandler {
 // decisions remain outside the handler.
 func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.Handler) {
 	group := router.Group("/events")
+	group.Get("/", auth, handler.DiscoverEvents)
 	group.Post("/", auth, handler.CreateEvent)
 	group.Post("/:id/join", auth, handler.JoinEvent)
 	group.Post("/:id/join-request", auth, handler.RequestJoin)
+}
+
+// DiscoverEvents handles GET /events.
+func (h *EventHandler) DiscoverEvents(c *fiber.Ctx) error {
+	input, errs := parseDiscoverEventsInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.DiscoverEvents(c.UserContext(), claims.UserID, input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
 }
 
 // CreateEvent handles POST /events.
@@ -186,4 +206,197 @@ func parseEventIDParam(c *fiber.Ctx) (uuid.UUID, error) {
 		return uuid.Nil, domain.ValidationError(map[string]string{"id": "must be a valid UUID"})
 	}
 	return eventID, nil
+}
+
+func parseDiscoverEventsInput(c *fiber.Ctx) (event.DiscoverEventsInput, map[string]string) {
+	values, err := url.ParseQuery(string(c.Context().URI().QueryString()))
+	if err != nil {
+		return event.DiscoverEventsInput{}, map[string]string{"query": "query string must be valid"}
+	}
+
+	input := event.DiscoverEventsInput{}
+	errs := make(map[string]string)
+
+	if lat, ok, msg := parseOptionalFloatQuery(c, "lat"); msg != "" {
+		errs["lat"] = msg
+	} else if ok {
+		input.Lat = &lat
+	}
+
+	if lon, ok, msg := parseOptionalFloatQuery(c, "lon"); msg != "" {
+		errs["lon"] = msg
+	} else if ok {
+		input.Lon = &lon
+	}
+
+	if radius, ok, msg := parseOptionalIntQuery(c, "radius_meters"); msg != "" {
+		errs["radius_meters"] = msg
+	} else if ok {
+		input.RadiusMeters = &radius
+	}
+
+	if limit, ok, msg := parseOptionalIntQuery(c, "limit"); msg != "" {
+		errs["limit"] = msg
+	} else if ok {
+		input.Limit = &limit
+	}
+
+	if rawQuery := strings.TrimSpace(c.Query("q")); rawQuery != "" {
+		input.Query = &rawQuery
+	}
+
+	if privacyLevels, msg := parsePrivacyLevels(values, "privacy_levels"); msg != "" {
+		errs["privacy_levels"] = msg
+	} else {
+		input.PrivacyLevels = privacyLevels
+	}
+
+	if categoryIDs, msg := parseCategoryIDs(values, "category_ids"); msg != "" {
+		errs["category_ids"] = msg
+	} else {
+		input.CategoryIDs = categoryIDs
+	}
+
+	tagNames := parseListQueryValues(values, "tag_names")
+	if len(tagNames) > 0 {
+		input.TagNames = tagNames
+	}
+
+	if startFrom, ok, msg := parseOptionalTimeQuery(c, "start_from"); msg != "" {
+		errs["start_from"] = msg
+	} else if ok {
+		input.StartFrom = &startFrom
+	}
+
+	if startTo, ok, msg := parseOptionalTimeQuery(c, "start_to"); msg != "" {
+		errs["start_to"] = msg
+	} else if ok {
+		input.StartTo = &startTo
+	}
+
+	if rawOnlyFavorited := strings.TrimSpace(c.Query("only_favorited")); rawOnlyFavorited != "" {
+		parsed, err := strconv.ParseBool(rawOnlyFavorited)
+		if err != nil {
+			errs["only_favorited"] = "only_favorited must be a boolean"
+		} else {
+			input.OnlyFavorited = parsed
+		}
+	}
+
+	if rawSortBy := strings.TrimSpace(c.Query("sort_by")); rawSortBy != "" {
+		sortBy, ok := domain.ParseEventDiscoverySort(rawSortBy)
+		if !ok {
+			errs["sort_by"] = "must be one of: START_TIME, DISTANCE, RELEVANCE"
+		} else {
+			input.SortBy = &sortBy
+		}
+	}
+
+	if rawCursor := strings.TrimSpace(c.Query("cursor")); rawCursor != "" {
+		input.Cursor = &rawCursor
+	}
+
+	return input, errs
+}
+
+func parseOptionalFloatQuery(c *fiber.Ctx, key string) (float64, bool, string) {
+	raw := strings.TrimSpace(c.Query(key))
+	if raw == "" {
+		return 0, false, ""
+	}
+
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return 0, false, key + " must be a valid number"
+	}
+
+	return value, true, ""
+}
+
+func parseOptionalIntQuery(c *fiber.Ctx, key string) (int, bool, string) {
+	raw := strings.TrimSpace(c.Query(key))
+	if raw == "" {
+		return 0, false, ""
+	}
+
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, false, key + " must be a valid integer"
+	}
+
+	return value, true, ""
+}
+
+func parseOptionalTimeQuery(c *fiber.Ctx, key string) (time.Time, bool, string) {
+	raw := strings.TrimSpace(c.Query(key))
+	if raw == "" {
+		return time.Time{}, false, ""
+	}
+
+	value, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}, false, key + " must be a valid RFC3339 date-time with timezone"
+	}
+
+	return value, true, ""
+}
+
+func parseCategoryIDs(values url.Values, key string) ([]int, string) {
+	rawValues := parseListQueryValues(values, key)
+	if len(rawValues) == 0 {
+		return nil, ""
+	}
+
+	categoryIDs := make([]int, 0, len(rawValues))
+	for _, raw := range rawValues {
+		value, err := strconv.Atoi(raw)
+		if err != nil {
+			return nil, "category_ids must contain only integers"
+		}
+		categoryIDs = append(categoryIDs, value)
+	}
+
+	return categoryIDs, ""
+}
+
+func parsePrivacyLevels(values url.Values, key string) ([]domain.EventPrivacyLevel, string) {
+	rawValues := parseListQueryValues(values, key)
+	if len(rawValues) == 0 {
+		return nil, ""
+	}
+
+	levels := make([]domain.EventPrivacyLevel, 0, len(rawValues))
+	for _, raw := range rawValues {
+		switch raw {
+		case string(domain.PrivacyPublic):
+			levels = append(levels, domain.PrivacyPublic)
+		case string(domain.PrivacyProtected):
+			levels = append(levels, domain.PrivacyProtected)
+		default:
+			return nil, "privacy_levels must contain only: PUBLIC, PROTECTED"
+		}
+	}
+
+	return levels, ""
+}
+
+func parseListQueryValues(values url.Values, key string) []string {
+	rawValues := values[key]
+	if len(rawValues) == 0 {
+		return nil
+	}
+
+	items := make([]string, 0, len(rawValues))
+	for _, rawValue := range rawValues {
+		parts := strings.Split(rawValue, ",")
+		for _, part := range parts {
+			trimmed := strings.TrimSpace(part)
+			if trimmed == "" {
+				continue
+			}
+			items = append(items, trimmed)
+		}
+	}
+
+	return items
 }
