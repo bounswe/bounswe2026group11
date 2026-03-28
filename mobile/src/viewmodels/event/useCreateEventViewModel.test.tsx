@@ -1,0 +1,602 @@
+/**
+ * @jest-environment jsdom
+ */
+import { renderHook, act } from '@testing-library/react';
+import * as eventService from '@/services/eventService';
+import { ApiError } from '@/services/api';
+import type { CreateEventResponse } from '@/models/event';
+import {
+  useCreateEventViewModel,
+  formatTimeInput,
+  TITLE_MIN_LENGTH,
+  TITLE_MAX_LENGTH,
+  DESCRIPTION_MIN_LENGTH,
+  DESCRIPTION_MAX_LENGTH,
+  CAPACITY_MIN,
+  MAX_CONSTRAINTS,
+  type CreateEventViewModel,
+} from './useCreateEventViewModel';
+
+jest.mock('@/services/eventService');
+
+const mockCreateEvent = jest.mocked(eventService.createEvent);
+
+const futureDate = (() => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}.${d.getFullYear()}`;
+})();
+
+const futureDateLater = (() => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  d.setDate(d.getDate() + 1);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}.${d.getFullYear()}`;
+})();
+
+const pastDate = '01.01.2020';
+
+function fillValidForm(vm: CreateEventViewModel) {
+  vm.updateField('title', 'A Valid Event Title');
+  vm.updateField('description', 'This is a valid description that is long enough for the minimum requirement');
+  vm.updateField('categoryId', 1);
+  vm.updateField('lat', 41.0);
+  vm.updateField('lon', 29.0);
+  vm.updateField('address', 'Istanbul, Turkey');
+  vm.updateField('startDate', futureDate);
+  vm.updateField('startTime', '14:00');
+}
+
+const responseFixture: CreateEventResponse = {
+  id: '123',
+  title: 'A Valid Event Title',
+  privacy_level: 'PUBLIC',
+  status: 'active',
+  start_time: '2027-06-15T14:00:00.000Z',
+  created_at: '2026-03-28T10:00:00.000Z',
+};
+
+describe('useCreateEventViewModel', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCreateEvent.mockResolvedValue(responseFixture);
+  });
+
+  // ─── Initial state ───
+  it('starts with empty form and no errors', () => {
+    const { result } = renderHook(() => useCreateEventViewModel());
+    expect(result.current.formData.title).toBe('');
+    expect(result.current.formData.description).toBe('');
+    expect(result.current.formData.categoryId).toBeNull();
+    expect(result.current.formData.lat).toBeNull();
+    expect(result.current.formData.privacyLevel).toBe('PUBLIC');
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.apiError).toBeNull();
+    expect(result.current.errors).toEqual({});
+  });
+
+  // ─── Title validation ───
+  describe('title validation', () => {
+    it('shows error when title is empty', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.title).toBe('Title is required');
+    });
+
+    it(`shows error when title is shorter than ${TITLE_MIN_LENGTH} characters`, async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('title', 'Short');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.title).toContain(`at least ${TITLE_MIN_LENGTH}`);
+    });
+
+    it(`accepts title with exactly ${TITLE_MIN_LENGTH} characters`, async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('title', 'A'.repeat(TITLE_MIN_LENGTH));
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.title).toBeFalsy();
+    });
+  });
+
+  // ─── Description validation ───
+  describe('description validation', () => {
+    it('shows error when description is empty', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.description).toBe('Description is required');
+    });
+
+    it(`shows error when description is shorter than ${DESCRIPTION_MIN_LENGTH} characters`, async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('description', 'Too short');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.description).toContain(`at least ${DESCRIPTION_MIN_LENGTH}`);
+    });
+  });
+
+  // ─── Start date validation ───
+  describe('start date validation', () => {
+    it('shows error when start date/time is missing', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('startDate', '');
+        result.current.updateField('startTime', '');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.startDateTime).toBe('Start date and time are required');
+    });
+
+    it('shows error when start date is in the past', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('startDate', pastDate);
+        result.current.updateField('startTime', '10:00');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.startDateTime).toBe('Start date must be in the future');
+    });
+
+    it('accepts a future start date', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => { fillValidForm(result.current); });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.startDateTime).toBeFalsy();
+    });
+  });
+
+  // ─── End date validation ───
+  describe('end date validation', () => {
+    it('shows error when end date is before start date', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('endDate', pastDate);
+        result.current.updateField('endTime', '10:00');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.endDateTime).toBe('End must be after start');
+    });
+
+    it('clears end date error when end date is updated', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('endDate', pastDate);
+        result.current.updateField('endTime', '10:00');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.endDateTime).toBeTruthy();
+
+      await act(async () => {
+        result.current.updateField('endDate', futureDateLater);
+      });
+      expect(result.current.errors.endDateTime).toBeNull();
+    });
+
+    it('clears end date error when end time is updated', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('endDate', pastDate);
+        result.current.updateField('endTime', '10:00');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.endDateTime).toBeTruthy();
+
+      await act(async () => {
+        result.current.updateField('endTime', '18:00');
+      });
+      expect(result.current.errors.endDateTime).toBeNull();
+    });
+  });
+
+  // ─── Error clearing ───
+  describe('error clearing', () => {
+    it('clears start date error when start date is updated', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.startDateTime).toBeTruthy();
+
+      await act(async () => {
+        result.current.updateField('startDate', futureDate);
+      });
+      expect(result.current.errors.startDateTime).toBeNull();
+    });
+
+    it('clears location error when location query is updated', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.location).toBeTruthy();
+
+      await act(async () => {
+        result.current.updateField('locationQuery', 'Istanbul');
+      });
+      expect(result.current.errors.location).toBeNull();
+    });
+  });
+
+  // ─── Capacity constraint ───
+  describe('capacity constraint', () => {
+    it(`shows error when capacity is less than ${CAPACITY_MIN}`, async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        result.current.updateField('constraintType', 'capacity');
+        result.current.updateField('capacityInput', '1');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.errors.constraints).toContain(`at least ${CAPACITY_MIN}`);
+      expect(result.current.formData.constraints).toHaveLength(0);
+    });
+
+    it('shows error when capacity is 0', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        result.current.updateField('constraintType', 'capacity');
+        result.current.updateField('capacityInput', '0');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.errors.constraints).toContain(`at least ${CAPACITY_MIN}`);
+    });
+
+    it('shows error when capacity is negative', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        result.current.updateField('constraintType', 'capacity');
+        result.current.updateField('capacityInput', '-5');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.errors.constraints).toContain(`at least ${CAPACITY_MIN}`);
+    });
+
+    it(`accepts capacity of ${CAPACITY_MIN}`, async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        result.current.updateField('constraintType', 'capacity');
+        result.current.updateField('capacityInput', String(CAPACITY_MIN));
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.errors.constraints).toBeFalsy();
+      expect(result.current.formData.constraints).toHaveLength(1);
+      expect(result.current.formData.constraints[0].info).toBe(`${CAPACITY_MIN} participants`);
+    });
+
+    it('accepts large capacity value', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        result.current.updateField('constraintType', 'capacity');
+        result.current.updateField('capacityInput', '100');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.formData.constraints).toHaveLength(1);
+      expect(result.current.formData.constraints[0].info).toBe('100 participants');
+    });
+  });
+
+  // ─── Age constraint ───
+  describe('age constraint', () => {
+    it('shows error when min age is greater than max age', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        result.current.updateField('constraintType', 'age');
+        result.current.updateField('ageMinInput', '30');
+        result.current.updateField('ageMaxInput', '18');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.errors.constraints).toBe('Minimum age cannot be greater than maximum age');
+      expect(result.current.formData.constraints).toHaveLength(0);
+    });
+
+    it('shows error when age is out of range (>120)', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        result.current.updateField('constraintType', 'age');
+        result.current.updateField('ageMinInput', '150');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.errors.constraints).toBe('Age must be between 0 and 120');
+    });
+
+    it('shows error when age is negative', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        result.current.updateField('constraintType', 'age');
+        result.current.updateField('ageMinInput', '-5');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.errors.constraints).toBe('Age must be between 0 and 120');
+    });
+
+    it('accepts valid age range', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        result.current.updateField('constraintType', 'age');
+        result.current.updateField('ageMinInput', '18');
+        result.current.updateField('ageMaxInput', '30');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.errors.constraints).toBeFalsy();
+      expect(result.current.formData.constraints).toHaveLength(1);
+      expect(result.current.formData.constraints[0].info).toBe('Ages 18–30');
+    });
+
+    it('accepts min-only age (18+)', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        result.current.updateField('constraintType', 'age');
+        result.current.updateField('ageMinInput', '18');
+        result.current.updateField('ageMaxInput', '');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.formData.constraints).toHaveLength(1);
+      expect(result.current.formData.constraints[0].info).toBe('18+');
+    });
+  });
+
+  // ─── Constraint total limit ───
+  describe('constraint limits', () => {
+    it(`allows up to ${MAX_CONSTRAINTS} total constraints`, async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+
+      // Add 1 gender + 1 age + 1 capacity + 2 other = 5
+      await act(async () => { result.current.addGenderConstraint('MALE'); });
+      expect(result.current.formData.constraints).toHaveLength(1);
+
+      await act(async () => {
+        result.current.updateField('constraintType', 'age');
+        result.current.updateField('ageMinInput', '18');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.formData.constraints).toHaveLength(2);
+
+      await act(async () => {
+        result.current.updateField('constraintType', 'capacity');
+        result.current.updateField('capacityInput', '50');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.formData.constraints).toHaveLength(3);
+
+      await act(async () => {
+        result.current.updateField('constraintType', 'other');
+        result.current.updateField('otherConstraintInput', 'Bring a mat');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.formData.constraints).toHaveLength(4);
+
+      await act(async () => {
+        result.current.updateField('otherConstraintInput', 'Wear sneakers');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.formData.constraints).toHaveLength(5);
+    });
+
+    it('prevents adding more than max total constraints', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+
+      // Add 5 other constraints (since other has no per-type limit below total)
+      for (let i = 0; i < MAX_CONSTRAINTS; i++) {
+        await act(async () => {
+          result.current.updateField('constraintType', 'other');
+          result.current.updateField('otherConstraintInput', `Rule ${i + 1}`);
+        });
+        await act(async () => { result.current.addConstraint(); });
+      }
+      expect(result.current.formData.constraints).toHaveLength(MAX_CONSTRAINTS);
+
+      // Try adding a 6th
+      await act(async () => {
+        result.current.updateField('constraintType', 'other');
+        result.current.updateField('otherConstraintInput', 'Rule 6');
+      });
+      await act(async () => { result.current.addConstraint(); });
+      expect(result.current.formData.constraints).toHaveLength(MAX_CONSTRAINTS);
+      expect(result.current.errors.constraints).toContain('Maximum');
+    });
+
+    it('allows more than 2 other constraints when slots are available', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+
+      // Add 3 other constraints - should all succeed
+      for (let i = 0; i < 3; i++) {
+        await act(async () => {
+          result.current.updateField('constraintType', 'other');
+          result.current.updateField('otherConstraintInput', `Rule ${i + 1}`);
+        });
+        await act(async () => { result.current.addConstraint(); });
+      }
+      expect(result.current.formData.constraints).toHaveLength(3);
+    });
+
+    it('only allows 1 gender constraint', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => { result.current.addGenderConstraint('MALE'); });
+      expect(result.current.formData.constraints).toHaveLength(1);
+
+      await act(async () => { result.current.addGenderConstraint('FEMALE'); });
+      expect(result.current.formData.constraints).toHaveLength(1);
+    });
+  });
+
+  // ─── Tags ───
+  describe('tags', () => {
+    it('adds a tag', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        result.current.updateField('tagInput', 'fun');
+      });
+      await act(async () => { result.current.addTag(); });
+      expect(result.current.formData.tags).toEqual(['fun']);
+      expect(result.current.formData.tagInput).toBe('');
+    });
+
+    it('does not add duplicate tags', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => { result.current.updateField('tagInput', 'fun'); });
+      await act(async () => { result.current.addTag(); });
+      await act(async () => { result.current.updateField('tagInput', 'fun'); });
+      await act(async () => { result.current.addTag(); });
+      expect(result.current.formData.tags).toEqual(['fun']);
+    });
+
+    it('limits to 5 tags', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      for (let i = 0; i < 6; i++) {
+        await act(async () => { result.current.updateField('tagInput', `tag${i}`); });
+        await act(async () => { result.current.addTag(); });
+      }
+      expect(result.current.formData.tags).toHaveLength(5);
+    });
+
+    it('removes a tag by index', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => { result.current.updateField('tagInput', 'a'); });
+      await act(async () => { result.current.addTag(); });
+      await act(async () => { result.current.updateField('tagInput', 'b'); });
+      await act(async () => { result.current.addTag(); });
+      await act(async () => { result.current.removeTag(0); });
+      expect(result.current.formData.tags).toEqual(['b']);
+    });
+  });
+
+  // ─── Successful submission ───
+  describe('submission', () => {
+    it('calls createEvent and returns result on valid form', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => { fillValidForm(result.current); });
+
+      let response: CreateEventResponse | null = null;
+      await act(async () => {
+        response = await result.current.handleSubmit('test-token');
+      });
+
+      expect(mockCreateEvent).toHaveBeenCalledTimes(1);
+      expect(response).toEqual(responseFixture);
+      expect(result.current.successMessage).toBe('Event created successfully!');
+    });
+
+    it('does not call API when validation fails', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(mockCreateEvent).not.toHaveBeenCalled();
+    });
+
+    it('sets apiError on API failure', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      mockCreateEvent.mockRejectedValueOnce(
+        new ApiError(400, {
+          error: { code: 'validation_error', message: 'Bad request' },
+        }),
+      );
+      await act(async () => { fillValidForm(result.current); });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.apiError).toBe('Bad request');
+    });
+
+    it('sets generic apiError on unexpected error', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      mockCreateEvent.mockRejectedValueOnce(new Error('Network failure'));
+      await act(async () => { fillValidForm(result.current); });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.apiError).toBe('An unexpected error occurred. Please try again.');
+    });
+
+    it('maps API field errors to form errors', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      mockCreateEvent.mockRejectedValueOnce(
+        new ApiError(422, {
+          error: {
+            code: 'validation_error',
+            message: 'Validation failed',
+            details: { title: 'Title too long', start_time: 'Invalid' },
+          },
+        }),
+      );
+      await act(async () => { fillValidForm(result.current); });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.title).toBe('Title too long');
+      expect(result.current.errors.startDateTime).toBe('Invalid');
+    });
+  });
+
+  // ─── Location ───
+  describe('location', () => {
+    it('selects a location from suggestions', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        result.current.selectLocation({
+          display_name: 'Istanbul, Turkey',
+          lat: '41.0082',
+          lon: '28.9784',
+        });
+      });
+      expect(result.current.formData.lat).toBe(41.0082);
+      expect(result.current.formData.lon).toBe(28.9784);
+      expect(result.current.formData.address).toBe('Istanbul, Turkey');
+    });
+
+    it('clears location', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        result.current.selectLocation({
+          display_name: 'Istanbul',
+          lat: '41.0',
+          lon: '29.0',
+        });
+      });
+      await act(async () => { result.current.clearLocation(); });
+      expect(result.current.formData.lat).toBeNull();
+      expect(result.current.formData.lon).toBeNull();
+      expect(result.current.formData.address).toBe('');
+    });
+  });
+
+  // ─── Privacy ───
+  it('does not include PRIVATE in privacy options', () => {
+    const { result } = renderHook(() => useCreateEventViewModel());
+    expect(result.current.formData.privacyLevel).toBe('PUBLIC');
+    // PRIVATE should not be in the exported options - tested via import
+    const { PRIVACY_OPTIONS } = require('./useCreateEventViewModel');
+    expect(PRIVACY_OPTIONS.map((o: { value: string }) => o.value)).not.toContain('PRIVATE');
+  });
+});
+
+// ─── formatTimeInput (pure function) ───
+describe('formatTimeInput', () => {
+  it('auto-inserts colon after 2 digits', () => {
+    expect(formatTimeInput('14', '1')).toBe('14:');
+  });
+
+  it('does not auto-insert colon when deleting', () => {
+    expect(formatTimeInput('1', '14')).toBe('1');
+  });
+
+  it('strips non-digit non-colon characters and auto-formats', () => {
+    // '1a4' stripped → '14', which is 2 digits so colon is auto-inserted
+    expect(formatTimeInput('1a4', '1')).toBe('14:');
+  });
+
+  it('limits to 5 characters', () => {
+    expect(formatTimeInput('14:300', '14:30')).toBe('14:30');
+  });
+
+  it('passes through valid partial input', () => {
+    expect(formatTimeInput('1', '')).toBe('1');
+    expect(formatTimeInput('14:', '14')).toBe('14:');
+    expect(formatTimeInput('14:3', '14:')).toBe('14:3');
+    expect(formatTimeInput('14:30', '14:3')).toBe('14:30');
+  });
+});

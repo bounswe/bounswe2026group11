@@ -12,14 +12,17 @@ import {
 } from 'react-native';
 import { router, type Href } from 'expo-router';
 import { useLoginViewModel } from '@/viewmodels/auth/useLoginViewModel';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginView() {
   const vm = useLoginViewModel();
+  const { setToken } = useAuth();
 
   const handleSubmit = async () => {
     const session = await vm.handleLogin();
     if (session) {
-      router.replace('/');
+      setToken(session.access_token);
+      router.replace('/event/create' as Href);
     }
   };
 
