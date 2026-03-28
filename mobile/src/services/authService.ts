@@ -12,6 +12,7 @@ import {
   PasswordResetSuccessResponse,
   VerifyRegistrationRequest,
   AuthSessionResponse,
+  LogoutRequest,
 } from '@/models/auth';
 
 export function checkRegistrationAvailability(
@@ -40,6 +41,10 @@ export function verifyRegistration(
 
 export function login(data: LoginRequest): Promise<AuthSessionResponse> {
   return apiPost<AuthSessionResponse>('/auth/login', data);
+}
+
+export function logout(data: LogoutRequest): Promise<void> {
+  return apiPost<void>('/auth/logout', data);
 }
 
 export function requestPasswordResetOtp(

@@ -8,6 +8,7 @@ import type { CreateEventResponse } from '@/models/event';
 import {
   useCreateEventViewModel,
   formatTimeInput,
+  formatDateInput,
   TITLE_MIN_LENGTH,
   TITLE_MAX_LENGTH,
   DESCRIPTION_MIN_LENGTH,
@@ -571,6 +572,32 @@ describe('useCreateEventViewModel', () => {
     // PRIVATE should not be in the exported options - tested via import
     const { PRIVACY_OPTIONS } = require('./useCreateEventViewModel');
     expect(PRIVACY_OPTIONS.map((o: { value: string }) => o.value)).not.toContain('PRIVATE');
+  });
+});
+
+// ─── formatDateInput (pure function) ───
+describe('formatDateInput', () => {
+  it('auto-inserts dot after day and month while typing digits', () => {
+    expect(formatDateInput('1', '')).toBe('1');
+    expect(formatDateInput('12', '1')).toBe('12');
+    expect(formatDateInput('123', '12')).toBe('12.3');
+    expect(formatDateInput('1203', '123')).toBe('12.03');
+    expect(formatDateInput('12032', '1203')).toBe('12.03.2');
+    expect(formatDateInput('12032026', '1203202')).toBe('12.03.2026');
+  });
+
+  it('limits to dd.mm.yyyy (8 digits)', () => {
+    expect(formatDateInput('12032026199', '12032026')).toBe('12.03.2026');
+  });
+
+  it('formats when deleting digits', () => {
+    expect(formatDateInput('12.03', '12.03.2')).toBe('12.03');
+    expect(formatDateInput('1203', '12032')).toBe('12.03');
+    expect(formatDateInput('12032', '120320')).toBe('12.03.2');
+  });
+
+  it('strips non-digit characters', () => {
+    expect(formatDateInput('12a03b2026', '12.03.202')).toBe('12.03.2026');
   });
 });
 

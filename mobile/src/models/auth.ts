@@ -1,4 +1,3 @@
-/** Matches OpenAPI `CheckAvailabilityResponse` enum values. */
 export type AvailabilityStatus = 'AVAILABLE' | 'TAKEN';
 
 export interface CheckAvailabilityRequest {
@@ -20,33 +19,28 @@ export interface RequestOtpResponse {
   message: string;
 }
 
-/** Matches OpenAPI `ForgotPasswordRequestResponse`. */
 export interface ForgotPasswordRequestResponse {
   status: 'ok';
   message: string;
 }
 
-/** Matches OpenAPI `VerifyPasswordResetRequest`. */
 export interface VerifyPasswordResetRequest {
   email: string;
   otp: string;
 }
 
-/** Matches OpenAPI `PasswordResetGrantResponse`. */
 export interface PasswordResetGrantResponse {
   status: 'ok';
   reset_token: string;
   expires_in_seconds: number;
 }
 
-/** Matches OpenAPI `ResetPasswordRequest`. */
 export interface ResetPasswordRequest {
   email: string;
   reset_token: string;
   new_password: string;
 }
 
-/** Matches OpenAPI `PasswordResetSuccessResponse`. */
 export interface PasswordResetSuccessResponse {
   status: 'ok';
   message: string;
@@ -82,6 +76,10 @@ export interface AuthSessionResponse {
   token_type: 'Bearer';
   expires_in_seconds: number;
   user: UserSummary;
+}
+
+export interface LogoutRequest {
+  refresh_token: string;
 }
 
 export interface ErrorBody {

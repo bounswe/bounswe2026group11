@@ -115,7 +115,7 @@ export interface CreateEventViewModel {
   handleSubmit: (token: string) => Promise<CreateEventResponse | null>;
 }
 
-const INITIAL_FORM_DATA: CreateEventFormData = {
+export const INITIAL_FORM_DATA: CreateEventFormData = {
   title: '',
   description: '',
   imageUrl: '',
@@ -152,6 +152,26 @@ export function formatTimeInput(current: string, previous: string): string {
   // Limit to HH:mm format (5 chars)
   if (cleaned.length > 5) return cleaned.slice(0, 5);
   return cleaned;
+}
+
+/** Formats typing into `dd.mm.yyyy` with auto-inserted dots (like `formatTimeInput` for times). */
+function formatDigitsToDate(digits: string): string {
+  if (digits.length === 0) return '';
+  const day = digits.slice(0, 2);
+  if (digits.length <= 2) return day;
+  const month = digits.slice(2, 4);
+  if (digits.length <= 4) return `${day}.${month}`;
+  const year = digits.slice(4, 8);
+  return `${day}.${month}.${year}`;
+}
+
+export function formatDateInput(current: string, previous: string): string {
+  const digits = current.replace(/\D/g, '');
+  const prevDigits = previous.replace(/\D/g, '');
+  if (digits.length < prevDigits.length) {
+    return formatDigitsToDate(digits);
+  }
+  return formatDigitsToDate(digits.slice(0, 8));
 }
 
 function parseDateTime(date: string, time: string): string | null {
