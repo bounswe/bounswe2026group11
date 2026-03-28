@@ -38,17 +38,18 @@ export const CATEGORY_PREVIEW_COUNT = 6;
 export const PRIVACY_OPTIONS: { label: string; value: PrivacyLevel }[] = [
   { label: 'Public', value: 'PUBLIC' },
   { label: 'Protected', value: 'PROTECTED' },
-  { label: 'Private', value: 'PRIVATE' },
 ];
 
 export const CONSTRAINT_TYPES = ['gender', 'age', 'capacity', 'other'] as const;
 export type ConstraintType = (typeof CONSTRAINT_TYPES)[number];
 
+export const MAX_CONSTRAINTS = 5;
+
 export const CONSTRAINT_TYPE_LIMITS: Record<ConstraintType, number> = {
   gender: 1,
   age: 1,
   capacity: 1,
-  other: 2,
+  other: MAX_CONSTRAINTS,
 };
 
 export interface CreateEventFormData {
@@ -57,7 +58,6 @@ export interface CreateEventFormData {
   imageUrl: string;
   categoryId: number | null;
   locationQuery: string;
-  locationDescription: string;
   address: string;
   lat: number | null;
   lon: number | null;
@@ -66,8 +66,6 @@ export interface CreateEventFormData {
   endDate: string;
   endTime: string;
   privacyLevel: PrivacyLevel;
-  invitedUsernames: string[];
-  inviteUsernameInput: string;
   tags: string[];
   tagInput: string;
   constraints: EventConstraint[];
@@ -109,8 +107,6 @@ export interface CreateEventViewModel {
   selectLocation: (suggestion: LocationSuggestion) => void;
   clearLocation: () => void;
   toggleCategoriesExpanded: () => void;
-  addInvitedUsername: () => void;
-  removeInvitedUsername: (index: number) => void;
   addTag: () => void;
   removeTag: (index: number) => void;
   addGenderConstraint: (gender: 'MALE' | 'FEMALE') => void;
@@ -125,7 +121,6 @@ const INITIAL_FORM_DATA: CreateEventFormData = {
   imageUrl: '',
   categoryId: null,
   locationQuery: '',
-  locationDescription: '',
   address: '',
   lat: null,
   lon: null,
@@ -134,8 +129,6 @@ const INITIAL_FORM_DATA: CreateEventFormData = {
   endDate: '',
   endTime: '',
   privacyLevel: 'PUBLIC',
-  invitedUsernames: [],
-  inviteUsernameInput: '',
   tags: [],
   tagInput: '',
   constraints: [],
@@ -147,6 +140,20 @@ const INITIAL_FORM_DATA: CreateEventFormData = {
   otherConstraintInput: '',
 };
 
+export function formatTimeInput(current: string, previous: string): string {
+  // Strip non-digit and non-colon characters
+  const cleaned = current.replace(/[^\d:]/g, '');
+  // If user is deleting, don't auto-format
+  if (cleaned.length < previous.length) return cleaned;
+  // After typing 2 digits, auto-insert ':'
+  if (cleaned.length === 2 && !cleaned.includes(':')) {
+    return cleaned + ':';
+  }
+  // Limit to HH:mm format (5 chars)
+  if (cleaned.length > 5) return cleaned.slice(0, 5);
+  return cleaned;
+}
+
 function parseDateTime(date: string, time: string): string | null {
   if (!date || !time) return null;
   const [day, month, year] = date.split('.');
@@ -157,15 +164,31 @@ function parseDateTime(date: string, time: string): string | null {
   return parsed.toISOString();
 }
 
+export const TITLE_MIN_LENGTH = 10;
+export const TITLE_MAX_LENGTH = 60;
+export const DESCRIPTION_MIN_LENGTH = 20;
+export const DESCRIPTION_MAX_LENGTH = 600;
+export const CAPACITY_MIN = 2;
+
 function validateForm(formData: CreateEventFormData): CreateEventFormErrors {
   const errors: CreateEventFormErrors = {};
 
-  if (!formData.title.trim()) {
+  const trimmedTitle = formData.title.trim();
+  if (!trimmedTitle) {
     errors.title = 'Title is required';
+  } else if (trimmedTitle.length < TITLE_MIN_LENGTH) {
+    errors.title = `Title must be at least ${TITLE_MIN_LENGTH} characters`;
+  } else if (trimmedTitle.length > TITLE_MAX_LENGTH) {
+    errors.title = `Title must be at most ${TITLE_MAX_LENGTH} characters`;
   }
 
-  if (!formData.description.trim()) {
+  const trimmedDescription = formData.description.trim();
+  if (!trimmedDescription) {
     errors.description = 'Description is required';
+  } else if (trimmedDescription.length < DESCRIPTION_MIN_LENGTH) {
+    errors.description = `Description must be at least ${DESCRIPTION_MIN_LENGTH} characters`;
+  } else if (trimmedDescription.length > DESCRIPTION_MAX_LENGTH) {
+    errors.description = `Description must be at most ${DESCRIPTION_MAX_LENGTH} characters`;
   }
 
   if (formData.categoryId === null) {
@@ -182,6 +205,8 @@ function validateForm(formData: CreateEventFormData): CreateEventFormErrors {
     const parsed = parseDateTime(formData.startDate, formData.startTime);
     if (!parsed) {
       errors.startDateTime = 'Invalid start date/time format';
+    } else if (new Date(parsed) <= new Date()) {
+      errors.startDateTime = 'Start date must be in the future';
     }
   }
 
@@ -225,7 +250,16 @@ export function useCreateEventViewModel(): CreateEventViewModel {
   const updateField = useCallback(
     <K extends keyof CreateEventFormData>(field: K, value: CreateEventFormData[K]) => {
       setFormData((prev) => ({ ...prev, [field]: value }));
-      setErrors((prev) => ({ ...prev, [field]: null }));
+      // Map form fields to their corresponding error keys
+      const errorKeyMap: Partial<Record<keyof CreateEventFormData, keyof CreateEventFormErrors>> = {
+        startDate: 'startDateTime',
+        startTime: 'startDateTime',
+        endDate: 'endDateTime',
+        endTime: 'endDateTime',
+        locationQuery: 'location',
+      };
+      const errorKey = errorKeyMap[field] ?? field;
+      setErrors((prev) => ({ ...prev, [errorKey]: null }));
       setApiError(null);
       setSuccessMessage(null);
     },
@@ -276,28 +310,8 @@ export function useCreateEventViewModel(): CreateEventViewModel {
       address: '',
       lat: null,
       lon: null,
-      locationDescription: '',
     }));
     setLocationSuggestions([]);
-  }, []);
-
-  const addInvitedUsername = useCallback(() => {
-    setFormData((prev) => {
-      const username = prev.inviteUsernameInput.trim();
-      if (!username || prev.invitedUsernames.includes(username)) return prev;
-      return {
-        ...prev,
-        invitedUsernames: [...prev.invitedUsernames, username],
-        inviteUsernameInput: '',
-      };
-    });
-  }, []);
-
-  const removeInvitedUsername = useCallback((index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      invitedUsernames: prev.invitedUsernames.filter((_, i) => i !== index),
-    }));
   }, []);
 
   const addTag = useCallback(() => {
@@ -322,7 +336,7 @@ export function useCreateEventViewModel(): CreateEventViewModel {
 
   const addGenderConstraint = useCallback((gender: 'MALE' | 'FEMALE') => {
     setFormData((prev) => {
-      if (prev.constraints.length >= 5) return prev;
+      if (prev.constraints.length >= MAX_CONSTRAINTS) return prev;
       const genderCount = prev.constraints.filter((c) => c.type === 'gender').length;
       if (genderCount >= CONSTRAINT_TYPE_LIMITS.gender) return prev;
       const info = gender === 'MALE' ? 'Males only' : 'Females only';
@@ -337,7 +351,10 @@ export function useCreateEventViewModel(): CreateEventViewModel {
 
   const addConstraint = useCallback(() => {
     setFormData((prev) => {
-      if (prev.constraints.length >= 5) return prev;
+      if (prev.constraints.length >= MAX_CONSTRAINTS) {
+        setErrors((e) => ({ ...e, constraints: `Maximum ${MAX_CONSTRAINTS} constraints allowed` }));
+        return prev;
+      }
 
       const type = prev.constraintType;
       const typeCounts: Record<ConstraintType, number> = { gender: 0, age: 0, capacity: 0, other: 0 };
@@ -346,7 +363,10 @@ export function useCreateEventViewModel(): CreateEventViewModel {
         if (t in typeCounts) typeCounts[t]++;
       });
 
-      if (typeCounts[type] >= CONSTRAINT_TYPE_LIMITS[type]) return prev;
+      if (typeCounts[type] >= CONSTRAINT_TYPE_LIMITS[type]) {
+        setErrors((e) => ({ ...e, constraints: `Only ${CONSTRAINT_TYPE_LIMITS[type]} ${type} constraint allowed` }));
+        return prev;
+      }
 
       let info = '';
       const updates: Partial<CreateEventFormData> = {};
@@ -364,16 +384,25 @@ export function useCreateEventViewModel(): CreateEventViewModel {
           if (!min && !max) return prev;
           if (min) {
             const minNum = parseInt(min, 10);
-            if (isNaN(minNum) || minNum < 0 || minNum > 120) return prev;
+            if (isNaN(minNum) || minNum < 0 || minNum > 120) {
+              setErrors((e) => ({ ...e, constraints: 'Age must be between 0 and 120' }));
+              return prev;
+            }
           }
           if (max) {
             const maxNum = parseInt(max, 10);
-            if (isNaN(maxNum) || maxNum < 0 || maxNum > 120) return prev;
+            if (isNaN(maxNum) || maxNum < 0 || maxNum > 120) {
+              setErrors((e) => ({ ...e, constraints: 'Age must be between 0 and 120' }));
+              return prev;
+            }
           }
           if (min && max) {
             const minNum = parseInt(min, 10);
             const maxNum = parseInt(max, 10);
-            if (minNum > maxNum) return prev;
+            if (minNum > maxNum) {
+              setErrors((e) => ({ ...e, constraints: 'Minimum age cannot be greater than maximum age' }));
+              return prev;
+            }
             info = `Ages ${minNum}–${maxNum}`;
           } else if (min) {
             info = `${parseInt(min, 10)}+`;
@@ -388,7 +417,10 @@ export function useCreateEventViewModel(): CreateEventViewModel {
           const cap = prev.capacityInput.trim();
           if (!cap) return prev;
           const capNum = parseInt(cap, 10);
-          if (isNaN(capNum) || capNum <= 0) return prev;
+          if (isNaN(capNum) || capNum < CAPACITY_MIN) {
+            setErrors((e) => ({ ...e, constraints: `Capacity must be at least ${CAPACITY_MIN}` }));
+            return prev;
+          }
           info = `${capNum} participants`;
           updates.capacityInput = '';
           break;
@@ -401,6 +433,7 @@ export function useCreateEventViewModel(): CreateEventViewModel {
         }
       }
 
+      setErrors((e) => ({ ...e, constraints: null }));
       const constraint: EventConstraint = { type, info };
       return {
         ...prev,
@@ -408,7 +441,6 @@ export function useCreateEventViewModel(): CreateEventViewModel {
         constraints: [...prev.constraints, constraint],
       };
     });
-    setErrors((prev) => ({ ...prev, constraints: null }));
   }, []);
 
   const removeConstraint = useCallback((index: number) => {
@@ -467,9 +499,7 @@ export function useCreateEventViewModel(): CreateEventViewModel {
           }
         }
 
-        const address = formData.locationDescription.trim()
-          ? `${formData.address} - ${formData.locationDescription.trim()}`
-          : formData.address || undefined;
+        const address = formData.address || undefined;
 
         const request: CreateEventRequest = {
           title: formData.title.trim(),
@@ -537,8 +567,6 @@ export function useCreateEventViewModel(): CreateEventViewModel {
     selectLocation,
     clearLocation,
     toggleCategoriesExpanded,
-    addInvitedUsername,
-    removeInvitedUsername,
     addTag,
     removeTag,
     addGenderConstraint,

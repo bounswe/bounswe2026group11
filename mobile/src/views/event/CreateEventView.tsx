@@ -10,8 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   useCreateEventViewModel,
   CATEGORIES,
@@ -20,17 +21,19 @@ import {
   CONSTRAINT_TYPES,
   CONSTRAINT_TYPE_LIMITS,
   ConstraintType,
+  formatTimeInput,
+  TITLE_MAX_LENGTH,
+  DESCRIPTION_MAX_LENGTH,
 } from '@/viewmodels/event/useCreateEventViewModel';
 
 export default function CreateEventView() {
   const vm = useCreateEventViewModel();
+  const { token } = useAuth();
 
   const handleCreate = async () => {
-    // TODO: Replace with actual token from auth context
-    const token = '';
-    const result = await vm.handleSubmit(token);
+    const result = await vm.handleSubmit(token ?? '');
     if (result) {
-      router.back();
+      router.replace('/' as Href);
     }
   };
 
@@ -62,7 +65,7 @@ export default function CreateEventView() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.replace('/' as Href)} style={styles.backButton}>
             <Text style={styles.backArrow}>{'<'}</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Create Event</Text>
@@ -101,6 +104,7 @@ export default function CreateEventView() {
             placeholderTextColor="#9CA3AF"
             value={vm.formData.title}
             onChangeText={(v) => vm.updateField('title', v)}
+            maxLength={TITLE_MAX_LENGTH}
             editable={!vm.isLoading}
           />
           {vm.errors.title && (
@@ -123,6 +127,7 @@ export default function CreateEventView() {
             placeholderTextColor="#9CA3AF"
             value={vm.formData.description}
             onChangeText={(v) => vm.updateField('description', v)}
+            maxLength={DESCRIPTION_MAX_LENGTH}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
@@ -225,16 +230,6 @@ export default function CreateEventView() {
               ))}
             </View>
           )}
-          {vm.formData.lat !== null && (
-            <TextInput
-              style={[styles.input, { marginTop: 8 }]}
-              placeholder="Location description (optional)"
-              placeholderTextColor="#9CA3AF"
-              value={vm.formData.locationDescription}
-              onChangeText={(v) => vm.updateField('locationDescription', v)}
-              editable={!vm.isLoading}
-            />
-          )}
           {vm.errors.location && (
             <Text style={styles.fieldError}>{vm.errors.location}</Text>
           )}
@@ -270,8 +265,9 @@ export default function CreateEventView() {
                 placeholder="HH:mm"
                 placeholderTextColor="#9CA3AF"
                 value={vm.formData.startTime}
-                onChangeText={(v) => vm.updateField('startTime', v)}
+                onChangeText={(v) => vm.updateField('startTime', formatTimeInput(v, vm.formData.startTime))}
                 keyboardType="numbers-and-punctuation"
+                maxLength={5}
                 editable={!vm.isLoading}
               />
             </View>
@@ -309,8 +305,9 @@ export default function CreateEventView() {
                 placeholder="HH:mm"
                 placeholderTextColor="#9CA3AF"
                 value={vm.formData.endTime}
-                onChangeText={(v) => vm.updateField('endTime', v)}
+                onChangeText={(v) => vm.updateField('endTime', formatTimeInput(v, vm.formData.endTime))}
                 keyboardType="numbers-and-punctuation"
+                maxLength={5}
                 editable={!vm.isLoading}
               />
             </View>
@@ -350,68 +347,6 @@ export default function CreateEventView() {
             ))}
           </View>
 
-          {/* Invite users (Private only) */}
-          {vm.formData.privacyLevel === 'PRIVATE' && (
-            <View style={styles.inviteSection}>
-              <Text style={styles.label}>Invite Users</Text>
-              <View style={styles.tagInputRow}>
-                <TextInput
-                  style={[styles.input, styles.tagInput]}
-                  placeholder="Search username..."
-                  placeholderTextColor="#9CA3AF"
-                  value={vm.formData.inviteUsernameInput}
-                  onChangeText={(v) => vm.updateField('inviteUsernameInput', v)}
-                  onSubmitEditing={vm.addInvitedUsername}
-                  autoCapitalize="none"
-                  editable={!vm.isLoading}
-                />
-                <TouchableOpacity
-                  style={[
-                    styles.addButton,
-                    !vm.formData.inviteUsernameInput.trim() && styles.addButtonDisabled,
-                  ]}
-                  onPress={vm.addInvitedUsername}
-                  disabled={!vm.formData.inviteUsernameInput.trim()}
-                >
-                  <Text style={styles.addButtonText}>+</Text>
-                </TouchableOpacity>
-              </View>
-              {vm.formData.invitedUsernames.length > 0 && (
-                <View style={styles.invitedListWrapper}>
-                  <ScrollView
-                    style={styles.invitedListScroll}
-                    nestedScrollEnabled
-                    showsVerticalScrollIndicator
-                  >
-                    {vm.formData.invitedUsernames.map((u, i) => (
-                      <View key={`${u}-${i}`} style={styles.invitedCard}>
-                        <View style={styles.invitedAvatar}>
-                          <Text style={styles.invitedAvatarText}>
-                            {u.charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
-                        <View style={styles.invitedInfo}>
-                          <Text style={styles.invitedName}>{u}</Text>
-                          <Text style={styles.invitedUsername}>@{u}</Text>
-                        </View>
-                        <TouchableOpacity
-                          style={styles.invitedRemoveBtn}
-                          onPress={() => vm.removeInvitedUsername(i)}
-                        >
-                          <MaterialIcons name="close" size={16} color="#9CA3AF" />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </ScrollView>
-                  {vm.formData.invitedUsernames.length > 3 && (
-                    <Text style={styles.invitedCountHint}>
-                      {vm.formData.invitedUsernames.length} users invited
-                    </Text>
-                  )}
-                </View>
-              )}
-            </View>
-          )}
         </View>
 
         {/* Tags */}
@@ -912,61 +847,6 @@ const styles = StyleSheet.create({
   },
   privacyOptionTextSelected: {
     color: '#FFFFFF',
-  },
-  inviteSection: {
-    marginTop: 12,
-  },
-  invitedListWrapper: {
-    marginTop: 10,
-  },
-  invitedListScroll: {
-    maxHeight: 180,
-  },
-  invitedCountHint: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  invitedCard: {
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  invitedAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#D1D5DB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  invitedAvatarText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  invitedInfo: {
-    flex: 1,
-  },
-  invitedName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  invitedUsername: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  invitedRemoveBtn: {
-    padding: 6,
   },
   tagInputRow: {
     flexDirection: 'row',
