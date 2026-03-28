@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_event_discovery_start_time_active_visible;

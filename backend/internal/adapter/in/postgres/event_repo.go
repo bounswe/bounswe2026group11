@@ -222,6 +222,265 @@ func buildRouteWKT(points []domain.GeoPoint) string {
 	return "SRID=4326;LINESTRING(" + strings.Join(segments, ", ") + ")"
 }
 
+// ListDiscoverableEvents returns nearby ACTIVE PUBLIC/PROTECTED events using
+// combined full-text search, structured filters, and keyset pagination.
+func (r *EventRepository) ListDiscoverableEvents(
+	ctx context.Context,
+	userID uuid.UUID,
+	params eventapp.DiscoverEventsParams,
+) ([]eventapp.DiscoverableEventRecord, error) {
+	args := make([]any, 0, 12)
+	addArg := func(value any) string {
+		args = append(args, value)
+		return fmt.Sprintf("$%d", len(args))
+	}
+
+	lonPlaceholder := addArg(params.Origin.Lon)
+	latPlaceholder := addArg(params.Origin.Lat)
+	userPlaceholder := addArg(userID)
+	statusPlaceholder := addArg(string(domain.EventStatusActive))
+	privacyPlaceholder := addArg(toPrivacyLevelStringSlice(params.PrivacyLevels))
+	radiusPlaceholder := addArg(params.RadiusMeters)
+
+	originExpr := fmt.Sprintf("ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography", lonPlaceholder, latPlaceholder)
+	searchVectorExpr := "COALESCE(e.search_vector, ''::tsvector)"
+	routeAnchorExpr := "ST_StartPoint(el.geom::geometry)::geography"
+	distanceSourceExpr := fmt.Sprintf(
+		"CASE WHEN e.location_type = '%s' THEN %s ELSE el.geom END",
+		domain.LocationRoute,
+		routeAnchorExpr,
+	)
+	distanceExpr := fmt.Sprintf("ST_Distance(%s, %s)", distanceSourceExpr, originExpr)
+	routeRadiusExpr := fmt.Sprintf(
+		`EXISTS (
+			SELECT 1
+			FROM ST_DumpPoints(el.geom::geometry) AS route_point
+			WHERE ST_DWithin(route_point.geom::geography, %s, %s)
+		)`,
+		originExpr,
+		radiusPlaceholder,
+	)
+	relevanceExpr := "NULL::double precision"
+
+	filters := []string{
+		fmt.Sprintf("e.status = %s", statusPlaceholder),
+		fmt.Sprintf("e.privacy_level = ANY(%s::text[])", privacyPlaceholder),
+		fmt.Sprintf(
+			"((e.location_type = '%s' AND %s) OR (e.location_type <> '%s' AND ST_DWithin(el.geom, %s, %s)))",
+			domain.LocationRoute,
+			routeRadiusExpr,
+			domain.LocationRoute,
+			originExpr,
+			radiusPlaceholder,
+		),
+	}
+
+	if params.SearchTSQuery != "" {
+		queryPlaceholder := addArg(params.SearchTSQuery)
+		filters = append(filters, fmt.Sprintf("%s @@ to_tsquery('simple', %s)", searchVectorExpr, queryPlaceholder))
+		relevanceExpr = fmt.Sprintf("ts_rank_cd(%s, to_tsquery('simple', %s))::double precision", searchVectorExpr, queryPlaceholder)
+	}
+
+	if len(params.CategoryIDs) > 0 {
+		filters = append(filters, fmt.Sprintf(
+			"e.category_id::bigint = ANY(%s::bigint[])",
+			addArg(toInt64Slice(params.CategoryIDs)),
+		))
+	}
+
+	if params.StartFrom != nil {
+		filters = append(filters, fmt.Sprintf("e.start_time >= %s", addArg(*params.StartFrom)))
+	}
+
+	if params.StartTo != nil {
+		filters = append(filters, fmt.Sprintf("e.start_time <= %s", addArg(*params.StartTo)))
+	}
+
+	if len(params.TagNames) > 0 {
+		filters = append(filters, fmt.Sprintf(
+			`EXISTS (
+				SELECT 1
+				FROM event_tag et
+				WHERE et.event_id = e.id
+				  AND LOWER(et.name) = ANY(%s::text[])
+			)`,
+			addArg(params.TagNames),
+		))
+	}
+
+	if params.OnlyFavorited {
+		filters = append(filters, "fav.event_id IS NOT NULL")
+	}
+
+	paginationClause, orderByClause := buildDiscoverEventsPagination(params, addArg)
+	limitPlaceholder := addArg(params.RepositoryFetchLimit)
+
+	query := fmt.Sprintf(`
+		WITH base AS (
+			SELECT
+				e.id,
+				e.title,
+				COALESCE(ec.name, '') AS category_name,
+				e.image_url,
+				e.start_time,
+				el.address AS location_address,
+				e.privacy_level,
+				e.approved_participant_count,
+				(fav.event_id IS NOT NULL) AS is_favorited,
+				%s AS distance_meters,
+				%s AS relevance_score
+			FROM event e
+			JOIN event_location el ON el.event_id = e.id
+			LEFT JOIN event_category ec ON ec.id = e.category_id
+			LEFT JOIN favorite_event fav ON fav.event_id = e.id AND fav.user_id = %s
+			WHERE %s
+		)
+		SELECT
+			id,
+			title,
+			category_name,
+			image_url,
+			start_time,
+			location_address,
+			privacy_level,
+			approved_participant_count,
+			is_favorited,
+			distance_meters,
+			relevance_score
+		FROM base
+		%s
+		ORDER BY %s
+		LIMIT %s
+	`, distanceExpr, relevanceExpr, userPlaceholder, strings.Join(filters, "\n			AND "), paginationClause, orderByClause, limitPlaceholder)
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list discoverable events: %w", err)
+	}
+	defer rows.Close()
+
+	records := make([]eventapp.DiscoverableEventRecord, 0, params.RepositoryFetchLimit)
+	for rows.Next() {
+		var (
+			id                       uuid.UUID
+			title                    string
+			categoryName             string
+			imageURL                 pgtype.Text
+			startTime                time.Time
+			locationAddress          pgtype.Text
+			privacyLevel             string
+			approvedParticipantCount int
+			isFavorited              bool
+			distanceMeters           float64
+			relevanceScore           pgtype.Float8
+		)
+
+		if err := rows.Scan(
+			&id,
+			&title,
+			&categoryName,
+			&imageURL,
+			&startTime,
+			&locationAddress,
+			&privacyLevel,
+			&approvedParticipantCount,
+			&isFavorited,
+			&distanceMeters,
+			&relevanceScore,
+		); err != nil {
+			return nil, fmt.Errorf("scan discoverable event: %w", err)
+		}
+
+		record := eventapp.DiscoverableEventRecord{
+			ID:                       id,
+			Title:                    title,
+			CategoryName:             categoryName,
+			StartTime:                startTime,
+			PrivacyLevel:             domain.EventPrivacyLevel(privacyLevel),
+			ApprovedParticipantCount: approvedParticipantCount,
+			IsFavorited:              isFavorited,
+			DistanceMeters:           distanceMeters,
+		}
+		if imageURL.Valid {
+			record.ImageURL = &imageURL.String
+		}
+		if locationAddress.Valid {
+			record.LocationAddress = &locationAddress.String
+		}
+		if relevanceScore.Valid {
+			record.RelevanceScore = &relevanceScore.Float64
+		}
+
+		records = append(records, record)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate discoverable events: %w", err)
+	}
+
+	return records, nil
+}
+
+func buildDiscoverEventsPagination(
+	params eventapp.DiscoverEventsParams,
+	addArg func(value any) string,
+) (string, string) {
+	switch params.SortBy {
+	case domain.EventDiscoverySortDistance:
+		if params.DecodedCursor == nil {
+			return "", "base.distance_meters ASC, base.start_time ASC, base.id ASC"
+		}
+
+		return fmt.Sprintf(
+				"WHERE (base.distance_meters, base.start_time, base.id) > (%s, %s, %s)",
+				addArg(*params.DecodedCursor.DistanceMeters),
+				addArg(params.DecodedCursor.StartTime),
+				addArg(params.DecodedCursor.EventID),
+			),
+			"base.distance_meters ASC, base.start_time ASC, base.id ASC"
+	case domain.EventDiscoverySortRelevance:
+		if params.DecodedCursor == nil {
+			return "", "base.relevance_score DESC, base.distance_meters ASC, base.start_time ASC, base.id ASC"
+		}
+
+		return fmt.Sprintf(
+				"WHERE ((base.relevance_score * -1), base.distance_meters, base.start_time, base.id) > (%s, %s, %s, %s)",
+				addArg(-*params.DecodedCursor.RelevanceScore),
+				addArg(*params.DecodedCursor.DistanceMeters),
+				addArg(params.DecodedCursor.StartTime),
+				addArg(params.DecodedCursor.EventID),
+			),
+			"base.relevance_score DESC, base.distance_meters ASC, base.start_time ASC, base.id ASC"
+	default:
+		if params.DecodedCursor == nil {
+			return "", "base.start_time ASC, base.id ASC"
+		}
+
+		return fmt.Sprintf(
+				"WHERE (base.start_time, base.id) > (%s, %s)",
+				addArg(params.DecodedCursor.StartTime),
+				addArg(params.DecodedCursor.EventID),
+			),
+			"base.start_time ASC, base.id ASC"
+	}
+}
+
+func toInt64Slice(values []int) []int64 {
+	converted := make([]int64, len(values))
+	for i, value := range values {
+		converted[i] = int64(value)
+	}
+	return converted
+}
+
+func toPrivacyLevelStringSlice(values []domain.EventPrivacyLevel) []string {
+	converted := make([]string, len(values))
+	for i, value := range values {
+		converted[i] = string(value)
+	}
+	return converted
+}
+
 // GetEventByID fetches a single event row by its primary key.
 // Returns domain.ErrNotFound when no matching row exists.
 func (r *EventRepository) GetEventByID(ctx context.Context, eventID uuid.UUID) (*domain.Event, error) {

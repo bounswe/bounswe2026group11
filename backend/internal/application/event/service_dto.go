@@ -50,6 +50,48 @@ type CreateEventResult struct {
 	CreatedAt    time.Time  `json:"created_at"`
 }
 
+// DiscoverEventsInput is the validated input for event discovery and search.
+type DiscoverEventsInput struct {
+	Lat           *float64
+	Lon           *float64
+	RadiusMeters  *int
+	Query         *string
+	PrivacyLevels []domain.EventPrivacyLevel
+	CategoryIDs   []int
+	StartFrom     *time.Time
+	StartTo       *time.Time
+	TagNames      []string
+	OnlyFavorited bool
+	SortBy        *domain.EventDiscoverySort
+	Limit         *int
+	Cursor        *string
+}
+
+// DiscoverEventsResult is returned after a successful event discovery query.
+type DiscoverEventsResult struct {
+	Items    []DiscoverableEventItem `json:"items"`
+	PageInfo DiscoverEventsPageInfo  `json:"page_info"`
+}
+
+// DiscoverableEventItem is the compact event-card payload returned by discovery.
+type DiscoverableEventItem struct {
+	ID                       string    `json:"id"`
+	Title                    string    `json:"title"`
+	CategoryName             string    `json:"category_name"`
+	ImageURL                 *string   `json:"image_url"`
+	StartTime                time.Time `json:"start_time"`
+	LocationAddress          *string   `json:"location_address"`
+	PrivacyLevel             string    `json:"privacy_level"`
+	ApprovedParticipantCount int       `json:"approved_participant_count"`
+	IsFavorited              bool      `json:"is_favorited"`
+}
+
+// DiscoverEventsPageInfo contains cursor pagination metadata.
+type DiscoverEventsPageInfo struct {
+	NextCursor *string `json:"next_cursor"`
+	HasNext    bool    `json:"has_next"`
+}
+
 // JoinEventResult is returned after a user successfully joins a public event.
 type JoinEventResult struct {
 	ParticipationID string    `json:"participation_id"`
