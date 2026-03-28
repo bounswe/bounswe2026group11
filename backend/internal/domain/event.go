@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,6 +39,41 @@ const (
 	MinRoutePoints      = 2
 )
 
+var eventPrivacyLevels = map[string]EventPrivacyLevel{
+	string(PrivacyPublic):    PrivacyPublic,
+	string(PrivacyProtected): PrivacyProtected,
+	string(PrivacyPrivate):   PrivacyPrivate,
+}
+
+var eventLocationTypes = map[string]EventLocationType{
+	string(LocationPoint): LocationPoint,
+	string(LocationRoute): LocationRoute,
+}
+
+var eventParticipantGenders = map[string]EventParticipantGender{
+	string(GenderMale):   GenderMale,
+	string(GenderFemale): GenderFemale,
+	string(GenderOther):  GenderOther,
+}
+
+// ParseEventPrivacyLevel converts a wire string to an EventPrivacyLevel.
+func ParseEventPrivacyLevel(value string) (EventPrivacyLevel, bool) {
+	level, ok := eventPrivacyLevels[value]
+	return level, ok
+}
+
+// ParseEventLocationType converts a wire string to an EventLocationType.
+func ParseEventLocationType(value string) (EventLocationType, bool) {
+	locationType, ok := eventLocationTypes[value]
+	return locationType, ok
+}
+
+// ParseEventParticipantGender converts a wire string to an EventParticipantGender.
+func ParseEventParticipantGender(value string) (EventParticipantGender, bool) {
+	gender, ok := eventParticipantGenders[value]
+	return gender, ok
+}
+
 // GeoPoint is a single WGS84 coordinate used for event locations.
 type GeoPoint struct {
 	Lat float64
@@ -48,53 +82,21 @@ type GeoPoint struct {
 
 // Event is the core event entity.
 type Event struct {
-	ID              uuid.UUID
-	HostID          uuid.UUID
-	Title           string
-	Description     *string
-	ImageURL        *string
-	CategoryID      *int
-	StartTime       time.Time
-	EndTime         *time.Time
-	PrivacyLevel    EventPrivacyLevel
-	Status          EventStatus
-	Capacity        *int
-	MinimumAge      *int
-	PreferredGender *EventParticipantGender
-	LocationType    *EventLocationType
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-}
-
-// CreateEventParams carries all data needed to persist a new event and its
-// related location, tags, and constraints in a single transaction.
-type CreateEventParams struct {
-	HostID          uuid.UUID
-	Title           string
-	Description     string
-	ImageURL        *string
-	CategoryID      int
-	StartTime       time.Time
-	EndTime         *time.Time
-	PrivacyLevel    EventPrivacyLevel
-	Capacity        *int
-	MinimumAge      *int
-	PreferredGender *EventParticipantGender
-	LocationType    EventLocationType
-	Address         *string
-	Point           *GeoPoint
-	RoutePoints     []GeoPoint
-	Tags            []string
-	Constraints     []EventConstraintParams
-}
-
-// EventConstraintParams is a single constraint to attach to an event.
-type EventConstraintParams struct {
-	Type string
-	Info string
-}
-
-// EventRepository is the driven port for event persistence.
-type EventRepository interface {
-	CreateEvent(ctx context.Context, params CreateEventParams) (*Event, error)
+	ID                       uuid.UUID
+	HostID                   uuid.UUID
+	Title                    string
+	Description              *string
+	ImageURL                 *string
+	CategoryID               *int
+	StartTime                time.Time
+	EndTime                  *time.Time
+	PrivacyLevel             EventPrivacyLevel
+	Status                   EventStatus
+	Capacity                 *int
+	ApprovedParticipantCount int
+	MinimumAge               *int
+	PreferredGender          *EventParticipantGender
+	LocationType             *EventLocationType
+	CreatedAt                time.Time
+	UpdatedAt                time.Time
 }

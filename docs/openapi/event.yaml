@@ -22,6 +22,234 @@ tags:
   - name: Events
     description: Event creation and related request/response contracts.
 paths:
+  /events/{id}/join:
+    post:
+      tags: [Events]
+      summary: Join a public event
+      description: |
+        Directly joins a **PUBLIC** event. Creates an APPROVED participation record for the
+        authenticated user.
+
+        Rules:
+        - The event must exist and have `privacy_level: PUBLIC`.
+        - The authenticated user must not be the event host.
+        - A user can only join the same event once; a second attempt returns `409`.
+        - Calling this endpoint on a `PROTECTED` event returns `409 event_join_not_allowed`.
+      operationId: joinEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event to join.
+          example: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+      responses:
+        '201':
+          description: Successfully joined the event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinEventResponse'
+              examples:
+                joined:
+                  value:
+                    participation_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                    event_id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                    status: APPROVED
+                    created_at: "2026-03-26T11:00:00+03:00"
+        '400':
+          description: Invalid event ID format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                invalid_id:
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        id: must be a valid UUID
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: The event host cannot join their own event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                host_cannot_join:
+                  value:
+                    error:
+                      code: host_cannot_join
+                      message: The event host cannot join their own event.
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                not_found:
+                  value:
+                    error:
+                      code: event_not_found
+                      message: The requested event does not exist.
+        '409':
+          description: |
+            Conflict. Either the user is already participating (`already_participating`) or
+            the event privacy level does not allow direct join (`event_join_not_allowed`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                already_participating:
+                  value:
+                    error:
+                      code: already_participating
+                      message: You are already participating in this event.
+                event_join_not_allowed:
+                  value:
+                    error:
+                      code: event_join_not_allowed
+                      message: Only PUBLIC events can be joined directly.
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/join-request:
+    post:
+      tags: [Events]
+      summary: Request to join a protected event
+      description: |
+        Submits a join request for a **PROTECTED** event. Creates a `join_request`
+        row with `status: PENDING` awaiting host approval.
+
+        Rules:
+        - The event must exist and have `privacy_level: PROTECTED`.
+        - The authenticated user must not be the event host.
+        - A user can only submit one pending request per event; a second attempt returns `409`.
+        - Calling this endpoint on a `PUBLIC` event returns `409 event_join_not_allowed`.
+      operationId: requestJoinEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event to request joining.
+          example: 7a2c8b1e-3d4f-5e6a-bcde-f90123456789
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestJoinRequest'
+            examples:
+              with_message:
+                value:
+                  message: I have attended similar events and can help with setup.
+      responses:
+        '201':
+          description: Join request created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestJoinResponse'
+              examples:
+                requested:
+                  value:
+                    join_request_id: b2c3d4e5-f6a7-8901-bcde-f01234567890
+                    event_id: 7a2c8b1e-3d4f-5e6a-bcde-f90123456789
+                    status: PENDING
+                    created_at: "2026-03-26T12:00:00+03:00"
+        '400':
+          description: Invalid event ID format or malformed JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                invalid_id:
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        id: must be a valid UUID
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: The event host cannot request to join their own event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                host_cannot_join:
+                  value:
+                    error:
+                      code: host_cannot_join
+                      message: The event host cannot request to join their own event.
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                not_found:
+                  value:
+                    error:
+                      code: event_not_found
+                      message: The requested event does not exist.
+        '409':
+          description: |
+            Conflict. Either the user already has a pending request (`already_requested`) or
+            the event privacy level does not allow join requests (`event_join_not_allowed`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                already_requested:
+                  value:
+                    error:
+                      code: already_requested
+                      message: You already have a pending join request for this event.
+                event_join_not_allowed:
+                  value:
+                    error:
+                      code: event_join_not_allowed
+                      message: Only PROTECTED events accept join requests.
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /events:
     post:
       tags: [Events]
@@ -437,3 +665,64 @@ components:
           additionalProperties:
             type: string
           description: Optional field-level validation details keyed by field name.
+
+    JoinEventResponse:
+      type: object
+      additionalProperties: false
+      required: [participation_id, event_id, status, created_at]
+      properties:
+        participation_id:
+          type: string
+          format: uuid
+          description: UUID of the newly created participation record.
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        event_id:
+          type: string
+          format: uuid
+          description: UUID of the joined event.
+          example: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+        status:
+          type: string
+          enum: [APPROVED]
+          description: Participation status. Always `APPROVED` for direct joins of public events.
+          example: APPROVED
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-03-26T11:00:00+03:00"
+
+    RequestJoinRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        message:
+          type:
+            - string
+            - "null"
+          description: Optional note from the requester to the event host. Omit or send `null` when no message is needed.
+          example: I have attended similar events and can help with setup.
+
+    RequestJoinResponse:
+      type: object
+      additionalProperties: false
+      required: [join_request_id, event_id, status, created_at]
+      properties:
+        join_request_id:
+          type: string
+          format: uuid
+          description: UUID of the newly created join request.
+          example: b2c3d4e5-f6a7-8901-bcde-f01234567890
+        event_id:
+          type: string
+          format: uuid
+          description: UUID of the requested event.
+          example: 7a2c8b1e-3d4f-5e6a-bcde-f90123456789
+        status:
+          type: string
+          enum: [PENDING]
+          description: Join request status. Always `PENDING` until approved or rejected by the host.
+          example: PENDING
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-03-26T12:00:00+03:00"

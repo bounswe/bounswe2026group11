@@ -22,28 +22,6 @@ type RefreshToken struct {
 	UpdatedAt    time.Time
 }
 
-// CreateRefreshTokenParams carries the fields required to persist a new refresh token.
-type CreateRefreshTokenParams struct {
-	UserID     uuid.UUID
-	FamilyID   uuid.UUID
-	TokenHash  string
-	CreatedAt  time.Time
-	ExpiresAt  time.Time
-	DeviceInfo *string
-}
-
-// TokenIssuer creates short-lived access tokens (e.g. JWTs) for authenticated users.
-type TokenIssuer interface {
-	IssueAccessToken(user User, issuedAt time.Time) (token string, expiresInSeconds int64, err error)
-}
-
-// RefreshTokenManager generates cryptographically random refresh tokens and
-// produces deterministic hashes for storage and lookup.
-type RefreshTokenManager interface {
-	NewToken() (plain string, hash string, err error)
-	HashToken(token string) string
-}
-
 // AuthClaims holds the verified identity extracted from an access token.
 type AuthClaims struct {
 	UserID   uuid.UUID

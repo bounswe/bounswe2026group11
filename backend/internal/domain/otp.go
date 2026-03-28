@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,27 +29,4 @@ type OTPChallenge struct {
 	AttemptCount int
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
-}
-
-// UpsertOTPChallengeParams carries the fields needed to insert or update an
-// unconsumed OTP challenge for the same (destination, purpose) pair.
-type UpsertOTPChallengeParams struct {
-	UserID      *uuid.UUID
-	Channel     string
-	Destination string
-	Purpose     string
-	CodeHash    string
-	ExpiresAt   time.Time
-	UpdatedAt   time.Time
-}
-
-// OTPCodeGenerator produces a new random OTP code string (e.g. a 6-digit number).
-type OTPCodeGenerator interface {
-	NewCode() string
-}
-
-// OTPMailer delivers OTP codes to the user via an external channel (e.g. email).
-type OTPMailer interface {
-	SendRegistrationOTP(ctx context.Context, email, code string) error
-	SendPasswordResetOTP(ctx context.Context, email, code string) error
 }

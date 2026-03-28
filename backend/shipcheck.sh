@@ -66,7 +66,7 @@ if [[ "${SKIP_INTEGRATION:-}" == "1" ]]; then
   printf '\nWARN: SKIP_INTEGRATION=1 — integration tests were not run.\n' >&2
 else
   step "Integration tests (race, -tags=integration; Docker must be running)"
-  go test -race -count=1 -tags=integration ./tests/integration/...
+  go test -race -count=1 -tags=integration ./tests_integration/...
 fi
 
 step "All backend checks passed."
