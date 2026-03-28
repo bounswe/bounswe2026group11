@@ -48,15 +48,3 @@ func (u User) Summary() UserSummary {
 		Status:        u.Status,
 	}
 }
-
-// CreateUserParams carries the fields required to insert a new user row.
-type CreateUserParams struct {
-	Username        string
-	Email           string
-	PhoneNumber     *string
-	Gender          *string
-	BirthDate       *time.Time
-	PasswordHash    string
-	EmailVerifiedAt time.Time
-	Status          string
-}

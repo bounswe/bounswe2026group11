@@ -4,30 +4,37 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/driven/hasher"
-	jwtadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/driven/jwt"
-	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/driven/otp"
-	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/driven/postgres"
-	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/driven/ratelimit"
-	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/driven/security"
-	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/driving/httpapi"
-	"github.com/bounswe/bounswe2026group11/backend/internal/app/auth"
-	"github.com/bounswe/bounswe2026group11/backend/internal/app/event"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/hasher"
+	jwtadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/jwt"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/otp"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/postgres"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/ratelimit"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/security"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
-	"github.com/bounswe/bounswe2026group11/backend/internal/platform/config"
-	"github.com/bounswe/bounswe2026group11/backend/internal/platform/database"
+	"github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config"
+	"github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/database"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Container is the backend composition root. It owns long-lived infrastructure
 // dependencies and exposes application services to the delivery layer.
 type Container struct {
-	Config        *config.Config
-	DB            *pgxpool.Pool
-	TokenIssuer   domain.TokenIssuer
-	TokenVerifier domain.TokenVerifier
-	AuthService   httpapi.AuthService
-	EventService  httpapi.EventService
+	Config               *config.Config
+	DB                   *pgxpool.Pool
+	TokenIssuer          auth.TokenIssuer
+	TokenVerifier        domain.TokenVerifier
+	authRepo             *postgres.AuthRepository
+	eventRepo            *postgres.EventRepository
+	participationRepo    *postgres.ParticipationRepository
+	joinRequestRepo      *postgres.JoinRequestRepository
+	AuthService          auth.UseCase
+	EventService         event.UseCase
+	ParticipationService participation.UseCase
+	JoinRequestService   join_request.UseCase
 	// Extend with additional services as features are added, for example:
 	// SearchService httpapi.SearchService
 }
@@ -51,6 +58,12 @@ func New(ctx context.Context) (*Container, error) {
 		TokenIssuer:   buildTokenIssuer(cfg),
 		TokenVerifier: buildTokenVerifier(cfg),
 	}
+	container.authRepo = postgres.NewAuthRepository(container.DB)
+	container.eventRepo = postgres.NewEventRepository(container.DB)
+	container.participationRepo = postgres.NewParticipationRepository(container.DB)
+	container.joinRequestRepo = postgres.NewJoinRequestRepository(container.DB)
+	container.ParticipationService = newParticipationService(container)
+	container.JoinRequestService = newJoinRequestService(container)
 	container.AuthService = newAuthService(container)
 	container.EventService = newEventService(container)
 	return container, nil
@@ -79,17 +92,27 @@ func buildTokenVerifier(cfg *config.Config) jwtadapter.Verifier {
 	}
 }
 
-// newEventService wires the event use-case service with its driven adapters.
-func newEventService(c *Container) *event.Service {
-	repo := postgres.NewEventRepository(c.DB)
-	return event.NewService(repo)
+// newEventService wires the event use case with its driven adapters.
+func newEventService(c *Container) event.UseCase {
+	return event.NewService(c.eventRepo, c.ParticipationService, c.JoinRequestService)
+}
+
+// newParticipationService wires the participation use-case service with its
+// driven adapter.
+func newParticipationService(c *Container) participation.UseCase {
+	return participation.NewService(c.participationRepo)
+}
+
+// newJoinRequestService wires the join request use-case service with its
+// driven adapter.
+func newJoinRequestService(c *Container) join_request.UseCase {
+	return join_request.NewService(c.joinRequestRepo)
 }
 
 // newAuthService wires the auth use-case service with its driven adapters.
-func newAuthService(c *Container) *auth.Service {
-	repo := postgres.NewAuthRepository(c.DB)
+func newAuthService(c *Container) auth.UseCase {
 	return auth.NewService(
-		repo,
+		c.authRepo,
 		hasher.BcryptHasher{},
 		hasher.BcryptHasher{},
 		c.TokenIssuer,

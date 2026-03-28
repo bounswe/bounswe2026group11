@@ -7,8 +7,6 @@ Read `/AGENTS.md` first, then use this file for backend work.
 - Before implementation, identify which backend layers, modules, and contracts will be affected. Make a short plan based on that impact analysis.
 - Check `frontend/` or `mobile/` only when you need to understand an existing user flow, API consumption pattern, or contract expectation. Do not spend context on those surfaces unless it is necessary.
 - Prefer changes that preserve or improve the current clean architecture and hexagonal architecture boundaries.
-- If the area you need to change does not currently follow those boundaries well, do not make it worse.
-- If the requested feature would be significantly cleaner with a local refactor, stop and ask for approval before reshaping that part of the codebase. After approval, place the new feature inside the improved structure instead of adding more ad hoc logic.
 - Write code that is aligned with SOLID, DRY, scalability, and long-term maintainability.
 - Use explicit, meaningful names for variables, methods, services, and types. Keep naming consistent with the existing backend structure and domain language.
 - For enumerated values (constants, domain status/type strings, API and OpenAPI enum values), use **UPPERCASE** identifiers and wire/string values (for example `PUBLISHED`, `DRAFT`).
