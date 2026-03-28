@@ -92,6 +92,111 @@ type DiscoverEventsPageInfo struct {
 	HasNext    bool    `json:"has_next"`
 }
 
+// GetEventDetailResult is the full event payload used by the detail page.
+type GetEventDetailResult struct {
+	ID                       string                   `json:"id"`
+	Title                    string                   `json:"title"`
+	Description              *string                  `json:"description"`
+	ImageURL                 *string                  `json:"image_url"`
+	PrivacyLevel             string                   `json:"privacy_level"`
+	Status                   string                   `json:"status"`
+	StartTime                time.Time                `json:"start_time"`
+	EndTime                  *time.Time               `json:"end_time"`
+	Capacity                 *int                     `json:"capacity"`
+	MinimumAge               *int                     `json:"minimum_age"`
+	PreferredGender          *string                  `json:"preferred_gender"`
+	ApprovedParticipantCount int                      `json:"approved_participant_count"`
+	PendingParticipantCount  int                      `json:"pending_participant_count"`
+	FavoriteCount            int                      `json:"favorite_count"`
+	CreatedAt                time.Time                `json:"created_at"`
+	UpdatedAt                time.Time                `json:"updated_at"`
+	Category                 *EventDetailCategory     `json:"category"`
+	Host                     EventDetailPerson        `json:"host"`
+	Location                 EventDetailLocation      `json:"location"`
+	Tags                     []string                 `json:"tags"`
+	Constraints              []EventDetailConstraint  `json:"constraints"`
+	ViewerContext            EventDetailViewerContext `json:"viewer_context"`
+	HostContext              *EventDetailHostContext  `json:"host_context,omitempty"`
+}
+
+// EventDetailCategory is the category object returned by event detail responses.
+type EventDetailCategory struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+// EventDetailPerson is the safe user summary returned in event detail responses.
+type EventDetailPerson struct {
+	ID          string  `json:"id"`
+	Username    string  `json:"username"`
+	DisplayName *string `json:"display_name"`
+	AvatarURL   *string `json:"avatar_url"`
+}
+
+// EventDetailLocation is the event location payload used by the detail page.
+type EventDetailLocation struct {
+	Type        string             `json:"type"`
+	Address     *string            `json:"address"`
+	Point       *EventDetailPoint  `json:"point,omitempty"`
+	RoutePoints []EventDetailPoint `json:"route_points,omitempty"`
+}
+
+// EventDetailPoint is a single coordinate returned in event detail responses.
+type EventDetailPoint struct {
+	Lat float64 `json:"lat"`
+	Lon float64 `json:"lon"`
+}
+
+// EventDetailConstraint is a single event constraint returned by the detail endpoint.
+type EventDetailConstraint struct {
+	Type string `json:"type"`
+	Info string `json:"info"`
+}
+
+// EventDetailViewerContext describes how the authenticated user relates to the event.
+type EventDetailViewerContext struct {
+	IsHost              bool   `json:"is_host"`
+	IsFavorited         bool   `json:"is_favorited"`
+	ParticipationStatus string `json:"participation_status"`
+}
+
+// EventDetailHostContext contains host-only management lists.
+type EventDetailHostContext struct {
+	ApprovedParticipants []EventDetailApprovedParticipant `json:"approved_participants"`
+	PendingJoinRequests  []EventDetailPendingJoinRequest  `json:"pending_join_requests"`
+	Invitations          []EventDetailInvitation          `json:"invitations"`
+}
+
+// EventDetailApprovedParticipant is returned only to the host.
+type EventDetailApprovedParticipant struct {
+	ParticipationID string            `json:"participation_id"`
+	Status          string            `json:"status"`
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
+	User            EventDetailPerson `json:"user"`
+}
+
+// EventDetailPendingJoinRequest is returned only to the host.
+type EventDetailPendingJoinRequest struct {
+	JoinRequestID string            `json:"join_request_id"`
+	Status        string            `json:"status"`
+	Message       *string           `json:"message"`
+	CreatedAt     time.Time         `json:"created_at"`
+	UpdatedAt     time.Time         `json:"updated_at"`
+	User          EventDetailPerson `json:"user"`
+}
+
+// EventDetailInvitation is returned only to the host.
+type EventDetailInvitation struct {
+	InvitationID string            `json:"invitation_id"`
+	Status       string            `json:"status"`
+	Message      *string           `json:"message"`
+	ExpiresAt    *time.Time        `json:"expires_at"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
+	User         EventDetailPerson `json:"user"`
+}
+
 // JoinEventResult is returned after a user successfully joins a public event.
 type JoinEventResult struct {
 	ParticipationID string    `json:"participation_id"`

@@ -904,6 +904,420 @@ func TestDiscoverEventsCursorPaginationIsStableAndNonOverlapping(t *testing.T) {
 }
 
 // ---------------------------------------------------------
+// GetEventDetail tests
+// ---------------------------------------------------------
+
+func TestGetEventDetailReadsPublicEventForAuthenticatedUser(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("public_host"))
+	categoryID := common.GivenEventCategory(t)
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Detailed Public Event",
+		Description:  "full event detail",
+		CategoryID:   categoryID,
+		Lat:          41.0082,
+		Lon:          28.9784,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+		Tags:         []string{"music", "outdoor"},
+	})
+	insertFavoriteEvent(t, viewer.ID, eventID)
+	insertEventConstraint(t, eventID, "dress_code", "Wear something comfortable")
+
+	// when
+	result, err := harness.Service.GetEventDetail(context.Background(), viewer.ID, eventID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if result.ID != eventID.String() {
+		t.Fatalf("expected event id %s, got %s", eventID, result.ID)
+	}
+	if result.Title != "Detailed Public Event" {
+		t.Fatalf("expected title %q, got %q", "Detailed Public Event", result.Title)
+	}
+	if result.Category == nil || result.Category.ID != categoryID {
+		t.Fatalf("expected category id %d, got %#v", categoryID, result.Category)
+	}
+	if result.Host.Username != "public_host" {
+		t.Fatalf("expected host username %q, got %q", "public_host", result.Host.Username)
+	}
+	if result.Location.Type != string(domain.LocationPoint) {
+		t.Fatalf("expected location type %q, got %q", domain.LocationPoint, result.Location.Type)
+	}
+	if result.Location.Point == nil {
+		t.Fatal("expected point location")
+	}
+	if !result.ViewerContext.IsFavorited {
+		t.Fatal("expected viewer to see is_favorited=true")
+	}
+	if result.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusNone) {
+		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusNone, result.ViewerContext.ParticipationStatus)
+	}
+	if result.HostContext != nil {
+		t.Fatal("expected non-host response to omit host_context")
+	}
+	if len(result.Tags) != 2 {
+		t.Fatalf("expected 2 tags, got %d", len(result.Tags))
+	}
+	if len(result.Constraints) != 1 {
+		t.Fatalf("expected 1 constraint, got %d", len(result.Constraints))
+	}
+}
+
+func TestGetEventDetailReadsProtectedEventForAnyAuthenticatedUser(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
+	eventID := common.GivenProtectedEvent(t, harness.Service, host.ID).ID
+
+	// when
+	result, err := harness.Service.GetEventDetail(context.Background(), viewer.ID, eventID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if result.ID != eventID.String() {
+		t.Fatalf("expected event id %s, got %s", eventID, result.ID)
+	}
+}
+
+func TestGetEventDetailReadsPrivateEventForHost(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Private Host Event",
+		Description:  "host can read",
+		CategoryID:   common.GivenEventCategory(t),
+		Lat:          40.0,
+		Lon:          29.0,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPrivate,
+	})
+
+	// when
+	result, err := harness.Service.GetEventDetail(context.Background(), host.ID, eventID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if !result.ViewerContext.IsHost {
+		t.Fatal("expected host viewer_context.is_host to be true")
+	}
+	if result.HostContext == nil {
+		t.Fatal("expected host_context for host")
+	}
+}
+
+func TestGetEventDetailReadsPrivateEventForApprovedParticipant(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	participant := common.GivenUser(t, harness.AuthRepo)
+	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Private Approved Event",
+		Description:  "participant can read",
+		CategoryID:   common.GivenEventCategory(t),
+		Lat:          41.1,
+		Lon:          29.1,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPrivate,
+	})
+	insertParticipation(t, eventID, participant.ID, domain.ParticipationStatusApproved)
+
+	// when
+	result, err := harness.Service.GetEventDetail(context.Background(), participant.ID, eventID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if result.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
+		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusJoined, result.ViewerContext.ParticipationStatus)
+	}
+}
+
+func TestGetEventDetailReadsPrivateEventForAcceptedInvitee(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	invitee := common.GivenUser(t, harness.AuthRepo)
+	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Private Invitation Event",
+		Description:  "invitee can read",
+		CategoryID:   common.GivenEventCategory(t),
+		Lat:          41.2,
+		Lon:          29.2,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPrivate,
+	})
+	insertInvitation(t, eventID, host.ID, invitee.ID, domain.InvitationStatusAccepted, common.StringPtr("Join us"), nil)
+
+	// when
+	result, err := harness.Service.GetEventDetail(context.Background(), invitee.ID, eventID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if result.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusInvited) {
+		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusInvited, result.ViewerContext.ParticipationStatus)
+	}
+}
+
+func TestGetEventDetailRejectsPrivateEventForUnrelatedUser(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Private Hidden Event",
+		Description:  "should not leak",
+		CategoryID:   common.GivenEventCategory(t),
+		Lat:          41.3,
+		Lon:          29.3,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPrivate,
+	})
+
+	// when
+	_, err := harness.Service.GetEventDetail(context.Background(), viewer.ID, eventID)
+
+	// then
+	common.RequireAppErrorCode(t, err, domain.ErrorCodeEventNotFound)
+}
+
+func TestGetEventDetailReportsViewerParticipationStatuses(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	joinedUser := common.GivenUser(t, harness.AuthRepo)
+	pendingUser := common.GivenUser(t, harness.AuthRepo)
+	invitedUser := common.GivenUser(t, harness.AuthRepo)
+	noneUser := common.GivenUser(t, harness.AuthRepo)
+	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Status Event",
+		Description:  "viewer statuses",
+		CategoryID:   common.GivenEventCategory(t),
+		Lat:          41.4,
+		Lon:          29.4,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	insertParticipation(t, eventID, joinedUser.ID, domain.ParticipationStatusApproved)
+	insertPendingJoinRequest(t, eventID, pendingUser.ID, host.ID, common.StringPtr("please accept"))
+	insertInvitation(t, eventID, host.ID, invitedUser.ID, domain.InvitationStatusPending, nil, nil)
+
+	// when
+	joinedDetail, err := harness.Service.GetEventDetail(context.Background(), joinedUser.ID, eventID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() joined error = %v", err)
+	}
+	pendingDetail, err := harness.Service.GetEventDetail(context.Background(), pendingUser.ID, eventID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() pending error = %v", err)
+	}
+	invitedDetail, err := harness.Service.GetEventDetail(context.Background(), invitedUser.ID, eventID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() invited error = %v", err)
+	}
+	noneDetail, err := harness.Service.GetEventDetail(context.Background(), noneUser.ID, eventID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() none error = %v", err)
+	}
+
+	// then
+	if joinedDetail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
+		t.Fatalf("expected joined status %q, got %q", domain.EventDetailParticipationStatusJoined, joinedDetail.ViewerContext.ParticipationStatus)
+	}
+	if pendingDetail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusPending) {
+		t.Fatalf("expected pending status %q, got %q", domain.EventDetailParticipationStatusPending, pendingDetail.ViewerContext.ParticipationStatus)
+	}
+	if invitedDetail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusInvited) {
+		t.Fatalf("expected invited status %q, got %q", domain.EventDetailParticipationStatusInvited, invitedDetail.ViewerContext.ParticipationStatus)
+	}
+	if noneDetail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusNone) {
+		t.Fatalf("expected none status %q, got %q", domain.EventDetailParticipationStatusNone, noneDetail.ViewerContext.ParticipationStatus)
+	}
+}
+
+func TestGetEventDetailReturnsCanceledAndCompletedStatuses(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
+	categoryID := common.GivenEventCategory(t)
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+	canceledID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Canceled Event",
+		Description:  "still readable",
+		CategoryID:   categoryID,
+		Lat:          41.5,
+		Lon:          29.5,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	completedID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Completed Event",
+		Description:  "still readable",
+		CategoryID:   categoryID,
+		Lat:          41.6,
+		Lon:          29.6,
+		StartTime:    startTime.Add(time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	updateEventStatus(t, canceledID, string(domain.EventStatusCanceled))
+	updateEventStatus(t, completedID, string(domain.EventStatusCompleted))
+
+	// when
+	canceledDetail, err := harness.Service.GetEventDetail(context.Background(), viewer.ID, canceledID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() canceled error = %v", err)
+	}
+	completedDetail, err := harness.Service.GetEventDetail(context.Background(), viewer.ID, completedID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() completed error = %v", err)
+	}
+
+	// then
+	if canceledDetail.Status != string(domain.EventStatusCanceled) {
+		t.Fatalf("expected canceled status %q, got %q", domain.EventStatusCanceled, canceledDetail.Status)
+	}
+	if completedDetail.Status != string(domain.EventStatusCompleted) {
+		t.Fatalf("expected completed status %q, got %q", domain.EventStatusCompleted, completedDetail.Status)
+	}
+}
+
+func TestGetEventDetailReturnsRoutePoints(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	viewer := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
+	eventID := createRouteDiscoveryEvent(t, harness, routeDiscoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Route Detail Event",
+		Description:  "route detail",
+		CategoryID:   common.GivenEventCategory(t),
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyProtected,
+		RoutePoints: []eventapp.RoutePointInput{
+			{Lat: common.Float64Ptr(41.0001), Lon: common.Float64Ptr(29.0001)},
+			{Lat: common.Float64Ptr(41.0002), Lon: common.Float64Ptr(29.0002)},
+			{Lat: common.Float64Ptr(41.0003), Lon: common.Float64Ptr(29.0003)},
+		},
+	})
+
+	// when
+	result, err := harness.Service.GetEventDetail(context.Background(), viewer.ID, eventID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if result.Location.Type != string(domain.LocationRoute) {
+		t.Fatalf("expected location type %q, got %q", domain.LocationRoute, result.Location.Type)
+	}
+	if len(result.Location.RoutePoints) != 3 {
+		t.Fatalf("expected 3 route points, got %d", len(result.Location.RoutePoints))
+	}
+}
+
+func TestGetEventDetailReturnsHostOnlyManagementLists(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("detail_host"))
+	participant := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("approved_user"))
+	requester := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("pending_user"))
+	invitee := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("invited_user"))
+	nonHostViewer := common.GivenUser(t, harness.AuthRepo)
+	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Managed Event",
+		Description:  "host details",
+		CategoryID:   common.GivenEventCategory(t),
+		Lat:          41.7,
+		Lon:          29.7,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	insertParticipation(t, eventID, participant.ID, domain.ParticipationStatusApproved)
+	insertPendingJoinRequest(t, eventID, requester.ID, host.ID, common.StringPtr("I would like to join"))
+	insertInvitation(t, eventID, host.ID, invitee.ID, domain.InvitationStatusPending, common.StringPtr("Come with us"), nil)
+
+	// when
+	hostResult, err := harness.Service.GetEventDetail(context.Background(), host.ID, eventID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() host error = %v", err)
+	}
+	nonHostResult, err := harness.Service.GetEventDetail(context.Background(), nonHostViewer.ID, eventID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() non-host error = %v", err)
+	}
+
+	// then
+	if hostResult.HostContext == nil {
+		t.Fatal("expected host_context for host viewer")
+	}
+	if len(hostResult.HostContext.ApprovedParticipants) != 1 {
+		t.Fatalf("expected 1 approved participant, got %d", len(hostResult.HostContext.ApprovedParticipants))
+	}
+	if len(hostResult.HostContext.PendingJoinRequests) != 1 {
+		t.Fatalf("expected 1 pending join request, got %d", len(hostResult.HostContext.PendingJoinRequests))
+	}
+	if len(hostResult.HostContext.Invitations) != 1 {
+		t.Fatalf("expected 1 invitation, got %d", len(hostResult.HostContext.Invitations))
+	}
+	if hostResult.HostContext.ApprovedParticipants[0].User.Username != "approved_user" {
+		t.Fatalf("expected approved participant username %q, got %q", "approved_user", hostResult.HostContext.ApprovedParticipants[0].User.Username)
+	}
+	if hostResult.HostContext.PendingJoinRequests[0].User.Username != "pending_user" {
+		t.Fatalf("expected pending join request username %q, got %q", "pending_user", hostResult.HostContext.PendingJoinRequests[0].User.Username)
+	}
+	if hostResult.HostContext.Invitations[0].User.Username != "invited_user" {
+		t.Fatalf("expected invitation username %q, got %q", "invited_user", hostResult.HostContext.Invitations[0].User.Username)
+	}
+	if nonHostResult.HostContext != nil {
+		t.Fatal("expected non-host response to omit host_context")
+	}
+}
+
+// ---------------------------------------------------------
 // JoinEvent tests
 // ---------------------------------------------------------
 
@@ -1207,6 +1621,85 @@ func insertFavoriteEvent(t *testing.T, userID, eventID uuid.UUID) {
 	); err != nil {
 		t.Fatalf("insert favorite_event error = %v", err)
 	}
+}
+
+func insertEventConstraint(t *testing.T, eventID uuid.UUID, constraintType, info string) {
+	t.Helper()
+
+	if _, err := common.RequirePool(t).Exec(
+		context.Background(),
+		`INSERT INTO event_constraint (event_id, constraint_type, constraint_info) VALUES ($1, $2, $3)`,
+		eventID,
+		constraintType,
+		info,
+	); err != nil {
+		t.Fatalf("insert event_constraint error = %v", err)
+	}
+}
+
+func insertParticipation(t *testing.T, eventID, userID uuid.UUID, status string) uuid.UUID {
+	t.Helper()
+
+	var participationID uuid.UUID
+	err := common.RequirePool(t).QueryRow(
+		context.Background(),
+		`INSERT INTO participation (event_id, user_id, status) VALUES ($1, $2, $3) RETURNING id`,
+		eventID,
+		userID,
+		status,
+	).Scan(&participationID)
+	if err != nil {
+		t.Fatalf("insert participation error = %v", err)
+	}
+
+	return participationID
+}
+
+func insertPendingJoinRequest(t *testing.T, eventID, userID, hostUserID uuid.UUID, message *string) uuid.UUID {
+	t.Helper()
+
+	var joinRequestID uuid.UUID
+	err := common.RequirePool(t).QueryRow(
+		context.Background(),
+		`INSERT INTO join_request (event_id, user_id, host_user_id, status, message) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		eventID,
+		userID,
+		hostUserID,
+		domain.ParticipationStatusPending,
+		message,
+	).Scan(&joinRequestID)
+	if err != nil {
+		t.Fatalf("insert join_request error = %v", err)
+	}
+
+	return joinRequestID
+}
+
+func insertInvitation(
+	t *testing.T,
+	eventID, hostID, invitedUserID uuid.UUID,
+	status domain.InvitationStatus,
+	message *string,
+	expiresAt *time.Time,
+) uuid.UUID {
+	t.Helper()
+
+	var invitationID uuid.UUID
+	err := common.RequirePool(t).QueryRow(
+		context.Background(),
+		`INSERT INTO invitation (event_id, host_id, invited_user_id, status, message, expires_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+		eventID,
+		hostID,
+		invitedUserID,
+		string(status),
+		message,
+		expiresAt,
+	).Scan(&invitationID)
+	if err != nil {
+		t.Fatalf("insert invitation error = %v", err)
+	}
+
+	return invitationID
 }
 
 func assertDiscoverEventIDsInOrder(t *testing.T, items []eventapp.DiscoverableEventItem, want ...uuid.UUID) {

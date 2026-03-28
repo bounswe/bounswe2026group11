@@ -79,3 +79,102 @@ type DiscoverEventsCursor struct {
 	DistanceMeters    *float64                  `json:"distance_meters,omitempty"`
 	RelevanceScore    *float64                  `json:"relevance_score,omitempty"`
 }
+
+// EventDetailRecord is the repository-level projection used for event detail responses.
+type EventDetailRecord struct {
+	ID                       uuid.UUID
+	Title                    string
+	Description              *string
+	ImageURL                 *string
+	PrivacyLevel             domain.EventPrivacyLevel
+	Status                   domain.EventStatus
+	StartTime                time.Time
+	EndTime                  *time.Time
+	Capacity                 *int
+	MinimumAge               *int
+	PreferredGender          *domain.EventParticipantGender
+	ApprovedParticipantCount int
+	PendingParticipantCount  int
+	FavoriteCount            int
+	CreatedAt                time.Time
+	UpdatedAt                time.Time
+	Category                 *EventDetailCategoryRecord
+	Host                     EventDetailPersonRecord
+	Location                 EventDetailLocationRecord
+	Tags                     []string
+	Constraints              []EventDetailConstraintRecord
+	ViewerContext            EventDetailViewerContextRecord
+	HostContext              *EventDetailHostContextRecord
+}
+
+// EventDetailCategoryRecord is the category projection attached to an event detail payload.
+type EventDetailCategoryRecord struct {
+	ID   int
+	Name string
+}
+
+// EventDetailPersonRecord is a safe user summary reused across event detail payloads.
+type EventDetailPersonRecord struct {
+	ID          uuid.UUID
+	Username    string
+	DisplayName *string
+	AvatarURL   *string
+}
+
+// EventDetailLocationRecord carries the event geometry and address for the detail page.
+type EventDetailLocationRecord struct {
+	Type        domain.EventLocationType
+	Address     *string
+	Point       *domain.GeoPoint
+	RoutePoints []domain.GeoPoint
+}
+
+// EventDetailConstraintRecord is a repository-level projection of an event constraint.
+type EventDetailConstraintRecord struct {
+	Type string
+	Info string
+}
+
+// EventDetailViewerContextRecord captures the authenticated viewer's relation to the event.
+type EventDetailViewerContextRecord struct {
+	IsHost              bool
+	IsFavorited         bool
+	ParticipationStatus domain.EventDetailParticipationStatus
+}
+
+// EventDetailHostContextRecord contains host-only management lists for the event.
+type EventDetailHostContextRecord struct {
+	ApprovedParticipants []EventDetailApprovedParticipantRecord
+	PendingJoinRequests  []EventDetailPendingJoinRequestRecord
+	Invitations          []EventDetailInvitationRecord
+}
+
+// EventDetailApprovedParticipantRecord is a host-visible approved participation projection.
+type EventDetailApprovedParticipantRecord struct {
+	ParticipationID uuid.UUID
+	Status          string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	User            EventDetailPersonRecord
+}
+
+// EventDetailPendingJoinRequestRecord is a host-visible pending join request projection.
+type EventDetailPendingJoinRequestRecord struct {
+	JoinRequestID uuid.UUID
+	Status        string
+	Message       *string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	User          EventDetailPersonRecord
+}
+
+// EventDetailInvitationRecord is a host-visible invitation projection.
+type EventDetailInvitationRecord struct {
+	InvitationID uuid.UUID
+	Status       domain.InvitationStatus
+	Message      *string
+	ExpiresAt    *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	User         EventDetailPersonRecord
+}

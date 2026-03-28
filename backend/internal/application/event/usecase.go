@@ -8,6 +8,7 @@ import "github.com/google/uuid"
 type UseCase interface {
 	CreateEvent(ctx context.Context, hostID uuid.UUID, input CreateEventInput) (*CreateEventResult, error)
 	DiscoverEvents(ctx context.Context, userID uuid.UUID, input DiscoverEventsInput) (*DiscoverEventsResult, error)
+	GetEventDetail(ctx context.Context, userID, eventID uuid.UUID) (*GetEventDetailResult, error)
 	JoinEvent(ctx context.Context, userID, eventID uuid.UUID) (*JoinEventResult, error)
 	RequestJoin(ctx context.Context, userID, eventID uuid.UUID, input RequestJoinInput) (*RequestJoinResult, error)
 }

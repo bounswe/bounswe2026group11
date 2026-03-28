@@ -29,6 +29,7 @@ func NewEventHandler(service event.UseCase) *EventHandler {
 func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.Handler) {
 	group := router.Group("/events")
 	group.Get("/", auth, handler.DiscoverEvents)
+	group.Get("/:id", auth, handler.GetEventDetail)
 	group.Post("/", auth, handler.CreateEvent)
 	group.Post("/:id/join", auth, handler.JoinEvent)
 	group.Post("/:id/join-request", auth, handler.RequestJoin)
@@ -43,6 +44,22 @@ func (h *EventHandler) DiscoverEvents(c *fiber.Ctx) error {
 
 	claims := httpapi.UserClaims(c)
 	result, err := h.service.DiscoverEvents(c.UserContext(), claims.UserID, input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
+}
+
+// GetEventDetail handles GET /events/:id.
+func (h *EventHandler) GetEventDetail(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.GetEventDetail(c.UserContext(), claims.UserID, eventID)
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
