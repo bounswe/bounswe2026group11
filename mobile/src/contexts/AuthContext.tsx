@@ -2,25 +2,31 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 
 interface AuthContextType {
   token: string | null;
-  setToken: (token: string | null) => void;
+  refreshToken: string | null;
+  setSession: (accessToken: string, refreshToken: string) => void;
   clearAuth: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setTokenState] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState<string | null>(null);
 
-  const setToken = useCallback((t: string | null) => {
-    setTokenState(t);
+  const setSession = useCallback((accessToken: string, refresh: string) => {
+    setToken(accessToken);
+    setRefreshToken(refresh);
   }, []);
 
   const clearAuth = useCallback(() => {
-    setTokenState(null);
+    setToken(null);
+    setRefreshToken(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ token, setToken, clearAuth }}>
+    <AuthContext.Provider
+      value={{ token, refreshToken, setSession, clearAuth }}
+    >
       {children}
     </AuthContext.Provider>
   );

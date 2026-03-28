@@ -13,6 +13,7 @@ import {
 import { router, type Href } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLogoutViewModel } from '@/viewmodels/auth/useLogoutViewModel';
 import {
   useCreateEventViewModel,
   CATEGORIES,
@@ -22,19 +23,24 @@ import {
   CONSTRAINT_TYPE_LIMITS,
   ConstraintType,
   formatTimeInput,
+  formatDateInput,
   TITLE_MAX_LENGTH,
   DESCRIPTION_MAX_LENGTH,
 } from '@/viewmodels/event/useCreateEventViewModel';
 
 export default function CreateEventView() {
   const vm = useCreateEventViewModel();
-  const { token } = useAuth();
+  const { token, refreshToken, clearAuth } = useAuth();
+  const { isLoggingOut, logoutError, handleLogout } = useLogoutViewModel(
+    refreshToken,
+    () => {
+      clearAuth();
+      router.replace('/' as Href);
+    },
+  );
 
   const handleCreate = async () => {
-    const result = await vm.handleSubmit(token ?? '');
-    if (result) {
-      router.replace('/' as Href);
-    }
+    await vm.handleSubmit(token ?? '');
   };
 
   // When collapsed, show the first N categories plus the selected one if it's outside that range
@@ -65,13 +71,32 @@ export default function CreateEventView() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.replace('/' as Href)} style={styles.backButton}>
+          <View style={styles.backButton}>
             <Text style={styles.backArrow}>{'<'}</Text>
+          </View>
+          <Text style={[styles.title, styles.headerTitle]}>Create Event</Text>
+          <TouchableOpacity
+            onPress={handleLogout}
+            disabled={isLoggingOut || vm.isLoading}
+            style={styles.logoutButton}
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
+          >
+            {isLoggingOut ? (
+              <ActivityIndicator size="small" color="#2563EB" />
+            ) : (
+              <Text style={styles.logoutText}>Logout</Text>
+            )}
           </TouchableOpacity>
-          <Text style={styles.title}>Create Event</Text>
         </View>
 
         {/* Error Banner */}
+        {logoutError && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{logoutError}</Text>
+          </View>
+        )}
+
         {vm.apiError && (
           <View style={styles.errorBanner}>
             <Text style={styles.errorBannerText}>{vm.apiError}</Text>
@@ -250,7 +275,9 @@ export default function CreateEventView() {
                 placeholder="dd.mm.yyyy"
                 placeholderTextColor="#9CA3AF"
                 value={vm.formData.startDate}
-                onChangeText={(v) => vm.updateField('startDate', v)}
+                onChangeText={(v) =>
+                  vm.updateField('startDate', formatDateInput(v, vm.formData.startDate))
+                }
                 keyboardType="numbers-and-punctuation"
                 editable={!vm.isLoading}
               />
@@ -290,7 +317,9 @@ export default function CreateEventView() {
                 placeholder="dd.mm.yyyy"
                 placeholderTextColor="#9CA3AF"
                 value={vm.formData.endDate}
-                onChangeText={(v) => vm.updateField('endDate', v)}
+                onChangeText={(v) =>
+                  vm.updateField('endDate', formatDateInput(v, vm.formData.endDate))
+                }
                 keyboardType="numbers-and-punctuation"
                 editable={!vm.isLoading}
               />
@@ -613,9 +642,12 @@ export default function CreateEventView() {
 
         {/* Submit Button */}
         <TouchableOpacity
-          style={[styles.submitButton, vm.isLoading && styles.buttonDisabled]}
+          style={[
+            styles.submitButton,
+            (vm.isLoading || isLoggingOut) && styles.buttonDisabled,
+          ]}
           onPress={handleCreate}
-          disabled={vm.isLoading}
+          disabled={vm.isLoading || isLoggingOut}
           activeOpacity={0.8}
         >
           {vm.isLoading ? (
@@ -645,9 +677,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
+  headerTitle: {
+    flex: 1,
+  },
   backButton: {
     marginRight: 12,
     padding: 4,
+  },
+  logoutButton: {
+    minWidth: 72,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingVertical: 4,
+    paddingLeft: 8,
+  },
+  logoutText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2563EB',
   },
   backArrow: {
     fontSize: 24,

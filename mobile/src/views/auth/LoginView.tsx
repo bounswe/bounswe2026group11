@@ -16,12 +16,12 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginView() {
   const vm = useLoginViewModel();
-  const { setToken } = useAuth();
+  const { setSession } = useAuth();
 
   const handleSubmit = async () => {
     const session = await vm.handleLogin();
     if (session) {
-      setToken(session.access_token);
+      setSession(session.access_token, session.refresh_token);
       router.replace('/event/create' as Href);
     }
   };
