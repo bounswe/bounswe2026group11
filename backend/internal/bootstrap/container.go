@@ -11,6 +11,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/ratelimit"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/security"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/category"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
@@ -31,12 +32,12 @@ type Container struct {
 	eventRepo            *postgres.EventRepository
 	participationRepo    *postgres.ParticipationRepository
 	joinRequestRepo      *postgres.JoinRequestRepository
+	categoryRepo         *postgres.CategoryRepository
 	AuthService          auth.UseCase
 	EventService         event.UseCase
 	ParticipationService participation.UseCase
 	JoinRequestService   join_request.UseCase
-	// Extend with additional services as features are added, for example:
-	// SearchService httpapi.SearchService
+	CategoryService      category.UseCase
 }
 
 // New initializes infrastructure (config, database) and wires all application
@@ -62,10 +63,12 @@ func New(ctx context.Context) (*Container, error) {
 	container.eventRepo = postgres.NewEventRepository(container.DB)
 	container.participationRepo = postgres.NewParticipationRepository(container.DB)
 	container.joinRequestRepo = postgres.NewJoinRequestRepository(container.DB)
+	container.categoryRepo = postgres.NewCategoryRepository(container.DB)
 	container.ParticipationService = newParticipationService(container)
 	container.JoinRequestService = newJoinRequestService(container)
 	container.AuthService = newAuthService(container)
 	container.EventService = newEventService(container)
+	container.CategoryService = newCategoryService(container)
 	return container, nil
 }
 
@@ -107,6 +110,11 @@ func newParticipationService(c *Container) participation.UseCase {
 // driven adapter.
 func newJoinRequestService(c *Container) join_request.UseCase {
 	return join_request.NewService(c.joinRequestRepo)
+}
+
+// newCategoryService wires the category use-case service with its driven adapter.
+func newCategoryService(c *Container) category.UseCase {
+	return category.NewService(c.categoryRepo)
 }
 
 // newAuthService wires the auth use-case service with its driven adapters.
