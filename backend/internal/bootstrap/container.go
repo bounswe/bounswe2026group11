@@ -38,6 +38,8 @@ type Container struct {
 	ParticipationService participation.UseCase
 	JoinRequestService   join_request.UseCase
 	CategoryService      category.UseCase
+	// Extend with additional services as features are added, for example:
+	// SearchService httpapi.SearchService
 }
 
 // New initializes infrastructure (config, database) and wires all application
