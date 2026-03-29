@@ -59,6 +59,8 @@ These docs routes are local-only; the remote dev deployment does not expose `/ap
 
 **Postgres (local tools):** With this compose file, the database is reachable on your machine at **127.0.0.1:5433** (mapped to container port 5432; host 5433 avoids conflicting with a local Postgres on 5432). User/database: `postgres` / `sem`; password from `deploy/.env`. Example: `psql -h 127.0.0.1 -p 5433 -U postgres -d sem`. On Apple Silicon you may see a harmless Docker **platform** notice if the PostGIS image runs as `linux/amd64` under emulation.
 
+`deploy/docker-compose.dev.yml` is different: on the dev host, Postgres is published on **127.0.0.1:5432** for manual inspection and SSH tunneling, still with user `postgres`, database `sem`, and password from `deploy/.env`. That exposure is dev-only and loopback-bound, not a production pattern. If host `5432` is already in use on the dev machine, use a local Compose override file for that machine instead of changing the shared dev compose file; [`docs/deploy.md`](docs/deploy.md) shows the pattern.
+
 > Use [`deploy/docker-compose.local.yml`](deploy/docker-compose.local.yml) for local development. [`deploy/docker-compose.dev.yml`](deploy/docker-compose.dev.yml) is for a remote server with pre-built images; see [`docs/deploy.md`](docs/deploy.md) for details.
 
 ### Backend only (Go)
