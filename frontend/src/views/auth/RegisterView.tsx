@@ -34,7 +34,7 @@ export default function RegisterView() {
       const session = await vm.handleVerifyOtp();
       if (session) {
         setSession(session.access_token, session.refresh_token, session.user.username);
-        navigate('/home', { replace: true });
+        navigate('/discover', { replace: true });
       }
     }
   };
