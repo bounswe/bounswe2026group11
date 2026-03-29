@@ -10,7 +10,6 @@ const PUBLIC_NAV = [
 
 const AUTH_NAV = [
   { to: '/discover', label: 'Discover' },
-  { to: '/events/create', label: 'Create Event' },
   { to: '/my-events', label: 'My Events' },
   { to: '/invitations', label: 'Invitations' },
   { to: '/favorites', label: 'Favorites' },
@@ -76,34 +75,39 @@ export default function AppShell() {
 
           <div className="shell-header-right">
             {isLoggedIn ? (
-              <div className="shell-user-menu" ref={userMenuRef}>
-                <button
-                  className="shell-user-btn"
-                  onClick={() => setUserMenuOpen((prev) => !prev)}
-                >
-                  <span className="shell-avatar">
-                    {username ? username[0].toUpperCase() : '?'}
-                  </span>
-                  <span className="shell-username">{username}</span>
-                </button>
-                {userMenuOpen && (
-                  <div className="shell-dropdown">
-                    <NavLink
-                      to="/profile"
-                      className="shell-dropdown-item"
-                      onClick={() => setUserMenuOpen(false)}
-                    >
-                      Profile
-                    </NavLink>
-                    <button
-                      className="shell-dropdown-item shell-dropdown-logout"
-                      onClick={handleLogout}
-                    >
-                      Sign Out
-                    </button>
-                  </div>
-                )}
-              </div>
+              <>
+                <NavLink to="/events/create" className="shell-create-btn">
+                  + Create Event
+                </NavLink>
+                <div className="shell-user-menu" ref={userMenuRef}>
+                  <button
+                    className="shell-user-btn"
+                    onClick={() => setUserMenuOpen((prev) => !prev)}
+                  >
+                    <span className="shell-avatar">
+                      {username ? username[0].toUpperCase() : '?'}
+                    </span>
+                    <span className="shell-username">{username}</span>
+                  </button>
+                  {userMenuOpen && (
+                    <div className="shell-dropdown">
+                      <NavLink
+                        to="/profile"
+                        className="shell-dropdown-item"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        Profile
+                      </NavLink>
+                      <button
+                        className="shell-dropdown-item shell-dropdown-logout"
+                        onClick={handleLogout}
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
             ) : (
               <div className="shell-auth-buttons">
                 <NavLink to="/login" className="shell-signin-btn">
