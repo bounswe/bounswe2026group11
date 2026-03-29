@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router, type Href } from 'expo-router';
 import HomeHeader from '@/components/home/HomeHeader';
 import SearchSection from '@/components/home/SearchSection';
 import CategoryChips from '@/components/home/CategoryChips';
@@ -21,12 +22,13 @@ export default function HomeView() {
   const vm = useHomeViewModel();
 
   return (
-    <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.topSection}>
           <HomeHeader
             locationLabel={vm.locationLabel}
             notificationCount={vm.notificationCount}
+            onPressLocation={() => router.replace('/home' as Href)}
           />
 
           <SearchSection

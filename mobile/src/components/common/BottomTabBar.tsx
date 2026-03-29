@@ -13,7 +13,7 @@ const TABS: TabItem[] = [
   { key: 'explore', label: 'Explore' },
   { key: 'favorites', label: 'Favorites' },
   { key: 'create', label: 'Create', primary: true },
-  { key: 'events', label: 'Events' },
+  { key: 'events', label: 'My Events' },
   { key: 'profile', label: 'Profile' },
 ];
 

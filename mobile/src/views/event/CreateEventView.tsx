@@ -71,9 +71,14 @@ export default function CreateEventView() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.backButton}>
-            <Text style={styles.backArrow}>{'<'}</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.replace('/home' as Href)}
+            accessibilityRole="button"
+            accessibilityLabel="Go back to home"
+          >
+            <MaterialIcons name="arrow-back" size={28} color="#111827" />
+          </TouchableOpacity>
           <Text style={[styles.title, styles.headerTitle]}>Create Event</Text>
           <TouchableOpacity
             onPress={handleLogout}

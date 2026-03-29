@@ -6,19 +6,26 @@ interface HomeHeaderProps {
   locationLabel: string;
   notificationCount: number;
   onPressNotifications?: () => void;
+  onPressLocation?: () => void;
 }
 
 export default function HomeHeader({
   locationLabel,
   notificationCount,
   onPressNotifications,
+  onPressLocation,
 }: HomeHeaderProps) {
   return (
     <View style={styles.container}>
-      <View>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={onPressLocation}
+        accessibilityRole="button"
+        accessibilityLabel="Select location"
+      >
         <Text style={styles.kicker}>Discover events near</Text>
         <Text style={styles.location}>{locationLabel}</Text>
-      </View>
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.notificationButton}
@@ -38,7 +45,7 @@ export default function HomeHeader({
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 0,
+    marginTop: 10,
     marginBottom: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
