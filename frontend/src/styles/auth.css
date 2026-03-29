@@ -1,0 +1,259 @@
+/* Shared auth layout */
+.auth-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  padding: 40px 32px;
+  margin: 24px;
+}
+
+.auth-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.auth-subtitle {
+  font-size: 15px;
+  color: #6b7280;
+  margin-bottom: 32px;
+}
+
+/* Error banner */
+.error-banner {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  color: #dc2626;
+  font-size: 14px;
+}
+
+/* Form fields */
+.field-group {
+  margin-bottom: 20px;
+}
+
+.field-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.field-label .optional {
+  font-weight: 400;
+  color: #9ca3af;
+}
+
+.field-input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 16px;
+  color: #111827;
+  background-color: #f9fafb;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.field-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.field-input.has-error {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+}
+
+.field-input::placeholder {
+  color: #9ca3af;
+}
+
+.field-error {
+  color: #ef4444;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* Gender pills */
+.gender-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gender-option {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1px solid #d1d5db;
+  background-color: #f9fafb;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.gender-option:hover {
+  border-color: #2563eb;
+}
+
+.gender-option.selected {
+  background-color: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+/* Buttons */
+.btn-primary {
+  width: 100%;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  margin-top: 8px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 8px;
+  margin-top: 16px;
+}
+
+.btn-secondary:hover {
+  color: #374151;
+}
+
+/* Footer link row */
+.auth-footer {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 24px;
+  font-size: 15px;
+}
+
+.auth-footer span {
+  color: #6b7280;
+}
+
+.auth-footer a,
+.link {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.auth-footer a:hover,
+.link:hover {
+  text-decoration: underline;
+}
+
+/* Step indicator */
+.step-indicator {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 32px;
+}
+
+.step-dot {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background-color: #e5e7eb;
+}
+
+.step-dot.active {
+  background-color: #2563eb;
+}
+
+/* Forgot password link */
+.forgot-link {
+  display: block;
+  text-align: right;
+  margin-bottom: 8px;
+}
+
+/* Landing page styles */
+.auth-landing {
+  text-align: center;
+}
+
+.auth-landing .auth-subtitle {
+  margin-bottom: 40px;
+}
+
+.auth-landing .btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn-outline {
+  width: 100%;
+  background: none;
+  border: 2px solid #2563eb;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2563eb;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-outline:hover {
+  background-color: #eff6ff;
+}
+
+/* Spinner */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
