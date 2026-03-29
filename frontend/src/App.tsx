@@ -1,31 +1,44 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import AuthPage from './views/auth/AuthPage';
+import { useAuth } from './contexts/AuthContext';
 import LoginView from './views/auth/LoginView';
 import RegisterView from './views/auth/RegisterView';
-import HomePage from './views/home/HomePage';
-import { useAuth } from './contexts/AuthContext';
+import AppShell from './components/AppShell';
+import ProtectedRoute from './components/ProtectedRoute';
+import DiscoverPage from './views/discover/DiscoverPage';
+import CreateEventPage from './views/events/CreateEventPage';
+import MyEventsPage from './views/events/MyEventsPage';
+import InvitationsPage from './views/invitations/InvitationsPage';
+import FavoritesPage from './views/favorites/FavoritesPage';
+import ProfilePage from './views/profile/ProfilePage';
 
 export default function App() {
-  const { token } = useAuth();
+  const { isLoading } = useAuth();
+
+  if (isLoading) {
+    return null;
+  }
 
   return (
     <Routes>
-      <Route
-        path="/"
-        element={token ? <Navigate to="/home" replace /> : <AuthPage />}
-      />
-      <Route
-        path="/login"
-        element={token ? <Navigate to="/home" replace /> : <LoginView />}
-      />
-      <Route
-        path="/register"
-        element={token ? <Navigate to="/home" replace /> : <RegisterView />}
-      />
-      <Route
-        path="/home"
-        element={token ? <HomePage /> : <Navigate to="/" replace />}
-      />
+      {/* App shell wraps all main pages (public + protected) */}
+      <Route element={<AppShell />}>
+        <Route path="/" element={<Navigate to="/discover" replace />} />
+        <Route path="/discover" element={<DiscoverPage />} />
+
+        {/* Protected routes — require auth */}
+        <Route path="/events/create" element={<ProtectedRoute><CreateEventPage /></ProtectedRoute>} />
+        <Route path="/my-events" element={<ProtectedRoute><MyEventsPage /></ProtectedRoute>} />
+        <Route path="/invitations" element={<ProtectedRoute><InvitationsPage /></ProtectedRoute>} />
+        <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+      </Route>
+
+      {/* Auth pages (no shell) */}
+      <Route path="/login" element={<LoginView />} />
+      <Route path="/register" element={<RegisterView />} />
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

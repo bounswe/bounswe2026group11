@@ -1,0 +1,305 @@
+/* App Shell */
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.shell-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.shell-header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.shell-logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2563eb;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* Desktop navigation */
+.shell-nav {
+  display: flex;
+  gap: 4px;
+  margin-left: 32px;
+  flex: 1;
+}
+
+.shell-nav-link {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.shell-nav-link:hover {
+  color: #111827;
+  background-color: #f3f4f6;
+}
+
+.shell-nav-link.active {
+  color: #2563eb;
+  background-color: #eff6ff;
+  font-weight: 600;
+}
+
+/* Header right section */
+.shell-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* User menu */
+.shell-user-menu {
+  position: relative;
+}
+
+.shell-user-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.shell-user-btn:hover {
+  border-color: #d1d5db;
+  background-color: #f9fafb;
+}
+
+.shell-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: #2563eb;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.shell-username {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+/* Dropdown */
+.shell-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-width: 160px;
+  padding: 4px;
+  z-index: 200;
+}
+
+.shell-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #374151;
+  text-decoration: none;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s;
+}
+
+.shell-dropdown-item:hover {
+  background-color: #f3f4f6;
+}
+
+.shell-dropdown-logout {
+  color: #dc2626;
+}
+
+.shell-dropdown-logout:hover {
+  background-color: #fef2f2;
+}
+
+/* Auth buttons (shown when logged out) */
+.shell-auth-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shell-signin-btn {
+  padding: 7px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  transition: all 0.15s;
+}
+
+.shell-signin-btn:hover {
+  background-color: #eff6ff;
+}
+
+.shell-signup-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #2563eb;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: background-color 0.15s;
+}
+
+.shell-signup-btn:hover {
+  background-color: #1d4ed8;
+}
+
+/* Hamburger (hidden on desktop) */
+.shell-hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.hamburger-line {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background-color: #374151;
+  border-radius: 1px;
+  transition: all 0.2s;
+}
+
+.hamburger-line.open:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.hamburger-line.open:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-line.open:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Mobile overlay */
+.shell-overlay {
+  display: none;
+}
+
+/* Main content */
+.shell-main {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .shell-nav {
+    display: none;
+    flex-direction: column;
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #ffffff;
+    padding: 16px;
+    gap: 4px;
+    z-index: 150;
+    overflow-y: auto;
+  }
+
+  .shell-nav.open {
+    display: flex;
+  }
+
+  .shell-nav-link {
+    padding: 14px 16px;
+    font-size: 16px;
+  }
+
+  .shell-hamburger {
+    display: flex;
+  }
+
+  .shell-username {
+    display: none;
+  }
+
+  .shell-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    top: 64px;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 140;
+  }
+
+  .shell-main {
+    padding: 20px 16px;
+  }
+}
+
+/* Placeholder page styling */
+.placeholder-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+}
+
+.placeholder-page h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.placeholder-page p {
+  font-size: 16px;
+  color: #6b7280;
+}
