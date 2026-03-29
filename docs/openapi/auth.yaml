@@ -829,6 +829,20 @@ components:
           type: string
           description: Current account status.
           example: active
+        gender:
+          type:
+            - string
+            - "null"
+          enum: [MALE, FEMALE, OTHER, null]
+          description: Gender value submitted during registration.
+          example: MALE
+        birth_date:
+          type:
+            - string
+            - "null"
+          format: date
+          description: Birth date submitted during registration.
+          example: "1998-05-14"
     ErrorResponse:
       type: object
       description: Standard error wrapper for failed requests.
