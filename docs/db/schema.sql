@@ -428,6 +428,7 @@ CREATE TABLE category_suggestion (
 CREATE TABLE favorite_location (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
+    name TEXT,
     address TEXT,
     point GEOGRAPHY(POINT, 4326),
 
