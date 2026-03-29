@@ -21,3 +21,7 @@ Read `/AGENTS.md` first, then use this file for frontend work.
 
 - When frontend behavior depends on undocumented backend behavior, flag it and align the contract documentation.
 - Add or update tests for behavior that materially changes user interaction, rendering, or data flow.
+
+## Architectural Patterns: Auth Flows
+
+- **Multi-Step Auth Flows**: Features like `Register` and `ForgotPassword` inherently rely on a multi-step design (e.g., request -> verify OTP -> finalize). These flows must be implemented using a single `ViewModel` (e.g., `useForgotPasswordViewModel`) that manages the internal `step` state, validation logic per step, and consecutive API calls, alongside a corresponding monolithic view (e.g., `ForgotPasswordView`) rendering the conditional UI based on the `step`. Avoid breaking these steps into distinct Route URLs unless required by business logic.
