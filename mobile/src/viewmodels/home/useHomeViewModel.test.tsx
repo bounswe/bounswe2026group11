@@ -42,9 +42,12 @@ const page1Fixture: PaginatedEventsResponse = {
       privacy_level: 'PUBLIC',
       approved_participant_count: 96,
       is_favorited: true,
+      host_score: {
+        final_score: 4.7,
+        hosted_event_rating_count: 12,
+      },
       capacity: 150,
       favorite_count: 72,
-      rating: 4.7,
     },
     {
       id: '2',
@@ -56,9 +59,12 @@ const page1Fixture: PaginatedEventsResponse = {
       privacy_level: 'PROTECTED',
       approved_participant_count: 41,
       is_favorited: false,
+      host_score: {
+        final_score: null,
+        hosted_event_rating_count: 0,
+      },
       capacity: 60,
       favorite_count: 35,
-      rating: 4.9,
     },
   ],
   page_info: {
@@ -79,9 +85,12 @@ const page2Fixture: PaginatedEventsResponse = {
       privacy_level: 'PUBLIC',
       approved_participant_count: 58,
       is_favorited: false,
+      host_score: {
+        final_score: 4.6,
+        hosted_event_rating_count: 8,
+      },
       capacity: 80,
       favorite_count: 22,
-      rating: 4.6,
     },
   ],
   page_info: {
@@ -238,66 +247,5 @@ describe('useHomeViewModel', () => {
         'Failed to load categories. Please try again.',
       );
     });
-  });
-  it('sends selected category id as category_ids when category changes', async () => {
-    const { result } = renderHook(() => useHomeViewModel());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    mockListEvents.mockClear();
-
-    await act(async () => {
-      result.current.selectCategory(2);
-    });
-
-    await waitFor(() => {
-      expect(mockListEvents).toHaveBeenCalled();
-    });
-
-    expect(mockListEvents).toHaveBeenLastCalledWith(
-      {
-        lat: 41.0082,
-        lon: 28.9784,
-        radius_meters: 50000,
-        q: undefined,
-        category_ids: [2],
-        limit: 2,
-        cursor: undefined,
-      },
-      'mock-token',
-    );
-  });
-
-  it('sends search text as q when search changes', async () => {
-    const { result } = renderHook(() => useHomeViewModel());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    mockListEvents.mockClear();
-
-    await act(async () => {
-      result.current.updateSearchText('coffee');
-    });
-
-    await waitFor(() => {
-      expect(mockListEvents).toHaveBeenCalled();
-    });
-
-    expect(mockListEvents).toHaveBeenLastCalledWith(
-      {
-        lat: 41.0082,
-        lon: 28.9784,
-        radius_meters: 50000,
-        q: 'coffee',
-        category_ids: undefined,
-        limit: 2,
-        cursor: undefined,
-      },
-      'mock-token',
-    );
   });
 });

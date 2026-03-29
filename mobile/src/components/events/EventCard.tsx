@@ -3,6 +3,7 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { EventSummary } from '@/models/event';
 import { formatEventDateLabel } from '@/utils/eventDate';
+import { formatEventLocation } from '@/utils/eventLocation';
 
 interface EventCardProps {
   event: EventSummary;
@@ -16,7 +17,10 @@ function formatPrivacyLabel(value: EventSummary['privacy_level']) {
 export default function EventCard({ event, onPress }: EventCardProps) {
   const capacity = event.capacity ?? 300;
   const favoriteCount = event.favorite_count ?? 0;
-  const rating = event.rating ?? 4.5;
+  const ratingLabel =
+    event.host_score.final_score != null
+      ? event.host_score.final_score.toFixed(1)
+      : 'New';
 
   return (
     <TouchableOpacity
@@ -64,7 +68,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
           <View style={styles.metaRow}>
             <Ionicons name="location-outline" size={18} color="#6B7280" />
             <Text style={styles.metaText}>
-              {event.location_address ?? 'Location not specified'}
+              {formatEventLocation(event.location_address)}
             </Text>
           </View>
 
@@ -95,7 +99,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
 
           <View style={styles.statItem}>
             <Ionicons name="star" size={18} color="#4B5563" />
-            <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+            <Text style={styles.ratingText}>{ratingLabel}</Text>
           </View>
         </View>
       </View>

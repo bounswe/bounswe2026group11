@@ -1,4 +1,3 @@
-
 export type PrivacyLevel = 'PUBLIC' | 'PROTECTED' | 'PRIVATE';
 
 export type LocationType = 'POINT' | 'ROUTE';
@@ -50,6 +49,11 @@ export interface LocationSuggestion {
   lon: string;
 }
 
+export interface HostScore {
+  final_score: number | null;
+  hosted_event_rating_count: number;
+}
+
 export interface EventSummary {
   id: string;
   title: string;
@@ -60,9 +64,9 @@ export interface EventSummary {
   privacy_level: Extract<PrivacyLevel, 'PUBLIC' | 'PROTECTED'>;
   approved_participant_count: number;
   is_favorited: boolean;
+  host_score: HostScore;
   capacity?: number;
   favorite_count?: number;
-  rating?: number;
 }
 
 export type DiscoverEventsSortBy = 'START_TIME' | 'DISTANCE' | 'RELEVANCE';
