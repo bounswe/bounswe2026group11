@@ -11,7 +11,7 @@
 .idea/
 *.iml
 
-# Local env: Compose reads deploy/.env (template: deploy/.env.example); Go uses backend/.env when run from backend/
+# Local env: Compose reads deploy/.env (template: deploy/.env.example); Go reads repository-root .env
 .env
 
 # Optional Compose merge next to deploy/docker-compose.local.yml (e.g. expose Postgres on localhost)

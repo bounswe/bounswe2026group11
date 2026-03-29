@@ -29,7 +29,7 @@ func TestLoad_OK(t *testing.T) {
 	// given
 	dir := t.TempDir()
 	t.Chdir(dir)
-	writeConfigFile(t, dir, "local", "app_port: 8080\ndb_host: localhost\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\navailability_rate_limit: 20\navailability_rate_window: 15m\notp_mailer_mode: mock\n")
+	writeConfigFile(t, dir, "local", mockMailerConfigYAML("localhost"))
 	clearConfigEnv(t)
 	t.Setenv("APP_PORT", "9090")
 	t.Setenv("JWT_SECRET", "test-secret-minimum")
@@ -44,22 +44,17 @@ func TestLoad_OK(t *testing.T) {
 	if cfg.AppPort != 9090 || cfg.DBHost != "localhost" || cfg.JWTSecret != "test-secret-minimum" {
 		t.Fatalf("unexpected cfg: %+v", cfg)
 	}
+	if cfg.MailProvider != "mock" || cfg.MailDomain != "socialeventmapper.com" {
+		t.Fatalf("unexpected mail config: %+v", cfg)
+	}
 }
 
-func TestLoad_FromDotEnv(t *testing.T) {
+func TestLoad_UsesRepoRootDotEnvWhenRunningFromBackend(t *testing.T) {
 	// given
-	dir := t.TempDir()
-	t.Chdir(dir)
-	writeConfigFile(t, dir, "local", "app_port: 8080\ndb_host: db.example\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\navailability_rate_limit: 20\navailability_rate_window: 15m\notp_mailer_mode: mock\n")
-
-	envContent := strings.TrimSpace(`
-DB_PASSWORD=
-JWT_SECRET=from-file
-`) + "\n"
-	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte(envContent), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
+	repoRoot := createRepoRoot(t)
+	writeBackendConfigFile(t, repoRoot, "local", resendMailerConfigYAML("db.example"))
+	writeFile(t, filepath.Join(repoRoot, ".env"), "JWT_SECRET=from-root\nRESEND_CLIENT_API_KEY=re_test\n")
+	t.Chdir(filepath.Join(repoRoot, "backend"))
 	clearConfigEnv(t)
 
 	// when
@@ -69,25 +64,40 @@ JWT_SECRET=from-file
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.AppPort != 8080 || cfg.JWTSecret != "from-file" || cfg.DBHost != "db.example" {
-		t.Fatalf("unexpected cfg: %+v", cfg)
+	if cfg.JWTSecret != "from-root" || cfg.ResendClientAPIKey != "re_test" {
+		t.Fatalf("expected repo root .env values, got %+v", cfg)
 	}
 }
 
-func TestLoad_EnvOverridesYamlAndDotEnv(t *testing.T) {
+func TestLoad_UsesRepoRootDotEnvWhenRunningFromCmdServer(t *testing.T) {
 	// given
-	dir := t.TempDir()
-	t.Chdir(dir)
-	writeConfigFile(t, dir, "local", "app_port: 7070\ndb_host: file\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\navailability_rate_limit: 20\navailability_rate_window: 15m\notp_mailer_mode: mock\n")
+	repoRoot := createRepoRoot(t)
+	writeBackendConfigFile(t, repoRoot, "local", resendMailerConfigYAML("db.example"))
+	writeFile(t, filepath.Join(repoRoot, ".env"), "JWT_SECRET=from-root\nRESEND_CLIENT_API_KEY=re_test\n")
+	t.Chdir(filepath.Join(repoRoot, "backend", "cmd", "server"))
+	clearConfigEnv(t)
 
-	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("DB_PASSWORD=\nJWT_SECRET=file-secret\n"), 0o600); err != nil {
+	// when
+	cfg, err := Load()
+
+	// then
+	if err != nil {
 		t.Fatal(err)
 	}
+	if cfg.DBHost != "db.example" || cfg.JWTSecret != "from-root" || cfg.ResendClientAPIKey != "re_test" {
+		t.Fatalf("expected repo root config/env values, got %+v", cfg)
+	}
+}
 
+func TestLoad_EnvOverridesYamlAndRepoRootDotEnv(t *testing.T) {
+	// given
+	repoRoot := createRepoRoot(t)
+	writeBackendConfigFile(t, repoRoot, "local", mockMailerConfigYAML("file"))
+	writeFile(t, filepath.Join(repoRoot, ".env"), "DB_PASSWORD=\nJWT_SECRET=file-secret\n")
+	t.Chdir(filepath.Join(repoRoot, "backend"))
 	clearConfigEnv(t)
 	t.Setenv("DB_HOST", "override-host")
 	t.Setenv("JWT_SECRET", "override-secret")
-	// Ensure other keys come from YAML / .env.
 	t.Setenv("APP_PORT", "")
 	t.Setenv("DB_PORT", "")
 	t.Setenv("DB_NAME", "")
@@ -104,7 +114,7 @@ func TestLoad_EnvOverridesYamlAndDotEnv(t *testing.T) {
 	if cfg.DBHost != "override-host" || cfg.JWTSecret != "override-secret" {
 		t.Fatalf("expected env to override YAML/.env, got %+v", cfg)
 	}
-	if cfg.AppPort != 7070 {
+	if cfg.AppPort != 8080 {
 		t.Fatalf("expected APP_PORT from YAML, got %d", cfg.AppPort)
 	}
 }
@@ -113,7 +123,7 @@ func TestLoad_EmptyJWTSecret(t *testing.T) {
 	// given
 	dir := t.TempDir()
 	t.Chdir(dir)
-	writeConfigFile(t, dir, "local", "app_port: 8080\ndb_host: localhost\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\navailability_rate_limit: 20\navailability_rate_window: 15m\notp_mailer_mode: mock\n")
+	writeConfigFile(t, dir, "local", mockMailerConfigYAML("localhost"))
 	clearConfigEnv(t)
 	t.Setenv("JWT_SECRET", "")
 
@@ -133,8 +143,8 @@ func TestLoad_UsesAppEnvSpecificYaml(t *testing.T) {
 	// given
 	dir := t.TempDir()
 	t.Chdir(dir)
-	writeConfigFile(t, dir, "local", "app_port: 8080\ndb_host: localhost\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\navailability_rate_limit: 20\navailability_rate_window: 15m\notp_mailer_mode: mock\n")
-	writeConfigFile(t, dir, "dev", "app_port: 8080\ndb_host: postgres\ndb_port: 5432\ndb_name: sem\ndb_user: postgres\naccess_token_ttl: 15m\nrefresh_token_ttl: 336h\nmax_session_ttl: 1440h\notp_ttl: 10m\notp_max_attempts: 5\notp_resend_cooldown: 1m\notp_request_limit: 5\notp_request_window: 10m\nlogin_rate_limit: 10\nlogin_rate_window: 15m\navailability_rate_limit: 20\navailability_rate_window: 15m\notp_mailer_mode: mock\n")
+	writeConfigFile(t, dir, "local", mockMailerConfigYAML("localhost"))
+	writeConfigFile(t, dir, "dev", mockMailerConfigYAML("postgres"))
 	clearConfigEnv(t)
 	t.Setenv("APP_ENV", "dev")
 	t.Setenv("JWT_SECRET", "dev-secret")
@@ -148,6 +158,26 @@ func TestLoad_UsesAppEnvSpecificYaml(t *testing.T) {
 	}
 	if cfg.DBHost != "postgres" {
 		t.Fatalf("expected dev YAML to be loaded, got %+v", cfg)
+	}
+}
+
+func TestLoad_RequiresResendAPIKeyWhenProviderIsResend(t *testing.T) {
+	// given
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeConfigFile(t, dir, "local", resendMailerConfigYAML("localhost"))
+	clearConfigEnv(t)
+	t.Setenv("JWT_SECRET", "secret")
+
+	// when
+	_, err := Load()
+
+	// then
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "RESEND_CLIENT_API_KEY") {
+		t.Fatalf("expected RESEND_CLIENT_API_KEY in error, got: %v", err)
 	}
 }
 
@@ -175,7 +205,9 @@ func clearConfigEnv(t *testing.T) {
 		"LOGIN_RATE_WINDOW",
 		"AVAILABILITY_RATE_LIMIT",
 		"AVAILABILITY_RATE_WINDOW",
-		"OTP_MAILER_MODE",
+		"MAIL_PROVIDER",
+		"MAIL_DOMAIN",
+		"RESEND_CLIENT_API_KEY",
 	} {
 		t.Setenv(k, "")
 	}
@@ -188,7 +220,87 @@ func writeConfigFile(t *testing.T, dir, envName, contents string) {
 		t.Fatal(err)
 	}
 	filename := filepath.Join(configDir, "application."+envName+".yaml")
-	if err := os.WriteFile(filename, []byte(contents), 0o600); err != nil {
+	writeFile(t, filename, contents)
+}
+
+func writeBackendConfigFile(t *testing.T, repoRoot, envName, contents string) {
+	t.Helper()
+	configDir := filepath.Join(repoRoot, "backend", "config")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	filename := filepath.Join(configDir, "application."+envName+".yaml")
+	writeFile(t, filename, contents)
+}
+
+func createRepoRoot(t *testing.T) string {
+	t.Helper()
+
+	repoRoot := t.TempDir()
+	writeFile(t, filepath.Join(repoRoot, "AGENTS.md"), "# test repo\n")
+	for _, path := range []string{
+		filepath.Join(repoRoot, "backend"),
+		filepath.Join(repoRoot, "backend", "cmd", "server"),
+		filepath.Join(repoRoot, "backend", "config"),
+	} {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return repoRoot
+}
+
+func writeFile(t *testing.T, path, contents string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mockMailerConfigYAML(dbHost string) string {
+	return strings.TrimSpace(`
+app_port: 8080
+db_host: `+dbHost+`
+db_port: 5432
+db_name: sem
+db_user: postgres
+access_token_ttl: 15m
+refresh_token_ttl: 336h
+max_session_ttl: 1440h
+otp_ttl: 10m
+otp_max_attempts: 5
+otp_resend_cooldown: 1m
+otp_request_limit: 5
+otp_request_window: 10m
+login_rate_limit: 10
+login_rate_window: 15m
+availability_rate_limit: 20
+availability_rate_window: 15m
+mail_provider: mock
+mail_domain: socialeventmapper.com
+`) + "\n"
+}
+
+func resendMailerConfigYAML(dbHost string) string {
+	return strings.TrimSpace(`
+app_port: 8080
+db_host: `+dbHost+`
+db_port: 5432
+db_name: sem
+db_user: postgres
+access_token_ttl: 15m
+refresh_token_ttl: 336h
+max_session_ttl: 1440h
+otp_ttl: 10m
+otp_max_attempts: 5
+otp_resend_cooldown: 1m
+otp_request_limit: 5
+otp_request_window: 10m
+login_rate_limit: 10
+login_rate_window: 15m
+availability_rate_limit: 20
+availability_rate_window: 15m
+mail_provider: resend
+mail_domain: socialeventmapper.com
+`) + "\n"
 }

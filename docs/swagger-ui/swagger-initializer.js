@@ -663,7 +663,7 @@ async function requestQuickSignupOtp() {
 
     syncSessionStatus(
       payload?.message ??
-        "OTP request accepted. Use the code from the dev/mock mailer, then run quick sign up.",
+        "OTP request accepted. Check the inbox for the code, then run quick sign up.",
     );
   } catch (error) {
     syncSessionStatus(error.message);

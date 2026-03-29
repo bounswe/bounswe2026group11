@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,8 +13,10 @@ import (
 
 const defaultAppEnv = "local"
 
+var appEnvPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
 // Config holds application settings loaded from an environment-specific YAML
-// file first, then from .env for secrets, then from OS environment variables.
+// file first, then from the repository-root .env for secrets, then from OS environment variables.
 type Config struct {
 	AppPort                int
 	DBHost                 string
@@ -34,12 +37,14 @@ type Config struct {
 	LoginRateWindow        time.Duration
 	AvailabilityRateLimit  int
 	AvailabilityRateWindow time.Duration
-	OTPMailerMode          string
+	MailProvider           string
+	MailDomain             string
+	ResendClientAPIKey     string
 }
 
 // Load reads configuration using the following precedence:
 // 1. config/application.<APP_ENV>.yaml (or APP_CONFIG_FILE if set)
-// 2. .env in the process working directory
+// 2. repository-root .env
 // 3. OS environment variables
 func Load() (*Config, error) {
 	v := viper.New()
@@ -80,7 +85,9 @@ func Load() (*Config, error) {
 	bind("login_rate_window", "LOGIN_RATE_WINDOW")
 	bind("availability_rate_limit", "AVAILABILITY_RATE_LIMIT")
 	bind("availability_rate_window", "AVAILABILITY_RATE_WINDOW")
-	bind("otp_mailer_mode", "OTP_MAILER_MODE")
+	bind("mail_provider", "MAIL_PROVIDER")
+	bind("mail_domain", "MAIL_DOMAIN")
+	bind("resend_client_api_key", "RESEND_CLIENT_API_KEY")
 
 	cfg := &Config{
 		AppPort:                v.GetInt("app_port"),
@@ -102,7 +109,9 @@ func Load() (*Config, error) {
 		LoginRateWindow:        v.GetDuration("login_rate_window"),
 		AvailabilityRateLimit:  v.GetInt("availability_rate_limit"),
 		AvailabilityRateWindow: v.GetDuration("availability_rate_window"),
-		OTPMailerMode:          strings.TrimSpace(v.GetString("otp_mailer_mode")),
+		MailProvider:           strings.TrimSpace(v.GetString("mail_provider")),
+		MailDomain:             strings.TrimSpace(v.GetString("mail_domain")),
+		ResendClientAPIKey:     strings.TrimSpace(v.GetString("resend_client_api_key")),
 	}
 
 	if err := validate(v, cfg); err != nil {
@@ -113,7 +122,7 @@ func Load() (*Config, error) {
 }
 
 // loadBaseConfig reads the environment-specific YAML file. It checks APP_CONFIG_FILE
-// first, then probes config/ and ../config/ relative to the working directory.
+// first, then probes a small set of supported backend working-directory layouts.
 func loadBaseConfig(v *viper.Viper, appEnv string) error {
 	configFile := strings.TrimSpace(os.Getenv("APP_CONFIG_FILE"))
 	if configFile != "" {
@@ -124,46 +133,94 @@ func loadBaseConfig(v *viper.Viper, appEnv string) error {
 		return nil
 	}
 
-	configName := fmt.Sprintf("application.%s", appEnv)
-	// Try config/ first (normal run from repo root), then ../config/ (run from cmd/server).
-	for _, configPath := range []string{"config", filepath.Join("..", "config")} {
-		v.SetConfigName(configName)
-		v.SetConfigType("yaml")
-		v.AddConfigPath(configPath)
-		if err := v.ReadInConfig(); err == nil {
+	if !appEnvPattern.MatchString(appEnv) {
+		return fmt.Errorf("APP_ENV must contain only letters, numbers, underscore, or hyphen")
+	}
+
+	configName := fmt.Sprintf("application.%s.yaml", appEnv)
+	for _, candidate := range []string{
+		filepath.Join("config", configName),
+		filepath.Join("..", "config", configName),
+		filepath.Join("..", "..", "config", configName),
+		filepath.Join("backend", "config", configName),
+	} {
+		// #nosec G703 -- appEnv is validated above and candidate directories are fixed backend config locations.
+		if st, err := os.Stat(candidate); err == nil && !st.IsDir() {
+			v.SetConfigFile(candidate)
+			if err := v.ReadInConfig(); err != nil {
+				return fmt.Errorf("load %s: %w", candidate, err)
+			}
 			return nil
-		} else if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return fmt.Errorf("load %s.yaml from %s: %w", configName, configPath, err)
+		} else if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("stat %s: %w", candidate, err)
 		}
 	}
 
 	return fmt.Errorf(
-		"base configuration missing: expected config/%s.yaml (or APP_CONFIG_FILE) relative to the working directory",
+		"base configuration missing: expected %s under config/, ../config/, ../../config/, or backend/config/ relative to the working directory",
 		configName,
 	)
 }
 
-// mergeDotEnv merges key=value pairs from a .env file if one exists in the
-// current working directory. Missing .env is silently ignored.
+// mergeDotEnv merges key=value pairs from the repository root .env file.
+// Missing .env is silently ignored so containerized runs can rely on process env.
 func mergeDotEnv(v *viper.Viper) error {
-	if st, err := os.Stat(".env"); err == nil && !st.IsDir() {
-		v.SetConfigFile(".env")
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+
+	repoRoot, err := findRepositoryRoot(workingDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("resolve repository root: %w", err)
+	}
+
+	envPath := filepath.Join(repoRoot, ".env")
+	if st, err := os.Stat(envPath); err == nil && !st.IsDir() {
+		v.SetConfigFile(envPath)
 		v.SetConfigType("env")
 		if err := v.MergeInConfig(); err != nil {
-			return fmt.Errorf("load .env: %w", err)
+			return fmt.Errorf("load %s: %w", envPath, err)
 		}
 		return nil
 	} else if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("stat .env: %w", err)
+		return fmt.Errorf("stat %s: %w", envPath, err)
 	}
 
 	return nil
 }
 
+func findRepositoryRoot(start string) (string, error) {
+	dir := filepath.Clean(start)
+	for {
+		agentsPath := filepath.Join(dir, "AGENTS.md")
+		backendPath := filepath.Join(dir, "backend")
+
+		if fileInfo, err := os.Stat(agentsPath); err == nil && !fileInfo.IsDir() {
+			if backendInfo, err := os.Stat(backendPath); err == nil && backendInfo.IsDir() {
+				return dir, nil
+			} else if err != nil && !os.IsNotExist(err) {
+				return "", fmt.Errorf("stat %s: %w", backendPath, err)
+			}
+		} else if err != nil && !os.IsNotExist(err) {
+			return "", fmt.Errorf("stat %s: %w", agentsPath, err)
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", os.ErrNotExist
+		}
+		dir = parent
+	}
+}
+
 // validate ensures all required config values are present and within valid ranges.
 func validate(v *viper.Viper, c *Config) error {
 	missing := func(envVar string) error {
-		return fmt.Errorf("required configuration missing: set %s in the environment or in a .env file next to the process working directory", envVar)
+		return fmt.Errorf("required configuration missing: set %s in the environment or in the repository-root .env file", envVar)
 	}
 
 	if !v.IsSet("db_host") && c.DBHost == "" {
@@ -239,11 +296,22 @@ func validate(v *viper.Viper, c *Config) error {
 	if c.AvailabilityRateWindow <= 0 {
 		return fmt.Errorf("AVAILABILITY_RATE_WINDOW must be greater than zero")
 	}
-	if c.OTPMailerMode == "" {
-		return fmt.Errorf("OTP_MAILER_MODE cannot be empty")
+	if c.MailProvider == "" {
+		return fmt.Errorf("MAIL_PROVIDER cannot be empty")
 	}
-	if c.OTPMailerMode != "mock" {
-		return fmt.Errorf("OTP_MAILER_MODE must be \"mock\", got %q", c.OTPMailerMode)
+	if c.MailProvider != "mock" && c.MailProvider != "resend" {
+		return fmt.Errorf("MAIL_PROVIDER must be \"mock\" or \"resend\", got %q", c.MailProvider)
+	}
+	if c.MailDomain == "" {
+		return fmt.Errorf("MAIL_DOMAIN is required and cannot be empty")
+	}
+	if c.MailProvider == "resend" {
+		if !v.IsSet("resend_client_api_key") && c.ResendClientAPIKey == "" {
+			return missing("RESEND_CLIENT_API_KEY")
+		}
+		if c.ResendClientAPIKey == "" {
+			return fmt.Errorf("RESEND_CLIENT_API_KEY is required and cannot be empty")
+		}
 	}
 
 	return nil

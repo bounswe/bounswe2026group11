@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Heading}}</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f4f5f7; color:#111827;">
+    <div style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all;">
+      {{.PreviewText}}
+    </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7; border-collapse:collapse;">
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px; background-color:#ffffff; border:1px solid #e5e7eb; border-radius:16px; border-collapse:separate;">
+            <tr>
+              <td style="padding:32px 28px 12px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;">
+                <p style="margin:0 0 12px; color:#6b7280; font-size:12px; letter-spacing:0.08em; text-transform:uppercase;">
+                  Social Event Mapper
+                </p>
+                <h1 style="margin:0 0 12px; color:#111827; font-size:28px; line-height:1.2; font-weight:700;">
+                  {{.Heading}}
+                </h1>
+                <p style="margin:0; color:#374151; font-size:16px; line-height:1.6;">
+                  {{.Intro}}
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:24px 28px 16px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate; border-spacing:0;">
+                  <tr>
+                    <td style="padding:18px 24px; background-color:#f9fafb; border:1px solid #d1d5db; border-radius:14px;">
+                      <div dir="ltr" style="font-family:'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', monospace; font-size:34px; line-height:1; font-weight:700; letter-spacing:0.34em; color:#111827;">
+                        {{.Code}}
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:12px 0 0; color:#6b7280; font-size:13px; line-height:1.5; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;">
+                  Copy and paste this code into the app.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 28px 32px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;">
+                <p style="margin:0 0 12px; color:#374151; font-size:15px; line-height:1.6;">
+                  {{.ExpiryText}}
+                </p>
+                <p style="margin:0; color:#6b7280; font-size:14px; line-height:1.6;">
+                  {{.IgnoreText}}
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
