@@ -410,7 +410,7 @@ func TestVerifyRegistrationOTPSuccessCreatesUserAndSession(t *testing.T) {
 	}
 
 	phoneNumber := "+905551112233"
-	gender := "female"
+	gender := "FEMALE"
 	birthDate := "1998-05-14"
 
 	// when
