@@ -7,13 +7,54 @@ This document matches the **remote dev** stack: pre-built images on Docker Hub (
 | File | Purpose |
 |------|---------|
 | [`deploy/docker-compose.local.yml`](../deploy/docker-compose.local.yml) | **Local:** `build:` from `../backend` and `../frontend`. Postgres is published to **127.0.0.1:5433** on the host (→ container `5432`) for development (psql, GUI clients). |
-| [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml) | **Dev droplet:** `image:` from Docker Hub `latest`; no source build on the server. Postgres is **not** exposed on a host port (Docker network only). |
+| [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml) | **Dev droplet:** `image:` from Docker Hub `latest`; no source build on the server. Postgres is published to **127.0.0.1:5432** on the host (→ container `5432`) for inspection, ad-hoc queries, and SSH tunneling during testing. |
 
 For local development, run from the **repository root** so Compose’s default project directory is `deploy/` and `deploy/.env` is loaded: `docker compose -f deploy/docker-compose.local.yml up --build`. For the dev server, mirror the repo under e.g. `/opt/sem/` (`deploy/` including `deploy/.env`, `nginx/`, `certs/`) and run `docker compose -f deploy/docker-compose.dev.yml ...` from that root — paths in the compose file resolve from `deploy/`, so `../nginx/nginx.dev.conf` resolves correctly.
 
-### Local Postgres port (development only)
+### Postgres host ports (development only)
 
-When you use [`deploy/docker-compose.local.yml`](../deploy/docker-compose.local.yml), PostGIS is reachable on **127.0.0.1:5433** on your machine (host port only; the container still uses `5432` internally). Connect with user `postgres`, database `sem`, and the password from `deploy/.env`. This is intentional for testing and ad-hoc queries; it does not apply to [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml), where the database stays internal to the Compose network.
+When you use [`deploy/docker-compose.local.yml`](../deploy/docker-compose.local.yml), PostGIS is reachable on **127.0.0.1:5433** on your machine (host port only; the container still uses `5432` internally). Connect with user `postgres`, database `sem`, and the password from `deploy/.env`.
+
+When you use [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml), PostGIS is reachable on the dev host at **127.0.0.1:5432** by default. This is still dev-only exposure: the bind address is loopback, so the database is not opened to the public network. It is intended for manual inspection on the host and for SSH tunnels from a developer machine.
+
+Keep this scoped to the dev stack. A future production compose file should not inherit a host-published Postgres port unless there is a separate, reviewed operational requirement.
+
+Common connection settings for both stacks:
+
+- Host: `127.0.0.1`
+- Port: `5433` for `docker-compose.local`, `5432` for `docker-compose.dev` by default
+- User: `postgres`
+- Database: `sem`
+- Password: `DB_PASSWORD` from `deploy/.env`
+
+Examples:
+
+```bash
+# Local stack
+psql -h 127.0.0.1 -p 5433 -U postgres -d sem
+
+# On the dev host itself
+psql -h 127.0.0.1 -p 5432 -U postgres -d sem
+
+# From your machine through an SSH tunnel to the dev host
+ssh -L 5432:127.0.0.1:5432 <user>@<dev-host>
+psql -h 127.0.0.1 -p 5432 -U postgres -d sem
+```
+
+Operational caveat: if another service already binds host port `5432` on the dev machine, the Postgres container will fail to start. If you need a temporary non-default host port on a specific machine, use a local Compose override instead of changing the shared dev file. For example, create an uncommitted `deploy/docker-compose.dev.override.yml` with:
+
+```yaml
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:55432:5432"
+```
+
+Then start with:
+
+```bash
+docker compose -f deploy/docker-compose.dev.yml -f deploy/docker-compose.dev.override.yml up -d
+```
 
 ## Nginx: local vs server
 
@@ -90,6 +131,7 @@ These names still matter at runtime:
 |----------|---------|
 | `DB_PASSWORD` | Postgres + backend |
 | `JWT_SECRET` | Backend |
+| `RESEND_CLIENT_API_KEY` | Backend transactional email delivery |
 | `DOCKERHUB_NAMESPACE` | `deploy/docker-compose.dev.yml` image names (set in `deploy/.env` or the shell/CI environment) |
 
 `DOCKERHUB_NAMESPACE` is your Docker Hub user or organization; images are expected as:
@@ -107,6 +149,7 @@ Example mapping (name secrets however you prefer; align with your workflow):
 |-------------------------|----------------|
 | `DB_PASSWORD` | `DB_PASSWORD=...` |
 | `JWT_SECRET` | `JWT_SECRET=...` |
+| `RESEND_CLIENT_API_KEY` | `RESEND_CLIENT_API_KEY=...` |
 | `DOCKERHUB_NAMESPACE` | `DOCKERHUB_NAMESPACE=...` |
 
 In **GitHub Actions**, pass secrets into a remote step (e.g. `appleboy/ssh-action` with `script`, or inline `ssh` with env vars exported from `${{ secrets.* }}`). On the **server**, the resulting file is plain key=value lines, for example:
@@ -115,6 +158,7 @@ In **GitHub Actions**, pass secrets into a remote step (e.g. `appleboy/ssh-actio
 # Resulting /opt/sem/deploy/.env (values come from GitHub Secrets at deploy time — not committed)
 DB_PASSWORD=...
 JWT_SECRET=...
+RESEND_CLIENT_API_KEY=...
 DOCKERHUB_NAMESPACE=...
 ```
 

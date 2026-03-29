@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	emailadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/email"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/hasher"
 	jwtadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/jwt"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/otp"
@@ -12,6 +13,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/security"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/category"
+	emailapp "github.com/bounswe/bounswe2026group11/backend/internal/application/email"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
@@ -26,6 +28,7 @@ import (
 type Container struct {
 	Config               *config.Config
 	DB                   *pgxpool.Pool
+	MailProvider         emailapp.Provider
 	TokenIssuer          auth.TokenIssuer
 	TokenVerifier        domain.TokenVerifier
 	authRepo             *postgres.AuthRepository
@@ -55,9 +58,16 @@ func New(ctx context.Context) (*Container, error) {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
+	mailProvider, err := buildMailProvider(cfg)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("build mail provider: %w", err)
+	}
+
 	container := &Container{
 		Config:        cfg,
 		DB:            db,
+		MailProvider:  mailProvider,
 		TokenIssuer:   buildTokenIssuer(cfg),
 		TokenVerifier: buildTokenVerifier(cfg),
 	}
@@ -97,6 +107,17 @@ func buildTokenVerifier(cfg *config.Config) jwtadapter.Verifier {
 	}
 }
 
+func buildMailProvider(cfg *config.Config) (emailapp.Provider, error) {
+	switch cfg.MailProvider {
+	case "mock":
+		return emailadapter.MockProvider{}, nil
+	case "resend":
+		return emailadapter.NewResendProvider(cfg.ResendClientAPIKey, cfg.MailDomain), nil
+	default:
+		return nil, fmt.Errorf("unsupported mail provider %q", cfg.MailProvider)
+	}
+}
+
 // newEventService wires the event use case with its driven adapters.
 func newEventService(c *Container) event.UseCase {
 	return event.NewService(c.eventRepo, c.ParticipationService, c.JoinRequestService)
@@ -128,7 +149,7 @@ func newAuthService(c *Container) auth.UseCase {
 		c.TokenIssuer,
 		security.RefreshTokenManager{ByteLength: 32},
 		otp.CodeGenerator{},
-		otp.MockMailer{},
+		emailadapter.NewAuthOTPMailer(c.MailProvider),
 		ratelimit.NewInMemoryRateLimiter(
 			c.Config.OTPRequestLimit,
 			c.Config.OTPRequestWindow,

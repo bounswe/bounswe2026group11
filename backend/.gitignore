@@ -23,6 +23,6 @@ go.work
 go.work.sum
 .cache/
 
-# Local secrets (template: ../deploy/.env.example → copy to .env here for go run)
+# Legacy local secrets (runtime config now reads the repository-root .env)
 .env
 .env.*
