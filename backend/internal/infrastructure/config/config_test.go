@@ -47,6 +47,9 @@ func TestLoad_OK(t *testing.T) {
 	if cfg.MailProvider != "mock" || cfg.MailDomain != "socialeventmapper.com" {
 		t.Fatalf("unexpected mail config: %+v", cfg)
 	}
+	if cfg.RatingGlobalPrior != 4.0 || cfg.RatingBayesianM != 5 {
+		t.Fatalf("unexpected rating config: %+v", cfg)
+	}
 }
 
 func TestLoad_UsesRepoRootDotEnvWhenRunningFromBackend(t *testing.T) {
@@ -66,6 +69,9 @@ func TestLoad_UsesRepoRootDotEnvWhenRunningFromBackend(t *testing.T) {
 	}
 	if cfg.JWTSecret != "from-root" || cfg.ResendClientAPIKey != "re_test" {
 		t.Fatalf("expected repo root .env values, got %+v", cfg)
+	}
+	if cfg.RatingGlobalPrior != 4.0 || cfg.RatingBayesianM != 5 {
+		t.Fatalf("expected rating config from YAML, got %+v", cfg)
 	}
 }
 
@@ -208,6 +214,8 @@ func clearConfigEnv(t *testing.T) {
 		"MAIL_PROVIDER",
 		"MAIL_DOMAIN",
 		"RESEND_CLIENT_API_KEY",
+		"RATING_GLOBAL_PRIOR",
+		"RATING_BAYESIAN_M",
 	} {
 		t.Setenv(k, "")
 	}
@@ -278,6 +286,8 @@ availability_rate_limit: 20
 availability_rate_window: 15m
 mail_provider: mock
 mail_domain: socialeventmapper.com
+rating_global_prior: 4.0
+rating_bayesian_m: 5
 `) + "\n"
 }
 
@@ -302,5 +312,7 @@ availability_rate_limit: 20
 availability_rate_window: 15m
 mail_provider: resend
 mail_domain: socialeventmapper.com
+rating_global_prior: 4.0
+rating_bayesian_m: 5
 `) + "\n"
 }

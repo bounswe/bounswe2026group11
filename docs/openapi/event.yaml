@@ -39,9 +39,13 @@ paths:
         Response notes:
         - `status` is returned exactly as stored on the event row; canceled and completed
           events remain readable.
+        - `host_score` returns the host's cached aggregate rating summary used by discovery cards.
+        - `rating_window` describes the event-specific 7-day mutation window computed from `COALESCE(end_time, start_time)`.
+        - `viewer_event_rating` returns the authenticated participant's current rating for the event, if one exists.
         - `viewer_context` is always present and resolves the caller's favorite and
           participation state.
-        - `host_context` is included only when the authenticated user is the event host.
+        - `host_context` is included only when the authenticated user is the event host; approved participants may include a `host_rating`.
+        - `host_context.*.user` includes the managed user's cached `final_score` and total `rating_count`.
       operationId: getEventDetail
       security:
         - bearerAuth: []
@@ -88,6 +92,9 @@ paths:
                       username: host_user
                       display_name: Host User
                       avatar_url: https://example.com/avatar.png
+                    host_score:
+                      final_score: 4.18
+                      hosted_event_rating_count: 9
                     location:
                       type: POINT
                       address: Belgrad Forest, Istanbul
@@ -98,6 +105,16 @@ paths:
                     constraints:
                       - type: equipment
                         info: Trail running shoes required
+                    rating_window:
+                      opens_at: "2026-05-01T12:00:00+03:00"
+                      closes_at: "2026-05-08T12:00:00+03:00"
+                      is_active: true
+                    viewer_event_rating:
+                      id: 09d1e583-7554-43a7-b21f-3e7f03804e0f
+                      rating: 5
+                      message: Great event host.
+                      created_at: "2026-05-02T11:00:00+03:00"
+                      updated_at: "2026-05-02T11:00:00+03:00"
                     viewer_context:
                       is_host: false
                       is_favorited: true
@@ -128,6 +145,9 @@ paths:
                       username: host_user
                       display_name: Host User
                       avatar_url: https://example.com/avatar.png
+                    host_score:
+                      final_score: 4.18
+                      hosted_event_rating_count: 9
                     location:
                       type: ROUTE
                       address: Belgrad Forest, Istanbul
@@ -140,6 +160,11 @@ paths:
                     constraints:
                       - type: equipment
                         info: Trail running shoes required
+                    rating_window:
+                      opens_at: "2026-05-01T12:00:00+03:00"
+                      closes_at: "2026-05-08T12:00:00+03:00"
+                      is_active: false
+                    viewer_event_rating: null
                     viewer_context:
                       is_host: true
                       is_favorited: false
@@ -150,11 +175,19 @@ paths:
                           status: APPROVED
                           created_at: "2026-03-26T13:00:00+03:00"
                           updated_at: "2026-03-26T13:00:00+03:00"
+                          host_rating:
+                            id: 8395efb1-053b-4d14-8da5-ded573efbf5d
+                            rating: 4
+                            message: Reliable participant.
+                            created_at: "2026-05-02T12:15:00+03:00"
+                            updated_at: "2026-05-02T12:15:00+03:00"
                           user:
                             id: 6a5d08d6-b9f2-49c8-baea-0f39c34082f8
                             username: approved_user
                             display_name: Approved User
                             avatar_url: https://example.com/approved.png
+                            final_score: 4.4
+                            rating_count: 5
                       pending_join_requests:
                         - join_request_id: b2c3d4e5-f6a7-8901-bcde-f01234567890
                           status: PENDING
@@ -166,6 +199,8 @@ paths:
                             username: pending_user
                             display_name: Pending User
                             avatar_url: https://example.com/pending.png
+                            final_score: 3.8
+                            rating_count: 2
                       invitations:
                         - invitation_id: c3d4e5f6-a7b8-9012-cdef-012345678901
                           status: ACCEPTED
@@ -178,6 +213,8 @@ paths:
                             username: invited_user
                             display_name: Invited User
                             avatar_url: https://example.com/invited.png
+                            final_score: 4.1
+                            rating_count: 6
         '400':
           description: Invalid event ID format.
           content:
@@ -212,6 +249,250 @@ paths:
                       message: The requested event does not exist.
         '500':
           description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/rating:
+    put:
+      tags: [Events]
+      summary: Create or update the caller's event rating
+      description: |
+        Creates or updates the authenticated participant's rating for the event.
+
+        Rules:
+        - The authenticated user must be an `APPROVED` participant of the event.
+        - The event host cannot rate their own event, even though hosts have an internal approved participation row.
+        - Ratings are allowed only within the 7-day window computed from `COALESCE(end_time, start_time)`.
+        - `CANCELED` events cannot be rated.
+        - The resource is singular per `(participant_user_id, event_id)`, so repeated `PUT` requests update the same record.
+      operationId: upsertEventRating
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatingWriteRequest'
+      responses:
+        '200':
+          description: Event rating created or updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RatingResponse'
+        '400':
+          description: Invalid event id or request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not allowed to rate this event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Rating window is closed or the event is not rateable in its current state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    delete:
+      tags: [Events]
+      summary: Delete the caller's event rating
+      description: |
+        Hard deletes the authenticated participant's rating for the event.
+        The same authorization and rating-window rules used by `PUT /events/{id}/rating` also apply here.
+      operationId: deleteEventRating
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Event rating deleted successfully.
+        '400':
+          description: Invalid event id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not allowed to delete this event rating.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event or rating record does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Rating window is closed or the event is not rateable in its current state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/participants/{participantUserId}/rating:
+    put:
+      tags: [Events]
+      summary: Create or update a host rating for a participant
+      description: |
+        Creates or updates the authenticated host's rating for an approved participant of the event.
+
+        Rules:
+        - The authenticated user must host the event.
+        - The target user must be an `APPROVED` participant of the same event.
+        - Hosts cannot rate themselves.
+        - Ratings are allowed only within the 7-day window computed from `COALESCE(end_time, start_time)`.
+        - `CANCELED` events cannot be rated.
+      operationId: upsertParticipantRating
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: participantUserId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatingWriteRequest'
+      responses:
+        '200':
+          description: Participant rating created or updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RatingResponse'
+        '400':
+          description: Invalid path id or request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not allowed to rate this participant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Rating window is closed or the event is not rateable in its current state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    delete:
+      tags: [Events]
+      summary: Delete a host rating for a participant
+      description: |
+        Hard deletes the authenticated host's rating for an approved participant of the event.
+        The same authorization and rating-window rules used by `PUT /events/{id}/participants/{participantUserId}/rating` also apply here.
+      operationId: deleteParticipantRating
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: participantUserId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Participant rating deleted successfully.
+        '400':
+          description: Invalid path id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not allowed to delete this participant rating.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event or rating record does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Rating window is closed or the event is not rateable in its current state.
           content:
             application/json:
               schema:
@@ -604,6 +885,9 @@ paths:
                         privacy_level: PUBLIC
                         approved_participant_count: 42
                         is_favorited: true
+                        host_score:
+                          final_score: 4.18
+                          hosted_event_rating_count: 9
                       - id: 7a2c8b1e-3d4f-5e6a-bcde-f90123456789
                         title: Bosphorus Ride
                         category_name: Fitness
@@ -613,6 +897,9 @@ paths:
                         privacy_level: PROTECTED
                         approved_participant_count: 18
                         is_favorited: false
+                        host_score:
+                          final_score: null
+                          hosted_event_rating_count: 0
                     page_info:
                       next_cursor: eyJzb3J0X2J5IjoiU1RBUlRfVElNRSIsImZpbHRlcl9maW5nZXJwcmludCI6IjQ2MmEifQ
                       has_next: true
@@ -1036,6 +1323,7 @@ components:
         - privacy_level
         - approved_participant_count
         - is_favorited
+        - host_score
       properties:
         id:
           type: string
@@ -1081,6 +1369,8 @@ components:
           type: boolean
           description: Whether the authenticated user has favorited the event.
           example: true
+        host_score:
+          $ref: '#/components/schemas/EventHostScoreSummary'
 
     DiscoverEventsPageInfo:
       type: object
@@ -1113,9 +1403,12 @@ components:
         - created_at
         - updated_at
         - host
+        - host_score
         - location
         - tags
         - constraints
+        - rating_window
+        - viewer_event_rating
         - viewer_context
       properties:
         id:
@@ -1196,6 +1489,8 @@ components:
             - type: "null"
         host:
           $ref: '#/components/schemas/EventDetailUserSummary'
+        host_score:
+          $ref: '#/components/schemas/EventHostScoreSummary'
         location:
           $ref: '#/components/schemas/EventDetailLocation'
         tags:
@@ -1207,6 +1502,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ConstraintInput'
+        rating_window:
+          $ref: '#/components/schemas/EventDetailRatingWindow'
+        viewer_event_rating:
+          oneOf:
+            - $ref: '#/components/schemas/EventDetailEmbeddedRating'
+            - type: "null"
         viewer_context:
           $ref: '#/components/schemas/EventDetailViewerContext'
         host_context:
@@ -1247,6 +1548,38 @@ components:
             - string
             - "null"
           example: https://example.com/avatar.png
+
+    EventDetailHostContextUserSummary:
+      type: object
+      additionalProperties: false
+      required: [id, username, final_score, rating_count]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          example: approved_user
+        display_name:
+          type:
+            - string
+            - "null"
+          example: Approved User
+        avatar_url:
+          type:
+            - string
+            - "null"
+          example: https://example.com/avatar.png
+        final_score:
+          type:
+            - number
+            - "null"
+          format: double
+          example: 4.4
+        rating_count:
+          type: integer
+          minimum: 0
+          example: 5
 
     EventDetailLocation:
       type: object
@@ -1301,6 +1634,59 @@ components:
             approved participation -> `JOINED`, pending join request -> `PENDING`,
             invitation row -> `INVITED`, otherwise `NONE`.
 
+    EventHostScoreSummary:
+      type: object
+      additionalProperties: false
+      required: [final_score, hosted_event_rating_count]
+      properties:
+        final_score:
+          type:
+            - number
+            - "null"
+          format: double
+          example: 4.18
+        hosted_event_rating_count:
+          type: integer
+          minimum: 0
+          example: 9
+
+    EventDetailRatingWindow:
+      type: object
+      additionalProperties: false
+      required: [opens_at, closes_at, is_active]
+      properties:
+        opens_at:
+          type: string
+          format: date-time
+        closes_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+
+    EventDetailEmbeddedRating:
+      type: object
+      additionalProperties: false
+      required: [id, rating, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        message:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
     EventDetailHostContext:
       type: object
       additionalProperties: false
@@ -1322,7 +1708,7 @@ components:
     EventDetailApprovedParticipant:
       type: object
       additionalProperties: false
-      required: [participation_id, status, created_at, updated_at, user]
+      required: [participation_id, status, created_at, updated_at, host_rating, user]
       properties:
         participation_id:
           type: string
@@ -1336,8 +1722,12 @@ components:
         updated_at:
           type: string
           format: date-time
+        host_rating:
+          oneOf:
+            - $ref: '#/components/schemas/EventDetailEmbeddedRating'
+            - type: "null"
         user:
-          $ref: '#/components/schemas/EventDetailUserSummary'
+          $ref: '#/components/schemas/EventDetailHostContextUserSummary'
 
     EventDetailPendingJoinRequest:
       type: object
@@ -1362,7 +1752,7 @@ components:
           type: string
           format: date-time
         user:
-          $ref: '#/components/schemas/EventDetailUserSummary'
+          $ref: '#/components/schemas/EventDetailHostContextUserSummary'
 
     EventDetailInvitation:
       type: object
@@ -1393,7 +1783,49 @@ components:
           type: string
           format: date-time
         user:
-          $ref: '#/components/schemas/EventDetailUserSummary'
+          $ref: '#/components/schemas/EventDetailHostContextUserSummary'
+
+    RatingWriteRequest:
+      type: object
+      additionalProperties: false
+      required: [rating]
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+        message:
+          type:
+            - string
+            - "null"
+          minLength: 10
+          maxLength: 100
+          description: Optional feedback message. Blank-after-trim strings are treated as `null`.
+          example: Great event host.
+
+    RatingResponse:
+      type: object
+      additionalProperties: false
+      required: [id, rating, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        message:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
     CreateEventResponse:
       type: object

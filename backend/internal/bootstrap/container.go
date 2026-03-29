@@ -17,6 +17,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/rating"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config"
 	"github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/database"
@@ -35,11 +36,13 @@ type Container struct {
 	eventRepo            *postgres.EventRepository
 	participationRepo    *postgres.ParticipationRepository
 	joinRequestRepo      *postgres.JoinRequestRepository
+	ratingRepo           *postgres.RatingRepository
 	categoryRepo         *postgres.CategoryRepository
 	AuthService          auth.UseCase
 	EventService         event.UseCase
 	ParticipationService participation.UseCase
 	JoinRequestService   join_request.UseCase
+	RatingService        rating.UseCase
 	CategoryService      category.UseCase
 	// Extend with additional services as features are added, for example:
 	// SearchService httpapi.SearchService
@@ -75,9 +78,11 @@ func New(ctx context.Context) (*Container, error) {
 	container.eventRepo = postgres.NewEventRepository(container.DB)
 	container.participationRepo = postgres.NewParticipationRepository(container.DB)
 	container.joinRequestRepo = postgres.NewJoinRequestRepository(container.DB)
+	container.ratingRepo = postgres.NewRatingRepository(container.DB)
 	container.categoryRepo = postgres.NewCategoryRepository(container.DB)
 	container.ParticipationService = newParticipationService(container)
 	container.JoinRequestService = newJoinRequestService(container)
+	container.RatingService = newRatingService(container)
 	container.AuthService = newAuthService(container)
 	container.EventService = newEventService(container)
 	container.CategoryService = newCategoryService(container)
@@ -138,6 +143,14 @@ func newJoinRequestService(c *Container) join_request.UseCase {
 // newCategoryService wires the category use-case service with its driven adapter.
 func newCategoryService(c *Container) category.UseCase {
 	return category.NewService(c.categoryRepo)
+}
+
+// newRatingService wires the rating use-case service with its driven adapter.
+func newRatingService(c *Container) rating.UseCase {
+	return rating.NewService(c.ratingRepo, rating.Settings{
+		GlobalPrior: c.Config.RatingGlobalPrior,
+		BayesianM:   c.Config.RatingBayesianM,
+	})
 }
 
 // newAuthService wires the auth use-case service with its driven adapters.

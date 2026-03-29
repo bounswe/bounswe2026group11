@@ -69,6 +69,73 @@ func TestCreateEventSuccessPath(t *testing.T) {
 	}
 }
 
+func TestCreateEventPersistsInternalHostParticipationWithoutChangingVisibleCounts(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("internal_host"))
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+	categoryID := common.GivenEventCategory(t)
+	lat := 41.11
+	lon := 29.11
+
+	// when
+	result, err := harness.Service.CreateEvent(context.Background(), host.ID, eventapp.CreateEventInput{
+		Title:        "Internal Host Participation Event",
+		Description:  common.StringPtr("host should get an internal membership row"),
+		CategoryID:   &categoryID,
+		LocationType: domain.LocationPoint,
+		Lat:          &lat,
+		Lon:          &lon,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	if err != nil {
+		t.Fatalf("CreateEvent() error = %v", err)
+	}
+
+	eventID, err := uuid.Parse(result.ID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() error = %v", err)
+	}
+
+	var participationStatus string
+	if err := common.RequirePool(t).QueryRow(
+		context.Background(),
+		`SELECT status
+		 FROM participation
+		 WHERE event_id = $1
+		   AND user_id = $2`,
+		eventID,
+		host.ID,
+	).Scan(&participationStatus); err != nil {
+		t.Fatalf("load host participation error = %v", err)
+	}
+
+	detail, err := harness.Service.GetEventDetail(context.Background(), host.ID, eventID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+
+	// then
+	if participationStatus != domain.ParticipationStatusApproved {
+		t.Fatalf("expected host participation status %q, got %q", domain.ParticipationStatusApproved, participationStatus)
+	}
+	if detail.ApprovedParticipantCount != 0 {
+		t.Fatalf("expected visible approved_participant_count 0, got %d", detail.ApprovedParticipantCount)
+	}
+	if detail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusNone) {
+		t.Fatalf("expected host participation_status %q, got %q", domain.EventDetailParticipationStatusNone, detail.ViewerContext.ParticipationStatus)
+	}
+	if detail.HostContext == nil {
+		t.Fatal("expected host_context for host viewer")
+	}
+	if len(detail.HostContext.ApprovedParticipants) != 0 {
+		t.Fatalf("expected host_context approved participants to exclude host, got %d entries", len(detail.HostContext.ApprovedParticipants))
+	}
+}
+
 func TestCreateEventWithoutEndTime(t *testing.T) {
 	t.Parallel()
 
@@ -1279,6 +1346,9 @@ func TestGetEventDetailReturnsHostOnlyManagementLists(t *testing.T) {
 	insertParticipation(t, eventID, participant.ID, domain.ParticipationStatusApproved)
 	insertPendingJoinRequest(t, eventID, requester.ID, host.ID, common.StringPtr("I would like to join"))
 	insertInvitation(t, eventID, host.ID, invitee.ID, domain.InvitationStatusPending, common.StringPtr("Come with us"), nil)
+	insertUserScore(t, participant.ID, nil, 2, nil, 3, float64Ptr(4.4))
+	insertUserScore(t, requester.ID, nil, 1, nil, 1, float64Ptr(3.8))
+	insertUserScore(t, invitee.ID, nil, 0, nil, 6, float64Ptr(4.1))
 
 	// when
 	hostResult, err := harness.Service.GetEventDetail(context.Background(), host.ID, eventID)
@@ -1306,11 +1376,29 @@ func TestGetEventDetailReturnsHostOnlyManagementLists(t *testing.T) {
 	if hostResult.HostContext.ApprovedParticipants[0].User.Username != "approved_user" {
 		t.Fatalf("expected approved participant username %q, got %q", "approved_user", hostResult.HostContext.ApprovedParticipants[0].User.Username)
 	}
+	if hostResult.HostContext.ApprovedParticipants[0].User.FinalScore == nil || *hostResult.HostContext.ApprovedParticipants[0].User.FinalScore != 4.4 {
+		t.Fatalf("expected approved participant final_score 4.4, got %v", hostResult.HostContext.ApprovedParticipants[0].User.FinalScore)
+	}
+	if hostResult.HostContext.ApprovedParticipants[0].User.RatingCount != 5 {
+		t.Fatalf("expected approved participant rating_count 5, got %d", hostResult.HostContext.ApprovedParticipants[0].User.RatingCount)
+	}
 	if hostResult.HostContext.PendingJoinRequests[0].User.Username != "pending_user" {
 		t.Fatalf("expected pending join request username %q, got %q", "pending_user", hostResult.HostContext.PendingJoinRequests[0].User.Username)
 	}
+	if hostResult.HostContext.PendingJoinRequests[0].User.FinalScore == nil || *hostResult.HostContext.PendingJoinRequests[0].User.FinalScore != 3.8 {
+		t.Fatalf("expected pending user final_score 3.8, got %v", hostResult.HostContext.PendingJoinRequests[0].User.FinalScore)
+	}
+	if hostResult.HostContext.PendingJoinRequests[0].User.RatingCount != 2 {
+		t.Fatalf("expected pending user rating_count 2, got %d", hostResult.HostContext.PendingJoinRequests[0].User.RatingCount)
+	}
 	if hostResult.HostContext.Invitations[0].User.Username != "invited_user" {
 		t.Fatalf("expected invitation username %q, got %q", "invited_user", hostResult.HostContext.Invitations[0].User.Username)
+	}
+	if hostResult.HostContext.Invitations[0].User.FinalScore == nil || *hostResult.HostContext.Invitations[0].User.FinalScore != 4.1 {
+		t.Fatalf("expected invited user final_score 4.1, got %v", hostResult.HostContext.Invitations[0].User.FinalScore)
+	}
+	if hostResult.HostContext.Invitations[0].User.RatingCount != 6 {
+		t.Fatalf("expected invited user rating_count 6, got %d", hostResult.HostContext.Invitations[0].User.RatingCount)
 	}
 	if nonHostResult.HostContext != nil {
 		t.Fatal("expected non-host response to omit host_context")
@@ -1655,6 +1743,38 @@ func insertParticipation(t *testing.T, eventID, userID uuid.UUID, status string)
 	return participationID
 }
 
+func insertUserScore(
+	t *testing.T,
+	userID uuid.UUID,
+	participantScore *float64,
+	participantRatingCount int,
+	hostedEventScore *float64,
+	hostedEventRatingCount int,
+	finalScore *float64,
+) {
+	t.Helper()
+
+	if _, err := common.RequirePool(t).Exec(
+		context.Background(),
+		`INSERT INTO user_score (
+			user_id,
+			participant_score,
+			participant_rating_count,
+			hosted_event_score,
+			hosted_event_rating_count,
+			final_score
+		) VALUES ($1, $2, $3, $4, $5, $6)`,
+		userID,
+		participantScore,
+		participantRatingCount,
+		hostedEventScore,
+		hostedEventRatingCount,
+		finalScore,
+	); err != nil {
+		t.Fatalf("insert user_score error = %v", err)
+	}
+}
+
 func insertPendingJoinRequest(t *testing.T, eventID, userID, hostUserID uuid.UUID, message *string) uuid.UUID {
 	t.Helper()
 
@@ -1700,6 +1820,10 @@ func insertInvitation(
 	}
 
 	return invitationID
+}
+
+func float64Ptr(value float64) *float64 {
+	return &value
 }
 
 func assertDiscoverEventIDsInOrder(t *testing.T, items []eventapp.DiscoverableEventItem, want ...uuid.UUID) {

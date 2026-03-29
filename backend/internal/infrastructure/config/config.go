@@ -40,6 +40,8 @@ type Config struct {
 	MailProvider           string
 	MailDomain             string
 	ResendClientAPIKey     string
+	RatingGlobalPrior      float64
+	RatingBayesianM        int
 }
 
 // Load reads configuration using the following precedence:
@@ -88,6 +90,8 @@ func Load() (*Config, error) {
 	bind("mail_provider", "MAIL_PROVIDER")
 	bind("mail_domain", "MAIL_DOMAIN")
 	bind("resend_client_api_key", "RESEND_CLIENT_API_KEY")
+	bind("rating_global_prior", "RATING_GLOBAL_PRIOR")
+	bind("rating_bayesian_m", "RATING_BAYESIAN_M")
 
 	cfg := &Config{
 		AppPort:                v.GetInt("app_port"),
@@ -112,6 +116,8 @@ func Load() (*Config, error) {
 		MailProvider:           strings.TrimSpace(v.GetString("mail_provider")),
 		MailDomain:             strings.TrimSpace(v.GetString("mail_domain")),
 		ResendClientAPIKey:     strings.TrimSpace(v.GetString("resend_client_api_key")),
+		RatingGlobalPrior:      v.GetFloat64("rating_global_prior"),
+		RatingBayesianM:        v.GetInt("rating_bayesian_m"),
 	}
 
 	if err := validate(v, cfg); err != nil {
@@ -312,6 +318,12 @@ func validate(v *viper.Viper, c *Config) error {
 		if c.ResendClientAPIKey == "" {
 			return fmt.Errorf("RESEND_CLIENT_API_KEY is required and cannot be empty")
 		}
+	}
+	if c.RatingGlobalPrior < 1 || c.RatingGlobalPrior > 5 {
+		return fmt.Errorf("RATING_GLOBAL_PRIOR must be between 1 and 5")
+	}
+	if c.RatingBayesianM < 1 {
+		return fmt.Errorf("RATING_BAYESIAN_M must be at least 1")
 	}
 
 	return nil

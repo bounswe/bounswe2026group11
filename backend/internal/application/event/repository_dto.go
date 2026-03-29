@@ -66,6 +66,7 @@ type DiscoverableEventRecord struct {
 	PrivacyLevel             domain.EventPrivacyLevel
 	ApprovedParticipantCount int
 	IsFavorited              bool
+	HostScore                EventHostScoreSummaryRecord
 	DistanceMeters           float64
 	RelevanceScore           *float64
 }
@@ -100,9 +101,11 @@ type EventDetailRecord struct {
 	UpdatedAt                time.Time
 	Category                 *EventDetailCategoryRecord
 	Host                     EventDetailPersonRecord
+	HostScore                EventHostScoreSummaryRecord
 	Location                 EventDetailLocationRecord
 	Tags                     []string
 	Constraints              []EventDetailConstraintRecord
+	ViewerEventRating        *EventDetailRatingRecord
 	ViewerContext            EventDetailViewerContextRecord
 	HostContext              *EventDetailHostContextRecord
 }
@@ -121,6 +124,17 @@ type EventDetailPersonRecord struct {
 	AvatarURL   *string
 }
 
+// EventDetailHostContextUserRecord is the richer user summary shown only in
+// host management lists.
+type EventDetailHostContextUserRecord struct {
+	ID          uuid.UUID
+	Username    string
+	DisplayName *string
+	AvatarURL   *string
+	FinalScore  *float64
+	RatingCount int
+}
+
 // EventDetailLocationRecord carries the event geometry and address for the detail page.
 type EventDetailLocationRecord struct {
 	Type        domain.EventLocationType
@@ -133,6 +147,21 @@ type EventDetailLocationRecord struct {
 type EventDetailConstraintRecord struct {
 	Type string
 	Info string
+}
+
+// EventHostScoreSummaryRecord is the repository-level host score projection reused by event responses.
+type EventHostScoreSummaryRecord struct {
+	FinalScore             *float64
+	HostedEventRatingCount int
+}
+
+// EventDetailRatingRecord is the shared repository-level rating snapshot used by detail responses.
+type EventDetailRatingRecord struct {
+	ID        uuid.UUID
+	Rating    int
+	Message   *string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // EventDetailViewerContextRecord captures the authenticated viewer's relation to the event.
@@ -155,7 +184,8 @@ type EventDetailApprovedParticipantRecord struct {
 	Status          string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
-	User            EventDetailPersonRecord
+	HostRating      *EventDetailRatingRecord
+	User            EventDetailHostContextUserRecord
 }
 
 // EventDetailPendingJoinRequestRecord is a host-visible pending join request projection.
@@ -165,7 +195,7 @@ type EventDetailPendingJoinRequestRecord struct {
 	Message       *string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
-	User          EventDetailPersonRecord
+	User          EventDetailHostContextUserRecord
 }
 
 // EventDetailInvitationRecord is a host-visible invitation projection.
@@ -176,5 +206,5 @@ type EventDetailInvitationRecord struct {
 	ExpiresAt    *time.Time
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
-	User         EventDetailPersonRecord
+	User         EventDetailHostContextUserRecord
 }

@@ -278,6 +278,57 @@ func TestDiscoverEventsInvalidSortReturns400(t *testing.T) {
 	}
 }
 
+func TestDiscoverEventsReturnsHostScoreField(t *testing.T) {
+	// given
+	finalScore := 4.4
+	svc := &stubEventService{
+		discoverResult: &event.DiscoverEventsResult{
+			Items: []event.DiscoverableEventItem{
+				{
+					ID:                       uuid.NewString(),
+					Title:                    "Rated Event",
+					CategoryName:             "Sports",
+					StartTime:                time.Now().UTC(),
+					PrivacyLevel:             string(domain.PrivacyPublic),
+					ApprovedParticipantCount: 12,
+					IsFavorited:              true,
+					HostScore: event.EventHostScoreSummary{
+						FinalScore:             &finalScore,
+						HostedEventRatingCount: 7,
+					},
+				},
+			},
+			PageInfo: event.DiscoverEventsPageInfo{HasNext: false},
+		},
+	}
+	app := newEventTestApp(svc, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodGet, "/events/?lat=41.01&lon=29.02", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	var body event.DiscoverEventsResult
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	if len(body.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(body.Items))
+	}
+	if body.Items[0].HostScore.HostedEventRatingCount != 7 {
+		t.Fatalf("expected host rating count 7, got %d", body.Items[0].HostScore.HostedEventRatingCount)
+	}
+	if body.Items[0].HostScore.FinalScore == nil || *body.Items[0].HostScore.FinalScore != finalScore {
+		t.Fatalf("expected host final score %v, got %v", finalScore, body.Items[0].HostScore.FinalScore)
+	}
+}
+
 func TestDiscoverEventsIgnoresEmptyOptionalListParams(t *testing.T) {
 	// given
 	svc := &stubEventService{}
@@ -348,6 +399,81 @@ func TestGetEventDetailReturns200(t *testing.T) {
 	}
 	if body.ID != eventID.String() {
 		t.Fatalf("expected response id %s, got %s", eventID, body.ID)
+	}
+}
+
+func TestGetEventDetailReturnsRatingMetadata(t *testing.T) {
+	// given
+	finalScore := 4.2
+	message := "Great event."
+	svc := &stubEventService{
+		detailResult: &event.GetEventDetailResult{
+			ID:           uuid.NewString(),
+			Title:        "Detailed Event",
+			PrivacyLevel: string(domain.PrivacyPublic),
+			Status:       string(domain.EventStatusActive),
+			StartTime:    time.Now().UTC().Add(-2 * time.Hour),
+			Host: event.EventDetailPerson{
+				ID:       uuid.NewString(),
+				Username: "host_user",
+			},
+			HostScore: event.EventHostScoreSummary{
+				HostedEventRatingCount: 9,
+				FinalScore:             &finalScore,
+			},
+			Location: event.EventDetailLocation{
+				Type: string(domain.LocationPoint),
+				Point: &event.EventDetailPoint{
+					Lat: 41,
+					Lon: 29,
+				},
+			},
+			Tags:        []string{},
+			Constraints: []event.EventDetailConstraint{},
+			RatingWindow: event.EventDetailRatingWindow{
+				OpensAt:  time.Now().UTC().Add(-time.Hour),
+				ClosesAt: time.Now().UTC().Add(6 * 24 * time.Hour),
+				IsActive: true,
+			},
+			ViewerEventRating: &event.EventDetailRating{
+				ID:        uuid.NewString(),
+				Rating:    5,
+				Message:   &message,
+				CreatedAt: time.Now().UTC().Add(-30 * time.Minute),
+				UpdatedAt: time.Now().UTC(),
+			},
+			ViewerContext: event.EventDetailViewerContext{
+				IsHost:              false,
+				IsFavorited:         false,
+				ParticipationStatus: string(domain.EventDetailParticipationStatusJoined),
+			},
+		},
+	}
+	app := newEventTestApp(svc, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodGet, "/events/"+svc.detailResult.ID, nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	var body event.GetEventDetailResult
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	if body.HostScore.HostedEventRatingCount != 9 {
+		t.Fatalf("expected host rating count 9, got %d", body.HostScore.HostedEventRatingCount)
+	}
+	if body.ViewerEventRating == nil || body.ViewerEventRating.Rating != 5 {
+		t.Fatalf("expected viewer_event_rating in response, got %+v", body.ViewerEventRating)
+	}
+	if !body.RatingWindow.IsActive {
+		t.Fatal("expected rating_window.is_active to be true")
 	}
 }
 

@@ -75,15 +75,16 @@ type DiscoverEventsResult struct {
 
 // DiscoverableEventItem is the compact event-card payload returned by discovery.
 type DiscoverableEventItem struct {
-	ID                       string    `json:"id"`
-	Title                    string    `json:"title"`
-	CategoryName             string    `json:"category_name"`
-	ImageURL                 *string   `json:"image_url"`
-	StartTime                time.Time `json:"start_time"`
-	LocationAddress          *string   `json:"location_address"`
-	PrivacyLevel             string    `json:"privacy_level"`
-	ApprovedParticipantCount int       `json:"approved_participant_count"`
-	IsFavorited              bool      `json:"is_favorited"`
+	ID                       string                `json:"id"`
+	Title                    string                `json:"title"`
+	CategoryName             string                `json:"category_name"`
+	ImageURL                 *string               `json:"image_url"`
+	StartTime                time.Time             `json:"start_time"`
+	LocationAddress          *string               `json:"location_address"`
+	PrivacyLevel             string                `json:"privacy_level"`
+	ApprovedParticipantCount int                   `json:"approved_participant_count"`
+	IsFavorited              bool                  `json:"is_favorited"`
+	HostScore                EventHostScoreSummary `json:"host_score"`
 }
 
 // DiscoverEventsPageInfo contains cursor pagination metadata.
@@ -112,9 +113,12 @@ type GetEventDetailResult struct {
 	UpdatedAt                time.Time                `json:"updated_at"`
 	Category                 *EventDetailCategory     `json:"category"`
 	Host                     EventDetailPerson        `json:"host"`
+	HostScore                EventHostScoreSummary    `json:"host_score"`
 	Location                 EventDetailLocation      `json:"location"`
 	Tags                     []string                 `json:"tags"`
 	Constraints              []EventDetailConstraint  `json:"constraints"`
+	RatingWindow             EventDetailRatingWindow  `json:"rating_window"`
+	ViewerEventRating        *EventDetailRating       `json:"viewer_event_rating"`
 	ViewerContext            EventDetailViewerContext `json:"viewer_context"`
 	HostContext              *EventDetailHostContext  `json:"host_context,omitempty"`
 }
@@ -131,6 +135,17 @@ type EventDetailPerson struct {
 	Username    string  `json:"username"`
 	DisplayName *string `json:"display_name"`
 	AvatarURL   *string `json:"avatar_url"`
+}
+
+// EventDetailHostContextUser is the richer user summary returned only in
+// host-only management lists.
+type EventDetailHostContextUser struct {
+	ID          string   `json:"id"`
+	Username    string   `json:"username"`
+	DisplayName *string  `json:"display_name"`
+	AvatarURL   *string  `json:"avatar_url"`
+	FinalScore  *float64 `json:"final_score"`
+	RatingCount int      `json:"rating_count"`
 }
 
 // EventDetailLocation is the event location payload used by the detail page.
@@ -153,6 +168,28 @@ type EventDetailConstraint struct {
 	Info string `json:"info"`
 }
 
+// EventHostScoreSummary exposes the host's cached aggregate score on event payloads.
+type EventHostScoreSummary struct {
+	FinalScore             *float64 `json:"final_score"`
+	HostedEventRatingCount int      `json:"hosted_event_rating_count"`
+}
+
+// EventDetailRatingWindow exposes the event-specific rating window bounds.
+type EventDetailRatingWindow struct {
+	OpensAt  time.Time `json:"opens_at"`
+	ClosesAt time.Time `json:"closes_at"`
+	IsActive bool      `json:"is_active"`
+}
+
+// EventDetailRating is a reusable rating snapshot embedded in detail responses.
+type EventDetailRating struct {
+	ID        string    `json:"id"`
+	Rating    int       `json:"rating"`
+	Message   *string   `json:"message"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // EventDetailViewerContext describes how the authenticated user relates to the event.
 type EventDetailViewerContext struct {
 	IsHost              bool   `json:"is_host"`
@@ -169,32 +206,33 @@ type EventDetailHostContext struct {
 
 // EventDetailApprovedParticipant is returned only to the host.
 type EventDetailApprovedParticipant struct {
-	ParticipationID string            `json:"participation_id"`
-	Status          string            `json:"status"`
-	CreatedAt       time.Time         `json:"created_at"`
-	UpdatedAt       time.Time         `json:"updated_at"`
-	User            EventDetailPerson `json:"user"`
+	ParticipationID string                     `json:"participation_id"`
+	Status          string                     `json:"status"`
+	CreatedAt       time.Time                  `json:"created_at"`
+	UpdatedAt       time.Time                  `json:"updated_at"`
+	HostRating      *EventDetailRating         `json:"host_rating"`
+	User            EventDetailHostContextUser `json:"user"`
 }
 
 // EventDetailPendingJoinRequest is returned only to the host.
 type EventDetailPendingJoinRequest struct {
-	JoinRequestID string            `json:"join_request_id"`
-	Status        string            `json:"status"`
-	Message       *string           `json:"message"`
-	CreatedAt     time.Time         `json:"created_at"`
-	UpdatedAt     time.Time         `json:"updated_at"`
-	User          EventDetailPerson `json:"user"`
+	JoinRequestID string                     `json:"join_request_id"`
+	Status        string                     `json:"status"`
+	Message       *string                    `json:"message"`
+	CreatedAt     time.Time                  `json:"created_at"`
+	UpdatedAt     time.Time                  `json:"updated_at"`
+	User          EventDetailHostContextUser `json:"user"`
 }
 
 // EventDetailInvitation is returned only to the host.
 type EventDetailInvitation struct {
-	InvitationID string            `json:"invitation_id"`
-	Status       string            `json:"status"`
-	Message      *string           `json:"message"`
-	ExpiresAt    *time.Time        `json:"expires_at"`
-	CreatedAt    time.Time         `json:"created_at"`
-	UpdatedAt    time.Time         `json:"updated_at"`
-	User         EventDetailPerson `json:"user"`
+	InvitationID string                     `json:"invitation_id"`
+	Status       string                     `json:"status"`
+	Message      *string                    `json:"message"`
+	ExpiresAt    *time.Time                 `json:"expires_at"`
+	CreatedAt    time.Time                  `json:"created_at"`
+	UpdatedAt    time.Time                  `json:"updated_at"`
+	User         EventDetailHostContextUser `json:"user"`
 }
 
 // JoinEventResult is returned after a user successfully joins a public event.

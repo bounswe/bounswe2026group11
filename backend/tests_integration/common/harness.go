@@ -16,6 +16,7 @@ import (
 	eventapp "github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	joinrequestapp "github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	participationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
+	ratingapp "github.com/bounswe/bounswe2026group11/backend/internal/application/rating"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/jackc/pgx/v5"
 )
@@ -76,8 +77,9 @@ func NewAuthHarness(t *testing.T) *AuthHarness {
 
 // EventHarness bundles the shared wiring used by event integration tests.
 type EventHarness struct {
-	Service  eventapp.UseCase
-	AuthRepo authapp.Repository
+	Service       eventapp.UseCase
+	RatingService ratingapp.UseCase
+	AuthRepo      authapp.Repository
 }
 
 // NewEventHarness creates an event service that shares the package-level pool.
@@ -88,6 +90,7 @@ func NewEventHarness(t *testing.T) *EventHarness {
 	eventRepo := postgresrepo.NewEventRepository(pool)
 	participationRepo := postgresrepo.NewParticipationRepository(pool)
 	joinRequestRepo := postgresrepo.NewJoinRequestRepository(pool)
+	ratingRepo := postgresrepo.NewRatingRepository(pool)
 	participationService := participationapp.NewService(participationRepo)
 	joinRequestService := joinrequestapp.NewService(joinRequestRepo)
 
@@ -97,6 +100,10 @@ func NewEventHarness(t *testing.T) *EventHarness {
 			participationService,
 			joinRequestService,
 		),
+		RatingService: ratingapp.NewService(ratingRepo, ratingapp.Settings{
+			GlobalPrior: 4.0,
+			BayesianM:   5,
+		}),
 		AuthRepo: postgresrepo.NewAuthRepository(pool),
 	}
 }
