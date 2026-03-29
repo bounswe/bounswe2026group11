@@ -101,3 +101,95 @@ export interface PaginatedEventsResponse {
 export interface ListCategoriesResponse {
   items: EventCategory[];
 }
+
+export interface EventDetailCategory {
+  id: number;
+  name: string;
+}
+
+export interface EventDetailUserSummary {
+  id: string;
+  username: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
+}
+
+export interface EventDetailPoint {
+  lat: number;
+  lon: number;
+}
+
+export interface EventDetailLocation {
+  type: LocationType;
+  address?: string | null;
+  point?: EventDetailPoint | null;
+  route_points?: EventDetailPoint[];
+}
+
+export interface EventDetailRatingWindow {
+  opens_at: string;
+  closes_at: string;
+  is_active: boolean;
+}
+
+export interface EventDetailEmbeddedRating {
+  id: string;
+  rating: number;
+  message?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ParticipationStatus = 'JOINED' | 'PENDING' | 'INVITED' | 'NONE';
+
+export interface EventDetailViewerContext {
+  is_host: boolean;
+  is_favorited: boolean;
+  participation_status: ParticipationStatus;
+}
+
+export interface EventDetail {
+  id: string;
+  title: string;
+  description?: string | null;
+  image_url?: string | null;
+  privacy_level: PrivacyLevel;
+  status: string;
+  start_time: string;
+  end_time?: string | null;
+  capacity?: number | null;
+  minimum_age?: number | null;
+  preferred_gender?: string | null;
+  approved_participant_count: number;
+  pending_participant_count: number;
+  favorite_count: number;
+  created_at: string;
+  updated_at: string;
+  category?: EventDetailCategory | null;
+  host: EventDetailUserSummary;
+  host_score: HostScore;
+  location: EventDetailLocation;
+  tags: string[];
+  constraints: EventConstraint[];
+  rating_window: EventDetailRatingWindow;
+  viewer_event_rating?: EventDetailEmbeddedRating | null;
+  viewer_context: EventDetailViewerContext;
+}
+
+export interface JoinEventResponse {
+  participation_id: string;
+  event_id: string;
+  status: string;
+  created_at: string;
+}
+
+export interface RequestJoinRequest {
+  message?: string | null;
+}
+
+export interface RequestJoinResponse {
+  join_request_id: string;
+  event_id: string;
+  status: string;
+  created_at: string;
+}

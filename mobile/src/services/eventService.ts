@@ -1,11 +1,15 @@
-import { BASE_URL, ApiError, apiPostAuth } from '@/services/api';
+import { apiGet, apiGetAuth, apiPostAuth } from '@/services/api';
 import {
   CreateEventRequest,
   CreateEventResponse,
+  EventDetail,
+  JoinEventResponse,
   LocationSuggestion,
   ListEventsQuery,
   ListCategoriesResponse,
   PaginatedEventsResponse,
+  RequestJoinRequest,
+  RequestJoinResponse,
 } from '@/models/event';
 
 
@@ -17,6 +21,28 @@ export async function createEvent(
   token: string,
 ): Promise<CreateEventResponse> {
   return apiPostAuth<CreateEventResponse>('/events', request, token);
+}
+
+export async function getEventDetail(
+  id: string,
+  token: string,
+): Promise<EventDetail> {
+  return apiGetAuth<EventDetail>(`/events/${id}`, token);
+}
+
+export async function joinEvent(
+  id: string,
+  token: string,
+): Promise<JoinEventResponse> {
+  return apiPostAuth<JoinEventResponse>(`/events/${id}/join`, {}, token);
+}
+
+export async function requestJoinEvent(
+  id: string,
+  body: RequestJoinRequest,
+  token: string,
+): Promise<RequestJoinResponse> {
+  return apiPostAuth<RequestJoinResponse>(`/events/${id}/join-request`, body, token);
 }
 
 export async function searchLocation(
@@ -48,19 +74,7 @@ export async function searchLocation(
 }
 
 export async function listCategories(): Promise<ListCategoriesResponse> {
-  const response = await fetch(`${BASE_URL}/categories`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.json();
-    throw new ApiError(response.status, errorBody);
-  }
-
-  return (await response.json()) as ListCategoriesResponse;
+  return apiGet<ListCategoriesResponse>('/categories');
 }
 
 function appendArrayParam(
@@ -119,18 +133,5 @@ export async function listEvents(
     params.set('cursor', query.cursor);
   }
 
-  const response = await fetch(`${BASE_URL}/events?${params.toString()}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.json();
-    throw new ApiError(response.status, errorBody);
-  }
-
-  return (await response.json()) as PaginatedEventsResponse;
+  return apiGetAuth<PaginatedEventsResponse>(`/events?${params.toString()}`, token);
 }
