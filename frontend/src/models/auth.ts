@@ -64,3 +64,22 @@ export interface ErrorBody {
 export interface ErrorResponse {
   error: ErrorBody;
 }
+
+export interface ForgotPasswordRequestOtpRequest {
+  email: string;
+}
+
+export interface ForgotPasswordVerifyOtpRequest {
+  email: string;
+  otp: string;
+}
+
+export interface ForgotPasswordVerifyOtpResponse {
+  reset_token: string;
+}
+
+export interface ForgotPasswordResetPasswordRequest {
+  email: string;
+  reset_token: string;
+  new_password: string;
+}
