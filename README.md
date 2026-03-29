@@ -27,7 +27,7 @@ A **CMPE354 Group 11** project for discovering and managing social events on a m
 
 You need [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/).
 
-1. At the repository root, create Compose env file (the example values are enough to start):
+1. At the repository root, create the Compose env file and fill in the required secrets (`DB_PASSWORD`, `JWT_SECRET`, and `RESEND_CLIENT_API_KEY`):
 
    ```bash
    cp deploy/.env.example deploy/.env
@@ -65,11 +65,11 @@ These docs routes are local-only; the remote dev deployment does not expose `/ap
 
 ### Backend only (Go)
 
-This does not run in isolation: you need a reachable PostGIS database, runtime settings from `backend/config/application.local.yaml`, and secrets in `backend/.env` (same keys as Compose: copy from [`deploy/.env.example`](deploy/.env.example); the Go server ignores `DOCKERHUB_NAMESPACE` if present).
+This does not run in isolation: you need a reachable PostGIS database, runtime settings from `backend/config/application.local.yaml`, and secrets in the repository-root `.env` file (same keys as Compose: copy from [`deploy/.env.example`](deploy/.env.example); the Go server ignores `DOCKERHUB_NAMESPACE` if present).
 
 ```bash
+cp deploy/.env.example .env   # fill in with secrets at the repository root
 cd backend
-cp ../deploy/.env.example .env   # fill in with secrets
 go run ./cmd/server
 ```
 
@@ -81,7 +81,7 @@ By default the API listens on **http://localhost:8080** (e.g. `GET /health`). Be
 
 - **Registration** is **email OTP–based**: request an OTP, verify it, then complete account creation (username, password, optional phone). See [`docs/openapi/auth.yaml`](docs/openapi/auth.yaml) for `POST /auth/register/email/request-otp`, `POST /auth/register/email/verify`, and related routes (`check-availability`, and optional **forgot-password** OTP request).
 - **Login** uses **username and password** (`POST /auth/login`) — no OTP step for sign-in.
-- In development, OTP email is handled by a **mock mailer** (not production email delivery).
+- OTP email is delivered through the configured transactional mail provider. Local and dev defaults use **Resend**, so set `RESEND_CLIENT_API_KEY` before requesting OTPs.
 
 ### Access and refresh tokens
 

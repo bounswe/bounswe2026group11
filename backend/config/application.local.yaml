@@ -17,4 +17,5 @@ login_rate_limit: 10
 login_rate_window: 15m
 availability_rate_limit: 20
 availability_rate_window: 15m
-otp_mailer_mode: mock
+mail_provider: mock   # set this to "resend" for real mail delivery or set to "mock" for mock mail delivery to logs
+mail_domain: socialeventmapper.com

@@ -131,6 +131,7 @@ These names still matter at runtime:
 |----------|---------|
 | `DB_PASSWORD` | Postgres + backend |
 | `JWT_SECRET` | Backend |
+| `RESEND_CLIENT_API_KEY` | Backend transactional email delivery |
 | `DOCKERHUB_NAMESPACE` | `deploy/docker-compose.dev.yml` image names (set in `deploy/.env` or the shell/CI environment) |
 
 `DOCKERHUB_NAMESPACE` is your Docker Hub user or organization; images are expected as:
@@ -148,6 +149,7 @@ Example mapping (name secrets however you prefer; align with your workflow):
 |-------------------------|----------------|
 | `DB_PASSWORD` | `DB_PASSWORD=...` |
 | `JWT_SECRET` | `JWT_SECRET=...` |
+| `RESEND_CLIENT_API_KEY` | `RESEND_CLIENT_API_KEY=...` |
 | `DOCKERHUB_NAMESPACE` | `DOCKERHUB_NAMESPACE=...` |
 
 In **GitHub Actions**, pass secrets into a remote step (e.g. `appleboy/ssh-action` with `script`, or inline `ssh` with env vars exported from `${{ secrets.* }}`). On the **server**, the resulting file is plain key=value lines, for example:
@@ -156,6 +158,7 @@ In **GitHub Actions**, pass secrets into a remote step (e.g. `appleboy/ssh-actio
 # Resulting /opt/sem/deploy/.env (values come from GitHub Secrets at deploy time — not committed)
 DB_PASSWORD=...
 JWT_SECRET=...
+RESEND_CLIENT_API_KEY=...
 DOCKERHUB_NAMESPACE=...
 ```
 

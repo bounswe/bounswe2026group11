@@ -35,6 +35,7 @@ services:
       DB_USER: postgres
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      RESEND_CLIENT_API_KEY: ${RESEND_CLIENT_API_KEY}
     networks:
       - app
 
