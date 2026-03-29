@@ -3,7 +3,6 @@ import { EventCategory, EventSummary } from '@/models/event';
 import { listCategories, listEvents } from '@/services/eventService';
 import { useAuth } from '@/contexts/AuthContext';
 
-
 const PAGE_SIZE = 2;
 
 const DEFAULT_LOCATION = {
@@ -25,6 +24,7 @@ export interface HomeViewModel {
   apiError: string | null;
   hasMore: boolean;
   updateSearchText: (value: string) => void;
+  submitSearch: () => void;
   selectCategory: (categoryId: number | null) => void;
   loadMoreEvents: () => Promise<void>;
   refreshEvents: () => Promise<void>;
@@ -36,6 +36,7 @@ export function useHomeViewModel(): HomeViewModel {
   const [categories, setCategories] = useState<EventCategory[]>([]);
   const [events, setEvents] = useState<EventSummary[]>([]);
   const [searchText, setSearchText] = useState('');
+  const [appliedSearchText, setAppliedSearchText] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -84,7 +85,7 @@ export function useHomeViewModel(): HomeViewModel {
             lat: DEFAULT_LOCATION.lat,
             lon: DEFAULT_LOCATION.lon,
             radius_meters: 50000,
-            q: searchText.trim() || undefined,
+            q: appliedSearchText || undefined,
             category_ids:
               selectedCategoryId != null ? [selectedCategoryId] : undefined,
             limit: PAGE_SIZE,
@@ -109,24 +110,28 @@ export function useHomeViewModel(): HomeViewModel {
         if (mode === 'loadMore') setIsLoadingMore(false);
       }
     },
-    [token, nextCursor, searchText, selectedCategoryId],
+    [token, nextCursor, appliedSearchText, selectedCategoryId],
   );
 
   useEffect(() => {
-      loadCategories();
-    }, [loadCategories]);
+    loadCategories();
+  }, [loadCategories]);
 
-    useEffect(() => {
+  useEffect(() => {
     const timeout = setTimeout(() => {
       void loadEvents('initial');
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [token, searchText, selectedCategoryId]);
+  }, [token, appliedSearchText, selectedCategoryId]);
 
   const updateSearchText = useCallback((value: string) => {
     setSearchText(value);
   }, []);
+
+  const submitSearch = useCallback(() => {
+    setAppliedSearchText(searchText.trim());
+  }, [searchText]);
 
   const selectCategory = useCallback((categoryId: number | null) => {
     setSelectedCategoryId(categoryId);
@@ -158,6 +163,7 @@ export function useHomeViewModel(): HomeViewModel {
     apiError,
     hasMore,
     updateSearchText,
+    submitSearch,
     selectCategory,
     loadMoreEvents,
     refreshEvents,

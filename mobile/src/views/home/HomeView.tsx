@@ -34,6 +34,7 @@ export default function HomeView() {
           <SearchSection
             query={vm.searchText}
             onChangeQuery={vm.updateSearchText}
+            onSubmitSearch={vm.submitSearch}
           />
 
           <CategoryChips
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   topSection: {
-    paddingTop: 8,
+    paddingTop: 12,
   },
   listWrapper: {
     flex: 1,

@@ -75,7 +75,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
           <View style={styles.metaRow}>
             <Feather name="clock" size={17} color="#6B7280" />
             <Text style={styles.metaText}>
-              {formatEventDateLabel(event.start_time)}
+              {formatEventDateLabel(event.start_time, event.end_time)}
             </Text>
           </View>
         </View>

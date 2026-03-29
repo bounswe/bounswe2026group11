@@ -5,12 +5,14 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 interface SearchSectionProps {
   query: string;
   onChangeQuery: (value: string) => void;
+  onSubmitSearch: () => void;
   onPressFilter?: () => void;
 }
 
 export default function SearchSection({
   query,
   onChangeQuery,
+  onSubmitSearch,
   onPressFilter,
 }: SearchSectionProps) {
   return (
@@ -25,6 +27,7 @@ export default function SearchSection({
         <TextInput
           value={query}
           onChangeText={onChangeQuery}
+          onSubmitEditing={onSubmitSearch}
           placeholder="Search title, tags..."
           placeholderTextColor="#9CA3AF"
           style={styles.input}

@@ -60,6 +60,7 @@ export interface EventSummary {
   category_name: string;
   image_url?: string | null;
   start_time: string;
+  end_time?: string | null;
   location_address?: string | null;
   privacy_level: Extract<PrivacyLevel, 'PUBLIC' | 'PROTECTED'>;
   approved_participant_count: number;

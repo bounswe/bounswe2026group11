@@ -17,15 +17,23 @@ export default function HomeHeader({
 }: HomeHeaderProps) {
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={onPressLocation}
-        accessibilityRole="button"
-        accessibilityLabel="Select location"
-      >
+      <View style={styles.leftSection}>
         <Text style={styles.kicker}>Discover events near</Text>
-        <Text style={styles.location}>{locationLabel}</Text>
-      </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.locationButton}
+          activeOpacity={0.85}
+          onPress={onPressLocation}
+          accessibilityRole="button"
+          accessibilityLabel="Select location"
+        >
+          <Ionicons name="location-sharp" size={16} color="#FFFFFF" />
+          <Text style={styles.locationButtonText} numberOfLines={1}>
+            {locationLabel}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity
         style={styles.notificationButton}
@@ -45,21 +53,37 @@ export default function HomeHeader({
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 10,
+    marginTop: 20,
     marginBottom: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  leftSection: {
+    flex: 1,
+    marginRight: 12,
+  },
   kicker: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 0,
+    marginBottom: 8,
   },
-  location: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
+  locationButton: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  locationButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginHorizontal: 8,
+    flexShrink: 1,
   },
   notificationButton: {
     width: 46,
