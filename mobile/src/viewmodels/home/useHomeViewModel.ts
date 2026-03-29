@@ -17,7 +17,6 @@ export interface HomeViewModel {
   selectedCategoryId: number | null;
   searchText: string;
   events: EventSummary[];
-  totalCount: number;
   isLoading: boolean;
   isLoadingMore: boolean;
   isRefreshing: boolean;
@@ -156,7 +155,6 @@ export function useHomeViewModel(): HomeViewModel {
     selectedCategoryId,
     searchText,
     events,
-    totalCount: events.length,
     isLoading,
     isLoadingMore,
     isRefreshing,

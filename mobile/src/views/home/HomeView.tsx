@@ -11,7 +11,6 @@ import { router, type Href } from 'expo-router';
 import HomeHeader from '@/components/home/HomeHeader';
 import SearchSection from '@/components/home/SearchSection';
 import CategoryChips from '@/components/home/CategoryChips';
-import EventResultsHeader from '@/components/home/EventResultsHeader';
 import EmptyState from '@/components/home/EmptyState';
 import LoadingState from '@/components/home/LoadingState';
 import BottomTabBar from '@/components/common/BottomTabBar';
@@ -43,7 +42,6 @@ export default function HomeView() {
             onSelectCategory={vm.selectCategory}
           />
 
-          <EventResultsHeader count={vm.totalCount} />
 
           {vm.apiError ? (
             <View style={styles.errorBanner}>

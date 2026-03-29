@@ -131,7 +131,6 @@ describe('useHomeViewModel', () => {
 
     expect(result.current.categories).toEqual(categoriesFixture.items);
     expect(result.current.events).toEqual(page1Fixture.items);
-    expect(result.current.totalCount).toBe(2);
     expect(result.current.hasMore).toBe(true);
   });
 
@@ -188,7 +187,6 @@ describe('useHomeViewModel', () => {
     );
 
     expect(result.current.events).toHaveLength(1);
-    expect(result.current.totalCount).toBe(1);
     expect(result.current.hasMore).toBe(false);
   });
 
