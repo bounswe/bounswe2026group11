@@ -2,6 +2,7 @@ package event
 
 import (
 	"strings"
+	"time"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
@@ -74,10 +75,17 @@ func toDiscoverableEventItem(record DiscoverableEventRecord) DiscoverableEventIt
 		PrivacyLevel:             string(record.PrivacyLevel),
 		ApprovedParticipantCount: record.ApprovedParticipantCount,
 		IsFavorited:              record.IsFavorited,
+		HostScore:                toEventHostScoreSummary(record.HostScore),
 	}
 }
 
-func toEventDetailResult(record *EventDetailRecord) *GetEventDetailResult {
+func toEventDetailResult(record *EventDetailRecord, now time.Time) *GetEventDetailResult {
+	ratingWindow := domain.NewRatingWindow(record.StartTime, record.EndTime)
+	isRatingWindowActive := ratingWindow.IsActive(now)
+	if record.Status == domain.EventStatusCanceled {
+		isRatingWindowActive = false
+	}
+
 	result := &GetEventDetailResult{
 		ID:                       record.ID.String(),
 		Title:                    record.Title,
@@ -95,9 +103,16 @@ func toEventDetailResult(record *EventDetailRecord) *GetEventDetailResult {
 		CreatedAt:                record.CreatedAt,
 		UpdatedAt:                record.UpdatedAt,
 		Host:                     toEventDetailPerson(record.Host),
+		HostScore:                toEventHostScoreSummary(record.HostScore),
 		Location:                 toEventDetailLocation(record.Location),
 		Tags:                     append([]string{}, record.Tags...),
 		Constraints:              toEventDetailConstraints(record.Constraints),
+		RatingWindow: EventDetailRatingWindow{
+			OpensAt:  ratingWindow.OpensAt,
+			ClosesAt: ratingWindow.ClosesAt,
+			IsActive: isRatingWindowActive,
+		},
+		ViewerEventRating: toEventDetailRating(record.ViewerEventRating),
 		ViewerContext: EventDetailViewerContext{
 			IsHost:              record.ViewerContext.IsHost,
 			IsFavorited:         record.ViewerContext.IsFavorited,
@@ -167,7 +182,8 @@ func toEventDetailApprovedParticipants(records []EventDetailApprovedParticipantR
 			Status:          record.Status,
 			CreatedAt:       record.CreatedAt,
 			UpdatedAt:       record.UpdatedAt,
-			User:            toEventDetailPerson(record.User),
+			HostRating:      toEventDetailRating(record.HostRating),
+			User:            toEventDetailHostContextUser(record.User),
 		}
 	}
 	return participants
@@ -182,7 +198,7 @@ func toEventDetailPendingJoinRequests(records []EventDetailPendingJoinRequestRec
 			Message:       record.Message,
 			CreatedAt:     record.CreatedAt,
 			UpdatedAt:     record.UpdatedAt,
-			User:          toEventDetailPerson(record.User),
+			User:          toEventDetailHostContextUser(record.User),
 		}
 	}
 	return requests
@@ -198,7 +214,7 @@ func toEventDetailInvitations(records []EventDetailInvitationRecord) []EventDeta
 			ExpiresAt:    record.ExpiresAt,
 			CreatedAt:    record.CreatedAt,
 			UpdatedAt:    record.UpdatedAt,
-			User:         toEventDetailPerson(record.User),
+			User:         toEventDetailHostContextUser(record.User),
 		}
 	}
 	return invitations
@@ -210,6 +226,35 @@ func toEventDetailPerson(record EventDetailPersonRecord) EventDetailPerson {
 		Username:    record.Username,
 		DisplayName: record.DisplayName,
 		AvatarURL:   record.AvatarURL,
+	}
+}
+
+func toEventDetailHostContextUser(record EventDetailHostContextUserRecord) EventDetailHostContextUser {
+	return EventDetailHostContextUser{
+		ID:          record.ID.String(),
+		Username:    record.Username,
+		DisplayName: record.DisplayName,
+		AvatarURL:   record.AvatarURL,
+		FinalScore:  record.FinalScore,
+		RatingCount: record.RatingCount,
+	}
+}
+
+func toEventHostScoreSummary(record EventHostScoreSummaryRecord) EventHostScoreSummary {
+	return EventHostScoreSummary(record)
+}
+
+func toEventDetailRating(record *EventDetailRatingRecord) *EventDetailRating {
+	if record == nil {
+		return nil
+	}
+
+	return &EventDetailRating{
+		ID:        record.ID.String(),
+		Rating:    record.Rating,
+		Message:   record.Message,
+		CreatedAt: record.CreatedAt,
+		UpdatedAt: record.UpdatedAt,
 	}
 }
 

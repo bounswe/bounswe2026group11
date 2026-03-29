@@ -221,8 +221,14 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 	createdAt := time.Now().UTC().Add(-time.Hour)
 	updatedAt := createdAt.Add(10 * time.Minute)
 	startTime := time.Now().UTC().Add(24 * time.Hour)
+	fixedNow := time.Now().UTC()
 	categoryID := 7
 	preferredGender := domain.GenderOther
+	hostFinalScore := 4.3
+	viewerRatingMessage := "Great event host."
+	viewerRatingCreatedAt := createdAt.Add(5 * time.Minute)
+	viewerRatingUpdatedAt := viewerRatingCreatedAt.Add(2 * time.Minute)
+	svc.now = func() time.Time { return fixedNow }
 
 	eventRepo.detailRecord = &EventDetailRecord{
 		ID:                       eventID,
@@ -250,6 +256,10 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 			DisplayName: stringPtr("Host User"),
 			AvatarURL:   stringPtr("https://example.com/avatar.png"),
 		},
+		HostScore: EventHostScoreSummaryRecord{
+			FinalScore:             &hostFinalScore,
+			HostedEventRatingCount: 12,
+		},
 		Location: EventDetailLocationRecord{
 			Type:    domain.LocationRoute,
 			Address: stringPtr("Belgrad Forest"),
@@ -266,6 +276,13 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 			IsHost:              false,
 			IsFavorited:         true,
 			ParticipationStatus: domain.EventDetailParticipationStatusJoined,
+		},
+		ViewerEventRating: &EventDetailRatingRecord{
+			ID:        uuid.New(),
+			Rating:    5,
+			Message:   &viewerRatingMessage,
+			CreatedAt: viewerRatingCreatedAt,
+			UpdatedAt: viewerRatingUpdatedAt,
 		},
 	}
 
@@ -288,8 +305,20 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 	if result.HostContext != nil {
 		t.Fatal("expected non-host result to omit host_context")
 	}
+	if result.HostScore.FinalScore == nil || *result.HostScore.FinalScore != hostFinalScore {
+		t.Fatalf("expected host final score %v, got %v", hostFinalScore, result.HostScore.FinalScore)
+	}
+	if result.HostScore.HostedEventRatingCount != 12 {
+		t.Fatalf("expected host rating count 12, got %d", result.HostScore.HostedEventRatingCount)
+	}
+	if result.ViewerEventRating == nil || result.ViewerEventRating.Rating != 5 {
+		t.Fatalf("expected viewer_event_rating to be mapped, got %+v", result.ViewerEventRating)
+	}
 	if result.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
 		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusJoined, result.ViewerContext.ParticipationStatus)
+	}
+	if result.RatingWindow.IsActive {
+		t.Fatal("expected canceled event rating window to be inactive")
 	}
 	if len(result.Location.RoutePoints) != 2 {
 		t.Fatalf("expected 2 route points, got %d", len(result.Location.RoutePoints))
@@ -299,6 +328,7 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 func TestGetEventDetailIncludesHostContextForHostViewer(t *testing.T) {
 	// given
 	svc, eventRepo, _, _ := newTestEventService()
+	hostRatingMessage := "Reliable participant."
 	eventRepo.detailRecord = &EventDetailRecord{
 		ID:           uuid.New(),
 		Title:        "Hosted Event",
@@ -330,9 +360,16 @@ func TestGetEventDetailIncludesHostContextForHostViewer(t *testing.T) {
 					Status:          domain.ParticipationStatusApproved,
 					CreatedAt:       time.Now().UTC().Add(-time.Hour),
 					UpdatedAt:       time.Now().UTC(),
-					User: EventDetailPersonRecord{
+					User: EventDetailHostContextUserRecord{
 						ID:       uuid.New(),
 						Username: "participant_user",
+					},
+					HostRating: &EventDetailRatingRecord{
+						ID:        uuid.New(),
+						Rating:    4,
+						Message:   &hostRatingMessage,
+						CreatedAt: time.Now().UTC().Add(-30 * time.Minute),
+						UpdatedAt: time.Now().UTC(),
 					},
 				},
 			},
@@ -353,6 +390,9 @@ func TestGetEventDetailIncludesHostContextForHostViewer(t *testing.T) {
 	}
 	if len(result.HostContext.ApprovedParticipants) != 1 {
 		t.Fatalf("expected 1 approved participant, got %d", len(result.HostContext.ApprovedParticipants))
+	}
+	if result.HostContext.ApprovedParticipants[0].HostRating == nil || result.HostContext.ApprovedParticipants[0].HostRating.Rating != 4 {
+		t.Fatalf("expected participant host_rating to be mapped, got %+v", result.HostContext.ApprovedParticipants[0].HostRating)
 	}
 }
 

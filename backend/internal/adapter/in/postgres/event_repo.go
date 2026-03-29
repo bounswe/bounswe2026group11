@@ -40,6 +40,10 @@ func (r *EventRepository) CreateEvent(ctx context.Context, params eventapp.Creat
 		return nil, mapEventInsertError(err)
 	}
 
+	if err := insertHostParticipation(ctx, tx, event); err != nil {
+		return nil, err
+	}
+
 	if err := insertEventLocation(ctx, tx, event.ID, params.Address, params.LocationType, params.Point, params.RoutePoints); err != nil {
 		return nil, err
 	}
@@ -119,6 +123,20 @@ func insertEventRow(ctx context.Context, tx pgx.Tx, params eventapp.CreateEventP
 	}
 
 	return event, nil
+}
+
+// insertHostParticipation creates the host's internal APPROVED participation
+// row so downstream authorization can treat the host as part of the event
+// membership set without exposing them as a normal participant.
+func insertHostParticipation(ctx context.Context, tx pgx.Tx, event *domain.Event) error {
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO participation (event_id, user_id, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)
+	`, event.ID, event.HostID, domain.ParticipationStatusApproved, event.CreatedAt, event.UpdatedAt); err != nil {
+		return fmt.Errorf("insert host participation: %w", err)
+	}
+
+	return nil
 }
 
 // mapEventInsertError maps Postgres insert constraint violations on events to
@@ -327,12 +345,15 @@ func (r *EventRepository) ListDiscoverableEvents(
 				e.privacy_level,
 				e.approved_participant_count,
 				(fav.event_id IS NOT NULL) AS is_favorited,
+				us.final_score AS host_final_score,
+				COALESCE(us.hosted_event_rating_count, 0) AS host_rating_count,
 				%s AS distance_meters,
 				%s AS relevance_score
 			FROM event e
 			JOIN event_location el ON el.event_id = e.id
 			LEFT JOIN event_category ec ON ec.id = e.category_id
 			LEFT JOIN favorite_event fav ON fav.event_id = e.id AND fav.user_id = %s
+			LEFT JOIN user_score us ON us.user_id = e.host_id
 			WHERE %s
 		)
 		SELECT
@@ -345,6 +366,8 @@ func (r *EventRepository) ListDiscoverableEvents(
 			privacy_level,
 			approved_participant_count,
 			is_favorited,
+			host_final_score,
+			host_rating_count,
 			distance_meters,
 			relevance_score
 		FROM base
@@ -371,6 +394,8 @@ func (r *EventRepository) ListDiscoverableEvents(
 			privacyLevel             string
 			approvedParticipantCount int
 			isFavorited              bool
+			hostFinalScore           pgtype.Float8
+			hostRatingCount          int
 			distanceMeters           float64
 			relevanceScore           pgtype.Float8
 		)
@@ -385,6 +410,8 @@ func (r *EventRepository) ListDiscoverableEvents(
 			&privacyLevel,
 			&approvedParticipantCount,
 			&isFavorited,
+			&hostFinalScore,
+			&hostRatingCount,
 			&distanceMeters,
 			&relevanceScore,
 		); err != nil {
@@ -399,7 +426,10 @@ func (r *EventRepository) ListDiscoverableEvents(
 			PrivacyLevel:             domain.EventPrivacyLevel(privacyLevel),
 			ApprovedParticipantCount: approvedParticipantCount,
 			IsFavorited:              isFavorited,
-			DistanceMeters:           distanceMeters,
+			HostScore: eventapp.EventHostScoreSummaryRecord{
+				HostedEventRatingCount: hostRatingCount,
+			},
+			DistanceMeters: distanceMeters,
 		}
 		if imageURL.Valid {
 			record.ImageURL = &imageURL.String
@@ -409,6 +439,9 @@ func (r *EventRepository) ListDiscoverableEvents(
 		}
 		if relevanceScore.Valid {
 			record.RelevanceScore = &relevanceScore.Float64
+		}
+		if hostFinalScore.Valid {
+			record.HostScore.FinalScore = &hostFinalScore.Float64
 		}
 
 		records = append(records, record)
@@ -511,6 +544,12 @@ func (r *EventRepository) GetEventDetail(
 	}
 	record.Constraints = constraints
 
+	viewerEventRating, err := r.loadViewerEventRating(ctx, eventID, userID)
+	if err != nil {
+		return nil, err
+	}
+	record.ViewerEventRating = viewerEventRating
+
 	if record.ViewerContext.IsHost {
 		hostContext, err := r.loadEventHostContext(ctx, eventID)
 		if err != nil {
@@ -549,6 +588,8 @@ func (r *EventRepository) loadEventDetailCore(
 		hostUsername             string
 		hostDisplayName          pgtype.Text
 		hostAvatarURL            pgtype.Text
+		hostFinalScore           pgtype.Float8
+		hostRatingCount          int
 		locationType             string
 		locationAddress          pgtype.Text
 		isHost                   bool
@@ -580,6 +621,8 @@ func (r *EventRepository) loadEventDetailCore(
 			host.username,
 			hp.display_name,
 			hp.avatar_url,
+			us.final_score,
+			COALESCE(us.hosted_event_rating_count, 0),
 			e.location_type,
 			el.address,
 			(e.host_id = $2) AS is_host,
@@ -618,6 +661,7 @@ func (r *EventRepository) loadEventDetailCore(
 		LEFT JOIN event_category ec ON ec.id = e.category_id
 		JOIN app_user host ON host.id = e.host_id
 		LEFT JOIN profile hp ON hp.user_id = host.id
+		LEFT JOIN user_score us ON us.user_id = host.id
 		WHERE e.id = $1
 		  AND (
 			e.privacy_level IN ($9, $10)
@@ -672,6 +716,8 @@ func (r *EventRepository) loadEventDetailCore(
 		&hostUsername,
 		&hostDisplayName,
 		&hostAvatarURL,
+		&hostFinalScore,
+		&hostRatingCount,
 		&locationType,
 		&locationAddress,
 		&isHost,
@@ -699,6 +745,9 @@ func (r *EventRepository) loadEventDetailCore(
 		Host: eventapp.EventDetailPersonRecord{
 			ID:       hostID,
 			Username: hostUsername,
+		},
+		HostScore: eventapp.EventHostScoreSummaryRecord{
+			HostedEventRatingCount: hostRatingCount,
 		},
 		Location: eventapp.EventDetailLocationRecord{
 			Type: domain.EventLocationType(locationType),
@@ -745,6 +794,9 @@ func (r *EventRepository) loadEventDetailCore(
 	}
 	if hostAvatarURL.Valid {
 		record.Host.AvatarURL = &hostAvatarURL.String
+	}
+	if hostFinalScore.Valid {
+		record.HostScore.FinalScore = &hostFinalScore.Float64
 	}
 	if locationAddress.Valid {
 		record.Location.Address = &locationAddress.String
@@ -903,6 +955,38 @@ func (r *EventRepository) loadEventHostContext(
 	}, nil
 }
 
+func (r *EventRepository) loadViewerEventRating(
+	ctx context.Context,
+	eventID, participantUserID uuid.UUID,
+) (*eventapp.EventDetailRatingRecord, error) {
+	var (
+		record  eventapp.EventDetailRatingRecord
+		message pgtype.Text
+	)
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, rating, message, created_at, updated_at
+		FROM event_rating
+		WHERE event_id = $1
+		  AND participant_user_id = $2
+	`, eventID, participantUserID).Scan(
+		&record.ID,
+		&record.Rating,
+		&message,
+		&record.CreatedAt,
+		&record.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("load viewer event rating: %w", err)
+	}
+
+	record.Message = textPtr(message)
+	return &record, nil
+}
+
 func (r *EventRepository) loadApprovedParticipants(
 	ctx context.Context,
 	eventID uuid.UUID,
@@ -916,12 +1000,26 @@ func (r *EventRepository) loadApprovedParticipants(
 			u.id,
 			u.username,
 			pr.display_name,
-			pr.avatar_url
+			pr.avatar_url,
+			us.final_score,
+			COALESCE(us.participant_rating_count, 0) + COALESCE(us.hosted_event_rating_count, 0) AS rating_count,
+			prt.id,
+			prt.rating,
+			prt.message,
+			prt.created_at,
+			prt.updated_at
 		FROM participation p
+		JOIN event e ON e.id = p.event_id
 		JOIN app_user u ON u.id = p.user_id
 		LEFT JOIN profile pr ON pr.user_id = u.id
+		LEFT JOIN user_score us ON us.user_id = u.id
+		LEFT JOIN participant_rating prt
+			ON prt.event_id = p.event_id
+		   AND prt.host_user_id = e.host_id
+		   AND prt.participant_user_id = p.user_id
 		WHERE p.event_id = $1
 		  AND p.status = $2
+		  AND p.user_id <> e.host_id
 		ORDER BY p.created_at ASC, p.id ASC
 	`, eventID, domain.ParticipationStatusApproved)
 	if err != nil {
@@ -940,6 +1038,13 @@ func (r *EventRepository) loadApprovedParticipants(
 			username        string
 			displayName     pgtype.Text
 			avatarURL       pgtype.Text
+			userFinalScore  pgtype.Float8
+			userRatingCount int
+			hostRatingID    pgtype.UUID
+			hostRatingValue pgtype.Int4
+			hostMessage     pgtype.Text
+			hostCreatedAt   pgtype.Timestamptz
+			hostUpdatedAt   pgtype.Timestamptz
 		)
 		if err := rows.Scan(
 			&participationID,
@@ -950,6 +1055,13 @@ func (r *EventRepository) loadApprovedParticipants(
 			&username,
 			&displayName,
 			&avatarURL,
+			&userFinalScore,
+			&userRatingCount,
+			&hostRatingID,
+			&hostRatingValue,
+			&hostMessage,
+			&hostCreatedAt,
+			&hostUpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan approved participant: %w", err)
 		}
@@ -959,9 +1071,10 @@ func (r *EventRepository) loadApprovedParticipants(
 			Status:          status,
 			CreatedAt:       createdAt,
 			UpdatedAt:       updatedAt,
-			User: eventapp.EventDetailPersonRecord{
-				ID:       userID,
-				Username: username,
+			User: eventapp.EventDetailHostContextUserRecord{
+				ID:          userID,
+				Username:    username,
+				RatingCount: userRatingCount,
 			},
 		}
 		if displayName.Valid {
@@ -969,6 +1082,18 @@ func (r *EventRepository) loadApprovedParticipants(
 		}
 		if avatarURL.Valid {
 			participant.User.AvatarURL = &avatarURL.String
+		}
+		if userFinalScore.Valid {
+			participant.User.FinalScore = &userFinalScore.Float64
+		}
+		if hostRatingID.Valid && hostRatingValue.Valid && hostCreatedAt.Valid && hostUpdatedAt.Valid {
+			participant.HostRating = &eventapp.EventDetailRatingRecord{
+				ID:        uuid.UUID(hostRatingID.Bytes),
+				Rating:    int(hostRatingValue.Int32),
+				Message:   textPtr(hostMessage),
+				CreatedAt: hostCreatedAt.Time,
+				UpdatedAt: hostUpdatedAt.Time,
+			}
 		}
 
 		participants = append(participants, participant)
@@ -994,10 +1119,13 @@ func (r *EventRepository) loadPendingJoinRequests(
 			u.id,
 			u.username,
 			pr.display_name,
-			pr.avatar_url
+			pr.avatar_url,
+			us.final_score,
+			COALESCE(us.participant_rating_count, 0) + COALESCE(us.hosted_event_rating_count, 0) AS rating_count
 		FROM join_request jr
 		JOIN app_user u ON u.id = jr.user_id
 		LEFT JOIN profile pr ON pr.user_id = u.id
+		LEFT JOIN user_score us ON us.user_id = u.id
 		WHERE jr.event_id = $1
 		  AND jr.status = $2
 		ORDER BY jr.created_at ASC, jr.id ASC
@@ -1019,6 +1147,8 @@ func (r *EventRepository) loadPendingJoinRequests(
 			username      string
 			displayName   pgtype.Text
 			avatarURL     pgtype.Text
+			finalScore    pgtype.Float8
+			ratingCount   int
 		)
 		if err := rows.Scan(
 			&joinRequestID,
@@ -1030,6 +1160,8 @@ func (r *EventRepository) loadPendingJoinRequests(
 			&username,
 			&displayName,
 			&avatarURL,
+			&finalScore,
+			&ratingCount,
 		); err != nil {
 			return nil, fmt.Errorf("scan pending join request: %w", err)
 		}
@@ -1039,9 +1171,10 @@ func (r *EventRepository) loadPendingJoinRequests(
 			Status:        status,
 			CreatedAt:     createdAt,
 			UpdatedAt:     updatedAt,
-			User: eventapp.EventDetailPersonRecord{
-				ID:       userID,
-				Username: username,
+			User: eventapp.EventDetailHostContextUserRecord{
+				ID:          userID,
+				Username:    username,
+				RatingCount: ratingCount,
 			},
 		}
 		if message.Valid {
@@ -1052,6 +1185,9 @@ func (r *EventRepository) loadPendingJoinRequests(
 		}
 		if avatarURL.Valid {
 			request.User.AvatarURL = &avatarURL.String
+		}
+		if finalScore.Valid {
+			request.User.FinalScore = &finalScore.Float64
 		}
 
 		requests = append(requests, request)
@@ -1078,10 +1214,13 @@ func (r *EventRepository) loadInvitations(
 			u.id,
 			u.username,
 			pr.display_name,
-			pr.avatar_url
+			pr.avatar_url,
+			us.final_score,
+			COALESCE(us.participant_rating_count, 0) + COALESCE(us.hosted_event_rating_count, 0) AS rating_count
 		FROM invitation inv
 		JOIN app_user u ON u.id = inv.invited_user_id
 		LEFT JOIN profile pr ON pr.user_id = u.id
+		LEFT JOIN user_score us ON us.user_id = u.id
 		WHERE inv.event_id = $1
 		ORDER BY inv.created_at ASC, inv.id ASC
 	`, eventID)
@@ -1103,6 +1242,8 @@ func (r *EventRepository) loadInvitations(
 			username     string
 			displayName  pgtype.Text
 			avatarURL    pgtype.Text
+			finalScore   pgtype.Float8
+			ratingCount  int
 		)
 		if err := rows.Scan(
 			&invitationID,
@@ -1115,6 +1256,8 @@ func (r *EventRepository) loadInvitations(
 			&username,
 			&displayName,
 			&avatarURL,
+			&finalScore,
+			&ratingCount,
 		); err != nil {
 			return nil, fmt.Errorf("scan invitation: %w", err)
 		}
@@ -1124,9 +1267,10 @@ func (r *EventRepository) loadInvitations(
 			Status:       domain.InvitationStatus(status),
 			CreatedAt:    createdAt,
 			UpdatedAt:    updatedAt,
-			User: eventapp.EventDetailPersonRecord{
-				ID:       userID,
-				Username: username,
+			User: eventapp.EventDetailHostContextUserRecord{
+				ID:          userID,
+				Username:    username,
+				RatingCount: ratingCount,
 			},
 		}
 		if message.Valid {
@@ -1140,6 +1284,9 @@ func (r *EventRepository) loadInvitations(
 		}
 		if avatarURL.Valid {
 			invitation.User.AvatarURL = &avatarURL.String
+		}
+		if finalScore.Valid {
+			invitation.User.FinalScore = &finalScore.Float64
 		}
 
 		invitations = append(invitations, invitation)

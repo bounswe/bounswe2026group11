@@ -5,6 +5,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/category_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/rating_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/bootstrap"
 	"github.com/gofiber/fiber/v2"
 )
@@ -32,8 +33,13 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 	auth_handler.RegisterAuthRoutes(app, authHandler)
 
 	// Event routes
+	auth := httpapi.RequireAuth(container.TokenVerifier)
 	eventHandler := event_handler.NewEventHandler(container.EventService)
-	event_handler.RegisterEventRoutes(app, eventHandler, httpapi.RequireAuth(container.TokenVerifier))
+	event_handler.RegisterEventRoutes(app, eventHandler, auth)
+
+	// Rating routes
+	ratingHandler := rating_handler.NewRatingHandler(container.RatingService)
+	rating_handler.RegisterRatingRoutes(app, ratingHandler, auth)
 
 	// Category routes (public, no auth required)
 	categoryHandler := category_handler.NewCategoryHandler(container.CategoryService)

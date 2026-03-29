@@ -19,3 +19,5 @@ availability_rate_limit: 20
 availability_rate_window: 15m
 mail_provider: mock   # set this to "resend" for real mail delivery or set to "mock" for mock mail delivery to logs
 mail_domain: socialeventmapper.com
+rating_global_prior: 4.0
+rating_bayesian_m: 5

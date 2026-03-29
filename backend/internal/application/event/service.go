@@ -3,6 +3,7 @@ package event
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
@@ -15,6 +16,7 @@ type Service struct {
 	eventRepo            Repository
 	participationService participation.UseCase
 	joinRequestService   join_request.UseCase
+	now                  func() time.Time
 }
 
 var _ UseCase = (*Service)(nil)
@@ -30,6 +32,7 @@ func NewService(
 		eventRepo:            eventRepo,
 		participationService: participationService,
 		joinRequestService:   joinRequestService,
+		now:                  time.Now,
 	}
 }
 
@@ -129,7 +132,7 @@ func (s *Service) GetEventDetail(ctx context.Context, userID, eventID uuid.UUID)
 		return nil, err
 	}
 
-	return toEventDetailResult(record), nil
+	return toEventDetailResult(record, s.now().UTC()), nil
 }
 
 // JoinEvent allows a user to join a PUBLIC event directly. The resulting
