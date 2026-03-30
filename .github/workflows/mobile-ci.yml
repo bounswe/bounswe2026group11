@@ -1,0 +1,48 @@
+name: Mobile CI
+
+on:
+  pull_request:
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile-ci.yml"
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: mobile
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Jest Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Jest test suite
+        env:
+          CI: true
+        run: npm test -- --runInBand
