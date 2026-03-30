@@ -11,10 +11,16 @@ import (
 )
 
 type fakeJoinRequestRepo struct {
-	err        error
-	callCount  int
-	lastParams CreateJoinRequestParams
-	result     *domain.JoinRequest
+	err               error
+	callCount         int
+	approveCallCount  int
+	rejectCallCount   int
+	lastParams        CreateJoinRequestParams
+	lastApproveParams ApproveJoinRequestParams
+	lastRejectParams  RejectJoinRequestParams
+	result            *domain.JoinRequest
+	approveResult     *ApproveJoinRequestResult
+	rejectResult      *RejectJoinRequestResult
 }
 
 func (r *fakeJoinRequestRepo) CreateJoinRequest(_ context.Context, params CreateJoinRequestParams) (*domain.JoinRequest, error) {
@@ -34,9 +40,70 @@ func (r *fakeJoinRequestRepo) CreateJoinRequest(_ context.Context, params Create
 		EventID:    params.EventID,
 		UserID:     params.UserID,
 		HostUserID: params.HostUserID,
-		Status:     domain.ParticipationStatusPending,
+		Status:     domain.JoinRequestStatusPending,
 		CreatedAt:  now,
 		UpdatedAt:  now,
+	}, nil
+}
+
+func (r *fakeJoinRequestRepo) ApproveJoinRequest(_ context.Context, params ApproveJoinRequestParams) (*ApproveJoinRequestResult, error) {
+	r.approveCallCount++
+	r.lastApproveParams = params
+
+	if r.err != nil {
+		return nil, r.err
+	}
+	if r.approveResult != nil {
+		return r.approveResult, nil
+	}
+
+	now := time.Now().UTC()
+	participationID := uuid.New()
+	return &ApproveJoinRequestResult{
+		JoinRequest: &domain.JoinRequest{
+			ID:              params.JoinRequestID,
+			EventID:         params.EventID,
+			UserID:          uuid.New(),
+			ParticipationID: &participationID,
+			HostUserID:      params.HostUserID,
+			Status:          domain.JoinRequestStatusApproved,
+			CreatedAt:       now.Add(-time.Hour),
+			UpdatedAt:       now,
+		},
+		Participation: &domain.Participation{
+			ID:        participationID,
+			EventID:   params.EventID,
+			UserID:    uuid.New(),
+			Status:    domain.ParticipationStatusApproved,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}, nil
+}
+
+func (r *fakeJoinRequestRepo) RejectJoinRequest(_ context.Context, params RejectJoinRequestParams) (*RejectJoinRequestResult, error) {
+	r.rejectCallCount++
+	r.lastRejectParams = params
+
+	if r.err != nil {
+		return nil, r.err
+	}
+	if r.rejectResult != nil {
+		return r.rejectResult, nil
+	}
+
+	now := time.Now().UTC()
+	return &RejectJoinRequestResult{
+		JoinRequest: &domain.JoinRequest{
+			ID:         params.JoinRequestID,
+			EventID:    params.EventID,
+			UserID:     uuid.New(),
+			HostUserID: params.HostUserID,
+			Status:     domain.JoinRequestStatusRejected,
+			CreatedAt:  now.Add(-time.Hour),
+			UpdatedAt:  now,
+		},
+		CooldownEndsAt: now.Add(domain.JoinRequestCooldown),
 	}, nil
 }
 
@@ -84,5 +151,57 @@ func TestCreatePendingJoinRequestPropagatesRepoError(t *testing.T) {
 	// then
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error %v, got %v", expectedErr, err)
+	}
+}
+
+func TestApproveJoinRequestDelegatesToRepo(t *testing.T) {
+	// given
+	repo := &fakeJoinRequestRepo{}
+	service := NewService(repo)
+	eventID := uuid.New()
+	joinRequestID := uuid.New()
+	hostUserID := uuid.New()
+
+	// when
+	result, err := service.ApproveJoinRequest(context.Background(), eventID, joinRequestID, hostUserID)
+
+	// then
+	if err != nil {
+		t.Fatalf("ApproveJoinRequest() error = %v", err)
+	}
+	if result == nil || result.JoinRequest == nil || result.Participation == nil {
+		t.Fatal("expected approval result with join request and participation")
+	}
+	if repo.approveCallCount != 1 {
+		t.Fatalf("expected approve repo to be called once, got %d", repo.approveCallCount)
+	}
+	if repo.lastApproveParams.EventID != eventID || repo.lastApproveParams.JoinRequestID != joinRequestID || repo.lastApproveParams.HostUserID != hostUserID {
+		t.Fatalf("expected approve params to match event %s, join request %s, host %s", eventID, joinRequestID, hostUserID)
+	}
+}
+
+func TestRejectJoinRequestDelegatesToRepo(t *testing.T) {
+	// given
+	repo := &fakeJoinRequestRepo{}
+	service := NewService(repo)
+	eventID := uuid.New()
+	joinRequestID := uuid.New()
+	hostUserID := uuid.New()
+
+	// when
+	result, err := service.RejectJoinRequest(context.Background(), eventID, joinRequestID, hostUserID)
+
+	// then
+	if err != nil {
+		t.Fatalf("RejectJoinRequest() error = %v", err)
+	}
+	if result == nil || result.JoinRequest == nil {
+		t.Fatal("expected reject result with join request")
+	}
+	if repo.rejectCallCount != 1 {
+		t.Fatalf("expected reject repo to be called once, got %d", repo.rejectCallCount)
+	}
+	if repo.lastRejectParams.EventID != eventID || repo.lastRejectParams.JoinRequestID != joinRequestID || repo.lastRejectParams.HostUserID != hostUserID {
+		t.Fatalf("expected reject params to match event %s, join request %s, host %s", eventID, joinRequestID, hostUserID)
 	}
 }

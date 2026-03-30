@@ -14,3 +14,17 @@ type CreateJoinRequestParams struct {
 type CreatePendingJoinRequestInput struct {
 	Message *string
 }
+
+// ApproveJoinRequestParams carries the identifiers needed to approve a join request.
+type ApproveJoinRequestParams struct {
+	EventID       uuid.UUID
+	JoinRequestID uuid.UUID
+	HostUserID    uuid.UUID
+}
+
+// RejectJoinRequestParams carries the identifiers needed to reject a join request.
+type RejectJoinRequestParams struct {
+	EventID       uuid.UUID
+	JoinRequestID uuid.UUID
+	HostUserID    uuid.UUID
+}

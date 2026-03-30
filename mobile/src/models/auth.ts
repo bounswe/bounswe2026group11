@@ -68,6 +68,10 @@ export interface UserSummary {
   phone_number: string | null;
   email_verified: boolean;
   status: string;
+  /** Wire values include `MALE`, `FEMALE`, `OTHER`, `PREFER_NOT_TO_SAY` when returned by the API. */
+  gender?: string | null;
+  /** ISO date `YYYY-MM-DD` when returned by the API. */
+  birth_date?: string | null;
 }
 
 export interface AuthSessionResponse {

@@ -619,6 +619,8 @@ paths:
         - The event must exist and have `privacy_level: PROTECTED`.
         - The authenticated user must not be the event host.
         - A user can only submit one pending request per event; a second attempt returns `409`.
+        - After the host rejects a request, the same user must wait **3 days** before requesting again.
+        - When the cooldown expires, the backend reactivates the same `join_request` row as `PENDING`.
         - Calling this endpoint on a `PUBLIC` event returns `409 event_join_not_allowed`.
       operationId: requestJoinEvent
       security:
@@ -702,8 +704,10 @@ paths:
                       message: The requested event does not exist.
         '409':
           description: |
-            Conflict. Either the user already has a pending request (`already_requested`) or
-            the event privacy level does not allow join requests (`event_join_not_allowed`).
+            Conflict. The caller already has a pending request (`already_requested`), is already
+            participating (`already_participating`), the event privacy level does not allow join
+            requests (`event_join_not_allowed`), or a rejection cooldown is still active
+            (`join_request_cooldown_active`).
           content:
             application/json:
               schema:
@@ -719,6 +723,235 @@ paths:
                     error:
                       code: event_join_not_allowed
                       message: Only PROTECTED events accept join requests.
+                already_participating:
+                  value:
+                    error:
+                      code: already_participating
+                      message: You are already participating in this event.
+                join_request_cooldown_active:
+                  value:
+                    error:
+                      code: join_request_cooldown_active
+                      message: You must wait 3 days after rejection before requesting to join this event again.
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/join-requests/{joinRequestId}/approve:
+    post:
+      tags: [Events]
+      summary: Approve a pending join request
+      description: |
+        Allows the authenticated event host to approve a **PENDING** join request for a
+        **PROTECTED** event. Approval updates the join request to `APPROVED` and creates an
+        `APPROVED` participation row atomically.
+      operationId: approveJoinRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event being moderated.
+        - name: joinRequestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the join request to approve.
+      responses:
+        '200':
+          description: Join request approved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApproveJoinRequestResponse'
+              examples:
+                approved:
+                  value:
+                    join_request_id: b2c3d4e5-f6a7-8901-bcde-f01234567890
+                    event_id: 7a2c8b1e-3d4f-5e6a-bcde-f90123456789
+                    join_request_status: APPROVED
+                    participation_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                    participation_status: APPROVED
+                    updated_at: "2026-03-29T12:00:00+03:00"
+        '400':
+          description: Invalid event ID or join request ID format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                invalid_join_request_id:
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        joinRequestId: must be a valid UUID
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: The caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                moderation_not_allowed:
+                  value:
+                    error:
+                      code: join_request_moderation_not_allowed
+                      message: Only the event host can moderate join requests.
+        '404':
+          description: Event or join request not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                event_not_found:
+                  value:
+                    error:
+                      code: event_not_found
+                      message: The requested event does not exist.
+                join_request_not_found:
+                  value:
+                    error:
+                      code: join_request_not_found
+                      message: The requested join request does not exist.
+        '409':
+          description: |
+            Conflict. The request is no longer pending (`join_request_state_invalid`), the
+            event is full (`capacity_exceeded`), or the requester already has a participation
+            row (`already_participating`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                join_request_state_invalid:
+                  value:
+                    error:
+                      code: join_request_state_invalid
+                      message: Only PENDING join requests can be approved.
+                capacity_exceeded:
+                  value:
+                    error:
+                      code: capacity_exceeded
+                      message: This event has reached its maximum capacity.
+                already_participating:
+                  value:
+                    error:
+                      code: already_participating
+                      message: The requester is already participating in this event.
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/join-requests/{joinRequestId}/reject:
+    post:
+      tags: [Events]
+      summary: Reject a pending join request
+      description: |
+        Allows the authenticated event host to reject a **PENDING** join request for a
+        **PROTECTED** event. Rejection updates the join request to `REJECTED` and starts a
+        **3-day** re-request cooldown for the same user and event.
+      operationId: rejectJoinRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event being moderated.
+        - name: joinRequestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the join request to reject.
+      responses:
+        '200':
+          description: Join request rejected successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RejectJoinRequestResponse'
+              examples:
+                rejected:
+                  value:
+                    join_request_id: b2c3d4e5-f6a7-8901-bcde-f01234567890
+                    event_id: 7a2c8b1e-3d4f-5e6a-bcde-f90123456789
+                    status: REJECTED
+                    updated_at: "2026-03-29T12:00:00+03:00"
+                    cooldown_ends_at: "2026-04-01T12:00:00+03:00"
+        '400':
+          description: Invalid event ID or join request ID format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: The caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                moderation_not_allowed:
+                  value:
+                    error:
+                      code: join_request_moderation_not_allowed
+                      message: Only the event host can moderate join requests.
+        '404':
+          description: Event or join request not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                join_request_not_found:
+                  value:
+                    error:
+                      code: join_request_not_found
+                      message: The requested join request does not exist.
+        '409':
+          description: Conflict. The request is no longer pending.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                join_request_state_invalid:
+                  value:
+                    error:
+                      code: join_request_state_invalid
+                      message: Only PENDING join requests can be rejected.
         '500':
           description: Unexpected server error.
           content:
@@ -1955,3 +2188,48 @@ components:
           type: string
           format: date-time
           example: "2026-03-26T12:00:00+03:00"
+
+    ApproveJoinRequestResponse:
+      type: object
+      additionalProperties: false
+      required: [join_request_id, event_id, join_request_status, participation_id, participation_status, updated_at]
+      properties:
+        join_request_id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        join_request_status:
+          type: string
+          enum: [APPROVED]
+        participation_id:
+          type: string
+          format: uuid
+        participation_status:
+          type: string
+          enum: [APPROVED]
+        updated_at:
+          type: string
+          format: date-time
+
+    RejectJoinRequestResponse:
+      type: object
+      additionalProperties: false
+      required: [join_request_id, event_id, status, updated_at, cooldown_ends_at]
+      properties:
+        join_request_id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [REJECTED]
+        updated_at:
+          type: string
+          format: date-time
+        cooldown_ends_at:
+          type: string
+          format: date-time

@@ -213,7 +213,48 @@ func (s *Service) RequestJoin(ctx context.Context, userID, eventID uuid.UUID, in
 	return &RequestJoinResult{
 		JoinRequestID: jr.ID.String(),
 		EventID:       jr.EventID.String(),
-		Status:        domain.ParticipationStatusPending,
+		Status:        string(domain.JoinRequestStatusPending),
 		CreatedAt:     jr.CreatedAt,
+	}, nil
+}
+
+// ApproveJoinRequest allows the authenticated host to approve a pending join
+// request for one of their events.
+func (s *Service) ApproveJoinRequest(
+	ctx context.Context,
+	hostUserID, eventID, joinRequestID uuid.UUID,
+) (*ApproveJoinRequestResult, error) {
+	result, err := s.joinRequestService.ApproveJoinRequest(ctx, eventID, joinRequestID, hostUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ApproveJoinRequestResult{
+		JoinRequestID:       result.JoinRequest.ID.String(),
+		EventID:             result.JoinRequest.EventID.String(),
+		JoinRequestStatus:   string(result.JoinRequest.Status),
+		ParticipationID:     result.Participation.ID.String(),
+		ParticipationStatus: result.Participation.Status,
+		UpdatedAt:           result.JoinRequest.UpdatedAt,
+	}, nil
+}
+
+// RejectJoinRequest allows the authenticated host to reject a pending join
+// request for one of their events.
+func (s *Service) RejectJoinRequest(
+	ctx context.Context,
+	hostUserID, eventID, joinRequestID uuid.UUID,
+) (*RejectJoinRequestResult, error) {
+	result, err := s.joinRequestService.RejectJoinRequest(ctx, eventID, joinRequestID, hostUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RejectJoinRequestResult{
+		JoinRequestID:  result.JoinRequest.ID.String(),
+		EventID:        result.JoinRequest.EventID.String(),
+		Status:         string(result.JoinRequest.Status),
+		UpdatedAt:      result.JoinRequest.UpdatedAt,
+		CooldownEndsAt: result.CooldownEndsAt,
 	}, nil
 }

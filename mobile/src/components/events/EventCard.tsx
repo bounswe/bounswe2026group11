@@ -15,12 +15,15 @@ function formatPrivacyLabel(value: EventSummary['privacy_level']) {
 }
 
 export default function EventCard({ event, onPress }: EventCardProps) {
-  const capacity = event.capacity ?? 300;
   const favoriteCount = event.favorite_count ?? 0;
   const ratingLabel =
     event.host_score.final_score != null
       ? event.host_score.final_score.toFixed(1)
       : 'New';
+  const participantLabel =
+    event.capacity != null
+      ? `${event.approved_participant_count}/${event.capacity}`
+      : String(event.approved_participant_count);
 
   return (
     <TouchableOpacity
@@ -83,9 +86,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Ionicons name="people-outline" size={18} color="#94A3B8" />
-            <Text style={styles.statText}>
-              {event.approved_participant_count}/{capacity}
-            </Text>
+            <Text style={styles.statText}>{participantLabel}</Text>
           </View>
 
           <View style={styles.statItem}>

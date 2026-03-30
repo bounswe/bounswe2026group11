@@ -21,7 +21,7 @@ export default function LoginView() {
   const handleSubmit = async () => {
     const session = await vm.handleLogin();
     if (session) {
-      setSession(session.access_token, session.refresh_token);
+      setSession(session.access_token, session.refresh_token, session.user);
       router.replace('/home' as Href);
     }
   };

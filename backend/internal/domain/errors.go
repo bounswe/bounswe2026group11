@@ -32,12 +32,16 @@ const (
 	ErrorCodePhoneExists       = "phone_number_already_exists"
 	ErrorCodeEventTitleExists  = "event_title_already_exists"
 
-	ErrorCodeEventNotFound        = "event_not_found"
-	ErrorCodeAlreadyParticipating = "already_participating"
-	ErrorCodeAlreadyRequested     = "already_requested"
-	ErrorCodeEventJoinNotAllowed  = "event_join_not_allowed"
-	ErrorCodeHostCannotJoin       = "host_cannot_join"
-	ErrorCodeCapacityExceeded     = "capacity_exceeded"
+	ErrorCodeEventNotFound                   = "event_not_found"
+	ErrorCodeAlreadyParticipating            = "already_participating"
+	ErrorCodeAlreadyRequested                = "already_requested"
+	ErrorCodeEventJoinNotAllowed             = "event_join_not_allowed"
+	ErrorCodeHostCannotJoin                  = "host_cannot_join"
+	ErrorCodeCapacityExceeded                = "capacity_exceeded"
+	ErrorCodeJoinRequestNotFound             = "join_request_not_found"
+	ErrorCodeJoinRequestModerationNotAllowed = "join_request_moderation_not_allowed"
+	ErrorCodeJoinRequestStateInvalid         = "join_request_state_invalid"
+	ErrorCodeJoinRequestCooldownActive       = "join_request_cooldown_active"
 )
 
 // ErrNotFound is a sentinel error returned when a queried entity does not exist.
