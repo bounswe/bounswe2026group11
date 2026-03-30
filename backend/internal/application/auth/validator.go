@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"fmt"
 	"net/mail"
 	"regexp"
 	"strings"
@@ -33,7 +32,7 @@ func validateVerifyRegistrationInput(input VerifyRegistrationInput) (email, user
 		details["otp"] = "must be a 6-digit code"
 	}
 	phoneNumber = sanitizePhoneNumber(input.PhoneNumber, details)
-	gender = sanitizeOptionalText(input.Gender, "gender", 32, details)
+	gender = sanitizeGender(input.Gender, details)
 	birthDate = sanitizeBirthDate(input.BirthDate, details)
 	if len(details) > 0 {
 		return "", "", "", nil, nil, nil, "", domain.ValidationError(details)
@@ -144,19 +143,22 @@ func sanitizePhoneNumber(value *string, details map[string]string) *string {
 	return &trimmed
 }
 
-func sanitizeOptionalText(value *string, field string, maxLength int, details map[string]string) *string {
+
+func sanitizeGender(value *string, details map[string]string) *string {
 	if value == nil {
 		return nil
 	}
-	trimmed := strings.TrimSpace(*value)
-	if trimmed == "" {
+	upper := strings.ToUpper(strings.TrimSpace(*value))
+	if upper == "" {
 		return nil
 	}
-	if len(trimmed) > maxLength {
-		details[field] = fmt.Sprintf("must be at most %d characters", maxLength)
+	switch upper {
+	case "MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY":
+		return &upper
+	default:
+		details["gender"] = "must be one of: MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY"
 		return nil
 	}
-	return &trimmed
 }
 
 func sanitizeBirthDate(value *string, details map[string]string) *time.Time {
