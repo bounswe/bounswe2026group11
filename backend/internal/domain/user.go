@@ -34,17 +34,25 @@ type UserSummary struct {
 	PhoneNumber   *string   `json:"phone_number"`
 	EmailVerified bool      `json:"email_verified"`
 	Status        string    `json:"status"`
+	Gender        *string   `json:"gender"`
+	BirthDate     *string   `json:"birth_date"`
 }
 
 // Summary converts a full User into a UserSummary, deriving EmailVerified from
 // whether EmailVerifiedAt is set.
 func (u User) Summary() UserSummary {
-	return UserSummary{
+	s := UserSummary{
 		ID:            u.ID,
 		Username:      u.Username,
 		Email:         u.Email,
 		PhoneNumber:   u.PhoneNumber,
 		EmailVerified: u.EmailVerifiedAt != nil,
 		Status:        u.Status,
+		Gender:        u.Gender,
 	}
+	if u.BirthDate != nil {
+		formatted := u.BirthDate.Format("2006-01-02")
+		s.BirthDate = &formatted
+	}
+	return s
 }
