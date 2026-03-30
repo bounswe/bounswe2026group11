@@ -70,6 +70,31 @@ export async function apiPostAuth<T>(
   return response.json();
 }
 
+export async function apiPatchAuth<T>(
+  endpoint: string,
+  body: unknown,
+  token: string,
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    await handleErrorResponse(response);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json();
+}
+
 export async function apiGetAuth<T>(endpoint: string, token: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     method: 'GET',
