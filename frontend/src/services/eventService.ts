@@ -1,9 +1,11 @@
-import { apiPostAuth, apiGet } from './api';
+import { apiPostAuth, apiGet, apiGetAuth } from './api';
 import {
   CreateEventRequest,
   CreateEventResponse,
   ListCategoriesResponse,
   LocationSuggestion,
+  DiscoverEventsParams,
+  DiscoverEventsResponse,
 } from '@/models/event';
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
@@ -17,6 +19,27 @@ export function createEvent(
 
 export function listCategories(): Promise<ListCategoriesResponse> {
   return apiGet<ListCategoriesResponse>('/categories/');
+}
+
+export function discoverEvents(
+  params: DiscoverEventsParams,
+  token: string,
+): Promise<DiscoverEventsResponse> {
+  const qs = new URLSearchParams();
+  qs.set('lat', String(params.lat));
+  qs.set('lon', String(params.lon));
+  if (params.radius_meters != null) qs.set('radius_meters', String(params.radius_meters));
+  if (params.q) qs.set('q', params.q);
+  if (params.privacy_levels) qs.set('privacy_levels', params.privacy_levels);
+  if (params.category_ids) qs.set('category_ids', params.category_ids);
+  if (params.start_from) qs.set('start_from', params.start_from);
+  if (params.start_to) qs.set('start_to', params.start_to);
+  if (params.tag_names) qs.set('tag_names', params.tag_names);
+  if (params.only_favorited) qs.set('only_favorited', 'true');
+  if (params.sort_by) qs.set('sort_by', params.sort_by);
+  if (params.limit != null) qs.set('limit', String(params.limit));
+  if (params.cursor) qs.set('cursor', params.cursor);
+  return apiGetAuth<DiscoverEventsResponse>(`/events/?${qs}`, token);
 }
 
 export async function searchLocation(
