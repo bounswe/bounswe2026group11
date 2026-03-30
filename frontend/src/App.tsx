@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import LoginView from './views/auth/LoginView';
 import RegisterView from './views/auth/RegisterView';
+import ForgotPasswordView from './views/auth/ForgotPasswordView';
 import AppShell from './components/AppShell';
 import ProtectedRoute from './components/ProtectedRoute';
 import DiscoverPage from './views/discover/DiscoverPage';
@@ -36,6 +37,7 @@ export default function App() {
       {/* Auth pages (no shell) */}
       <Route path="/login" element={<LoginView />} />
       <Route path="/register" element={<RegisterView />} />
+      <Route path="/forgot-password" element={<ForgotPasswordView />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

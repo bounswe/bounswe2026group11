@@ -15,6 +15,18 @@ export class ApiError extends Error {
   }
 }
 
+async function handleErrorResponse(response: Response): Promise<never> {
+  try {
+    const errorBody: ErrorResponse = await response.json();
+    throw new ApiError(response.status, errorBody);
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw new ApiError(response.status, {
+      error: { code: 'network_error', message: `Request failed (${response.status})` },
+    });
+  }
+}
+
 export async function apiPost<T>(endpoint: string, body: unknown): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     method: 'POST',
@@ -23,12 +35,65 @@ export async function apiPost<T>(endpoint: string, body: unknown): Promise<T> {
   });
 
   if (!response.ok) {
-    const errorBody: ErrorResponse = await response.json();
-    throw new ApiError(response.status, errorBody);
+    await handleErrorResponse(response);
   }
 
   if (response.status === 204) {
     return undefined as T;
+  }
+
+  return response.json();
+}
+
+export async function apiPostAuth<T>(
+  endpoint: string,
+  body: unknown,
+  token: string,
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    await handleErrorResponse(response);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json();
+}
+
+export async function apiGetAuth<T>(endpoint: string, token: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    await handleErrorResponse(response);
+  }
+
+  return response.json();
+}
+
+export async function apiGet<T>(endpoint: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    await handleErrorResponse(response);
   }
 
   return response.json();

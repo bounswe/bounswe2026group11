@@ -1,0 +1,280 @@
+openapi: "3.1.0"
+info:
+  title: Social Event Mapper – Profile API
+  version: "1.0.0"
+
+paths:
+  /me:
+    get:
+      summary: Get current user's profile
+      description: Returns the combined app_user and profile data for the authenticated user.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Profile retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Missing or invalid access token.
+        "404":
+          description: User not found.
+
+    patch:
+      summary: Update current user's profile
+      description: >
+        Partially updates the editable fields of the authenticated user's profile.
+        Only the fields included in the request body are changed; omitted fields
+        are left unchanged.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "204":
+          description: Profile updated successfully.
+        "400":
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Missing or invalid access token.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User's unique identifier.
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        username:
+          type: string
+          description: Unique username.
+          example: john_doe
+        email:
+          type: string
+          format: email
+          description: Registered email address.
+          example: john@example.com
+        email_verified:
+          type: boolean
+          description: Whether the user's email has been verified.
+          example: true
+        status:
+          type: string
+          description: Account status.
+          example: active
+        phone_number:
+          type:
+            - string
+            - "null"
+          description: Phone number.
+          example: "+905551112233"
+        gender:
+          type:
+            - string
+            - "null"
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY, null]
+          description: Gender.
+          example: FEMALE
+        birth_date:
+          type:
+            - string
+            - "null"
+          format: date
+          description: Birth date in YYYY-MM-DD format.
+          example: "1998-05-14"
+        default_location_address:
+          type:
+            - string
+            - "null"
+          description: Default location address text.
+          example: "İstanbul, Turkey"
+        default_location_lat:
+          type:
+            - number
+            - "null"
+          format: double
+          description: Latitude of the default location.
+          example: 41.0082
+        default_location_lon:
+          type:
+            - number
+            - "null"
+          format: double
+          description: Longitude of the default location.
+          example: 28.9784
+        display_name:
+          type:
+            - string
+            - "null"
+          description: Display name shown on the profile.
+          example: "John Doe"
+        bio:
+          type:
+            - string
+            - "null"
+          description: Short biography.
+          example: "Software developer based in Istanbul."
+        avatar_url:
+          type:
+            - string
+            - "null"
+          description: URL of the user's avatar image.
+          example: "https://example.com/avatars/john.jpg"
+        created_events:
+          type: array
+          description: Events created (hosted) by this user, ordered by start time descending.
+          items:
+            $ref: "#/components/schemas/EventSummary"
+        attended_events:
+          type: array
+          description: Events the user has an approved participation in, ordered by start time descending.
+          items:
+            $ref: "#/components/schemas/EventSummary"
+
+    UpdateProfileRequest:
+      type: object
+      description: >
+        All fields are optional. Only provided fields are updated.
+        To clear a nullable field, send it explicitly as null.
+      properties:
+        phone_number:
+          type:
+            - string
+            - "null"
+          maxLength: 32
+          description: Phone number.
+          example: "+905551112233"
+        gender:
+          type:
+            - string
+            - "null"
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY, null]
+          description: Gender.
+          example: FEMALE
+        birth_date:
+          type:
+            - string
+            - "null"
+          format: date
+          description: Birth date in YYYY-MM-DD format.
+          example: "1998-05-14"
+        default_location_address:
+          type:
+            - string
+            - "null"
+          maxLength: 512
+          description: Default location address text.
+          example: "İstanbul, Turkey"
+        default_location_lat:
+          type:
+            - number
+            - "null"
+          format: double
+          minimum: -90
+          maximum: 90
+          description: Latitude of the default location. Must be provided together with lon.
+          example: 41.0082
+        default_location_lon:
+          type:
+            - number
+            - "null"
+          format: double
+          minimum: -180
+          maximum: 180
+          description: Longitude of the default location. Must be provided together with lat.
+          example: 28.9784
+        display_name:
+          type:
+            - string
+            - "null"
+          maxLength: 64
+          description: Display name shown on the profile.
+          example: "John Doe"
+        bio:
+          type:
+            - string
+            - "null"
+          maxLength: 512
+          description: Short biography.
+          example: "Software developer based in Istanbul."
+        avatar_url:
+          type:
+            - string
+            - "null"
+          maxLength: 512
+          description: URL of the user's avatar image.
+          example: "https://example.com/avatars/john.jpg"
+
+    EventSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        title:
+          type: string
+          example: "Morning Yoga in the Park"
+        start_time:
+          type: string
+          format: date-time
+          example: "2026-04-15T08:00:00+03:00"
+        end_time:
+          type: string
+          format: date-time
+          example: "2026-04-15T09:30:00+03:00"
+        status:
+          type: string
+          example: "ACTIVE"
+        category:
+          type:
+            - string
+            - "null"
+          example: "Sports"
+        image_url:
+          type:
+            - string
+            - "null"
+          example: "https://example.com/images/yoga.jpg"
+
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: validation_error
+            message:
+              type: string
+              example: One or more fields are invalid.
+            details:
+              type: object
+              additionalProperties:
+                type: string
+              example:
+                gender: "must be one of: MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY"

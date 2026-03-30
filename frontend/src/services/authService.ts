@@ -8,6 +8,10 @@ import {
   VerifyRegistrationRequest,
   AuthSessionResponse,
   LogoutRequest,
+  ForgotPasswordRequestOtpRequest,
+  ForgotPasswordVerifyOtpRequest,
+  ForgotPasswordVerifyOtpResponse,
+  ForgotPasswordResetPasswordRequest
 } from '@/models/auth';
 
 export function checkRegistrationAvailability(
@@ -40,4 +44,22 @@ export function login(data: LoginRequest): Promise<AuthSessionResponse> {
 
 export function logout(data: LogoutRequest): Promise<void> {
   return apiPost<void>('/auth/logout', data);
+}
+
+export function requestPasswordResetOtp(
+  data: ForgotPasswordRequestOtpRequest,
+): Promise<void> {
+  return apiPost<void>('/auth/forgot-password/request-otp', data);
+}
+
+export function verifyPasswordResetOtp(
+  data: ForgotPasswordVerifyOtpRequest,
+): Promise<ForgotPasswordVerifyOtpResponse> {
+  return apiPost<ForgotPasswordVerifyOtpResponse>('/auth/forgot-password/verify-otp', data);
+}
+
+export function resetPassword(
+  data: ForgotPasswordResetPasswordRequest,
+): Promise<void> {
+  return apiPost<void>('/auth/forgot-password/reset-password', data);
 }

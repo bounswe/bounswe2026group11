@@ -33,3 +33,29 @@ func (s *Service) CreatePendingJoinRequest(
 		Message:    input.Message,
 	})
 }
+
+// ApproveJoinRequest transitions a pending join request to APPROVED and creates
+// the participant's APPROVED participation row atomically.
+func (s *Service) ApproveJoinRequest(
+	ctx context.Context,
+	eventID, joinRequestID, hostUserID uuid.UUID,
+) (*ApproveJoinRequestResult, error) {
+	return s.repo.ApproveJoinRequest(ctx, ApproveJoinRequestParams{
+		EventID:       eventID,
+		JoinRequestID: joinRequestID,
+		HostUserID:    hostUserID,
+	})
+}
+
+// RejectJoinRequest transitions a pending join request to REJECTED and returns
+// the resulting cooldown end timestamp.
+func (s *Service) RejectJoinRequest(
+	ctx context.Context,
+	eventID, joinRequestID, hostUserID uuid.UUID,
+) (*RejectJoinRequestResult, error) {
+	return s.repo.RejectJoinRequest(ctx, RejectJoinRequestParams{
+		EventID:       eventID,
+		JoinRequestID: joinRequestID,
+		HostUserID:    hostUserID,
+	})
+}

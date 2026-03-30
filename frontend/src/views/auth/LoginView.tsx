@@ -1,3 +1,4 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLoginViewModel } from '@/viewmodels/auth/useLoginViewModel';
 import { useAuth } from '@/contexts/AuthContext';
@@ -64,6 +65,11 @@ export default function LoginView() {
             {vm.errors.password && (
               <p className="field-error">{vm.errors.password}</p>
             )}
+            <div style={{ textAlign: 'right', marginTop: '0.5rem', marginBottom: '1rem' }}>
+              <a onClick={() => navigate('/forgot-password')} className="link" style={{ fontSize: '0.875rem' }}>
+                Forgot Password?
+              </a>
+            </div>
           </div>
 
           <button
