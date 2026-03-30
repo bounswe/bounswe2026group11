@@ -57,7 +57,12 @@ export default function HomeView() {
             <FlatList
               data={vm.events}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => <EventCard event={item} />}
+              renderItem={({ item }) => (
+                <EventCard
+                  event={item}
+                  onPress={(id) => router.push(`/event/${id}` as Href)}
+                />
+              )}
               showsVerticalScrollIndicator={false}
               onEndReachedThreshold={0.35}
               onEndReached={vm.loadMoreEvents}
