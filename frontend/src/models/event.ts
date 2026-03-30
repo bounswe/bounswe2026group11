@@ -29,6 +29,7 @@ export interface CreateEventRequest {
   tags?: string[];
   constraints?: EventConstraint[];
   minimum_age?: number;
+  maximum_age?: number;
   preferred_gender?: PreferredGender;
 }
 

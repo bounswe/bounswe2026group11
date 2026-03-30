@@ -34,6 +34,7 @@ export interface CreateEventFormData {
   title: string;
   description: string;
   imageUrl: string;
+  imagePreview: string;
   categoryId: number | null;
   locationQuery: string;
   address: string;
@@ -48,6 +49,7 @@ export interface CreateEventFormData {
   tagInput: string;
   capacity: string;
   minimumAge: string;
+  maximumAge: string;
   preferredGender: PreferredGender | '';
   constraints: EventConstraint[];
   constraintType: ConstraintType;
@@ -67,12 +69,14 @@ export interface CreateEventFormErrors {
   tags?: string | null;
   capacity?: string | null;
   minimumAge?: string | null;
+  maximumAge?: string | null;
 }
 
 const INITIAL: CreateEventFormData = {
   title: '',
   description: '',
   imageUrl: '',
+  imagePreview: '',
   categoryId: null,
   locationQuery: '',
   address: '',
@@ -87,6 +91,7 @@ const INITIAL: CreateEventFormData = {
   tagInput: '',
   capacity: '',
   minimumAge: '',
+  maximumAge: '',
   preferredGender: '',
   constraints: [],
   constraintType: 'other',
@@ -167,6 +172,18 @@ function validateForm(form: CreateEventFormData): CreateEventFormErrors {
     const age = parseInt(form.minimumAge, 10);
     if (isNaN(age) || age < 1 || age > 120) {
       errors.minimumAge = 'Enter a valid age (1-120).';
+    }
+  }
+
+  if (form.maximumAge) {
+    const age = parseInt(form.maximumAge, 10);
+    if (isNaN(age) || age < 1 || age > 120) {
+      errors.maximumAge = 'Enter a valid age (1-120).';
+    } else if (form.minimumAge) {
+      const minAge = parseInt(form.minimumAge, 10);
+      if (!isNaN(minAge) && age <= minAge) {
+        errors.maximumAge = 'Maximum age must be greater than minimum age.';
+      }
     }
   }
 
@@ -269,6 +286,23 @@ export function useCreateEventViewModel() {
     });
   }, []);
 
+  const handleImageUpload = useCallback((file: File | null) => {
+    if (!file) {
+      setForm((prev) => ({ ...prev, imageUrl: '', imagePreview: '' }));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setForm((prev) => ({ ...prev, imageUrl: dataUrl, imagePreview: dataUrl }));
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const removeImage = useCallback(() => {
+    setForm((prev) => ({ ...prev, imageUrl: '', imagePreview: '' }));
+  }, []);
+
   const removeConstraint = useCallback((index: number) => {
     setForm((prev) => ({
       ...prev,
@@ -307,6 +341,7 @@ export function useCreateEventViewModel() {
           tags: form.tags.length > 0 ? form.tags : undefined,
           constraints: form.constraints.length > 0 ? form.constraints : undefined,
           minimum_age: form.minimumAge ? parseInt(form.minimumAge, 10) : undefined,
+          maximum_age: form.maximumAge ? parseInt(form.maximumAge, 10) : undefined,
           preferred_gender: form.preferredGender || undefined,
         };
 
@@ -341,6 +376,8 @@ export function useCreateEventViewModel() {
     selectLocation,
     addTag,
     removeTag,
+    handleImageUpload,
+    removeImage,
     addConstraint,
     removeConstraint,
     handleSubmit,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -15,11 +15,174 @@ const GENDER_OPTIONS: { label: string; value: PreferredGender }[] = [
   { label: 'Other', value: 'OTHER' },
 ];
 
+const AGE_PRESETS = [
+  { label: '18+', min: '18', max: '' },
+  { label: '21+', min: '21', max: '' },
+  { label: '16+', min: '16', max: '' },
+  { label: '18-30', min: '18', max: '30' },
+  { label: '18-65', min: '18', max: '65' },
+];
+
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+
+function TimePicker({
+  value,
+  onChange,
+  hasError,
+  disabled,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  hasError?: boolean;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<'hours' | 'minutes'>('hours');
+  const [inputValue, setInputValue] = useState('');
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const hour = value.split(':')[0] ?? '';
+  const minute = value.split(':')[1] ?? '';
+
+  // Sync inputValue when value changes externally (e.g. from grid selection)
+  useEffect(() => {
+    const display = hour && minute ? `${hour}:${minute}` : '';
+    setInputValue(display);
+  }, [hour, minute]);
+
+  const handleClickOutside = useCallback((e: MouseEvent) => {
+    if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+      setOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open, handleClickOutside]);
+
+  const selectHour = (h: string) => {
+    const m = minute || '00';
+    onChange(`${h}:${m}`);
+    setView('minutes');
+  };
+
+  const selectMinute = (m: string) => {
+    const h = hour || '00';
+    onChange(`${h}:${m}`);
+    setOpen(false);
+    setView('hours');
+  };
+
+  const handleInputChange = (raw: string) => {
+    // Allow only digits and colon while typing
+    const cleaned = raw.replace(/[^0-9:]/g, '');
+    setInputValue(cleaned);
+
+    // Auto-insert colon after 2 digits
+    if (cleaned.length === 2 && !cleaned.includes(':')) {
+      setInputValue(cleaned + ':');
+      return;
+    }
+
+    // Parse complete HH:MM
+    const match = cleaned.match(/^(\d{1,2}):(\d{2})$/);
+    if (match) {
+      const h = parseInt(match[1], 10);
+      const m = parseInt(match[2], 10);
+      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+        onChange(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+      }
+    }
+  };
+
+  const handleInputBlur = () => {
+    // On blur, snap to the current valid value or clear
+    if (hour && minute) {
+      setInputValue(`${hour}:${minute}`);
+    } else {
+      setInputValue('');
+    }
+  };
+
+  return (
+    <div className="ce-tp-wrapper" ref={wrapperRef}>
+      <input
+        ref={inputRef}
+        type="text"
+        className={`field-input ce-tp-trigger ${hasError ? 'has-error' : ''}`}
+        placeholder="HH:MM"
+        maxLength={5}
+        value={inputValue}
+        onChange={(e) => handleInputChange(e.target.value)}
+        onFocus={() => { if (!disabled) { setOpen(true); setView('hours'); } }}
+        onBlur={handleInputBlur}
+        disabled={disabled}
+      />
+
+      {open && (
+        <div className="ce-tp-popup">
+          <div className="ce-tp-header">
+            <button
+              type="button"
+              className={`ce-tp-tab ${view === 'hours' ? 'active' : ''}`}
+              onClick={() => setView('hours')}
+            >
+              {hour || 'HH'}
+            </button>
+            <span className="ce-tp-colon">:</span>
+            <button
+              type="button"
+              className={`ce-tp-tab ${view === 'minutes' ? 'active' : ''}`}
+              onClick={() => setView('minutes')}
+            >
+              {minute || 'MM'}
+            </button>
+          </div>
+
+          {view === 'hours' ? (
+            <div className="ce-tp-grid ce-tp-grid-hours">
+              {HOURS.map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  className={`ce-tp-cell ${h === hour ? 'selected' : ''}`}
+                  onClick={() => selectHour(h)}
+                >
+                  {h}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="ce-tp-grid ce-tp-grid-minutes">
+              {MINUTES.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  className={`ce-tp-cell ${m === minute ? 'selected' : ''}`}
+                  onClick={() => selectMinute(m)}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CreateEventForm() {
   const { token, username } = useAuth();
   const navigate = useNavigate();
   const vm = useCreateEventViewModel();
   const [showSuccess, setShowSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,20 +294,43 @@ function CreateEventForm() {
           )}
         </div>
 
-        {/* Image URL */}
+        {/* Event Image */}
         <div className="field-group">
-          <label className="field-label" htmlFor="event-image">
-            Image URL <span className="optional">(optional)</span>
+          <label className="field-label">
+            Event Image <span className="optional">(optional)</span>
           </label>
           <input
-            id="event-image"
-            className="field-input"
-            type="url"
-            placeholder="https://example.com/image.jpg"
-            value={vm.form.imageUrl}
-            onChange={(e) => vm.updateField('imageUrl', e.target.value)}
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="ce-file-hidden"
+            onChange={(e) => vm.handleImageUpload(e.target.files?.[0] ?? null)}
             disabled={vm.isLoading}
           />
+          {vm.form.imagePreview ? (
+            <div className="ce-image-preview-wrapper">
+              <img src={vm.form.imagePreview} alt="Event preview" className="ce-image-preview" />
+              <button
+                type="button"
+                className="ce-image-remove"
+                onClick={() => {
+                  vm.removeImage();
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="ce-image-upload-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={vm.isLoading}
+            >
+              Upload Image
+            </button>
+          )}
         </div>
 
         {/* Location */}
@@ -208,15 +394,11 @@ function CreateEventForm() {
             )}
           </div>
           <div className="field-group ce-flex-1">
-            <label className="field-label" htmlFor="start-time">
-              Start Time
-            </label>
-            <input
-              id="start-time"
-              className={`field-input ${vm.errors.startTime ? 'has-error' : ''}`}
-              type="time"
+            <label className="field-label">Start Time</label>
+            <TimePicker
               value={vm.form.startTime}
-              onChange={(e) => vm.updateField('startTime', e.target.value)}
+              onChange={(val) => vm.updateField('startTime', val)}
+              hasError={!!vm.errors.startTime}
               disabled={vm.isLoading}
             />
             {vm.errors.startTime && (
@@ -243,15 +425,13 @@ function CreateEventForm() {
             )}
           </div>
           <div className="field-group ce-flex-1">
-            <label className="field-label" htmlFor="end-time">
+            <label className="field-label">
               End Time <span className="optional">(optional)</span>
             </label>
-            <input
-              id="end-time"
-              className={`field-input ${vm.errors.endTime ? 'has-error' : ''}`}
-              type="time"
+            <TimePicker
               value={vm.form.endTime}
-              onChange={(e) => vm.updateField('endTime', e.target.value)}
+              onChange={(val) => vm.updateField('endTime', val)}
+              hasError={!!vm.errors.endTime}
               disabled={vm.isLoading}
             />
             {vm.errors.endTime && (
@@ -290,7 +470,11 @@ function CreateEventForm() {
             min={2}
             placeholder="e.g. 50"
             value={vm.form.capacity}
-            onChange={(e) => vm.updateField('capacity', e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === '' || parseInt(val, 10) >= 0) vm.updateField('capacity', val);
+            }}
+            onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
             disabled={vm.isLoading}
           />
           {vm.errors.capacity && (
@@ -352,25 +536,84 @@ function CreateEventForm() {
             Participation Constraints <span className="optional">(optional)</span>
           </legend>
 
-          {/* Minimum Age */}
+          {/* Age Presets */}
           <div className="field-group">
-            <label className="field-label ce-sub-label" htmlFor="min-age">
-              Minimum Age
-            </label>
-            <input
-              id="min-age"
-              className={`field-input ce-short-input ${vm.errors.minimumAge ? 'has-error' : ''}`}
-              type="number"
-              min={1}
-              max={120}
-              placeholder="e.g. 18"
-              value={vm.form.minimumAge}
-              onChange={(e) => vm.updateField('minimumAge', e.target.value)}
-              disabled={vm.isLoading}
-            />
-            {vm.errors.minimumAge && (
-              <p className="field-error">{vm.errors.minimumAge}</p>
-            )}
+            <label className="field-label ce-sub-label">Age Restriction</label>
+            <div className="ce-age-presets">
+              {AGE_PRESETS.map((preset) => {
+                const isActive =
+                  vm.form.minimumAge === preset.min && vm.form.maximumAge === preset.max;
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    className={`ce-age-preset-chip ${isActive ? 'selected' : ''}`}
+                    onClick={() => {
+                      if (isActive) {
+                        vm.updateField('minimumAge', '');
+                        vm.updateField('maximumAge', '');
+                      } else {
+                        vm.updateField('minimumAge', preset.min);
+                        vm.updateField('maximumAge', preset.max);
+                      }
+                    }}
+                    disabled={vm.isLoading}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Min / Max Age */}
+          <div className="ce-row">
+            <div className="field-group ce-flex-1">
+              <label className="field-label ce-sub-label" htmlFor="min-age">
+                Min Age
+              </label>
+              <input
+                id="min-age"
+                className={`field-input ce-short-input ${vm.errors.minimumAge ? 'has-error' : ''}`}
+                type="number"
+                min={1}
+                max={120}
+                placeholder="e.g. 18"
+                value={vm.form.minimumAge}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || parseInt(val, 10) >= 0) vm.updateField('minimumAge', val);
+                }}
+                onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                disabled={vm.isLoading}
+              />
+              {vm.errors.minimumAge && (
+                <p className="field-error">{vm.errors.minimumAge}</p>
+              )}
+            </div>
+            <div className="field-group ce-flex-1">
+              <label className="field-label ce-sub-label" htmlFor="max-age">
+                Max Age
+              </label>
+              <input
+                id="max-age"
+                className={`field-input ce-short-input ${vm.errors.maximumAge ? 'has-error' : ''}`}
+                type="number"
+                min={1}
+                max={120}
+                placeholder="e.g. 65"
+                value={vm.form.maximumAge}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || parseInt(val, 10) >= 0) vm.updateField('maximumAge', val);
+                }}
+                onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                disabled={vm.isLoading}
+              />
+              {vm.errors.maximumAge && (
+                <p className="field-error">{vm.errors.maximumAge}</p>
+              )}
+            </div>
           </div>
 
           {/* Preferred Gender */}
