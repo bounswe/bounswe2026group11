@@ -143,7 +143,6 @@ func sanitizePhoneNumber(value *string, details map[string]string) *string {
 	return &trimmed
 }
 
-
 func sanitizeGender(value *string, details map[string]string) *string {
 	if value == nil {
 		return nil

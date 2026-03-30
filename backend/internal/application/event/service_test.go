@@ -106,12 +106,15 @@ func (s *fakeParticipationService) CreateApprovedParticipation(_ context.Context
 
 // fakeJoinRequestService is an in-memory implementation of JoinRequestService.
 type fakeJoinRequestService struct {
-	err            error
-	callCount      int
-	lastEventID    uuid.UUID
-	lastUserID     uuid.UUID
-	lastHostUserID uuid.UUID
-	lastInput      join_request.CreatePendingJoinRequestInput
+	err               error
+	callCount         int
+	approveCallCount  int
+	rejectCallCount   int
+	lastEventID       uuid.UUID
+	lastUserID        uuid.UUID
+	lastHostUserID    uuid.UUID
+	lastJoinRequestID uuid.UUID
+	lastInput         join_request.CreatePendingJoinRequestInput
 }
 
 func (s *fakeJoinRequestService) CreatePendingJoinRequest(
@@ -134,9 +137,75 @@ func (s *fakeJoinRequestService) CreatePendingJoinRequest(
 		EventID:    eventID,
 		UserID:     userID,
 		HostUserID: hostUserID,
-		Status:     domain.ParticipationStatusPending,
+		Status:     domain.JoinRequestStatusPending,
 		CreatedAt:  now,
 		UpdatedAt:  now,
+	}, nil
+}
+
+func (s *fakeJoinRequestService) ApproveJoinRequest(
+	_ context.Context,
+	eventID, joinRequestID, hostUserID uuid.UUID,
+) (*join_request.ApproveJoinRequestResult, error) {
+	s.approveCallCount++
+	s.lastEventID = eventID
+	s.lastJoinRequestID = joinRequestID
+	s.lastHostUserID = hostUserID
+
+	if s.err != nil {
+		return nil, s.err
+	}
+
+	now := time.Now().UTC()
+	participationID := uuid.New()
+	requesterID := uuid.New()
+	return &join_request.ApproveJoinRequestResult{
+		JoinRequest: &domain.JoinRequest{
+			ID:              joinRequestID,
+			EventID:         eventID,
+			UserID:          requesterID,
+			ParticipationID: &participationID,
+			HostUserID:      hostUserID,
+			Status:          domain.JoinRequestStatusApproved,
+			CreatedAt:       now.Add(-time.Hour),
+			UpdatedAt:       now,
+		},
+		Participation: &domain.Participation{
+			ID:        participationID,
+			EventID:   eventID,
+			UserID:    requesterID,
+			Status:    domain.ParticipationStatusApproved,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}, nil
+}
+
+func (s *fakeJoinRequestService) RejectJoinRequest(
+	_ context.Context,
+	eventID, joinRequestID, hostUserID uuid.UUID,
+) (*join_request.RejectJoinRequestResult, error) {
+	s.rejectCallCount++
+	s.lastEventID = eventID
+	s.lastJoinRequestID = joinRequestID
+	s.lastHostUserID = hostUserID
+
+	if s.err != nil {
+		return nil, s.err
+	}
+
+	now := time.Now().UTC()
+	return &join_request.RejectJoinRequestResult{
+		JoinRequest: &domain.JoinRequest{
+			ID:         joinRequestID,
+			EventID:    eventID,
+			UserID:     uuid.New(),
+			HostUserID: hostUserID,
+			Status:     domain.JoinRequestStatusRejected,
+			CreatedAt:  now.Add(-time.Hour),
+			UpdatedAt:  now,
+		},
+		CooldownEndsAt: now.Add(domain.JoinRequestCooldown),
 	}, nil
 }
 
@@ -1131,7 +1200,7 @@ func TestRequestJoinSuccessReturnsPending(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RequestJoin() error = %v", err)
 	}
-	if result.Status != domain.ParticipationStatusPending {
+	if result.Status != string(domain.JoinRequestStatusPending) {
 		t.Fatalf("expected status PENDING, got %q", result.Status)
 	}
 	if joinRequestService.callCount != 1 {
@@ -1172,6 +1241,56 @@ func TestRequestJoinRejectsPublicEvent(t *testing.T) {
 	}
 	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeEventJoinNotAllowed {
 		t.Fatalf("expected event_join_not_allowed, got %v", err)
+	}
+}
+
+func TestApproveJoinRequestDelegatesToJoinRequestService(t *testing.T) {
+	hostID := uuid.New()
+	ev := protectedEvent(hostID)
+	joinRequestID := uuid.New()
+	svc, _, _, joinRequestService := newTestEventServiceWithEvent(ev)
+
+	result, err := svc.ApproveJoinRequest(context.Background(), hostID, ev.ID, joinRequestID)
+
+	if err != nil {
+		t.Fatalf("ApproveJoinRequest() error = %v", err)
+	}
+	if result.JoinRequestStatus != string(domain.JoinRequestStatusApproved) {
+		t.Fatalf("expected join request status APPROVED, got %q", result.JoinRequestStatus)
+	}
+	if result.ParticipationStatus != domain.ParticipationStatusApproved {
+		t.Fatalf("expected participation status APPROVED, got %q", result.ParticipationStatus)
+	}
+	if joinRequestService.approveCallCount != 1 {
+		t.Fatalf("expected approve join request service to be called once")
+	}
+	if joinRequestService.lastEventID != ev.ID || joinRequestService.lastJoinRequestID != joinRequestID || joinRequestService.lastHostUserID != hostID {
+		t.Fatalf("expected approve join request service to receive event %s, join request %s, and host %s", ev.ID, joinRequestID, hostID)
+	}
+}
+
+func TestRejectJoinRequestDelegatesToJoinRequestService(t *testing.T) {
+	hostID := uuid.New()
+	ev := protectedEvent(hostID)
+	joinRequestID := uuid.New()
+	svc, _, _, joinRequestService := newTestEventServiceWithEvent(ev)
+
+	result, err := svc.RejectJoinRequest(context.Background(), hostID, ev.ID, joinRequestID)
+
+	if err != nil {
+		t.Fatalf("RejectJoinRequest() error = %v", err)
+	}
+	if result.Status != string(domain.JoinRequestStatusRejected) {
+		t.Fatalf("expected join request status REJECTED, got %q", result.Status)
+	}
+	if !result.CooldownEndsAt.After(result.UpdatedAt) {
+		t.Fatalf("expected cooldown_ends_at %v to be after updated_at %v", result.CooldownEndsAt, result.UpdatedAt)
+	}
+	if joinRequestService.rejectCallCount != 1 {
+		t.Fatalf("expected reject join request service to be called once")
+	}
+	if joinRequestService.lastEventID != ev.ID || joinRequestService.lastJoinRequestID != joinRequestID || joinRequestService.lastHostUserID != hostID {
+		t.Fatalf("expected reject join request service to receive event %s, join request %s, and host %s", ev.ID, joinRequestID, hostID)
 	}
 }
 

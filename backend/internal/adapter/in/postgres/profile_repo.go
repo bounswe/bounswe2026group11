@@ -47,18 +47,18 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 	`, userID)
 
 	var (
-		up                  domain.UserProfile
-		phoneNumber         pgtype.Text
-		gender              pgtype.Text
-		birthDate           pgtype.Date
-		emailVerifiedAt     pgtype.Timestamptz
-		status              pgtype.Text
-		defaultLocAddress   pgtype.Text
-		lat                 pgtype.Float8
-		lon                 pgtype.Float8
-		displayName         pgtype.Text
-		bio                 pgtype.Text
-		avatarURL           pgtype.Text
+		up                domain.UserProfile
+		phoneNumber       pgtype.Text
+		gender            pgtype.Text
+		birthDate         pgtype.Date
+		emailVerifiedAt   pgtype.Timestamptz
+		status            pgtype.Text
+		defaultLocAddress pgtype.Text
+		lat               pgtype.Float8
+		lon               pgtype.Float8
+		displayName       pgtype.Text
+		bio               pgtype.Text
+		avatarURL         pgtype.Text
 	)
 
 	if err := row.Scan(

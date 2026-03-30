@@ -17,18 +17,24 @@ import (
 )
 
 type stubEventService struct {
-	result               *event.CreateEventResult
-	discoverResult       *event.DiscoverEventsResult
-	detailResult         *event.GetEventDetailResult
-	err                  error
-	callCount            int
-	discoverCallCount    int
-	detailCallCount      int
-	requestJoinCallCount int
-	lastInput            event.CreateEventInput
-	lastDiscoverInput    event.DiscoverEventsInput
-	lastDetailEventID    uuid.UUID
-	lastRequestJoinInput event.RequestJoinInput
+	result                   *event.CreateEventResult
+	discoverResult           *event.DiscoverEventsResult
+	detailResult             *event.GetEventDetailResult
+	err                      error
+	callCount                int
+	discoverCallCount        int
+	detailCallCount          int
+	requestJoinCallCount     int
+	approveJoinCallCount     int
+	rejectJoinCallCount      int
+	lastInput                event.CreateEventInput
+	lastDiscoverInput        event.DiscoverEventsInput
+	lastDetailEventID        uuid.UUID
+	lastRequestJoinInput     event.RequestJoinInput
+	lastApproveJoinEventID   uuid.UUID
+	lastApproveJoinRequestID uuid.UUID
+	lastRejectJoinEventID    uuid.UUID
+	lastRejectJoinRequestID  uuid.UUID
 }
 
 func (s *stubEventService) CreateEvent(_ context.Context, _ uuid.UUID, input event.CreateEventInput) (*event.CreateEventResult, error) {
@@ -125,8 +131,42 @@ func (s *stubEventService) RequestJoin(_ context.Context, _, eventID uuid.UUID, 
 	return &event.RequestJoinResult{
 		JoinRequestID: uuid.New().String(),
 		EventID:       eventID.String(),
-		Status:        domain.ParticipationStatusPending,
+		Status:        string(domain.JoinRequestStatusPending),
 		CreatedAt:     time.Now().UTC(),
+	}, nil
+}
+
+func (s *stubEventService) ApproveJoinRequest(_ context.Context, _, eventID, joinRequestID uuid.UUID) (*event.ApproveJoinRequestResult, error) {
+	s.approveJoinCallCount++
+	s.lastApproveJoinEventID = eventID
+	s.lastApproveJoinRequestID = joinRequestID
+	if s.err != nil {
+		return nil, s.err
+	}
+	return &event.ApproveJoinRequestResult{
+		JoinRequestID:       joinRequestID.String(),
+		EventID:             eventID.String(),
+		JoinRequestStatus:   string(domain.JoinRequestStatusApproved),
+		ParticipationID:     uuid.NewString(),
+		ParticipationStatus: domain.ParticipationStatusApproved,
+		UpdatedAt:           time.Now().UTC(),
+	}, nil
+}
+
+func (s *stubEventService) RejectJoinRequest(_ context.Context, _, eventID, joinRequestID uuid.UUID) (*event.RejectJoinRequestResult, error) {
+	s.rejectJoinCallCount++
+	s.lastRejectJoinEventID = eventID
+	s.lastRejectJoinRequestID = joinRequestID
+	if s.err != nil {
+		return nil, s.err
+	}
+	now := time.Now().UTC()
+	return &event.RejectJoinRequestResult{
+		JoinRequestID:  joinRequestID.String(),
+		EventID:        eventID.String(),
+		Status:         string(domain.JoinRequestStatusRejected),
+		UpdatedAt:      now,
+		CooldownEndsAt: now.Add(domain.JoinRequestCooldown),
 	}, nil
 }
 
@@ -767,5 +807,123 @@ func TestRequestJoinParsesMessageBeforeCallingService(t *testing.T) {
 	}
 	if svc.lastRequestJoinInput.Message == nil || *svc.lastRequestJoinInput.Message != message {
 		t.Fatalf("expected parsed message %q, got %v", message, svc.lastRequestJoinInput.Message)
+	}
+}
+
+func TestApproveJoinRequestInvalidEventIDReturns400(t *testing.T) {
+	// given
+	app := newEventTestApp(&stubEventService{}, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodPost, "/events/not-a-uuid/join-requests/"+uuid.NewString()+"/approve", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+}
+
+func TestApproveJoinRequestInvalidJoinRequestIDReturns400(t *testing.T) {
+	// given
+	app := newEventTestApp(&stubEventService{}, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodPost, "/events/"+uuid.NewString()+"/join-requests/not-a-uuid/approve", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+}
+
+func TestApproveJoinRequestParsesIDsBeforeCallingService(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+	eventID := uuid.New()
+	joinRequestID := uuid.New()
+
+	req := httptest.NewRequest(fiber.MethodPost, "/events/"+eventID.String()+"/join-requests/"+joinRequestID.String()+"/approve", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if svc.approveJoinCallCount != 1 {
+		t.Fatalf("expected approve join request service to be called once, got %d", svc.approveJoinCallCount)
+	}
+	if svc.lastApproveJoinEventID != eventID || svc.lastApproveJoinRequestID != joinRequestID {
+		t.Fatalf("expected parsed event %s and join request %s, got %s and %s", eventID, joinRequestID, svc.lastApproveJoinEventID, svc.lastApproveJoinRequestID)
+	}
+}
+
+func TestRejectJoinRequestInvalidJoinRequestIDReturns400(t *testing.T) {
+	// given
+	app := newEventTestApp(&stubEventService{}, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodPost, "/events/"+uuid.NewString()+"/join-requests/not-a-uuid/reject", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+}
+
+func TestRejectJoinRequestParsesIDsBeforeCallingService(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+	eventID := uuid.New()
+	joinRequestID := uuid.New()
+
+	req := httptest.NewRequest(fiber.MethodPost, "/events/"+eventID.String()+"/join-requests/"+joinRequestID.String()+"/reject", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if svc.rejectJoinCallCount != 1 {
+		t.Fatalf("expected reject join request service to be called once, got %d", svc.rejectJoinCallCount)
+	}
+	if svc.lastRejectJoinEventID != eventID || svc.lastRejectJoinRequestID != joinRequestID {
+		t.Fatalf("expected parsed event %s and join request %s, got %s and %s", eventID, joinRequestID, svc.lastRejectJoinEventID, svc.lastRejectJoinRequestID)
 	}
 }
