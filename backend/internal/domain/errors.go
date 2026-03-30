@@ -42,6 +42,10 @@ const (
 	ErrorCodeJoinRequestModerationNotAllowed = "join_request_moderation_not_allowed"
 	ErrorCodeJoinRequestStateInvalid         = "join_request_state_invalid"
 	ErrorCodeJoinRequestCooldownActive       = "join_request_cooldown_active"
+	ErrorCodeImageUploadTokenInvalid         = "image_upload_token_invalid"
+	ErrorCodeImageUploadNotAllowed           = "image_upload_not_allowed"
+	ErrorCodeImageUploadIncomplete           = "image_upload_incomplete"
+	ErrorCodeImageUploadVersionConflict      = "image_upload_version_conflict"
 )
 
 // ErrNotFound is a sentinel error returned when a queried entity does not exist.
@@ -68,6 +72,16 @@ func ValidationError(details map[string]string) *AppError {
 		Message: "The request body contains invalid fields. See error.details for field-specific messages.",
 		Status:  StatusBadRequest,
 		Details: details,
+	}
+}
+
+// BadRequestError creates a 400 Bad Request error for invalid request states
+// that are not field-validation failures.
+func BadRequestError(code, message string) *AppError {
+	return &AppError{
+		Code:    code,
+		Message: message,
+		Status:  StatusBadRequest,
 	}
 }
 

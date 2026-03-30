@@ -5,6 +5,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/category_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/profile_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/rating_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/bootstrap"
@@ -49,6 +50,10 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 	// Profile routes (authenticated)
 	profileHandler := profile_handler.NewProfileHandler(container.ProfileService)
 	profile_handler.RegisterProfileRoutes(app, profileHandler, auth)
+
+	// Direct image upload routes (authenticated)
+	imageUploadHandler := image_upload_handler.NewHandler(container.ImageUploadService)
+	image_upload_handler.RegisterRoutes(app, imageUploadHandler, auth)
 
 	return app
 }

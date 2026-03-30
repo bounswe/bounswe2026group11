@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLoad_RequiredMissing(t *testing.T) {
@@ -49,6 +50,9 @@ func TestLoad_OK(t *testing.T) {
 	}
 	if cfg.RatingGlobalPrior != 4.0 || cfg.RatingBayesianM != 5 {
 		t.Fatalf("unexpected rating config: %+v", cfg)
+	}
+	if cfg.SpacesBucket != "sem-bucket" || cfg.SpacesPresignTTL != 15*time.Minute {
+		t.Fatalf("unexpected spaces config: %+v", cfg)
 	}
 }
 
@@ -122,6 +126,26 @@ func TestLoad_EnvOverridesYamlAndRepoRootDotEnv(t *testing.T) {
 	}
 	if cfg.AppPort != 8080 {
 		t.Fatalf("expected APP_PORT from YAML, got %d", cfg.AppPort)
+	}
+}
+
+func TestLoad_RequiresSpacesAccessKey(t *testing.T) {
+	// given
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeConfigFile(t, dir, "local", spacesMissingAccessKeyYAML("localhost"))
+	clearConfigEnv(t)
+	t.Setenv("JWT_SECRET", "test-secret")
+
+	// when
+	_, err := Load()
+
+	// then
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "SPACES_ACCESS_KEY") {
+		t.Fatalf("expected SPACES_ACCESS_KEY in error, got: %v", err)
 	}
 }
 
@@ -216,6 +240,14 @@ func clearConfigEnv(t *testing.T) {
 		"RESEND_CLIENT_API_KEY",
 		"RATING_GLOBAL_PRIOR",
 		"RATING_BAYESIAN_M",
+		"SPACES_ACCESS_KEY",
+		"SPACES_SECRET_KEY",
+		"SPACES_ENDPOINT",
+		"SPACES_BUCKET",
+		"SPACES_CDN_BASE_URL",
+		"SPACES_S3_REGION",
+		"SPACES_PRESIGN_TTL",
+		"SPACES_UPLOAD_CACHE_CONTROL",
 	} {
 		t.Setenv(k, "")
 	}
@@ -288,6 +320,14 @@ mail_provider: mock
 mail_domain: socialeventmapper.com
 rating_global_prior: 4.0
 rating_bayesian_m: 5
+spaces_access_key: test-access-key
+spaces_secret_key: test-secret-key
+spaces_endpoint: https://fra1.digitaloceanspaces.com
+spaces_bucket: sem-bucket
+spaces_cdn_base_url: https://sem-bucket.fra1.cdn.digitaloceanspaces.com
+spaces_s3_region: us-east-1
+spaces_presign_ttl: 15m
+spaces_upload_cache_control: public, max-age=604800, immutable
 `) + "\n"
 }
 
@@ -314,5 +354,46 @@ mail_provider: resend
 mail_domain: socialeventmapper.com
 rating_global_prior: 4.0
 rating_bayesian_m: 5
+spaces_access_key: test-access-key
+spaces_secret_key: test-secret-key
+spaces_endpoint: https://fra1.digitaloceanspaces.com
+spaces_bucket: sem-bucket
+spaces_cdn_base_url: https://sem-bucket.fra1.cdn.digitaloceanspaces.com
+spaces_s3_region: us-east-1
+spaces_presign_ttl: 15m
+spaces_upload_cache_control: public, max-age=604800, immutable
+`) + "\n"
+}
+
+func spacesMissingAccessKeyYAML(dbHost string) string {
+	return strings.TrimSpace(`
+app_port: 8080
+db_host: `+dbHost+`
+db_port: 5432
+db_name: sem
+db_user: postgres
+access_token_ttl: 15m
+refresh_token_ttl: 336h
+max_session_ttl: 1440h
+otp_ttl: 10m
+otp_max_attempts: 5
+otp_resend_cooldown: 1m
+otp_request_limit: 5
+otp_request_window: 10m
+login_rate_limit: 10
+login_rate_window: 15m
+availability_rate_limit: 20
+availability_rate_window: 15m
+mail_provider: mock
+mail_domain: socialeventmapper.com
+rating_global_prior: 4.0
+rating_bayesian_m: 5
+spaces_secret_key: test-secret-key
+spaces_endpoint: https://fra1.digitaloceanspaces.com
+spaces_bucket: sem-bucket
+spaces_cdn_base_url: https://sem-bucket.fra1.cdn.digitaloceanspaces.com
+spaces_s3_region: us-east-1
+spaces_presign_ttl: 15m
+spaces_upload_cache_control: public, max-age=604800, immutable
 `) + "\n"
 }
