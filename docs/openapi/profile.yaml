@@ -143,6 +143,16 @@ components:
             - "null"
           description: URL of the user's avatar image.
           example: "https://example.com/avatars/john.jpg"
+        created_events:
+          type: array
+          description: Events created (hosted) by this user, ordered by start time descending.
+          items:
+            $ref: "#/components/schemas/EventSummary"
+        attended_events:
+          type: array
+          description: Events the user has an approved participation in, ordered by start time descending.
+          items:
+            $ref: "#/components/schemas/EventSummary"
 
     UpdateProfileRequest:
       type: object
@@ -217,6 +227,38 @@ components:
           maxLength: 512
           description: URL of the user's avatar image.
           example: "https://example.com/avatars/john.jpg"
+
+    EventSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        title:
+          type: string
+          example: "Morning Yoga in the Park"
+        start_time:
+          type: string
+          format: date-time
+          example: "2026-04-15T08:00:00+03:00"
+        end_time:
+          type: string
+          format: date-time
+          example: "2026-04-15T09:30:00+03:00"
+        status:
+          type: string
+          example: "ACTIVE"
+        category:
+          type:
+            - string
+            - "null"
+          example: "Sports"
+        image_url:
+          type:
+            - string
+            - "null"
+          example: "https://example.com/images/yoga.jpg"
 
     ErrorEnvelope:
       type: object

@@ -3,6 +3,7 @@ package profile
 import (
 	"context"
 
+	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 )
 
@@ -18,9 +19,20 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
-// GetMyProfile returns the combined app_user + profile data for the given user.
+// GetMyProfile returns the combined app_user + profile data for the given user,
+// including lists of events they created and attended.
 func (s *Service) GetMyProfile(ctx context.Context, userID uuid.UUID) (*GetProfileResult, error) {
 	p, err := s.repo.GetProfile(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	createdEvents, err := s.repo.GetCreatedEvents(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	attendedEvents, err := s.repo.GetAttendedEvents(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -39,6 +51,8 @@ func (s *Service) GetMyProfile(ctx context.Context, userID uuid.UUID) (*GetProfi
 		DisplayName:            p.DisplayName,
 		Bio:                    p.Bio,
 		AvatarURL:              p.AvatarURL,
+		CreatedEvents:          toEventSummaries(createdEvents),
+		AttendedEvents:         toEventSummaries(attendedEvents),
 	}
 
 	if p.BirthDate != nil {
@@ -47,6 +61,22 @@ func (s *Service) GetMyProfile(ctx context.Context, userID uuid.UUID) (*GetProfi
 	}
 
 	return result, nil
+}
+
+func toEventSummaries(events []domain.EventSummary) []EventSummary {
+	result := make([]EventSummary, len(events))
+	for i, e := range events {
+		result[i] = EventSummary{
+			ID:        e.ID.String(),
+			Title:     e.Title,
+			StartTime: e.StartTime.Format("2006-01-02T15:04:05Z07:00"),
+			EndTime:   e.EndTime.Format("2006-01-02T15:04:05Z07:00"),
+			Status:    e.Status,
+			Category:  e.Category,
+			ImageURL:  e.ImageURL,
+		}
+	}
+	return result
 }
 
 // UpdateMyProfile validates and persists the editable profile fields.

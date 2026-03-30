@@ -102,6 +102,82 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 	return &up, nil
 }
 
+// GetCreatedEvents returns a summary of events hosted by the given user.
+func (r *ProfileRepository) GetCreatedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			e.id,
+			e.title,
+			e.start_time,
+			e.end_time,
+			e.status,
+			ec.name AS category,
+			e.image_url
+		FROM event e
+		LEFT JOIN event_category ec ON ec.id = e.category_id
+		WHERE e.host_id = $1
+		ORDER BY e.start_time DESC
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get created events: %w", err)
+	}
+	defer rows.Close()
+	return scanEventSummaries(rows)
+}
+
+// GetAttendedEvents returns a summary of events the given user has an APPROVED participation in.
+func (r *ProfileRepository) GetAttendedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			e.id,
+			e.title,
+			e.start_time,
+			e.end_time,
+			e.status,
+			ec.name AS category,
+			e.image_url
+		FROM event e
+		JOIN participation p ON p.event_id = e.id
+		LEFT JOIN event_category ec ON ec.id = e.category_id
+		WHERE p.user_id = $1
+		  AND p.status = 'APPROVED'
+		ORDER BY e.start_time DESC
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get attended events: %w", err)
+	}
+	defer rows.Close()
+	return scanEventSummaries(rows)
+}
+
+func scanEventSummaries(rows interface {
+	Next() bool
+	Scan(...any) error
+	Err() error
+}) ([]domain.EventSummary, error) {
+	var events []domain.EventSummary
+	for rows.Next() {
+		var (
+			e        domain.EventSummary
+			category pgtype.Text
+			imageURL pgtype.Text
+		)
+		if err := rows.Scan(&e.ID, &e.Title, &e.StartTime, &e.EndTime, &e.Status, &category, &imageURL); err != nil {
+			return nil, fmt.Errorf("scan event summary: %w", err)
+		}
+		e.Category = textPtr(category)
+		e.ImageURL = textPtr(imageURL)
+		events = append(events, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate event summaries: %w", err)
+	}
+	if events == nil {
+		events = []domain.EventSummary{}
+	}
+	return events, nil
+}
+
 // UpdateProfile persists editable profile fields across app_user and profile tables.
 func (r *ProfileRepository) UpdateProfile(ctx context.Context, params profileapp.UpdateProfileParams) error {
 	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})

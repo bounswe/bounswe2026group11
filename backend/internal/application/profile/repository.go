@@ -11,4 +11,6 @@ import (
 type Repository interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*domain.UserProfile, error)
 	UpdateProfile(ctx context.Context, params UpdateProfileParams) error
+	GetCreatedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error)
+	GetAttendedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error)
 }
