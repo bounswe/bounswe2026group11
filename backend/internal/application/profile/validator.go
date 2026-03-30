@@ -1,14 +1,11 @@
 package profile
 
 import (
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 )
-
-var phonePattern = regexp.MustCompile(`^\+?[0-9\s\-().]{1,31}$`)
 
 func validateUpdateProfileInput(input UpdateProfileInput) (*UpdateProfileInput, *domain.AppError) {
 	details := make(map[string]string)
