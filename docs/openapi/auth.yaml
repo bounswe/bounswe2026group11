@@ -718,9 +718,9 @@ components:
           type:
             - string
             - "null"
-          maxLength: 32
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY, null]
           description: Optional gender value captured during registration.
-          example: female
+          example: FEMALE
         birth_date:
           type:
             - string
@@ -833,7 +833,7 @@ components:
           type:
             - string
             - "null"
-          enum: [MALE, FEMALE, OTHER, null]
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY, null]
           description: Gender value submitted during registration.
           example: MALE
         birth_date:

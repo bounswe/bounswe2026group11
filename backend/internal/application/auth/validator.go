@@ -153,10 +153,10 @@ func sanitizeGender(value *string, details map[string]string) *string {
 		return nil
 	}
 	switch upper {
-	case "MALE", "FEMALE", "OTHER":
+	case "MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY":
 		return &upper
 	default:
-		details["gender"] = "must be one of: MALE, FEMALE, OTHER"
+		details["gender"] = "must be one of: MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY"
 		return nil
 	}
 }
