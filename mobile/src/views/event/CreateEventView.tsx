@@ -73,7 +73,7 @@ export default function CreateEventView() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.replace('/home' as Href)}
+            onPress={() => router.back()}
             accessibilityRole="button"
             accessibilityLabel="Go back to home"
           >

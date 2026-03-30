@@ -6,15 +6,15 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import HomeHeader from '@/components/home/HomeHeader';
 import SearchSection from '@/components/home/SearchSection';
-import CategoryChips from '@/components/home/CategoryChips';
 import EmptyState from '@/components/home/EmptyState';
 import LoadingState from '@/components/home/LoadingState';
 import BottomTabBar from '@/components/common/BottomTabBar';
 import EventCard from '@/components/events/EventCard';
+import FiltersBottomSheet from '@/components/home/FiltersBottomSheet';
 import { useHomeViewModel } from '@/viewmodels/home/useHomeViewModel';
 
 export default function HomeView() {
@@ -34,14 +34,8 @@ export default function HomeView() {
             query={vm.searchText}
             onChangeQuery={vm.updateSearchText}
             onSubmitSearch={vm.submitSearch}
+            onPressFilter={vm.openFilterModal}
           />
-
-          <CategoryChips
-            categories={vm.categories}
-            selectedCategoryId={vm.selectedCategoryId}
-            onSelectCategory={vm.selectCategory}
-          />
-
 
           {vm.apiError ? (
             <View style={styles.errorBanner}>
@@ -83,6 +77,21 @@ export default function HomeView() {
       </View>
 
       <BottomTabBar />
+
+      <FiltersBottomSheet
+        visible={vm.isFilterModalOpen}
+        categories={vm.categories}
+        draftFilters={vm.filterDraft}
+        errorMessage={vm.filterError}
+        onClose={vm.closeFilterModal}
+        onReset={vm.resetFilterDraft}
+        onApply={vm.applyFilterDraft}
+        onToggleCategory={vm.toggleDraftCategory}
+        onTogglePrivacy={vm.toggleDraftPrivacy}
+        onChangeStartDate={vm.updateDraftStartDate}
+        onChangeEndDate={vm.updateDraftEndDate}
+        onChangeRadius={vm.updateDraftRadiusKm}
+      />
     </SafeAreaView>
   );
 }
@@ -97,11 +106,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   topSection: {
-    paddingTop: 12,
+    paddingTop: 8,
   },
   listWrapper: {
     flex: 1,
-    marginTop: 4,
+    marginTop: 6,
   },
   listContent: {
     paddingBottom: 20,
@@ -115,6 +124,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
+    marginTop: 8,
     marginBottom: 8,
   },
   errorBannerText: {
