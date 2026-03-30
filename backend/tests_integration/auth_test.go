@@ -252,7 +252,7 @@ func TestAuthVerifyRegistrationOTPPersistsUserProfileAndRefreshToken(t *testing.
 		Username:    "user_" + uuid.NewString()[:8],
 		Password:    "super-secret-password",
 		PhoneNumber: common.StringPtr("905551112233"),
-		Gender:      common.StringPtr("female"),
+		Gender:      common.StringPtr("FEMALE"),
 		BirthDate:   common.StringPtr("1998-05-14"),
 		DeviceInfo:  common.StringPtr("integration-tests"),
 	})
