@@ -68,17 +68,9 @@ export interface UserSummary {
   phone_number: string | null;
   email_verified: boolean;
   status: string;
-  /**
-   * User's gender as submitted during registration (e.g. "male", "female", "other").
-   * Not yet included in the backend AuthSessionResponse — will be null until the
-   * backend adds it to UserSummary. Used for client-side participation constraint checks.
-   */
+  /** Wire values include `MALE`, `FEMALE`, `OTHER`, `PREFER_NOT_TO_SAY` when returned by the API. */
   gender?: string | null;
-  /**
-   * User's birth date in ISO 8601 format (e.g. "1998-05-14").
-   * Not yet included in the backend AuthSessionResponse — will be null until the
-   * backend adds it to UserSummary. Used for client-side age constraint checks.
-   */
+  /** ISO date `YYYY-MM-DD` when returned by the API. */
   birth_date?: string | null;
 }
 

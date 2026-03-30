@@ -9,19 +9,29 @@ import type {
   JoinEventResponse,
   RequestJoinResponse,
 } from '@/models/event';
-import { useEventDetailViewModel } from './useEventDetailViewModel';
+import type { UserSummary } from '@/models/auth';
+import {
+  resolveConstraintViolation,
+  useEventDetailViewModel,
+} from './useEventDetailViewModel';
 
 jest.mock('@/services/eventService');
-const mockUser = {
+
+const mockUser: UserSummary = {
   id: 'user-uuid-001',
   username: 'testuser',
   email: 'test@example.com',
   phone_number: null,
   email_verified: true,
   status: 'active',
-  gender: null as string | null | undefined,
-  birth_date: null as string | null | undefined,
+  gender: null,
+  birth_date: null,
 };
+
+function resetMockSessionUser() {
+  mockUser.gender = null;
+  mockUser.birth_date = null;
+}
 
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
@@ -115,9 +125,103 @@ const requestJoinResponseFixture: RequestJoinResponse = {
   created_at: '2026-03-26T12:00:00+03:00',
 };
 
+describe('resolveConstraintViolation', () => {
+  it('returns null when event has no gender or age constraints', () => {
+    expect(
+      resolveConstraintViolation(
+        { ...publicEventFixture, preferred_gender: null, minimum_age: null },
+        'anything',
+        '2000-01-01',
+      ),
+    ).toBeNull();
+  });
+
+  it('returns null when preferred_gender is set but user gender is missing', () => {
+    expect(
+      resolveConstraintViolation(
+        { ...publicEventFixture, preferred_gender: 'MALE' },
+        null,
+        null,
+      ),
+    ).toBeNull();
+  });
+
+  it('returns null when preferred_gender is set but user gender is blank or whitespace', () => {
+    expect(
+      resolveConstraintViolation({ ...publicEventFixture, preferred_gender: 'MALE' }, '', null),
+    ).toBeNull();
+    expect(
+      resolveConstraintViolation({ ...publicEventFixture, preferred_gender: 'MALE' }, '   ', null),
+    ).toBeNull();
+  });
+
+  it('returns null when user matches (lowercase or API uppercase wire format)', () => {
+    expect(
+      resolveConstraintViolation({ ...publicEventFixture, preferred_gender: 'MALE' }, 'male', null),
+    ).toBeNull();
+    expect(
+      resolveConstraintViolation({ ...publicEventFixture, preferred_gender: 'MALE' }, 'MALE', null),
+    ).toBeNull();
+    expect(
+      resolveConstraintViolation({ ...publicEventFixture, preferred_gender: 'FEMALE' }, 'female', null),
+    ).toBeNull();
+    expect(
+      resolveConstraintViolation({ ...publicEventFixture, preferred_gender: 'OTHER' }, 'OTHER', null),
+    ).toBeNull();
+  });
+
+  it('returns a message when user gender does not match preferred_gender', () => {
+    const msg = resolveConstraintViolation(
+      { ...publicEventFixture, preferred_gender: 'MALE' },
+      'female',
+      null,
+    );
+    expect(msg).toContain('Male participants only');
+  });
+
+  it('returns null when minimum_age is set but birth_date is missing or blank', () => {
+    expect(
+      resolveConstraintViolation({ ...publicEventFixture, minimum_age: 21 }, 'male', null),
+    ).toBeNull();
+    expect(
+      resolveConstraintViolation({ ...publicEventFixture, minimum_age: 21 }, 'male', ''),
+    ).toBeNull();
+    expect(
+      resolveConstraintViolation({ ...publicEventFixture, minimum_age: 21 }, 'male', '  '),
+    ).toBeNull();
+  });
+
+  it('returns a message when user is under minimum_age', () => {
+    const young = new Date();
+    young.setFullYear(young.getFullYear() - 10);
+    const birth = young.toISOString().split('T')[0];
+    const msg = resolveConstraintViolation(
+      { ...publicEventFixture, minimum_age: 18 },
+      null,
+      birth,
+    );
+    expect(msg).toContain('18+');
+  });
+
+  it('joins gender and age messages with · when both fail', () => {
+    const young = new Date();
+    young.setFullYear(young.getFullYear() - 10);
+    const birth = young.toISOString().split('T')[0];
+    const msg = resolveConstraintViolation(
+      { ...publicEventFixture, preferred_gender: 'MALE', minimum_age: 18 },
+      'female',
+      birth,
+    );
+    expect(msg).toContain(' · ');
+    expect(msg).toContain('Male participants only');
+    expect(msg).toContain('18+');
+  });
+});
+
 describe('useEventDetailViewModel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetMockSessionUser();
     mockGetEventDetail.mockResolvedValue(publicEventFixture);
     mockJoinEvent.mockResolvedValue(joinResponseFixture);
     mockRequestJoinEvent.mockResolvedValue(requestJoinResponseFixture);
@@ -126,6 +230,8 @@ describe('useEventDetailViewModel', () => {
   // ─── Initial loading state ───
   describe('initial state', () => {
     it('starts in loading state with no event data', () => {
+      mockGetEventDetail.mockReturnValueOnce(new Promise(() => {}));
+
       const { result } = renderHook(() =>
         useEventDetailViewModel('event-uuid-001'),
       );
@@ -577,7 +683,23 @@ describe('useEventDetailViewModel', () => {
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
       expect(result.current.constraintViolation).toBeNull();
-      mockUser.gender = null;
+    });
+
+    it('is null when session UserSummary.gender is uppercase MALE (API wire format)', async () => {
+      mockUser.gender = 'MALE';
+      const genderedEvent: EventDetail = {
+        ...publicEventFixture,
+        preferred_gender: 'MALE',
+      };
+      mockGetEventDetail.mockResolvedValueOnce(genderedEvent);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.constraintViolation).toBeNull();
     });
 
     it('is non-null when user gender does not match preferred_gender', async () => {
@@ -595,12 +717,28 @@ describe('useEventDetailViewModel', () => {
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
       expect(result.current.constraintViolation).toContain('Male participants only');
-      mockUser.gender = null;
     });
 
     it('is null when user birth_date is unknown even if event has minimum_age', async () => {
       mockUser.birth_date = null;
       const agedEvent: EventDetail = { ...publicEventFixture, minimum_age: 21 };
+      mockGetEventDetail.mockResolvedValueOnce(agedEvent);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.constraintViolation).toBeNull();
+    });
+
+    it('is null when session UserSummary.birth_date is set and user meets minimum age', async () => {
+      const adultBirthDate = new Date();
+      adultBirthDate.setFullYear(adultBirthDate.getFullYear() - 20);
+      mockUser.birth_date = adultBirthDate.toISOString().split('T')[0];
+
+      const agedEvent: EventDetail = { ...publicEventFixture, minimum_age: 18 };
       mockGetEventDetail.mockResolvedValueOnce(agedEvent);
 
       const { result } = renderHook(() =>
@@ -627,25 +765,6 @@ describe('useEventDetailViewModel', () => {
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
       expect(result.current.constraintViolation).toContain('18+');
-      mockUser.birth_date = null;
-    });
-
-    it('is null when user meets the minimum age', async () => {
-      const adultBirthDate = new Date();
-      adultBirthDate.setFullYear(adultBirthDate.getFullYear() - 20);
-      mockUser.birth_date = adultBirthDate.toISOString().split('T')[0];
-
-      const agedEvent: EventDetail = { ...publicEventFixture, minimum_age: 18 };
-      mockGetEventDetail.mockResolvedValueOnce(agedEvent);
-
-      const { result } = renderHook(() =>
-        useEventDetailViewModel('event-uuid-001'),
-      );
-
-      await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-      expect(result.current.constraintViolation).toBeNull();
-      mockUser.birth_date = null;
     });
 
     it('combines both gender and age violations into one message', async () => {
@@ -669,8 +788,6 @@ describe('useEventDetailViewModel', () => {
 
       expect(result.current.constraintViolation).toContain('Male participants only');
       expect(result.current.constraintViolation).toContain('18+');
-      mockUser.gender = null;
-      mockUser.birth_date = null;
     });
   });
 });

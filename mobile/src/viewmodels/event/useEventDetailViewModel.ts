@@ -25,7 +25,6 @@ export interface EventDetailViewModel {
   isFavorited: boolean;
   participationStatus: ParticipationStatus | null;
   isQuotaFull: boolean;
-  /** Non-null when the current user does not meet the event's gender or age constraints. */
   constraintViolation: string | null;
 
   showJoinRequestModal: boolean;
@@ -52,21 +51,28 @@ function computeAgeFromBirthDate(birthDate: string): number {
   return age;
 }
 
-function resolveConstraintViolation(event: EventDetail, userGender?: string | null, userBirthDate?: string | null): string | null {
+
+export function resolveConstraintViolation(
+  event: EventDetail,
+  userGender?: string | null,
+  userBirthDate?: string | null,
+): string | null {
   const violations: string[] = [];
 
+  const genderTrim = userGender?.trim() ?? '';
   if (
     event.preferred_gender != null &&
-    userGender != null &&
-    userGender.toUpperCase() !== event.preferred_gender
+    genderTrim !== '' &&
+    genderTrim.toUpperCase() !== event.preferred_gender
   ) {
     const label =
       event.preferred_gender.charAt(0) + event.preferred_gender.slice(1).toLowerCase();
     violations.push(`This event is open to ${label} participants only`);
   }
 
-  if (event.minimum_age != null && userBirthDate != null) {
-    const age = computeAgeFromBirthDate(userBirthDate);
+  const birthTrim = userBirthDate?.trim() ?? '';
+  if (event.minimum_age != null && birthTrim !== '') {
+    const age = computeAgeFromBirthDate(birthTrim);
     if (age < event.minimum_age) {
       violations.push(`Participants must be ${event.minimum_age}+ years old`);
     }
