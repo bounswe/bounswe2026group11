@@ -1525,8 +1525,8 @@ func TestRequestJoinSuccessPath(t *testing.T) {
 	if result.JoinRequestID == "" {
 		t.Fatal("expected non-empty join_request_id")
 	}
-	if result.Status != domain.ParticipationStatusPending {
-		t.Fatalf("expected status %q, got %q", domain.ParticipationStatusPending, result.Status)
+	if result.Status != string(domain.JoinRequestStatusPending) {
+		t.Fatalf("expected status %q, got %q", domain.JoinRequestStatusPending, result.Status)
 	}
 	if result.EventID != event.ID.String() {
 		t.Fatalf("expected event_id %q, got %q", event.ID, result.EventID)
@@ -1607,6 +1607,408 @@ func TestRequestJoinRejectsNonExistentEvent(t *testing.T) {
 	_, err := harness.Service.RequestJoin(context.Background(), requester.ID, uuid.New(), eventapp.RequestJoinInput{})
 
 	common.RequireAppErrorCode(t, err, domain.ErrorCodeEventNotFound)
+}
+
+// ---------------------------------------------------------
+// Host join-request moderation tests
+// ---------------------------------------------------------
+
+func TestApproveJoinRequestSuccessPath(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("host_user"))
+	requester := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("requester_user"))
+	event := common.GivenProtectedEvent(t, harness.Service, host.ID)
+
+	createdRequest, err := harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{})
+	if err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+
+	joinRequestID, err := uuid.Parse(createdRequest.JoinRequestID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() join_request_id error = %v", err)
+	}
+
+	// when
+	result, err := harness.Service.ApproveJoinRequest(context.Background(), host.ID, event.ID, joinRequestID)
+
+	// then
+	if err != nil {
+		t.Fatalf("ApproveJoinRequest() error = %v", err)
+	}
+	if result.JoinRequestStatus != string(domain.JoinRequestStatusApproved) {
+		t.Fatalf("expected join request status %q, got %q", domain.JoinRequestStatusApproved, result.JoinRequestStatus)
+	}
+	if result.ParticipationStatus != domain.ParticipationStatusApproved {
+		t.Fatalf("expected participation status %q, got %q", domain.ParticipationStatusApproved, result.ParticipationStatus)
+	}
+
+	var (
+		storedStatus     string
+		hasParticipation bool
+	)
+	err = common.RequirePool(t).QueryRow(
+		context.Background(),
+		`SELECT status, participation_id IS NOT NULL FROM join_request WHERE id = $1`,
+		joinRequestID,
+	).Scan(&storedStatus, &hasParticipation)
+	if err != nil {
+		t.Fatalf("select join_request approval state error = %v", err)
+	}
+	if storedStatus != string(domain.JoinRequestStatusApproved) {
+		t.Fatalf("expected stored join request status %q, got %q", domain.JoinRequestStatusApproved, storedStatus)
+	}
+	if !hasParticipation {
+		t.Fatal("expected approved join request to reference a participation row")
+	}
+
+	hostDetail, err := harness.Service.GetEventDetail(context.Background(), host.ID, event.ID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() host error = %v", err)
+	}
+	if len(hostDetail.HostContext.PendingJoinRequests) != 0 {
+		t.Fatalf("expected no pending join requests after approval, got %d", len(hostDetail.HostContext.PendingJoinRequests))
+	}
+	if len(hostDetail.HostContext.ApprovedParticipants) != 1 {
+		t.Fatalf("expected 1 approved participant after approval, got %d", len(hostDetail.HostContext.ApprovedParticipants))
+	}
+	if hostDetail.HostContext.ApprovedParticipants[0].User.Username != "requester_user" {
+		t.Fatalf("expected approved participant username %q, got %q", "requester_user", hostDetail.HostContext.ApprovedParticipants[0].User.Username)
+	}
+
+	requesterDetail, err := harness.Service.GetEventDetail(context.Background(), requester.ID, event.ID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() requester error = %v", err)
+	}
+	if requesterDetail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
+		t.Fatalf("expected requester participation_status %q, got %q", domain.EventDetailParticipationStatusJoined, requesterDetail.ViewerContext.ParticipationStatus)
+	}
+}
+
+func TestRejectJoinRequestSuccessPath(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	requester := common.GivenUser(t, harness.AuthRepo)
+	event := common.GivenProtectedEvent(t, harness.Service, host.ID)
+
+	createdRequest, err := harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{})
+	if err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+
+	joinRequestID, err := uuid.Parse(createdRequest.JoinRequestID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() join_request_id error = %v", err)
+	}
+
+	// when
+	result, err := harness.Service.RejectJoinRequest(context.Background(), host.ID, event.ID, joinRequestID)
+
+	// then
+	if err != nil {
+		t.Fatalf("RejectJoinRequest() error = %v", err)
+	}
+	if result.Status != string(domain.JoinRequestStatusRejected) {
+		t.Fatalf("expected join request status %q, got %q", domain.JoinRequestStatusRejected, result.Status)
+	}
+	if !result.CooldownEndsAt.After(result.UpdatedAt) {
+		t.Fatalf("expected cooldown_ends_at %v to be after updated_at %v", result.CooldownEndsAt, result.UpdatedAt)
+	}
+
+	var (
+		storedStatus string
+		count        int
+	)
+	err = common.RequirePool(t).QueryRow(
+		context.Background(),
+		`SELECT status FROM join_request WHERE id = $1`,
+		joinRequestID,
+	).Scan(&storedStatus)
+	if err != nil {
+		t.Fatalf("select join_request rejection state error = %v", err)
+	}
+	if storedStatus != string(domain.JoinRequestStatusRejected) {
+		t.Fatalf("expected stored join request status %q, got %q", domain.JoinRequestStatusRejected, storedStatus)
+	}
+
+	err = common.RequirePool(t).QueryRow(
+		context.Background(),
+		`SELECT COUNT(*) FROM participation WHERE event_id = $1 AND user_id = $2`,
+		event.ID,
+		requester.ID,
+	).Scan(&count)
+	if err != nil {
+		t.Fatalf("count participation rows error = %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no participation row after rejection, got %d", count)
+	}
+
+	hostDetail, err := harness.Service.GetEventDetail(context.Background(), host.ID, event.ID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() host error = %v", err)
+	}
+	if len(hostDetail.HostContext.PendingJoinRequests) != 0 {
+		t.Fatalf("expected no pending join requests after rejection, got %d", len(hostDetail.HostContext.PendingJoinRequests))
+	}
+
+	requesterDetail, err := harness.Service.GetEventDetail(context.Background(), requester.ID, event.ID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() requester error = %v", err)
+	}
+	if requesterDetail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusNone) {
+		t.Fatalf("expected requester participation_status %q, got %q", domain.EventDetailParticipationStatusNone, requesterDetail.ViewerContext.ParticipationStatus)
+	}
+}
+
+func TestApproveJoinRequestRejectsNonHost(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	requester := common.GivenUser(t, harness.AuthRepo)
+	nonHost := common.GivenUser(t, harness.AuthRepo)
+	event := common.GivenProtectedEvent(t, harness.Service, host.ID)
+
+	createdRequest, err := harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{})
+	if err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+
+	joinRequestID, err := uuid.Parse(createdRequest.JoinRequestID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() join_request_id error = %v", err)
+	}
+
+	// when
+	_, err = harness.Service.ApproveJoinRequest(context.Background(), nonHost.ID, event.ID, joinRequestID)
+
+	// then
+	common.RequireAppErrorCode(t, err, domain.ErrorCodeJoinRequestModerationNotAllowed)
+}
+
+func TestRejectJoinRequestRejectsNonHost(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	requester := common.GivenUser(t, harness.AuthRepo)
+	nonHost := common.GivenUser(t, harness.AuthRepo)
+	event := common.GivenProtectedEvent(t, harness.Service, host.ID)
+
+	createdRequest, err := harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{})
+	if err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+
+	joinRequestID, err := uuid.Parse(createdRequest.JoinRequestID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() join_request_id error = %v", err)
+	}
+
+	// when
+	_, err = harness.Service.RejectJoinRequest(context.Background(), nonHost.ID, event.ID, joinRequestID)
+
+	// then
+	common.RequireAppErrorCode(t, err, domain.ErrorCodeJoinRequestModerationNotAllowed)
+}
+
+func TestApproveJoinRequestRejectsResolvedRequest(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	requester := common.GivenUser(t, harness.AuthRepo)
+	event := common.GivenProtectedEvent(t, harness.Service, host.ID)
+
+	createdRequest, err := harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{})
+	if err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+
+	joinRequestID, err := uuid.Parse(createdRequest.JoinRequestID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() join_request_id error = %v", err)
+	}
+
+	_, err = harness.Service.ApproveJoinRequest(context.Background(), host.ID, event.ID, joinRequestID)
+	if err != nil {
+		t.Fatalf("ApproveJoinRequest() first call error = %v", err)
+	}
+
+	// when
+	_, err = harness.Service.ApproveJoinRequest(context.Background(), host.ID, event.ID, joinRequestID)
+
+	// then
+	common.RequireAppErrorCode(t, err, domain.ErrorCodeJoinRequestStateInvalid)
+}
+
+func TestRejectJoinRequestRejectsResolvedRequest(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	requester := common.GivenUser(t, harness.AuthRepo)
+	event := common.GivenProtectedEvent(t, harness.Service, host.ID)
+
+	createdRequest, err := harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{})
+	if err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+
+	joinRequestID, err := uuid.Parse(createdRequest.JoinRequestID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() join_request_id error = %v", err)
+	}
+
+	_, err = harness.Service.RejectJoinRequest(context.Background(), host.ID, event.ID, joinRequestID)
+	if err != nil {
+		t.Fatalf("RejectJoinRequest() first call error = %v", err)
+	}
+
+	// when
+	_, err = harness.Service.RejectJoinRequest(context.Background(), host.ID, event.ID, joinRequestID)
+
+	// then
+	common.RequireAppErrorCode(t, err, domain.ErrorCodeJoinRequestStateInvalid)
+}
+
+func TestApproveJoinRequestRejectsWhenCapacityIsFull(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	approvedUser := common.GivenUser(t, harness.AuthRepo)
+	requester := common.GivenUser(t, harness.AuthRepo)
+	eventID := createProtectedEventWithCapacity(t, harness, host.ID, 1)
+
+	insertParticipation(t, eventID, approvedUser.ID, domain.ParticipationStatusApproved)
+	joinRequestID := insertPendingJoinRequest(t, eventID, requester.ID, host.ID, nil)
+
+	// when
+	_, err := harness.Service.ApproveJoinRequest(context.Background(), host.ID, eventID, joinRequestID)
+
+	// then
+	common.RequireAppErrorCode(t, err, domain.ErrorCodeCapacityExceeded)
+}
+
+func TestRequestJoinRejectsDuringCooldownWindow(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	requester := common.GivenUser(t, harness.AuthRepo)
+	event := common.GivenProtectedEvent(t, harness.Service, host.ID)
+
+	createdRequest, err := harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{})
+	if err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+
+	joinRequestID, err := uuid.Parse(createdRequest.JoinRequestID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() join_request_id error = %v", err)
+	}
+
+	_, err = harness.Service.RejectJoinRequest(context.Background(), host.ID, event.ID, joinRequestID)
+	if err != nil {
+		t.Fatalf("RejectJoinRequest() error = %v", err)
+	}
+
+	// when
+	_, err = harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{})
+
+	// then
+	common.RequireAppErrorCode(t, err, domain.ErrorCodeJoinRequestCooldownActive)
+}
+
+func TestRequestJoinReactivatesRejectedRequestAfterCooldown(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	requester := common.GivenUser(t, harness.AuthRepo)
+	event := common.GivenProtectedEvent(t, harness.Service, host.ID)
+	initialMessage := "Initial request"
+	retryMessage := "Retry after cooldown"
+
+	createdRequest, err := harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{
+		Message: &initialMessage,
+	})
+	if err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+
+	joinRequestID, err := uuid.Parse(createdRequest.JoinRequestID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() join_request_id error = %v", err)
+	}
+
+	_, err = harness.Service.RejectJoinRequest(context.Background(), host.ID, event.ID, joinRequestID)
+	if err != nil {
+		t.Fatalf("RejectJoinRequest() error = %v", err)
+	}
+
+	setJoinRequestUpdatedAt(t, joinRequestID, time.Now().UTC().Add(-4*24*time.Hour))
+
+	// when
+	result, err := harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{
+		Message: &retryMessage,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("RequestJoin() retry error = %v", err)
+	}
+	if result.JoinRequestID != joinRequestID.String() {
+		t.Fatalf("expected reactivated join request id %q, got %q", joinRequestID, result.JoinRequestID)
+	}
+	if result.Status != string(domain.JoinRequestStatusPending) {
+		t.Fatalf("expected reactivated status %q, got %q", domain.JoinRequestStatusPending, result.Status)
+	}
+
+	var (
+		storedStatus       string
+		storedMessage      *string
+		hasNoParticipation bool
+		createdAt          time.Time
+		updatedAt          time.Time
+	)
+	err = common.RequirePool(t).QueryRow(
+		context.Background(),
+		`SELECT status, message, participation_id IS NULL, created_at, updated_at
+		 FROM join_request
+		 WHERE id = $1`,
+		joinRequestID,
+	).Scan(&storedStatus, &storedMessage, &hasNoParticipation, &createdAt, &updatedAt)
+	if err != nil {
+		t.Fatalf("select reactivated join_request error = %v", err)
+	}
+	if storedStatus != string(domain.JoinRequestStatusPending) {
+		t.Fatalf("expected stored status %q, got %q", domain.JoinRequestStatusPending, storedStatus)
+	}
+	if storedMessage == nil || *storedMessage != retryMessage {
+		t.Fatalf("expected stored retry message %q, got %v", retryMessage, storedMessage)
+	}
+	if !hasNoParticipation {
+		t.Fatal("expected reactivated join request participation_id to be nil")
+	}
+	if time.Since(createdAt) > time.Minute || time.Since(updatedAt) > time.Minute {
+		t.Fatalf("expected created_at and updated_at to be reset near now, got created_at=%v updated_at=%v", createdAt, updatedAt)
+	}
 }
 
 type discoveryEventSeed struct {
@@ -1785,7 +2187,7 @@ func insertPendingJoinRequest(t *testing.T, eventID, userID, hostUserID uuid.UUI
 		eventID,
 		userID,
 		hostUserID,
-		domain.ParticipationStatusPending,
+		domain.JoinRequestStatusPending,
 		message,
 	).Scan(&joinRequestID)
 	if err != nil {
@@ -1793,6 +2195,50 @@ func insertPendingJoinRequest(t *testing.T, eventID, userID, hostUserID uuid.UUI
 	}
 
 	return joinRequestID
+}
+
+func setJoinRequestUpdatedAt(t *testing.T, joinRequestID uuid.UUID, updatedAt time.Time) {
+	t.Helper()
+
+	if _, err := common.RequirePool(t).Exec(
+		context.Background(),
+		`UPDATE join_request SET updated_at = $2 WHERE id = $1`,
+		joinRequestID,
+		updatedAt,
+	); err != nil {
+		t.Fatalf("update join_request updated_at error = %v", err)
+	}
+}
+
+func createProtectedEventWithCapacity(t *testing.T, harness *common.EventHarness, hostID uuid.UUID, capacity int) uuid.UUID {
+	t.Helper()
+
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+	categoryID := common.GivenEventCategory(t)
+	lat := 41.01
+	lon := 29.01
+
+	result, err := harness.Service.CreateEvent(context.Background(), hostID, eventapp.CreateEventInput{
+		Title:        "Capacity constrained event",
+		Description:  common.StringPtr("Protected event with capacity"),
+		CategoryID:   &categoryID,
+		LocationType: domain.LocationPoint,
+		Lat:          &lat,
+		Lon:          &lon,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyProtected,
+		Capacity:     &capacity,
+	})
+	if err != nil {
+		t.Fatalf("CreateEvent() error = %v", err)
+	}
+
+	eventID, err := uuid.Parse(result.ID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() event id error = %v", err)
+	}
+
+	return eventID
 }
 
 func insertInvitation(

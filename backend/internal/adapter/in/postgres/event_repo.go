@@ -687,7 +687,7 @@ func (r *EventRepository) loadEventDetailCore(
 		string(domain.EventDetailParticipationStatusNone),
 		domain.ParticipationStatusApproved,
 		string(domain.EventDetailParticipationStatusJoined),
-		domain.ParticipationStatusPending,
+		string(domain.JoinRequestStatusPending),
 		string(domain.EventDetailParticipationStatusPending),
 		string(domain.EventDetailParticipationStatusInvited),
 		string(domain.PrivacyPublic),
@@ -1129,7 +1129,7 @@ func (r *EventRepository) loadPendingJoinRequests(
 		WHERE jr.event_id = $1
 		  AND jr.status = $2
 		ORDER BY jr.created_at ASC, jr.id ASC
-	`, eventID, domain.ParticipationStatusPending)
+	`, eventID, string(domain.JoinRequestStatusPending))
 	if err != nil {
 		return nil, fmt.Errorf("load pending join requests: %w", err)
 	}

@@ -256,3 +256,22 @@ type RequestJoinResult struct {
 	Status        string    `json:"status"`
 	CreatedAt     time.Time `json:"created_at"`
 }
+
+// ApproveJoinRequestResult is returned after a host approves a join request.
+type ApproveJoinRequestResult struct {
+	JoinRequestID       string    `json:"join_request_id"`
+	EventID             string    `json:"event_id"`
+	JoinRequestStatus   string    `json:"join_request_status"`
+	ParticipationID     string    `json:"participation_id"`
+	ParticipationStatus string    `json:"participation_status"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
+// RejectJoinRequestResult is returned after a host rejects a join request.
+type RejectJoinRequestResult struct {
+	JoinRequestID  string    `json:"join_request_id"`
+	EventID        string    `json:"event_id"`
+	Status         string    `json:"status"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	CooldownEndsAt time.Time `json:"cooldown_ends_at"`
+}

@@ -33,6 +33,8 @@ func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.
 	group.Post("/", auth, handler.CreateEvent)
 	group.Post("/:id/join", auth, handler.JoinEvent)
 	group.Post("/:id/join-request", auth, handler.RequestJoin)
+	group.Post("/:id/join-requests/:joinRequestId/approve", auth, handler.ApproveJoinRequest)
+	group.Post("/:id/join-requests/:joinRequestId/reject", auth, handler.RejectJoinRequest)
 }
 
 // DiscoverEvents handles GET /events.
@@ -217,12 +219,64 @@ func (h *EventHandler) RequestJoin(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(result)
 }
 
+// ApproveJoinRequest handles POST /events/:id/join-requests/:joinRequestId/approve.
+// Allows the authenticated host to approve a pending join request.
+func (h *EventHandler) ApproveJoinRequest(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	joinRequestID, err := parseJoinRequestIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.ApproveJoinRequest(c.UserContext(), claims.UserID, eventID, joinRequestID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
+}
+
+// RejectJoinRequest handles POST /events/:id/join-requests/:joinRequestId/reject.
+// Allows the authenticated host to reject a pending join request.
+func (h *EventHandler) RejectJoinRequest(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	joinRequestID, err := parseJoinRequestIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.RejectJoinRequest(c.UserContext(), claims.UserID, eventID, joinRequestID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
+}
+
 func parseEventIDParam(c *fiber.Ctx) (uuid.UUID, error) {
 	eventID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return uuid.Nil, domain.ValidationError(map[string]string{"id": "must be a valid UUID"})
 	}
 	return eventID, nil
+}
+
+func parseJoinRequestIDParam(c *fiber.Ctx) (uuid.UUID, error) {
+	joinRequestID, err := uuid.Parse(c.Params("joinRequestId"))
+	if err != nil {
+		return uuid.Nil, domain.ValidationError(map[string]string{"joinRequestId": "must be a valid UUID"})
+	}
+	return joinRequestID, nil
 }
 
 func parseDiscoverEventsInput(c *fiber.Ctx) (event.DiscoverEventsInput, map[string]string) {
