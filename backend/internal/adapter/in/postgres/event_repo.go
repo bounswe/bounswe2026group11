@@ -283,7 +283,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 
 	filters := []string{
 		fmt.Sprintf("e.status = %s", statusPlaceholder),
-		"e.end_time > NOW()",
+		"(e.end_time IS NULL OR e.end_time > NOW())",
 		fmt.Sprintf("e.privacy_level = ANY(%s::text[])", privacyPlaceholder),
 		fmt.Sprintf(
 			"((e.location_type = '%s' AND %s) OR (e.location_type <> '%s' AND ST_DWithin(el.geom, %s, %s)))",
