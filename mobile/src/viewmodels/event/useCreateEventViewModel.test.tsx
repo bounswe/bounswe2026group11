@@ -130,7 +130,7 @@ describe('useCreateEventViewModel', () => {
 
   // ─── Start date validation ───
   describe('start date validation', () => {
-    it('shows error when start date/time is missing', async () => {
+    it('shows error on both fields when start date and time are missing', async () => {
       const { result } = renderHook(() => useCreateEventViewModel());
       await act(async () => {
         fillValidForm(result.current);
@@ -138,7 +138,19 @@ describe('useCreateEventViewModel', () => {
         result.current.updateField('startTime', '');
       });
       await act(async () => { await result.current.handleSubmit('token'); });
-      expect(result.current.errors.startDateTime).toBe('Start date and time are required');
+      expect(result.current.errors.startDate).toBe('Start date is required');
+      expect(result.current.errors.startTime).toBe('Start time is required');
+    });
+
+    it('shows error only on date when start date is missing but time is set', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('startDate', '');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.startDate).toBe('Start date is required');
+      expect(result.current.errors.startTime).toBeFalsy();
     });
 
     it('shows error when start date is in the past', async () => {
@@ -149,20 +161,93 @@ describe('useCreateEventViewModel', () => {
         result.current.updateField('startTime', '10:00');
       });
       await act(async () => { await result.current.handleSubmit('token'); });
-      expect(result.current.errors.startDateTime).toBe('Start date must be in the future');
+      expect(result.current.errors.startDate).toBe('Start date must be in the future');
+      expect(result.current.errors.startTime).toBeFalsy();
     });
 
     it('accepts a future start date', async () => {
       const { result } = renderHook(() => useCreateEventViewModel());
       await act(async () => { fillValidForm(result.current); });
       await act(async () => { await result.current.handleSubmit('token'); });
-      expect(result.current.errors.startDateTime).toBeFalsy();
+      expect(result.current.errors.startDate).toBeFalsy();
+      expect(result.current.errors.startTime).toBeFalsy();
+    });
+
+    it('rejects invalid day and time independently (35.21.2030 with 28:00 — example from issue)', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('startDate', '35.21.2030');
+        result.current.updateField('startTime', '28:00');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.startDate).toBeTruthy();
+      expect(result.current.errors.startTime).toBeTruthy();
+      expect(mockCreateEvent).not.toHaveBeenCalled();
+    });
+
+    it('rejects out-of-range day (35) — only date box is red', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('startDate', '35.06.2030');
+        result.current.updateField('startTime', '10:00');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.startDate).toBeTruthy();
+      expect(result.current.errors.startTime).toBeFalsy();
+    });
+
+    it('rejects out-of-range month (21) — only date box is red', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('startDate', '15.21.2030');
+        result.current.updateField('startTime', '10:00');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.startDate).toBeTruthy();
+      expect(result.current.errors.startTime).toBeFalsy();
+    });
+
+    it('rejects out-of-range hour (28:00) — only time box is red', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('startTime', '28:00');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.startTime).toBeTruthy();
+      expect(result.current.errors.startDate).toBeFalsy();
+    });
+
+    it('rejects out-of-range minute (10:70) — only time box is red', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('startTime', '10:70');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.startTime).toBeTruthy();
+      expect(result.current.errors.startDate).toBeFalsy();
+    });
+
+    it('rejects impossible calendar date (30.02.2030) — only date box is red', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('startDate', '30.02.2030');
+        result.current.updateField('startTime', '10:00');
+      });
+      await act(async () => { await result.current.handleSubmit('token'); });
+      expect(result.current.errors.startDate).toBeTruthy();
+      expect(result.current.errors.startTime).toBeFalsy();
     });
   });
 
   // ─── End date validation ───
   describe('end date validation', () => {
-    it('shows error when end date is before start date', async () => {
+    it('shows error on date when end date is before start date', async () => {
       const { result } = renderHook(() => useCreateEventViewModel());
       await act(async () => {
         fillValidForm(result.current);
@@ -170,7 +255,8 @@ describe('useCreateEventViewModel', () => {
         result.current.updateField('endTime', '10:00');
       });
       await act(async () => { await result.current.handleSubmit('token'); });
-      expect(result.current.errors.endDateTime).toBe('End must be after start');
+      expect(result.current.errors.endDate).toBe('End must be after start');
+      expect(result.current.errors.endTime).toBeFalsy();
     });
 
     it('clears end date error when end date is updated', async () => {
@@ -181,12 +267,12 @@ describe('useCreateEventViewModel', () => {
         result.current.updateField('endTime', '10:00');
       });
       await act(async () => { await result.current.handleSubmit('token'); });
-      expect(result.current.errors.endDateTime).toBeTruthy();
+      expect(result.current.errors.endDate).toBeTruthy();
 
       await act(async () => {
         result.current.updateField('endDate', futureDateLater);
       });
-      expect(result.current.errors.endDateTime).toBeNull();
+      expect(result.current.errors.endDate).toBeNull();
     });
 
     it('clears end date error when end time is updated', async () => {
@@ -197,12 +283,12 @@ describe('useCreateEventViewModel', () => {
         result.current.updateField('endTime', '10:00');
       });
       await act(async () => { await result.current.handleSubmit('token'); });
-      expect(result.current.errors.endDateTime).toBeTruthy();
+      expect(result.current.errors.endDate).toBeTruthy();
 
       await act(async () => {
         result.current.updateField('endTime', '18:00');
       });
-      expect(result.current.errors.endDateTime).toBeNull();
+      expect(result.current.errors.endDate).toBeNull();
     });
   });
 
@@ -211,12 +297,12 @@ describe('useCreateEventViewModel', () => {
     it('clears start date error when start date is updated', async () => {
       const { result } = renderHook(() => useCreateEventViewModel());
       await act(async () => { await result.current.handleSubmit('token'); });
-      expect(result.current.errors.startDateTime).toBeTruthy();
+      expect(result.current.errors.startDate).toBeTruthy();
 
       await act(async () => {
         result.current.updateField('startDate', futureDate);
       });
-      expect(result.current.errors.startDateTime).toBeNull();
+      expect(result.current.errors.startDate).toBeNull();
     });
 
     it('clears location error when location query is updated', async () => {
@@ -529,7 +615,7 @@ describe('useCreateEventViewModel', () => {
       await act(async () => { fillValidForm(result.current); });
       await act(async () => { await result.current.handleSubmit('token'); });
       expect(result.current.errors.title).toBe('Title too long');
-      expect(result.current.errors.startDateTime).toBe('Invalid');
+      expect(result.current.errors.startDate).toBe('Invalid');
     });
   });
 
