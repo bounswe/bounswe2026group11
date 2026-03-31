@@ -228,3 +228,19 @@ export interface EventDetailResponse {
   viewer_context: EventDetailViewerContext;
   host_context: EventDetailHostContext | null;
 }
+
+/* ── Join / Join Request ── */
+
+export interface JoinEventResponse {
+  participation_id: string;
+  event_id: string;
+  status: string;
+  created_at: string;
+}
+
+export interface JoinRequestResponse {
+  join_request_id: string;
+  event_id: string;
+  status: string;
+  created_at: string;
+}

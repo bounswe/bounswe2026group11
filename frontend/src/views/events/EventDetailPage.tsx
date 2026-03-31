@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
@@ -43,7 +44,173 @@ function PrivacyBadge({ level }: { level: string }) {
   );
 }
 
-function EventContent({ event }: { event: EventDetailResponse }) {
+function JoinActionSection({
+  event,
+  joinLoading,
+  joinError,
+  onJoin,
+  onRequestJoin,
+  onDismissError,
+}: {
+  event: EventDetailResponse;
+  joinLoading: boolean;
+  joinError: string | null;
+  onJoin: () => void;
+  onRequestJoin: (message?: string) => void;
+  onDismissError: () => void;
+}) {
+  const [requestMessage, setRequestMessage] = useState('');
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const ctx = event.viewer_context;
+
+  // Host doesn't see join actions
+  if (ctx.is_host) return null;
+
+  // Already participating states
+  if (ctx.participation_status === 'JOINED') {
+    return (
+      <div className="ed-section">
+        <div className="ed-participation-banner ed-participation-joined">
+          You are participating in this event
+        </div>
+      </div>
+    );
+  }
+
+  if (ctx.participation_status === 'PENDING') {
+    return (
+      <div className="ed-section">
+        <div className="ed-participation-banner ed-participation-pending">
+          Your join request is pending approval
+        </div>
+      </div>
+    );
+  }
+
+  if (ctx.participation_status === 'INVITED') {
+    return (
+      <div className="ed-section">
+        <div className="ed-participation-banner ed-participation-invited">
+          You have been invited to this event
+        </div>
+      </div>
+    );
+  }
+
+  // Not participating — check if join is possible
+  const isInactive = event.status === 'CANCELED' || event.status === 'COMPLETED';
+  const isFull = event.capacity != null && event.approved_participant_count >= event.capacity;
+
+  // Constraint warnings
+  const warnings: string[] = [];
+  if (event.minimum_age != null) {
+    warnings.push(`Minimum age: ${event.minimum_age}+`);
+  }
+  if (event.preferred_gender) {
+    warnings.push(`Preferred gender: ${event.preferred_gender}`);
+  }
+
+  return (
+    <div className="ed-section">
+      {/* Constraint warnings */}
+      {warnings.length > 0 && (
+        <div className="ed-constraint-warning">
+          <strong>Eligibility notes:</strong> {warnings.join(' · ')}
+        </div>
+      )}
+
+      {/* Join error */}
+      {joinError && (
+        <div className="ed-join-error">
+          <span>{joinError}</span>
+          <button type="button" className="ed-join-error-dismiss" onClick={onDismissError}>&times;</button>
+        </div>
+      )}
+
+      {/* Disabled reasons */}
+      {isInactive ? (
+        <div className="ed-join-disabled-banner">
+          This event is {event.status.toLowerCase()} and no longer accepting participants.
+        </div>
+      ) : isFull ? (
+        <div className="ed-join-disabled-banner">
+          This event has reached its maximum capacity.
+        </div>
+      ) : event.privacy_level === 'PUBLIC' ? (
+        /* PUBLIC — direct join */
+        <button
+          type="button"
+          className="btn-primary ed-join-btn"
+          onClick={onJoin}
+          disabled={joinLoading}
+        >
+          {joinLoading ? <span className="spinner" /> : 'Join Event'}
+        </button>
+      ) : event.privacy_level === 'PROTECTED' ? (
+        /* PROTECTED — request to join */
+        <div className="ed-request-join">
+          {!showRequestForm ? (
+            <button
+              type="button"
+              className="btn-primary ed-join-btn ed-join-btn-protected"
+              onClick={() => setShowRequestForm(true)}
+              disabled={joinLoading}
+            >
+              Request to Join
+            </button>
+          ) : (
+            <div className="ed-request-form">
+              <textarea
+                className="field-input ed-request-message"
+                placeholder="Add a message (optional)..."
+                value={requestMessage}
+                onChange={(e) => setRequestMessage(e.target.value)}
+                rows={3}
+              />
+              <div className="ed-request-actions">
+                <button
+                  type="button"
+                  className="btn-primary ed-join-btn"
+                  onClick={() => {
+                    onRequestJoin(requestMessage.trim() || undefined);
+                    setShowRequestForm(false);
+                    setRequestMessage('');
+                  }}
+                  disabled={joinLoading}
+                >
+                  {joinLoading ? <span className="spinner" /> : 'Send Request'}
+                </button>
+                <button
+                  type="button"
+                  className="ed-request-cancel"
+                  onClick={() => { setShowRequestForm(false); setRequestMessage(''); }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function EventContent({
+  event,
+  joinLoading,
+  joinError,
+  onJoin,
+  onRequestJoin,
+  onDismissError,
+}: {
+  event: EventDetailResponse;
+  joinLoading: boolean;
+  joinError: string | null;
+  onJoin: () => void;
+  onRequestJoin: (message?: string) => void;
+  onDismissError: () => void;
+}) {
   const navigate = useNavigate();
 
   return (
@@ -98,6 +265,16 @@ function EventContent({ event }: { event: EventDetailResponse }) {
           </div>
         )}
       </div>
+
+      {/* Join action — prominent position */}
+      <JoinActionSection
+        event={event}
+        joinLoading={joinLoading}
+        joinError={joinError}
+        onJoin={onJoin}
+        onRequestJoin={onRequestJoin}
+        onDismissError={onDismissError}
+      />
 
       {/* Info sections */}
       <div className="ed-sections">
@@ -226,18 +403,7 @@ function EventContent({ event }: { event: EventDetailResponse }) {
           </div>
         )}
 
-        {/* Viewer participation status */}
-        {!event.viewer_context.is_host && event.viewer_context.participation_status !== 'NONE' && (
-          <div className="ed-section">
-            <div className={`ed-participation-banner ed-participation-${event.viewer_context.participation_status.toLowerCase()}`}>
-              {event.viewer_context.participation_status === 'JOINED' && 'You are participating in this event'}
-              {event.viewer_context.participation_status === 'PENDING' && 'Your join request is pending approval'}
-              {event.viewer_context.participation_status === 'INVITED' && 'You have been invited to this event'}
-            </div>
-          </div>
-        )}
-
-        {/* Host management section */}
+        {/* Host management section — only visible to host */}
         {event.viewer_context.is_host && event.host_context && (
           <div className="ed-section">
             <h2 className="ed-section-title">Management</h2>
@@ -348,9 +514,9 @@ function EventContent({ event }: { event: EventDetailResponse }) {
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { token } = useAuth();
-  const { event, status, errorMessage, retry } = useEventDetailViewModel(id, token);
+  const vm = useEventDetailViewModel(id, token);
 
-  if (status === 'loading') {
+  if (vm.status === 'loading') {
     return (
       <div className="ed-page">
         <div className="ed-state-container">
@@ -361,7 +527,7 @@ export default function EventDetailPage() {
     );
   }
 
-  if (status === 'not-found') {
+  if (vm.status === 'not-found') {
     return (
       <div className="ed-page">
         <div className="ed-state-container">
@@ -373,7 +539,7 @@ export default function EventDetailPage() {
     );
   }
 
-  if (status === 'forbidden') {
+  if (vm.status === 'forbidden') {
     return (
       <div className="ed-page">
         <div className="ed-state-container">
@@ -385,13 +551,13 @@ export default function EventDetailPage() {
     );
   }
 
-  if (status === 'error') {
+  if (vm.status === 'error') {
     return (
       <div className="ed-page">
         <div className="ed-state-container">
           <h2>Something Went Wrong</h2>
-          <p>{errorMessage}</p>
-          <button type="button" className="btn-primary ed-retry-btn" onClick={retry}>
+          <p>{vm.errorMessage}</p>
+          <button type="button" className="btn-primary ed-retry-btn" onClick={vm.retry}>
             Try Again
           </button>
         </div>
@@ -399,7 +565,16 @@ export default function EventDetailPage() {
     );
   }
 
-  if (!event) return null;
+  if (!vm.event) return null;
 
-  return <EventContent event={event} />;
+  return (
+    <EventContent
+      event={vm.event}
+      joinLoading={vm.joinLoading}
+      joinError={vm.joinError}
+      onJoin={vm.handleJoin}
+      onRequestJoin={vm.handleRequestJoin}
+      onDismissError={vm.dismissJoinError}
+    />
+  );
 }
