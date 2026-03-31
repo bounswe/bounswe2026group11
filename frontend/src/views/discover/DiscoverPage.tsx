@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   useDiscoverViewModel,
@@ -39,7 +40,7 @@ function formatTime(iso: string): string {
 
 function EventCard({ event }: { event: DiscoverEventItem }) {
   return (
-    <a href={`/events/${event.id}`} className="dc-card">
+    <Link to={`/events/${event.id}`} className="dc-card">
       <div className="dc-card-image-wrapper">
         {event.image_url ? (
           <img src={event.image_url} alt={event.title} className="dc-card-image" />
@@ -78,7 +79,7 @@ function EventCard({ event }: { event: DiscoverEventItem }) {
           )}
         </div>
       </div>
-    </a>
+    </Link>
   );
 }
 
