@@ -6,7 +6,7 @@ interface SearchSectionProps {
   query: string;
   onChangeQuery: (value: string) => void;
   onSubmitSearch: () => void;
-  onPressFilter?: () => void;
+  onPressFilter: () => void;
 }
 
 export default function SearchSection({
@@ -20,7 +20,7 @@ export default function SearchSection({
       <View style={styles.searchContainer}>
         <Feather
           name="search"
-          size={18}
+          size={20}
           color="#6B7280"
           style={styles.searchIcon}
         />
@@ -40,7 +40,9 @@ export default function SearchSection({
       <TouchableOpacity
         style={styles.filterButton}
         onPress={onPressFilter}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Open filters"
       >
         <Ionicons name="options-outline" size={22} color="#FFFFFF" />
       </TouchableOpacity>
@@ -56,29 +58,29 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     flex: 1,
-    height: 48,
-    borderRadius: 14,
+    height: 56,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    marginRight: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginRight: 12,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   input: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     color: '#111827',
     paddingVertical: 0,
   },
   filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',

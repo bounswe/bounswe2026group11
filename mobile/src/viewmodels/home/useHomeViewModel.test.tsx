@@ -21,6 +21,7 @@ jest.mock('@/contexts/AuthContext', () => ({
 
 const mockListEvents = jest.mocked(eventService.listEvents);
 const mockListCategories = jest.mocked(eventService.listCategories);
+const mockSearchLocation = jest.mocked(eventService.searchLocation);
 
 const categoriesFixture: ListCategoriesResponse = {
   items: [
@@ -100,10 +101,22 @@ const page2Fixture: PaginatedEventsResponse = {
 };
 
 describe('useHomeViewModel', () => {
-  beforeEach(() => {
+    beforeEach(() => {
     jest.clearAllMocks();
     mockListCategories.mockResolvedValue(categoriesFixture);
     mockListEvents.mockResolvedValue(page1Fixture);
+    mockSearchLocation.mockResolvedValue([
+      {
+        display_name: 'Kadikoy, Istanbul, Turkiye',
+        lat: '40.9909',
+        lon: '29.0293',
+      },
+      {
+        display_name: 'Besiktas, Istanbul, Turkiye',
+        lat: '41.0422',
+        lon: '29.0083',
+      },
+    ]);
   });
 
   it('loads initial categories and events on mount', async () => {
@@ -120,9 +133,12 @@ describe('useHomeViewModel', () => {
       {
         lat: 41.0082,
         lon: 28.9784,
-        radius_meters: 50000,
+        radius_meters: 10000,
         q: undefined,
         category_ids: undefined,
+        privacy_levels: undefined,
+        start_from: undefined,
+        start_to: undefined,
         limit: 2,
         cursor: undefined,
       },
@@ -177,9 +193,12 @@ describe('useHomeViewModel', () => {
       {
         lat: 41.0082,
         lon: 28.9784,
-        radius_meters: 50000,
+        radius_meters: 10000,
         q: undefined,
         category_ids: undefined,
+        privacy_levels: undefined,
+        start_from: undefined,
+        start_to: undefined,
         limit: 2,
         cursor: undefined,
       },
@@ -207,9 +226,12 @@ describe('useHomeViewModel', () => {
       {
         lat: 41.0082,
         lon: 28.9784,
-        radius_meters: 50000,
+        radius_meters: 10000,
         q: undefined,
         category_ids: undefined,
+        privacy_levels: undefined,
+        start_from: undefined,
+        start_to: undefined,
         limit: 2,
         cursor: 'cursor-2',
       },
@@ -244,6 +266,591 @@ describe('useHomeViewModel', () => {
       expect(result.current.apiError).toBe(
         'Failed to load categories. Please try again.',
       );
+    });
+  });
+    describe('discovery filters', () => {
+    it('opens and closes filter modal', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.isFilterModalOpen).toBe(false);
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      expect(result.current.isFilterModalOpen).toBe(true);
+
+      act(() => {
+        result.current.closeFilterModal();
+      });
+
+      expect(result.current.isFilterModalOpen).toBe(false);
+    });
+
+    it('does not apply draft filters until apply is pressed', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(mockListEvents).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      act(() => {
+        result.current.toggleDraftPrivacy('PROTECTED');
+        result.current.updateDraftRadiusKm(25);
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterDraft.privacyLevels).toEqual(['PROTECTED']);
+        expect(result.current.filterDraft.radiusKm).toBe(25);
+      });
+
+      expect(mockListEvents).toHaveBeenCalledTimes(1);
+    });
+
+    it('applies privacy and radius filters to discovery request', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      act(() => {
+        result.current.toggleDraftPrivacy('PROTECTED');
+        result.current.updateDraftRadiusKm(25);
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterDraft.privacyLevels).toEqual(['PROTECTED']);
+        expect(result.current.filterDraft.radiusKm).toBe(25);
+      });
+
+      act(() => {
+        result.current.applyFilterDraft();
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            privacy_levels: ['PROTECTED'],
+            radius_meters: 25000,
+          }),
+          'mock-token',
+        );
+      });
+    });
+
+    it('applies category filters from modal to discovery request', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      act(() => {
+        result.current.toggleDraftCategory(2);
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterDraft.categoryIds).toEqual([2]);
+      });
+
+      act(() => {
+        result.current.applyFilterDraft();
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            category_ids: [2],
+          }),
+          'mock-token',
+        );
+      });
+    });
+
+    it('keeps selected chip category together with modal categories', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.selectCategory(1);
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            category_ids: [1],
+          }),
+          'mock-token',
+        );
+      });
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      act(() => {
+        result.current.toggleDraftCategory(2);
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterDraft.categoryIds).toEqual([2]);
+      });
+
+      act(() => {
+        result.current.applyFilterDraft();
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            category_ids: expect.arrayContaining([1, 2]),
+          }),
+          'mock-token',
+        );
+      });
+    });
+
+    it('applies valid date range filters', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      act(() => {
+        result.current.updateDraftStartDate('10.04.2099');
+        result.current.updateDraftEndDate('20.04.2099');
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterDraft.startDate).toBe('10.04.2099');
+        expect(result.current.filterDraft.endDate).toBe('20.04.2099');
+      });
+
+      act(() => {
+        result.current.applyFilterDraft();
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            start_from: expect.any(String),
+            start_to: expect.any(String),
+          }),
+          'mock-token',
+        );
+      });
+
+      const lastArgs = mockListEvents.mock.calls.at(-1)?.[0];
+
+      if (!lastArgs?.start_from || !lastArgs?.start_to) {
+        throw new Error('Expected start_from and start_to to be defined');
+      }
+
+      expect(new Date(lastArgs.start_from).toISOString()).toBe(lastArgs.start_from);
+      expect(new Date(lastArgs.start_to).toISOString()).toBe(lastArgs.start_to);
+    });
+
+    it('shows error for invalid from date and does not apply filters', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      const initialCallCount = mockListEvents.mock.calls.length;
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      act(() => {
+        result.current.updateDraftStartDate('12.30.2026');
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterDraft.startDate).toBe('12.30.2026');
+      });
+
+      act(() => {
+        result.current.applyFilterDraft();
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterError).toBe('From date must be a valid date.');
+      });
+
+      expect(mockListEvents.mock.calls.length).toBe(initialCallCount);
+      expect(result.current.isFilterModalOpen).toBe(true);
+    });
+
+    it('shows error for invalid to date and does not apply filters', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      const initialCallCount = mockListEvents.mock.calls.length;
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      act(() => {
+        result.current.updateDraftEndDate('31.02.2026');
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterDraft.endDate).toBe('31.02.2026');
+      });
+
+      act(() => {
+        result.current.applyFilterDraft();
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterError).toBe('To date must be a valid date.');
+      });
+
+      expect(mockListEvents.mock.calls.length).toBe(initialCallCount);
+      expect(result.current.isFilterModalOpen).toBe(true);
+    });
+
+    it('shows error when from date is in the past', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      act(() => {
+        result.current.updateDraftStartDate('01.01.2000');
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterDraft.startDate).toBe('01.01.2000');
+      });
+
+      act(() => {
+        result.current.applyFilterDraft();
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterError).toBe('From date must be today or later.');
+      });
+
+      expect(result.current.isFilterModalOpen).toBe(true);
+    });
+
+    it('shows error when to date is earlier than from date', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      act(() => {
+        result.current.updateDraftStartDate('20.04.2099');
+        result.current.updateDraftEndDate('10.04.2099');
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterDraft.startDate).toBe('20.04.2099');
+        expect(result.current.filterDraft.endDate).toBe('10.04.2099');
+      });
+
+      act(() => {
+        result.current.applyFilterDraft();
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterError).toBe(
+          'To date must be the same as or later than From date.',
+        );
+      });
+
+      expect(result.current.isFilterModalOpen).toBe(true);
+    });
+
+    it('resets draft filters and keeps modal open on reset', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      act(() => {
+        result.current.toggleDraftPrivacy('PROTECTED');
+        result.current.updateDraftStartDate('10.04.2099');
+        result.current.updateDraftEndDate('20.04.2099');
+        result.current.updateDraftRadiusKm(30);
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterDraft.privacyLevels).toEqual(['PROTECTED']);
+        expect(result.current.filterDraft.startDate).toBe('10.04.2099');
+        expect(result.current.filterDraft.endDate).toBe('20.04.2099');
+        expect(result.current.filterDraft.radiusKm).toBe(30);
+      });
+
+      const initialCallCount = mockListEvents.mock.calls.length;
+
+      act(() => {
+        result.current.resetFilterDraft();
+      });
+
+      expect(result.current.isFilterModalOpen).toBe(true);
+      expect(result.current.filterDraft).toEqual({
+        categoryIds: [],
+        privacyLevels: [],
+        startDate: '',
+        endDate: '',
+        radiusKm: 10,
+      });
+
+      expect(mockListEvents.mock.calls.length).toBe(initialCallCount);
+    });
+
+    it('clears filter error after user updates a date field', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      act(() => {
+        result.current.updateDraftStartDate('12.30.2026');
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterDraft.startDate).toBe('12.30.2026');
+      });
+
+      act(() => {
+        result.current.applyFilterDraft();
+      });
+
+      await waitFor(() => {
+        expect(result.current.filterError).toBe('From date must be a valid date.');
+      });
+
+      act(() => {
+        result.current.updateDraftStartDate('12.04.2099');
+      });
+
+      expect(result.current.filterError).toBeNull();
+    });
+  });
+    describe('location picker', () => {
+    it('opens and closes location modal', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(false);
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(true);
+
+      act(() => {
+        result.current.closeLocationModal();
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(false);
+    });
+
+    it('does not apply selected location immediately after choosing a suggestion', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      const initialCallCount = mockListEvents.mock.calls.length;
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      act(() => {
+        result.current.selectLocationSuggestion({
+          display_name: 'Kadikoy, Istanbul, Turkiye',
+          lat: '40.9909',
+          lon: '29.0293',
+        });
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(true);
+      expect(result.current.pendingLocation?.display_name).toBe(
+        'Kadikoy, Istanbul, Turkiye',
+      );
+      expect(mockListEvents.mock.calls.length).toBe(initialCallCount);
+    });
+
+    it('applies selected location only after choose location is pressed', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      act(() => {
+        result.current.selectLocationSuggestion({
+          display_name: 'Kadikoy, Istanbul, Turkiye',
+          lat: '40.9909',
+          lon: '29.0293',
+        });
+      });
+
+      act(() => {
+        result.current.applySelectedLocation();
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            lat: 40.9909,
+            lon: 29.0293,
+          }),
+          'mock-token',
+        );
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(false);
+      expect(result.current.locationLabel).toBe('Kadikoy, Istanbul');
+    });
+
+    it('resets location draft and keeps location modal open', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      act(() => {
+        result.current.selectLocationSuggestion({
+          display_name: 'Kadikoy, Istanbul, Turkiye',
+          lat: '40.9909',
+          lon: '29.0293',
+        });
+      });
+
+      act(() => {
+        result.current.resetLocationDraft();
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(true);
+      expect(result.current.pendingLocation).toBeNull();
+      expect(result.current.locationQuery).toBe('');
+    });
+
+    it('applies default fallback location after resetting a previously selected location', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      act(() => {
+        result.current.selectLocationSuggestion({
+          display_name: 'Kadikoy, Istanbul, Turkiye',
+          lat: '40.9909',
+          lon: '29.0293',
+        });
+      });
+
+      act(() => {
+        result.current.applySelectedLocation();
+      });
+
+      await waitFor(() => {
+        expect(result.current.locationLabel).toBe('Kadikoy, Istanbul');
+      });
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      act(() => {
+        result.current.resetLocationDraft();
+      });
+
+      act(() => {
+        result.current.applySelectedLocation();
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            lat: 41.0082,
+            lon: 28.9784,
+          }),
+          'mock-token',
+        );
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(false);
+      expect(result.current.locationLabel).toBe('Istanbul');
     });
   });
 });
