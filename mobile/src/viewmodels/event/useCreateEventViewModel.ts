@@ -83,8 +83,10 @@ export interface CreateEventFormErrors {
   description?: string | null;
   categoryId?: string | null;
   location?: string | null;
-  startDateTime?: string | null;
-  endDateTime?: string | null;
+  startDate?: string | null;
+  startTime?: string | null;
+  endDate?: string | null;
+  endTime?: string | null;
   tags?: string | null;
   constraints?: string | null;
 }
@@ -174,11 +176,50 @@ export function formatDateInput(current: string, previous: string): string {
   return formatDigitsToDate(digits.slice(0, 8));
 }
 
+/** Returns an error message if the date string (dd.mm.yyyy) is invalid, or null if valid. */
+export function validateDateFormat(date: string): string | null {
+  const parts = date.split('.');
+  if (parts.length !== 3) return 'Invalid date format';
+  const [dayStr, monthStr, yearStr] = parts;
+  if (yearStr.length < 4) return 'Invalid date format';
+  const day = parseInt(dayStr, 10);
+  const month = parseInt(monthStr, 10);
+  const year = parseInt(yearStr, 10);
+  if (isNaN(day) || isNaN(month) || isNaN(year)) return 'Invalid date';
+  if (month < 1 || month > 12) return 'Invalid date: month must be 1–12';
+  if (day < 1 || day > 31) return 'Invalid date: day must be 1–31';
+  // Guard against JS Date silently normalizing overflow (e.g. 30.02.2030 → March)
+  const iso = `${year}-${monthStr.padStart(2, '0')}-${dayStr.padStart(2, '0')}T00:00:00`;
+  const parsed = new Date(iso);
+  if (
+    isNaN(parsed.getTime()) ||
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() + 1 !== month ||
+    parsed.getDate() !== day
+  ) {
+    return 'Invalid date';
+  }
+  return null;
+}
+
+/** Returns an error message if the time string (HH:mm) is invalid, or null if valid. */
+export function validateTimeFormat(time: string): string | null {
+  const parts = time.split(':');
+  if (parts.length !== 2) return 'Invalid time format';
+  const [hourStr, minuteStr] = parts;
+  const hour = parseInt(hourStr, 10);
+  const minute = parseInt(minuteStr, 10);
+  if (isNaN(hour) || isNaN(minute)) return 'Invalid time';
+  if (hour < 0 || hour > 23) return 'Invalid time: hour must be 0–23';
+  if (minute < 0 || minute > 59) return 'Invalid time: minute must be 0–59';
+  return null;
+}
+
 function parseDateTime(date: string, time: string): string | null {
   if (!date || !time) return null;
-  const [day, month, year] = date.split('.');
-  if (!day || !month || !year) return null;
-  const iso = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${time}:00`;
+  const [dayStr, monthStr, yearStr] = date.split('.');
+  if (!dayStr || !monthStr || !yearStr) return null;
+  const iso = `${yearStr}-${monthStr.padStart(2, '0')}-${dayStr.padStart(2, '0')}T${time}:00`;
   const parsed = new Date(iso);
   if (isNaN(parsed.getTime())) return null;
   return parsed.toISOString();
@@ -219,27 +260,51 @@ function validateForm(formData: CreateEventFormData): CreateEventFormErrors {
     errors.location = 'Please select a location';
   }
 
-  if (!formData.startDate || !formData.startTime) {
-    errors.startDateTime = 'Start date and time are required';
+  if (!formData.startDate) {
+    errors.startDate = 'Start date is required';
   } else {
+    const dateErr = validateDateFormat(formData.startDate);
+    if (dateErr) errors.startDate = dateErr;
+  }
+
+  if (!formData.startTime) {
+    errors.startTime = 'Start time is required';
+  } else {
+    const timeErr = validateTimeFormat(formData.startTime);
+    if (timeErr) errors.startTime = timeErr;
+  }
+
+  if (!errors.startDate && !errors.startTime && formData.startDate && formData.startTime) {
     const parsed = parseDateTime(formData.startDate, formData.startTime);
     if (!parsed) {
-      errors.startDateTime = 'Invalid start date/time format';
+      errors.startDate = 'Invalid start date';
     } else if (new Date(parsed) <= new Date()) {
-      errors.startDateTime = 'Start date must be in the future';
+      errors.startDate = 'Start date must be in the future';
     }
   }
 
   if (formData.endDate || formData.endTime) {
-    if (!formData.endDate || !formData.endTime) {
-      errors.endDateTime = 'Both end date and time are required';
+    if (!formData.endDate) {
+      errors.endDate = 'End date is required';
     } else {
+      const dateErr = validateDateFormat(formData.endDate);
+      if (dateErr) errors.endDate = dateErr;
+    }
+
+    if (!formData.endTime) {
+      errors.endTime = 'End time is required';
+    } else {
+      const timeErr = validateTimeFormat(formData.endTime);
+      if (timeErr) errors.endTime = timeErr;
+    }
+
+    if (!errors.endDate && !errors.endTime && formData.endDate && formData.endTime) {
       const parsedEnd = parseDateTime(formData.endDate, formData.endTime);
       const parsedStart = parseDateTime(formData.startDate, formData.startTime);
       if (!parsedEnd) {
-        errors.endDateTime = 'Invalid end date/time format';
+        errors.endDate = 'Invalid end date';
       } else if (parsedStart && new Date(parsedEnd) <= new Date(parsedStart)) {
-        errors.endDateTime = 'End must be after start';
+        errors.endDate = 'End must be after start';
       }
     }
   }
@@ -272,14 +337,16 @@ export function useCreateEventViewModel(): CreateEventViewModel {
       setFormData((prev) => ({ ...prev, [field]: value }));
       // Map form fields to their corresponding error keys
       const errorKeyMap: Partial<Record<keyof CreateEventFormData, keyof CreateEventFormErrors>> = {
-        startDate: 'startDateTime',
-        startTime: 'startDateTime',
-        endDate: 'endDateTime',
-        endTime: 'endDateTime',
         locationQuery: 'location',
       };
-      const errorKey = errorKeyMap[field] ?? field;
-      setErrors((prev) => ({ ...prev, [errorKey]: null }));
+      const errorKey = (errorKeyMap[field] ?? field) as keyof CreateEventFormErrors;
+      setErrors((prev) => {
+        const next = { ...prev, [errorKey]: null };
+        // Time changes also clear the associated date error (cross-field "must be after" constraint)
+        if (field === 'startTime') next.startDate = null;
+        if (field === 'endTime') next.endDate = null;
+        return next;
+      });
       setApiError(null);
       setSuccessMessage(null);
     },
@@ -553,8 +620,8 @@ export function useCreateEventViewModel(): CreateEventViewModel {
               else if (key === 'category_id') fieldErrors.categoryId = msg;
               else if (key === 'lat' || key === 'lon' || key === 'address')
                 fieldErrors.location = msg;
-              else if (key === 'start_time') fieldErrors.startDateTime = msg;
-              else if (key === 'end_time') fieldErrors.endDateTime = msg;
+              else if (key === 'start_time') fieldErrors.startDate = msg;
+              else if (key === 'end_time') fieldErrors.endDate = msg;
               else if (key === 'tags') fieldErrors.tags = msg;
               else if (key.startsWith('constraints')) fieldErrors.constraints = msg;
             }
