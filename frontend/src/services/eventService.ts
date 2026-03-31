@@ -6,6 +6,7 @@ import {
   LocationSuggestion,
   DiscoverEventsParams,
   DiscoverEventsResponse,
+  EventDetailResponse,
 } from '@/models/event';
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
@@ -40,6 +41,13 @@ export function discoverEvents(
   if (params.limit != null) qs.set('limit', String(params.limit));
   if (params.cursor) qs.set('cursor', params.cursor);
   return apiGetAuth<DiscoverEventsResponse>(`/events/?${qs}`, token);
+}
+
+export function getEventDetail(
+  eventId: string,
+  token: string,
+): Promise<EventDetailResponse> {
+  return apiGetAuth<EventDetailResponse>(`/events/${eventId}`, token);
 }
 
 export async function searchLocation(
