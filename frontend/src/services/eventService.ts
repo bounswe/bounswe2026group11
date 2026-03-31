@@ -7,6 +7,8 @@ import {
   DiscoverEventsParams,
   DiscoverEventsResponse,
   EventDetailResponse,
+  JoinEventResponse,
+  JoinRequestResponse,
 } from '@/models/event';
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
@@ -48,6 +50,25 @@ export function getEventDetail(
   token: string,
 ): Promise<EventDetailResponse> {
   return apiGetAuth<EventDetailResponse>(`/events/${eventId}`, token);
+}
+
+export function joinEvent(
+  eventId: string,
+  token: string,
+): Promise<JoinEventResponse> {
+  return apiPostAuth<JoinEventResponse>(`/events/${eventId}/join`, {}, token);
+}
+
+export function requestJoinEvent(
+  eventId: string,
+  token: string,
+  message?: string,
+): Promise<JoinRequestResponse> {
+  return apiPostAuth<JoinRequestResponse>(
+    `/events/${eventId}/join-request`,
+    message ? { message } : {},
+    token,
+  );
 }
 
 export async function searchLocation(
