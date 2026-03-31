@@ -35,6 +35,7 @@ func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.
 	group.Post("/:id/join-request", auth, handler.RequestJoin)
 	group.Post("/:id/join-requests/:joinRequestId/approve", auth, handler.ApproveJoinRequest)
 	group.Post("/:id/join-requests/:joinRequestId/reject", auth, handler.RejectJoinRequest)
+	group.Patch("/:id/cancel", auth, handler.CancelEvent)
 }
 
 // DiscoverEvents handles GET /events.
@@ -261,6 +262,22 @@ func (h *EventHandler) RejectJoinRequest(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(result)
+}
+
+// CancelEvent handles PATCH /events/:id/cancel.
+// Transitions an ACTIVE event to CANCELED. Only the host may perform this.
+func (h *EventHandler) CancelEvent(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	if err := h.service.CancelEvent(c.UserContext(), claims.UserID, eventID); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func parseEventIDParam(c *fiber.Ctx) (uuid.UUID, error) {

@@ -258,3 +258,27 @@ func (s *Service) RejectJoinRequest(
 		CooldownEndsAt: result.CooldownEndsAt,
 	}, nil
 }
+
+// CancelEvent transitions an ACTIVE event to CANCELED. Only the event host may cancel.
+func (s *Service) CancelEvent(ctx context.Context, userID, eventID uuid.UUID) error {
+	event, err := s.eventRepo.GetEventByID(ctx, eventID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+		}
+		return err
+	}
+
+	if event.HostID != userID {
+		return domain.ForbiddenError(domain.ErrorCodeEventCancelNotAllowed, "Only the event host can cancel this event.")
+	}
+
+	if err := s.eventRepo.CancelEvent(ctx, eventID); err != nil {
+		if errors.Is(err, ErrEventNotCancelable) {
+			return domain.ConflictError(domain.ErrorCodeEventNotCancelable, "Only ACTIVE events can be canceled.")
+		}
+		return err
+	}
+
+	return nil
+}
