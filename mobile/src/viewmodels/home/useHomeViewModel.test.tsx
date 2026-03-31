@@ -21,6 +21,7 @@ jest.mock('@/contexts/AuthContext', () => ({
 
 const mockListEvents = jest.mocked(eventService.listEvents);
 const mockListCategories = jest.mocked(eventService.listCategories);
+const mockSearchLocation = jest.mocked(eventService.searchLocation);
 
 const categoriesFixture: ListCategoriesResponse = {
   items: [
@@ -100,10 +101,22 @@ const page2Fixture: PaginatedEventsResponse = {
 };
 
 describe('useHomeViewModel', () => {
-  beforeEach(() => {
+    beforeEach(() => {
     jest.clearAllMocks();
     mockListCategories.mockResolvedValue(categoriesFixture);
     mockListEvents.mockResolvedValue(page1Fixture);
+    mockSearchLocation.mockResolvedValue([
+      {
+        display_name: 'Kadikoy, Istanbul, Turkiye',
+        lat: '40.9909',
+        lon: '29.0293',
+      },
+      {
+        display_name: 'Besiktas, Istanbul, Turkiye',
+        lat: '41.0422',
+        lon: '29.0083',
+      },
+    ]);
   });
 
   it('loads initial categories and events on mount', async () => {
@@ -594,7 +607,7 @@ describe('useHomeViewModel', () => {
       expect(result.current.isFilterModalOpen).toBe(true);
     });
 
-    it('clears filters and closes modal on reset', async () => {
+    it('resets draft filters and keeps modal open on reset', async () => {
       const { result } = renderHook(() => useHomeViewModel());
 
       await waitFor(() => {
@@ -619,11 +632,13 @@ describe('useHomeViewModel', () => {
         expect(result.current.filterDraft.radiusKm).toBe(30);
       });
 
+      const initialCallCount = mockListEvents.mock.calls.length;
+
       act(() => {
         result.current.resetFilterDraft();
       });
 
-      expect(result.current.isFilterModalOpen).toBe(false);
+      expect(result.current.isFilterModalOpen).toBe(true);
       expect(result.current.filterDraft).toEqual({
         categoryIds: [],
         privacyLevels: [],
@@ -632,17 +647,7 @@ describe('useHomeViewModel', () => {
         radiusKm: 10,
       });
 
-      await waitFor(() => {
-        expect(mockListEvents).toHaveBeenLastCalledWith(
-          expect.objectContaining({
-            radius_meters: 10000,
-            privacy_levels: undefined,
-            start_from: undefined,
-            start_to: undefined,
-          }),
-          'mock-token',
-        );
-      });
+      expect(mockListEvents.mock.calls.length).toBe(initialCallCount);
     });
 
     it('clears filter error after user updates a date field', async () => {
@@ -679,6 +684,173 @@ describe('useHomeViewModel', () => {
       expect(result.current.filterError).toBeNull();
     });
   });
-  
-  
+    describe('location picker', () => {
+    it('opens and closes location modal', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(false);
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(true);
+
+      act(() => {
+        result.current.closeLocationModal();
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(false);
+    });
+
+    it('does not apply selected location immediately after choosing a suggestion', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      const initialCallCount = mockListEvents.mock.calls.length;
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      act(() => {
+        result.current.selectLocationSuggestion({
+          display_name: 'Kadikoy, Istanbul, Turkiye',
+          lat: '40.9909',
+          lon: '29.0293',
+        });
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(true);
+      expect(result.current.pendingLocation?.display_name).toBe(
+        'Kadikoy, Istanbul, Turkiye',
+      );
+      expect(mockListEvents.mock.calls.length).toBe(initialCallCount);
+    });
+
+    it('applies selected location only after choose location is pressed', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      act(() => {
+        result.current.selectLocationSuggestion({
+          display_name: 'Kadikoy, Istanbul, Turkiye',
+          lat: '40.9909',
+          lon: '29.0293',
+        });
+      });
+
+      act(() => {
+        result.current.applySelectedLocation();
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            lat: 40.9909,
+            lon: 29.0293,
+          }),
+          'mock-token',
+        );
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(false);
+      expect(result.current.locationLabel).toBe('Kadikoy, Istanbul');
+    });
+
+    it('resets location draft and keeps location modal open', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      act(() => {
+        result.current.selectLocationSuggestion({
+          display_name: 'Kadikoy, Istanbul, Turkiye',
+          lat: '40.9909',
+          lon: '29.0293',
+        });
+      });
+
+      act(() => {
+        result.current.resetLocationDraft();
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(true);
+      expect(result.current.pendingLocation).toBeNull();
+      expect(result.current.locationQuery).toBe('');
+    });
+
+    it('applies default fallback location after resetting a previously selected location', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      act(() => {
+        result.current.selectLocationSuggestion({
+          display_name: 'Kadikoy, Istanbul, Turkiye',
+          lat: '40.9909',
+          lon: '29.0293',
+        });
+      });
+
+      act(() => {
+        result.current.applySelectedLocation();
+      });
+
+      await waitFor(() => {
+        expect(result.current.locationLabel).toBe('Kadikoy, Istanbul');
+      });
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      act(() => {
+        result.current.resetLocationDraft();
+      });
+
+      act(() => {
+        result.current.applySelectedLocation();
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            lat: 41.0082,
+            lon: 28.9784,
+          }),
+          'mock-token',
+        );
+      });
+
+      expect(result.current.isLocationModalOpen).toBe(false);
+      expect(result.current.locationLabel).toBe('Istanbul');
+    });
+  });
 });

@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef,useState } from 'react';
 import {
   EventCategory,
   EventSummary,
   HomeFilterPrivacyLevel,
   HomeFiltersDraft,
+  LocationSuggestion,
 } from '@/models/event';
-import { listCategories, listEvents } from '@/services/eventService';
+import { listCategories, listEvents, searchLocation } from '@/services/eventService';
+import { formatEventLocation } from '@/utils/eventLocation';
 import { useAuth } from '@/contexts/AuthContext';
 
 const PAGE_SIZE = 2;
@@ -14,6 +16,7 @@ const DEFAULT_LOCATION = {
   lat: 41.0082,
   lon: 28.9784,
 };
+const DEFAULT_LOCATION_LABEL = 'Istanbul';
 
 const DEFAULT_FILTERS: HomeFiltersDraft = {
   categoryIds: [],
@@ -140,6 +143,11 @@ function validateFilterDates(filters: HomeFiltersDraft): string | null {
 export interface HomeViewModel {
   locationLabel: string;
   notificationCount: number;
+  locationQuery: string;
+  locationSuggestions: LocationSuggestion[];
+  isSearchingLocation: boolean;
+  isLocationModalOpen: boolean;
+  pendingLocation: LocationSuggestion | null;
   categories: readonly EventCategory[];
   selectedCategoryId: number | null;
   searchText: string;
@@ -166,6 +174,12 @@ export interface HomeViewModel {
   updateDraftRadiusKm: (value: number) => void;
   loadMoreEvents: () => Promise<void>;
   refreshEvents: () => Promise<void>;
+  openLocationModal: () => void;
+  closeLocationModal: () => void;
+  updateLocationQuery: (value: string) => void;
+  selectLocationSuggestion: (suggestion: LocationSuggestion) => void;
+  applySelectedLocation: () => void;
+  resetLocationDraft: () => void;
 }
 
 export function useHomeViewModel(): HomeViewModel {
@@ -174,6 +188,14 @@ export function useHomeViewModel(): HomeViewModel {
   const [categories, setCategories] = useState<EventCategory[]>([]);
   const [events, setEvents] = useState<EventSummary[]>([]);
   const [searchText, setSearchText] = useState('');
+  const [locationQuery, setLocationQuery] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<LocationSuggestion | null>(null);
+  const [pendingLocation, setPendingLocation] = useState<LocationSuggestion | null>(null);
+
+  const locationSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [filterError, setFilterError] = useState<string | null>(null);
   const [appliedSearchText, setAppliedSearchText] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
@@ -240,8 +262,8 @@ export function useHomeViewModel(): HomeViewModel {
 
         const response = await listEvents(
           {
-            lat: DEFAULT_LOCATION.lat,
-            lon: DEFAULT_LOCATION.lon,
+            lat: selectedLocation ? Number(selectedLocation.lat) : DEFAULT_LOCATION.lat,
+            lon: selectedLocation ? Number(selectedLocation.lon) : DEFAULT_LOCATION.lon,
             radius_meters: appliedFilters.radiusKm * 1000,
             q: appliedSearchText || undefined,
             category_ids:
@@ -275,7 +297,7 @@ export function useHomeViewModel(): HomeViewModel {
         if (mode === 'loadMore') setIsLoadingMore(false);
       }
     },
-    [token, appliedSearchText, selectedCategoryId, appliedFilters],
+    [token, appliedSearchText, selectedCategoryId, appliedFilters, selectedLocation]
   );
 
   useEffect(() => {
@@ -302,6 +324,65 @@ export function useHomeViewModel(): HomeViewModel {
     setSelectedCategoryId(categoryId);
   }, []);
 
+  const openLocationModal = useCallback(() => {
+    setPendingLocation(selectedLocation);
+    setLocationQuery(selectedLocation?.display_name ?? '');
+    setLocationSuggestions([]);
+    setIsSearchingLocation(false);
+    setIsLocationModalOpen(true);
+  }, [selectedLocation]);
+
+  const closeLocationModal = useCallback(() => {
+    setPendingLocation(null);
+    setLocationQuery('');
+    setLocationSuggestions([]);
+    setIsSearchingLocation(false);
+    setIsLocationModalOpen(false);
+  }, []);
+
+  const updateLocationQuery = useCallback((value: string) => {
+    setLocationQuery(value);
+
+    if (locationSearchTimeoutRef.current) {
+      clearTimeout(locationSearchTimeoutRef.current);
+    }
+
+    if (value.trim().length < 2) {
+      setLocationSuggestions([]);
+      setIsSearchingLocation(false);
+      return;
+    }
+
+    locationSearchTimeoutRef.current = setTimeout(async () => {
+      setIsSearchingLocation(true);
+      try {
+        const results = await searchLocation(value);
+        setLocationSuggestions(results);
+      } finally {
+        setIsSearchingLocation(false);
+      }
+    }, 300);
+  }, []);
+
+  const selectLocationSuggestion = useCallback((suggestion: LocationSuggestion) => {
+    setPendingLocation(suggestion);
+    setLocationQuery(suggestion.display_name);
+    setLocationSuggestions([]);
+  }, []);
+
+  const applySelectedLocation = useCallback(() => {
+    setSelectedLocation(pendingLocation);
+    setLocationSuggestions([]);
+    setIsLocationModalOpen(false);
+  }, [pendingLocation]);
+
+  const resetLocationDraft = useCallback(() => {
+    setPendingLocation(null);
+    setLocationQuery('');
+    setLocationSuggestions([]);
+    setIsSearchingLocation(false);
+  }, []);
+
   const openFilterModal = useCallback(() => {
     setFilterDraft(appliedFilters);
     setFilterError(null);
@@ -316,9 +397,7 @@ export function useHomeViewModel(): HomeViewModel {
 
   const resetFilterDraft = useCallback(() => {
     setFilterDraft(DEFAULT_FILTERS);
-    setAppliedFilters(DEFAULT_FILTERS);
     setFilterError(null);
-    setIsFilterModalOpen(false);
   }, []);
 
   const applyFilterDraft = useCallback(() => {
@@ -402,8 +481,11 @@ export function useHomeViewModel(): HomeViewModel {
     await loadEvents('refresh');
   }, [loadEvents]);
 
-  return {
-    locationLabel: 'Istanbul',
+    return {
+    locationLabel: selectedLocation
+      ? formatEventLocation(selectedLocation.display_name)
+      : DEFAULT_LOCATION_LABEL,
+    locationQuery,
     notificationCount: 2,
     categories,
     selectedCategoryId,
@@ -417,6 +499,10 @@ export function useHomeViewModel(): HomeViewModel {
     isFilterModalOpen,
     filterDraft,
     filterError,
+    locationSuggestions,
+    isSearchingLocation,
+    isLocationModalOpen,
+    pendingLocation,
     updateSearchText,
     submitSearch,
     selectCategory,
@@ -429,6 +515,12 @@ export function useHomeViewModel(): HomeViewModel {
     updateDraftStartDate,
     updateDraftEndDate,
     updateDraftRadiusKm,
+    openLocationModal,
+    closeLocationModal,
+    updateLocationQuery,
+    selectLocationSuggestion,
+    applySelectedLocation,
+    resetLocationDraft,
     loadMoreEvents,
     refreshEvents,
   };

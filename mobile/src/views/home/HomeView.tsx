@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -16,18 +16,37 @@ import BottomTabBar from '@/components/common/BottomTabBar';
 import EventCard from '@/components/events/EventCard';
 import FiltersBottomSheet from '@/components/home/FiltersBottomSheet';
 import { useHomeViewModel } from '@/viewmodels/home/useHomeViewModel';
+import LocationPickerPanel from '@/components/home/LocationPickerPanel';
 
 export default function HomeView() {
   const vm = useHomeViewModel();
+
+  const locationButtonRef = useRef<any>(null);
+  const [locationPopupTop, setLocationPopupTop] = useState(140);
+
+  const handleOpenLocationPicker = () => {
+    if (locationButtonRef.current?.measureInWindow) {
+      locationButtonRef.current.measureInWindow(
+        (_x: number, y: number, _width: number, height: number) => {
+          setLocationPopupTop(y + height + 8);
+          vm.openLocationModal();
+        },
+      );
+      return;
+    }
+
+    vm.openLocationModal();
+  };
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.topSection}>
           <HomeHeader
+            ref={locationButtonRef}
             locationLabel={vm.locationLabel}
             notificationCount={vm.notificationCount}
-            onPressLocation={() => router.replace('/home' as Href)}
+            onPressLocation={handleOpenLocationPicker}
           />
 
           <SearchSection
@@ -91,6 +110,20 @@ export default function HomeView() {
         onChangeStartDate={vm.updateDraftStartDate}
         onChangeEndDate={vm.updateDraftEndDate}
         onChangeRadius={vm.updateDraftRadiusKm}
+      />
+
+      <LocationPickerPanel
+        visible={vm.isLocationModalOpen}
+        query={vm.locationQuery}
+        suggestions={vm.locationSuggestions}
+        isSearching={vm.isSearchingLocation}
+        selectedLocation={vm.pendingLocation}
+        onClose={vm.closeLocationModal}
+        onReset={vm.resetLocationDraft}
+        onChangeQuery={vm.updateLocationQuery}
+        onSelectSuggestion={vm.selectLocationSuggestion}
+        onApply={vm.applySelectedLocation}
+        anchorTop={locationPopupTop}
       />
     </SafeAreaView>
   );
