@@ -203,6 +203,11 @@ function EventContent({
   onJoin,
   onRequestJoin,
   onDismissError,
+  moderatingId,
+  moderateError,
+  onApprove,
+  onReject,
+  onDismissModerateError,
 }: {
   event: EventDetailResponse;
   joinLoading: boolean;
@@ -210,6 +215,11 @@ function EventContent({
   onJoin: () => void;
   onRequestJoin: (message?: string) => void;
   onDismissError: () => void;
+  moderatingId: string | null;
+  moderateError: string | null;
+  onApprove: (joinRequestId: string) => void;
+  onReject: (joinRequestId: string) => void;
+  onDismissModerateError: () => void;
 }) {
   const navigate = useNavigate();
 
@@ -445,9 +455,15 @@ function EventContent({
                 <h3 className="ed-mgmt-title">
                   Pending Requests ({event.host_context.pending_join_requests.length})
                 </h3>
+                {moderateError && (
+                  <div className="ed-join-error" style={{ marginBottom: 10 }}>
+                    <span>{moderateError}</span>
+                    <button type="button" className="ed-join-error-dismiss" onClick={onDismissModerateError}>&times;</button>
+                  </div>
+                )}
                 <ul className="ed-mgmt-list">
                   {event.host_context.pending_join_requests.map((r) => (
-                    <li key={r.join_request_id} className="ed-mgmt-item">
+                    <li key={r.join_request_id} className="ed-mgmt-item ed-mgmt-item-pending">
                       <div className="ed-mgmt-avatar">
                         {r.user.avatar_url ? (
                           <img src={r.user.avatar_url} alt={r.user.username} className="ed-avatar-img" />
@@ -459,8 +475,28 @@ function EventContent({
                         <span className="ed-mgmt-name">{r.user.display_name ?? r.user.username}</span>
                         <span className="ed-mgmt-username">@{r.user.username}</span>
                         {r.message && <span className="ed-mgmt-message">"{r.message}"</span>}
+                        {r.user.final_score != null && (
+                          <span className="ed-mgmt-user-score">{'★'} {r.user.final_score.toFixed(1)} ({r.user.rating_count})</span>
+                        )}
                       </div>
-                      <span className="ed-mgmt-date">{formatShortDate(r.created_at)}</span>
+                      <div className="ed-mgmt-actions">
+                        <button
+                          type="button"
+                          className="ed-approve-btn"
+                          onClick={() => onApprove(r.join_request_id)}
+                          disabled={moderatingId === r.join_request_id}
+                        >
+                          {moderatingId === r.join_request_id ? '...' : 'Approve'}
+                        </button>
+                        <button
+                          type="button"
+                          className="ed-reject-btn"
+                          onClick={() => onReject(r.join_request_id)}
+                          disabled={moderatingId === r.join_request_id}
+                        >
+                          Reject
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -575,6 +611,11 @@ export default function EventDetailPage() {
       onJoin={vm.handleJoin}
       onRequestJoin={vm.handleRequestJoin}
       onDismissError={vm.dismissJoinError}
+      moderatingId={vm.moderatingId}
+      moderateError={vm.moderateError}
+      onApprove={vm.handleApprove}
+      onReject={vm.handleReject}
+      onDismissModerateError={vm.dismissModerateError}
     />
   );
 }

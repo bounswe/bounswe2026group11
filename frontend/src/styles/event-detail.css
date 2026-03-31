@@ -501,6 +501,67 @@
   flex-shrink: 0;
 }
 
+/* Pending request item */
+.ed-mgmt-item-pending {
+  flex-wrap: wrap;
+}
+
+.ed-mgmt-user-score {
+  font-size: 12px;
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+.ed-mgmt-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.ed-approve-btn {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: 1px solid #16a34a;
+  background-color: #16a34a;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ed-approve-btn:hover:not(:disabled) {
+  background-color: #15803d;
+  border-color: #15803d;
+}
+
+.ed-approve-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ed-reject-btn {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: 1px solid #dc2626;
+  background: none;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ed-reject-btn:hover:not(:disabled) {
+  background-color: #fef2f2;
+}
+
+.ed-reject-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Invitation status */
 .ed-invitation-status {
   padding: 3px 10px;
