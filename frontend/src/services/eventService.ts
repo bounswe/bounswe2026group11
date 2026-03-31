@@ -9,6 +9,8 @@ import {
   EventDetailResponse,
   JoinEventResponse,
   JoinRequestResponse,
+  ApproveJoinRequestResponse,
+  RejectJoinRequestResponse,
 } from '@/models/event';
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
@@ -67,6 +69,30 @@ export function requestJoinEvent(
   return apiPostAuth<JoinRequestResponse>(
     `/events/${eventId}/join-request`,
     message ? { message } : {},
+    token,
+  );
+}
+
+export function approveJoinRequest(
+  eventId: string,
+  joinRequestId: string,
+  token: string,
+): Promise<ApproveJoinRequestResponse> {
+  return apiPostAuth<ApproveJoinRequestResponse>(
+    `/events/${eventId}/join-requests/${joinRequestId}/approve`,
+    {},
+    token,
+  );
+}
+
+export function rejectJoinRequest(
+  eventId: string,
+  joinRequestId: string,
+  token: string,
+): Promise<RejectJoinRequestResponse> {
+  return apiPostAuth<RejectJoinRequestResponse>(
+    `/events/${eventId}/join-requests/${joinRequestId}/reject`,
+    {},
     token,
   );
 }

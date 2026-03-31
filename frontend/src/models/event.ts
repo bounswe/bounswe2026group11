@@ -244,3 +244,20 @@ export interface JoinRequestResponse {
   status: string;
   created_at: string;
 }
+
+export interface ApproveJoinRequestResponse {
+  join_request_id: string;
+  event_id: string;
+  join_request_status: string;
+  participation_id: string;
+  participation_status: string;
+  updated_at: string;
+}
+
+export interface RejectJoinRequestResponse {
+  join_request_id: string;
+  event_id: string;
+  status: string;
+  updated_at: string;
+  cooldown_ends_at: string;
+}

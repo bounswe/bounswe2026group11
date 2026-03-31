@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getEventDetail, joinEvent, requestJoinEvent } from '@/services/eventService';
+import { getEventDetail, joinEvent, requestJoinEvent, approveJoinRequest, rejectJoinRequest } from '@/services/eventService';
 import type { EventDetailResponse } from '@/models/event';
 import { ApiError } from '@/services/api';
 
@@ -102,7 +102,61 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     }
   }, [eventId, token, event]);
 
+  const [moderatingId, setModeratingId] = useState<string | null>(null);
+  const [moderateError, setModerateError] = useState<string | null>(null);
+
+  const handleApprove = useCallback(async (joinRequestId: string) => {
+    if (!eventId || !token) return;
+    setModeratingId(joinRequestId);
+    setModerateError(null);
+
+    try {
+      await approveJoinRequest(eventId, joinRequestId, token);
+      const updated = await getEventDetail(eventId, token);
+      setEvent(updated);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const errorMap: Record<string, string> = {
+          join_request_state_invalid: 'This request is no longer pending.',
+          capacity_exceeded: 'Cannot approve — event is full.',
+          already_participating: 'This user is already participating.',
+          join_request_moderation_not_allowed: 'Only the host can moderate requests.',
+        };
+        setModerateError(errorMap[err.code] ?? err.message);
+      } else {
+        setModerateError('Failed to approve request. Please try again.');
+      }
+    } finally {
+      setModeratingId(null);
+    }
+  }, [eventId, token]);
+
+  const handleReject = useCallback(async (joinRequestId: string) => {
+    if (!eventId || !token) return;
+    setModeratingId(joinRequestId);
+    setModerateError(null);
+
+    try {
+      await rejectJoinRequest(eventId, joinRequestId, token);
+      const updated = await getEventDetail(eventId, token);
+      setEvent(updated);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const errorMap: Record<string, string> = {
+          join_request_state_invalid: 'This request is no longer pending.',
+          join_request_moderation_not_allowed: 'Only the host can moderate requests.',
+        };
+        setModerateError(errorMap[err.code] ?? err.message);
+      } else {
+        setModerateError('Failed to reject request. Please try again.');
+      }
+    } finally {
+      setModeratingId(null);
+    }
+  }, [eventId, token]);
+
   const dismissJoinError = useCallback(() => setJoinError(null), []);
+  const dismissModerateError = useCallback(() => setModerateError(null), []);
 
   return {
     event,
@@ -110,9 +164,14 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     errorMessage,
     joinLoading,
     joinError,
+    moderatingId,
+    moderateError,
     retry: fetchDetail,
     handleJoin,
     handleRequestJoin,
+    handleApprove,
+    handleReject,
     dismissJoinError,
+    dismissModerateError,
   };
 }
