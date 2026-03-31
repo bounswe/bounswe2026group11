@@ -283,6 +283,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 
 	filters := []string{
 		fmt.Sprintf("e.status = %s", statusPlaceholder),
+		"(e.end_time IS NULL OR e.end_time > NOW())",
 		fmt.Sprintf("e.privacy_level = ANY(%s::text[])", privacyPlaceholder),
 		fmt.Sprintf(
 			"((e.location_type = '%s' AND %s) OR (e.location_type <> '%s' AND ST_DWithin(el.geom, %s, %s)))",
@@ -605,7 +606,7 @@ func (r *EventRepository) loadEventDetailCore(
 			e.description,
 			e.image_url,
 			e.privacy_level,
-			e.status,
+			CASE WHEN e.status = 'ACTIVE' AND e.end_time < NOW() THEN 'COMPLETED' ELSE e.status END AS status,
 			e.start_time,
 			e.end_time,
 			e.capacity,
@@ -1423,3 +1424,14 @@ func (r *EventRepository) SetEventImageIfVersion(
 }
 
 var _ imageuploadapp.EventRepository = (*EventRepository)(nil)
+
+// ExpireActiveEvents sets status to COMPLETED for all ACTIVE events whose end_time has passed.
+func (r *EventRepository) ExpireActiveEvents(ctx context.Context) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE event
+		SET status = 'COMPLETED'
+		WHERE status = 'ACTIVE' AND end_time < NOW()
+	`)
+	return err
+}
+
