@@ -11,10 +11,12 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/postgres"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/ratelimit"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/security"
+	spacesadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/spaces"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/category"
 	emailapp "github.com/bounswe/bounswe2026group11/backend/internal/application/email"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/profile"
@@ -47,8 +49,8 @@ type Container struct {
 	RatingService        rating.UseCase
 	CategoryService      category.UseCase
 	ProfileService       profile.UseCase
-	// Extend with additional services as features are added, for example:
-	// SearchService httpapi.SearchService
+	ImageUploadService   imageupload.UseCase
+	// Extend with additional services as features are added
 }
 
 // New initializes infrastructure (config, database) and wires all application
@@ -69,6 +71,7 @@ func New(ctx context.Context) (*Container, error) {
 		db.Close()
 		return nil, fmt.Errorf("build mail provider: %w", err)
 	}
+	spacesStorage := buildSpacesStorage(cfg)
 
 	container := &Container{
 		Config:        cfg,
@@ -91,6 +94,7 @@ func New(ctx context.Context) (*Container, error) {
 	container.EventService = newEventService(container)
 	container.CategoryService = newCategoryService(container)
 	container.ProfileService = newProfileService(container)
+	container.ImageUploadService = newImageUploadService(container, spacesStorage)
 	return container, nil
 }
 
@@ -128,6 +132,16 @@ func buildMailProvider(cfg *config.Config) (emailapp.Provider, error) {
 	}
 }
 
+func buildSpacesStorage(cfg *config.Config) *spacesadapter.Storage {
+	return spacesadapter.NewStorage(spacesadapter.Config{
+		AccessKey: cfg.SpacesAccessKey,
+		SecretKey: cfg.SpacesSecretKey,
+		Endpoint:  cfg.SpacesEndpoint,
+		Bucket:    cfg.SpacesBucket,
+		Region:    cfg.SpacesS3Region,
+	})
+}
+
 // newEventService wires the event use case with its driven adapters.
 func newEventService(c *Container) event.UseCase {
 	return event.NewService(c.eventRepo, c.ParticipationService, c.JoinRequestService)
@@ -153,6 +167,20 @@ func newCategoryService(c *Container) category.UseCase {
 // newProfileService wires the profile use-case service with its driven adapter.
 func newProfileService(c *Container) profile.UseCase {
 	return profile.NewService(c.profileRepo)
+}
+
+func newImageUploadService(c *Container, storage *spacesadapter.Storage) imageupload.UseCase {
+	return imageupload.NewService(
+		c.profileRepo,
+		c.eventRepo,
+		storage,
+		jwtadapter.ImageUploadTokenManager{Secret: []byte(c.Config.JWTSecret)},
+		imageupload.Settings{
+			PresignTTL:      c.Config.SpacesPresignTTL,
+			UploadCacheCtrl: c.Config.SpacesUploadCacheCtrl,
+			CDNBaseURL:      c.Config.SpacesCDNBaseURL,
+		},
+	)
 }
 
 // newRatingService wires the rating use-case service with its driven adapter.

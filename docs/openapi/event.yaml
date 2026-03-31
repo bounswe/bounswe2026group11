@@ -254,6 +254,132 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /events/{id}/image/upload-url:
+    post:
+      tags: [Events]
+      summary: Create direct-upload URLs for an event image
+      description: |
+        Preferred event-image flow:
+        1. Create the event first with `POST /events`.
+        2. Call this endpoint as the event host to receive presigned `PUT` uploads for `ORIGINAL` and `SMALL`.
+        3. Upload both client-generated JPEG files directly to DigitalOcean Spaces.
+        4. Call `POST /events/{id}/image/confirm` with the returned `confirm_token`.
+
+        Client rule:
+        - Forward every returned upload header exactly as returned, including `x-amz-acl: public-read`.
+
+        Naming convention:
+        - original object key: `events/{event_id}/cover/v{n}-{upload_id}`
+        - small object key: `events/{event_id}/cover/v{n}-{upload_id}-small`
+
+        Persistence and cache behavior:
+        - The backend stores the returned `base_url` in `event.image_url`.
+        - Clients can fetch the small variant by appending `-small` to the stored `base_url`.
+        - Existing files are never deleted. Each confirmed upload increments `image_version`, leaving older CDN URLs cache-safe.
+        - This flow remains compatible with limited-access Spaces keys because each uploaded object is explicitly written with the `public-read` canned ACL.
+      operationId: createEventImageUploadUrl
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event whose image will be uploaded.
+      responses:
+        '200':
+          description: Presigned upload instructions created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadInitResponse'
+        '400':
+          description: Invalid event ID format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/image/confirm:
+    post:
+      tags: [Events]
+      summary: Confirm an uploaded event image
+      description: >
+        Confirms a previously presigned event image upload after both `ORIGINAL`
+        and `SMALL` files have been uploaded successfully. The request body
+        contains only the opaque `confirm_token`; clients do not send object URLs back.
+        The confirmed CDN URL is readable without a signed GET URL because the upload step uses `x-amz-acl: public-read`.
+      operationId: confirmEventImageUpload
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event whose image upload will be confirmed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImageUploadConfirmRequest'
+      responses:
+        '204':
+          description: Event image URL confirmed and persisted successfully.
+        '400':
+          description: Invalid event ID, invalid request body, or expired/invalid confirm token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Upload incomplete or superseded by a newer event image version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /events/{id}/rating:
     put:
       tags: [Events]
@@ -1366,7 +1492,10 @@ components:
           type:
             - string
             - "null"
-          description: Optional URL of the event cover image.
+          description: >
+            Optional event cover image URL. Backward-compatible field for callers
+            that already host images elsewhere. New clients should prefer the
+            direct-upload flow at `POST /events/{id}/image/upload-url`.
         category_id:
           type: integer
           minimum: 1
@@ -2102,6 +2231,69 @@ components:
           type: string
           format: date-time
           example: "2026-03-26T11:00:00+03:00"
+
+    ImageUploadInitResponse:
+      type: object
+      additionalProperties: false
+      required: [base_url, version, confirm_token, uploads]
+      properties:
+        base_url:
+          type: string
+          description: >
+            Versioned CDN base URL persisted in the database after confirm.
+            Append `-small` to fetch the small variant.
+          example: "https://sem-bucket.fra1.cdn.digitaloceanspaces.com/events/5f81d6de-8cb4-4639-8f60-7c9f55456121/cover/v2-2c1a8d5a-77c5-4e6a-b5da-84af656ba6fa"
+        version:
+          type: integer
+          minimum: 1
+          description: New image version reserved for this upload attempt.
+          example: 2
+        confirm_token:
+          type: string
+          description: Opaque signed token required by the confirm endpoint.
+        uploads:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/ImageUploadInstruction'
+
+    ImageUploadInstruction:
+      type: object
+      additionalProperties: false
+      required: [variant, method, url, headers]
+      properties:
+        variant:
+          type: string
+          enum: [ORIGINAL, SMALL]
+        method:
+          type: string
+          enum: [PUT]
+        url:
+          type: string
+          format: uri
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: >
+            Headers that must be sent exactly as returned. Current uploads require
+            `Content-Type: image/jpeg` and
+            `Cache-Control: public, max-age=604800, immutable`, and
+            `x-amz-acl: public-read`.
+          example:
+            Content-Type: image/jpeg
+            Cache-Control: public, max-age=604800, immutable
+            x-amz-acl: public-read
+
+    ImageUploadConfirmRequest:
+      type: object
+      additionalProperties: false
+      required: [confirm_token]
+      properties:
+        confirm_token:
+          type: string
+          description: Opaque signed token returned by the corresponding upload-url endpoint.
 
     ErrorEnvelope:
       type: object

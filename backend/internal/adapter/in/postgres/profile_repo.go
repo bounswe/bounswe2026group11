@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
+	imageuploadapp "github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload"
 	profileapp "github.com/bounswe/bounswe2026group11/backend/internal/application/profile"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
@@ -254,3 +256,46 @@ func (r *ProfileRepository) UpdateProfile(ctx context.Context, params profileapp
 	}
 	return nil
 }
+
+// GetAvatarVersion returns the current avatar version of the given user profile.
+func (r *ProfileRepository) GetAvatarVersion(ctx context.Context, userID uuid.UUID) (int, error) {
+	var version int
+	err := r.pool.QueryRow(ctx, `
+		SELECT avatar_version
+		FROM profile
+		WHERE user_id = $1
+	`, userID).Scan(&version)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, domain.ErrNotFound
+		}
+		return 0, fmt.Errorf("get avatar version: %w", err)
+	}
+
+	return version, nil
+}
+
+// SetAvatarIfVersion updates the avatar URL only if the current version matches expectedVersion.
+func (r *ProfileRepository) SetAvatarIfVersion(
+	ctx context.Context,
+	userID uuid.UUID,
+	expectedVersion, nextVersion int,
+	baseURL string,
+	updatedAt time.Time,
+) (bool, error) {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE profile
+		SET avatar_url = $2,
+		    avatar_version = $3,
+		    updated_at = $4
+		WHERE user_id = $1
+		  AND avatar_version = $5
+	`, userID, baseURL, nextVersion, updatedAt, expectedVersion)
+	if err != nil {
+		return false, fmt.Errorf("set avatar image: %w", err)
+	}
+
+	return tag.RowsAffected() == 1, nil
+}
+
+var _ imageuploadapp.ProfileRepository = (*ProfileRepository)(nil)

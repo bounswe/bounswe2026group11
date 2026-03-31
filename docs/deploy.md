@@ -116,7 +116,6 @@ Mirror the repo (compose under `deploy/`, nginx at repo root). Example: `/opt/se
 │   ├── nginx.local.conf          # local stack; compose.dev mounts nginx.dev.conf
 │   └── nginx.dev.conf           # TLS config used on the droplet
 ├── certs/                        # on server only: fullchain.pem, privkey.pem (not in git)
-└── scripts/                      # optional: deploy.sh
 ```
 
 Do not rely on editing `deploy/.env` by hand in production; the deploy pipeline should **write `deploy/.env` from GitHub** each time so credentials stay in one place.
@@ -132,6 +131,12 @@ These names still matter at runtime:
 | `DB_PASSWORD` | Postgres + backend |
 | `JWT_SECRET` | Backend |
 | `RESEND_CLIENT_API_KEY` | Backend transactional email delivery |
+| `SPACES_ACCESS_KEY` | Backend direct-upload signing + Spaces admin script |
+| `SPACES_SECRET_KEY` | Backend direct-upload signing + Spaces admin script |
+| `SPACES_ENDPOINT` | Backend direct-upload signing + Spaces admin script |
+| `SPACES_BUCKET` | Backend direct-upload signing + Spaces admin script |
+| `SPACES_CDN_BASE_URL` | Backend public image URLs returned to clients |
+| `SPACES_S3_REGION` | Backend Spaces SDK configuration + Spaces admin script |
 | `DOCKERHUB_NAMESPACE` | `deploy/docker-compose.dev.yml` image names (set in `deploy/.env` or the shell/CI environment) |
 
 `DOCKERHUB_NAMESPACE` is your Docker Hub user or organization; images are expected as:
@@ -150,6 +155,12 @@ Example mapping (name secrets however you prefer; align with your workflow):
 | `DB_PASSWORD` | `DB_PASSWORD=...` |
 | `JWT_SECRET` | `JWT_SECRET=...` |
 | `RESEND_CLIENT_API_KEY` | `RESEND_CLIENT_API_KEY=...` |
+| `SPACES_ACCESS_KEY` | `SPACES_ACCESS_KEY=...` |
+| `SPACES_SECRET_KEY` | `SPACES_SECRET_KEY=...` |
+| `SPACES_ENDPOINT` | `SPACES_ENDPOINT=...` |
+| `SPACES_BUCKET` | `SPACES_BUCKET=...` |
+| `SPACES_CDN_BASE_URL` | `SPACES_CDN_BASE_URL=...` |
+| `SPACES_S3_REGION` | `SPACES_S3_REGION=...` |
 | `DOCKERHUB_NAMESPACE` | `DOCKERHUB_NAMESPACE=...` |
 
 In **GitHub Actions**, pass secrets into a remote step (e.g. `appleboy/ssh-action` with `script`, or inline `ssh` with env vars exported from `${{ secrets.* }}`). On the **server**, the resulting file is plain key=value lines, for example:
@@ -159,6 +170,12 @@ In **GitHub Actions**, pass secrets into a remote step (e.g. `appleboy/ssh-actio
 DB_PASSWORD=...
 JWT_SECRET=...
 RESEND_CLIENT_API_KEY=...
+SPACES_ACCESS_KEY=...
+SPACES_SECRET_KEY=...
+SPACES_ENDPOINT=...
+SPACES_BUCKET=...
+SPACES_CDN_BASE_URL=...
+SPACES_S3_REGION=...
 DOCKERHUB_NAMESPACE=...
 ```
 
@@ -182,6 +199,25 @@ From `/opt/sem/` (or your chosen root that mirrors `deploy/` + `nginx/`):
 docker compose -f deploy/docker-compose.dev.yml pull
 docker compose -f deploy/docker-compose.dev.yml up -d
 ```
+
+## Spaces bucket setup
+
+The backend now issues signed direct-upload URLs for profile avatars and event images. Each upload instruction includes `x-amz-acl: public-read`, so uploaded objects become readable from the origin and CDN without requiring signed read URLs.
+
+If your Spaces key is a limited-access key, that is expected. In that case:
+
+- Keep using the backend-generated upload headers exactly as returned.
+- The `x-amz-acl: public-read` upload header remains the primary mechanism that makes uploaded images readable from the CDN.
+- Configure CORS manually in the DigitalOcean panel for browser-based uploads.
+
+Recommended CORS configuration:
+
+- Origins: `http://localhost`, `https://socialeventmapper.com`, `https://www.socialeventmapper.com`
+- Methods: `GET`, `HEAD`, `PUT`
+- Allowed headers: `Content-Type`, `Cache-Control`, `x-amz-acl`
+- Exposed headers: `ETag`
+
+For the end-to-end client flow, examples, and troubleshooting notes, see [docs/image-upload.md](./image-upload.md).
 
 ## CI/CD (out of scope for initial repo setup)
 
