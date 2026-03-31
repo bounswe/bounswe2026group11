@@ -2285,3 +2285,28 @@ func assertDiscoverEventIDsInOrder(t *testing.T, items []eventapp.DiscoverableEv
 		}
 	}
 }
+
+func TestExpireActiveEvents(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	expiredEventID := common.GivenExpiredEvent(t, host.ID)
+
+	// when
+	err := harness.EventRepo.ExpireActiveEvents(context.Background())
+
+	// then
+	if err != nil {
+		t.Fatalf("ExpireActiveEvents() error = %v", err)
+	}
+
+	event, err := harness.EventRepo.GetEventByID(context.Background(), expiredEventID)
+	if err != nil {
+		t.Fatalf("GetEventByID() error = %v", err)
+	}
+	if event.Status != domain.EventStatusCompleted {
+		t.Fatalf("expected status %q, got %q", domain.EventStatusCompleted, event.Status)
+	}
+}

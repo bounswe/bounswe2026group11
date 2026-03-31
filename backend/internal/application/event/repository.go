@@ -13,4 +13,5 @@ type Repository interface {
 	ListDiscoverableEvents(ctx context.Context, userID uuid.UUID, params DiscoverEventsParams) ([]DiscoverableEventRecord, error)
 	GetEventDetail(ctx context.Context, userID, eventID uuid.UUID) (*EventDetailRecord, error)
 	GetEventByID(ctx context.Context, eventID uuid.UUID) (*domain.Event, error)
+	ExpireActiveEvents(ctx context.Context) error
 }

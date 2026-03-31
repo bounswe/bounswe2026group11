@@ -6,17 +6,22 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/bootstrap"
 	"github.com/bounswe/bounswe2026group11/backend/internal/server"
 )
 
 func main() {
-	container, err := bootstrap.New(context.Background())
+	ctx := context.Background()
+
+	container, err := bootstrap.New(ctx)
 	if err != nil {
 		log.Fatalf("bootstrap: %v", err)
 	}
 	defer container.Close()
+
+	container.StartEventExpiryJob(ctx, 5*time.Minute)
 
 	app := server.NewHTTP(container)
 	addr := fmt.Sprintf(":%d", container.Config.AppPort)

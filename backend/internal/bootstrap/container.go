@@ -3,6 +3,8 @@ package bootstrap
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
 
 	emailadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/email"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/hasher"
@@ -96,6 +98,29 @@ func New(ctx context.Context) (*Container, error) {
 	container.ProfileService = newProfileService(container)
 	container.ImageUploadService = newImageUploadService(container, spacesStorage)
 	return container, nil
+}
+
+// StartEventExpiryJob immediately expires all past ACTIVE events, then repeats
+// every interval until ctx is cancelled.
+func (c *Container) StartEventExpiryJob(ctx context.Context, interval time.Duration) {
+	expire := func() {
+		if err := c.eventRepo.ExpireActiveEvents(ctx); err != nil {
+			log.Printf("event expiry job: %v", err)
+		}
+	}
+	expire()
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				expire()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }
 
 // Close releases all long-lived resources (e.g. database connections).
