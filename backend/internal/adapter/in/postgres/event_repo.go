@@ -8,6 +8,7 @@ import (
 	"time"
 
 	eventapp "github.com/bounswe/bounswe2026group11/backend/internal/application/event"
+	imageuploadapp "github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -1379,3 +1380,46 @@ func (r *EventRepository) GetEventByID(ctx context.Context, eventID uuid.UUID) (
 
 	return event, nil
 }
+
+// GetEventImageState returns the event host and current image version for direct uploads.
+func (r *EventRepository) GetEventImageState(ctx context.Context, eventID uuid.UUID) (*imageuploadapp.EventImageState, error) {
+	var state imageuploadapp.EventImageState
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, host_id, image_version
+		FROM event
+		WHERE id = $1
+	`, eventID).Scan(&state.EventID, &state.HostID, &state.CurrentVersion)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("get event image state: %w", err)
+	}
+
+	return &state, nil
+}
+
+// SetEventImageIfVersion updates the event image URL only if the current version matches expectedVersion.
+func (r *EventRepository) SetEventImageIfVersion(
+	ctx context.Context,
+	eventID uuid.UUID,
+	expectedVersion, nextVersion int,
+	baseURL string,
+	updatedAt time.Time,
+) (bool, error) {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE event
+		SET image_url = $2,
+		    image_version = $3,
+		    updated_at = $4
+		WHERE id = $1
+		  AND image_version = $5
+	`, eventID, baseURL, nextVersion, updatedAt, expectedVersion)
+	if err != nil {
+		return false, fmt.Errorf("set event image: %w", err)
+	}
+
+	return tag.RowsAffected() == 1, nil
+}
+
+var _ imageuploadapp.EventRepository = (*EventRepository)(nil)
