@@ -1795,7 +1795,7 @@ components:
           enum: [PUBLIC, PROTECTED, PRIVATE]
         status:
           type: string
-          description: Current event status as stored in the database, for example `ACTIVE`, `CANCELED`, or `COMPLETED`.
+          description: Current event status as stored in the database, for example `ACTIVE`, `IN_PROGRESS`, `CANCELED`, or `COMPLETED`.
           example: ACTIVE
         start_time:
           type: string

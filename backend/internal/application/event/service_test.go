@@ -65,7 +65,7 @@ func (r *fakeEventRepo) GetEventDetail(_ context.Context, userID, eventID uuid.U
 	return nil, domain.ErrNotFound
 }
 
-func (r *fakeEventRepo) ExpireActiveEvents(_ context.Context) error {
+func (r *fakeEventRepo) TransitionEventStatuses(_ context.Context) error {
 	return r.err
 }
 
