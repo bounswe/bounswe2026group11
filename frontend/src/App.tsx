@@ -12,6 +12,7 @@ import MyEventsPage from './views/events/MyEventsPage';
 import InvitationsPage from './views/invitations/InvitationsPage';
 import FavoritesPage from './views/favorites/FavoritesPage';
 import ProfilePage from './views/profile/ProfilePage';
+import NotFoundView from './views/fallback/NotFoundView';
 
 export default function App() {
   const { isLoading } = useAuth();
@@ -42,7 +43,7 @@ export default function App() {
       <Route path="/forgot-password" element={<ForgotPasswordView />} />
 
       {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundView />} />
     </Routes>
   );
 }
