@@ -21,7 +21,7 @@ func main() {
 	}
 	defer container.Close()
 
-	container.StartEventExpiryJob(ctx, 5*time.Minute)
+	container.StartEventExpiryJob(ctx, 1*time.Minute)
 
 	app := server.NewHTTP(container)
 	addr := fmt.Sprintf(":%d", container.Config.AppPort)
