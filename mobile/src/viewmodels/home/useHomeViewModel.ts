@@ -138,11 +138,71 @@ function validateFilterDates(filters: HomeFiltersDraft): string | null {
   return null;
 }
 
+function validateFilterDatesLive(filters: HomeFiltersDraft): string | null {
+  const { startDate, endDate } = filters;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const validateSingle = (
+    value: string,
+    label: 'From' | 'To',
+  ): string | null => {
+    if (!value) return null;
+
+    const digits = value.replace(/\D/g, '');
+
+    if (digits.length >= 2) {
+      const day = Number(digits.slice(0, 2));
+      if (day < 1 || day > 31) {
+        return `${label} date day must be between 01 and 31.`;
+      }
+    }
+
+    if (digits.length >= 4) {
+      const month = Number(digits.slice(2, 4));
+      if (month < 1 || month > 12) {
+        return `${label} date month must be between 01 and 12.`;
+      }
+    }
+
+    // User is still typing the year; only partial day/month checks above should run
+    if (value.length < 10) return null;
+
+    const parsed = parseStrictDate(value);
+    if (!parsed) {
+      return `${label} date must be a valid date.`;
+    }
+
+    if (parsed < today) {
+      return `${label} date must be today or later.`;
+    }
+
+    return null;
+  };
+
+  const startError = validateSingle(startDate, 'From');
+  if (startError) return startError;
+
+  const endError = validateSingle(endDate, 'To');
+  if (endError) return endError;
+
+  if (startDate.length === 10 && endDate.length === 10) {
+    const parsedStart = parseStrictDate(startDate);
+    const parsedEnd = parseStrictDate(endDate);
+
+    if (parsedStart && parsedEnd && parsedEnd < parsedStart) {
+      return 'To date must be the same as or later than From date.';
+    }
+  }
+
+  return null;
+}
+
 
 
 export interface HomeViewModel {
   locationLabel: string;
-  notificationCount: number;
   locationQuery: string;
   locationSuggestions: LocationSuggestion[];
   isSearchingLocation: boolean;
@@ -196,6 +256,7 @@ export function useHomeViewModel(): HomeViewModel {
   const [pendingLocation, setPendingLocation] = useState<LocationSuggestion | null>(null);
 
   const locationSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [filterError, setFilterError] = useState<string | null>(null);
   const [appliedSearchText, setAppliedSearchText] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
@@ -314,9 +375,31 @@ export function useHomeViewModel(): HomeViewModel {
 
   const updateSearchText = useCallback((value: string) => {
     setSearchText(value);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    const trimmed = value.trim();
+
+    // Clear search immediately when input is emptied
+    if (trimmed.length === 0) {
+      setAppliedSearchText('');
+      return;
+    }
+
+    // Only auto-search with at least 2 characters
+    if (trimmed.length < 2) return;
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setAppliedSearchText(trimmed);
+    }, 300);
   }, []);
 
   const submitSearch = useCallback(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
     setAppliedSearchText(searchText.trim());
   }, [searchText]);
 
@@ -347,7 +430,15 @@ export function useHomeViewModel(): HomeViewModel {
       clearTimeout(locationSearchTimeoutRef.current);
     }
 
+    if (value.trim().length === 0) {
+      setPendingLocation(null);
+      setLocationSuggestions([]);
+      setIsSearchingLocation(false);
+      return;
+    }
+
     if (value.trim().length < 2) {
+      setPendingLocation(null);
       setLocationSuggestions([]);
       setIsSearchingLocation(false);
       return;
@@ -371,8 +462,9 @@ export function useHomeViewModel(): HomeViewModel {
   }, []);
 
   const applySelectedLocation = useCallback(() => {
-    setSelectedLocation(pendingLocation);
+    setSelectedLocation(pendingLocation ?? null);
     setLocationSuggestions([]);
+    setLocationQuery('');
     setIsLocationModalOpen(false);
   }, [pendingLocation]);
 
@@ -430,29 +522,38 @@ export function useHomeViewModel(): HomeViewModel {
     setFilterDraft((prev) => {
       const exists = prev.privacyLevels.includes(privacy);
 
-      return {
+      const nextDraft = {
         ...prev,
-        privacyLevels: exists
-          ? prev.privacyLevels.filter((value) => value !== privacy)
-          : [...prev.privacyLevels, privacy],
+        privacyLevels: exists ? [] : [privacy],
       };
+
+      setFilterError(validateFilterDatesLive(nextDraft));
+      return nextDraft;
     });
   }, []);
 
   const updateDraftStartDate = useCallback((value: string) => {
-    setFilterDraft((prev) => ({
-      ...prev,
-      startDate: value,
-    }));
-    setFilterError(null);
+    setFilterDraft((prev) => {
+      const nextDraft = {
+        ...prev,
+        startDate: value,
+      };
+
+      setFilterError(validateFilterDatesLive(nextDraft));
+      return nextDraft;
+    });
   }, []);
 
   const updateDraftEndDate = useCallback((value: string) => {
-    setFilterDraft((prev) => ({
-      ...prev,
-      endDate: value,
-    }));
-    setFilterError(null);
+    setFilterDraft((prev) => {
+      const nextDraft = {
+        ...prev,
+        endDate: value,
+      };
+
+      setFilterError(validateFilterDatesLive(nextDraft));
+      return nextDraft;
+    });
   }, []);
 
   const updateDraftRadiusKm = useCallback((value: number) => {
@@ -486,7 +587,6 @@ export function useHomeViewModel(): HomeViewModel {
       ? formatEventLocation(selectedLocation.display_name)
       : DEFAULT_LOCATION_LABEL,
     locationQuery,
-    notificationCount: 2,
     categories,
     selectedCategoryId,
     searchText,

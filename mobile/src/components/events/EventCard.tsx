@@ -47,8 +47,33 @@ export default function EventCard({ event, onPress }: EventCardProps) {
         <View style={styles.imageOverlay}>
           <View style={styles.imageTopRow}>
             <View style={styles.topSpacer} />
-            <View style={styles.visibilityBadge}>
-              <Text style={styles.visibilityBadgeText}>
+            <View
+              style={[
+                styles.visibilityBadge,
+                event.privacy_level === 'PROTECTED'
+                  ? styles.visibilityBadgeProtected
+                  : styles.visibilityBadgePublic,
+              ]}
+            >
+              <Ionicons
+                name={
+                  event.privacy_level === 'PROTECTED'
+                    ? 'lock-closed-outline'
+                    : 'globe-outline'
+                }
+                size={12}
+                color={
+                  event.privacy_level === 'PROTECTED' ? '#92400E' : '#1E40AF'
+                }
+              />
+              <Text
+                style={[
+                  styles.visibilityBadgeText,
+                  event.privacy_level === 'PROTECTED'
+                    ? styles.visibilityBadgeTextProtected
+                    : styles.visibilityBadgeTextPublic,
+                ]}
+              >
                 {formatPrivacyLabel(event.privacy_level)}
               </Text>
             </View>
@@ -156,15 +181,28 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   visibilityBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.78)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
   },
+  visibilityBadgePublic: {
+    backgroundColor: '#DBEAFE',
+  },
+  visibilityBadgeProtected: {
+    backgroundColor: '#FEF3C7',
+  },
   visibilityBadgeText: {
-    color: '#111827',
     fontSize: 12,
     fontWeight: '700',
+  },
+  visibilityBadgeTextPublic: {
+    color: '#1E40AF',
+  },
+  visibilityBadgeTextProtected: {
+    color: '#92400E',
   },
   categoryBadge: {
     backgroundColor: 'rgba(15, 23, 42, 0.72)',

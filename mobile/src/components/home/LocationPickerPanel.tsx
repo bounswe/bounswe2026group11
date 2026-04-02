@@ -53,21 +53,27 @@ export default function LocationPickerPanel({
 
         <View style={[styles.popup, { top: anchorTop }]}>
           <View style={styles.headerRow}>
+            <TouchableOpacity
+              onPress={onClose}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Close location picker"
+            >
+              <Ionicons name="close" size={28} color="#111827" />
+            </TouchableOpacity>
+
             <Text style={styles.title}>Choose Location</Text>
 
-            <View style={styles.headerActions}>
-              <TouchableOpacity onPress={onReset} activeOpacity={0.8}>
-                <Text style={styles.resetText}>Reset</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={onClose}
-                activeOpacity={0.8}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={20} color="#111827" />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={onReset}
+              activeOpacity={0.85}
+              style={styles.resetButton}
+              accessibilityRole="button"
+              accessibilityLabel="Reset location"
+            >
+              <Ionicons name="refresh-outline" size={18} color="#111827" />
+              <Text style={styles.resetText}>Reset</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.searchBox}>
@@ -167,33 +173,29 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   headerRow: {
-    marginBottom: 12,
+    marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerActions: {
+  title: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  resetButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+    gap: 4,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
   },
   resetText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#111827',
-  },
-  closeButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
   },
   searchBox: {
     height: 52,
