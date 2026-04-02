@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import type { EventDetailResponse } from '@/models/event';
+import NotFoundView from '../fallback/NotFoundView';
+import AccessDeniedView from '../fallback/AccessDeniedView';
 import '@/styles/event-detail.css';
 
 function formatDateTime(iso: string): string {
@@ -565,26 +567,15 @@ export default function EventDetailPage() {
 
   if (vm.status === 'not-found') {
     return (
-      <div className="ed-page">
-        <div className="ed-state-container">
-          <h2>Event Not Found</h2>
-          <p>This event doesn't exist or has been removed.</p>
-          <a href="/discover" className="btn-primary ed-back-link">Back to Discover</a>
-        </div>
-      </div>
+      <NotFoundView 
+        title="Event Not Found"
+        message="This event doesn't exist or has been removed."
+      />
     );
   }
 
   if (vm.status === 'forbidden') {
-    return (
-      <div className="ed-page">
-        <div className="ed-state-container">
-          <h2>Access Denied</h2>
-          <p>You don't have permission to view this event.</p>
-          <a href="/discover" className="btn-primary ed-back-link">Back to Discover</a>
-        </div>
-      </div>
-    );
+    return <AccessDeniedView isPrivateEvent />;
   }
 
   if (vm.status === 'error') {
