@@ -22,6 +22,10 @@ func RegisterProfileRoutes(router fiber.Router, handler *ProfileHandler, auth fi
 	me := router.Group("/me", auth)
 	me.Get("", handler.GetMyProfile)
 	me.Patch("", handler.UpdateMyProfile)
+	me.Get("/events/hosted", handler.GetMyHostedEvents)
+	me.Get("/events/upcoming", handler.GetMyUpcomingEvents)
+	me.Get("/events/completed", handler.GetMyCompletedEvents)
+	me.Get("/events/canceled", handler.GetMyCanceledEvents)
 }
 
 // GetMyProfile handles GET /me.
@@ -34,6 +38,46 @@ func (h *ProfileHandler) GetMyProfile(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(result)
+}
+
+// GetMyHostedEvents handles GET /me/events/hosted.
+func (h *ProfileHandler) GetMyHostedEvents(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	events, err := h.service.GetMyHostedEvents(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(fiber.Map{"events": events})
+}
+
+// GetMyUpcomingEvents handles GET /me/events/upcoming.
+func (h *ProfileHandler) GetMyUpcomingEvents(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	events, err := h.service.GetMyUpcomingEvents(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(fiber.Map{"events": events})
+}
+
+// GetMyCompletedEvents handles GET /me/events/completed.
+func (h *ProfileHandler) GetMyCompletedEvents(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	events, err := h.service.GetMyCompletedEvents(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(fiber.Map{"events": events})
+}
+
+// GetMyCanceledEvents handles GET /me/events/canceled.
+func (h *ProfileHandler) GetMyCanceledEvents(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	events, err := h.service.GetMyCanceledEvents(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(fiber.Map{"events": events})
 }
 
 // updateProfileBody is the request body for PATCH /me.

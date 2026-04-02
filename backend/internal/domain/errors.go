@@ -44,6 +44,8 @@ const (
 	ErrorCodeJoinRequestCooldownActive       = "join_request_cooldown_active"
 	ErrorCodeEventCancelNotAllowed           = "event_cancel_not_allowed"
 	ErrorCodeEventNotCancelable              = "event_not_cancelable"
+	ErrorCodeEventCanceled                   = "event_canceled"
+	ErrorCodeEventNotJoinable                = "event_not_joinable"
 
 	ErrorCodeImageUploadTokenInvalid         = "image_upload_token_invalid"
 	ErrorCodeImageUploadNotAllowed           = "image_upload_not_allowed"

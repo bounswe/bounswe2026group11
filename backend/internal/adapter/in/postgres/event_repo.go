@@ -650,6 +650,13 @@ func (r *EventRepository) loadEventDetailCore(
 				) THEN $5
 				WHEN EXISTS (
 					SELECT 1
+					FROM participation p
+					WHERE p.event_id = e.id
+					  AND p.user_id = $2
+					  AND p.status = $12
+				) THEN $13
+				WHEN EXISTS (
+					SELECT 1
 					FROM join_request jr
 					WHERE jr.event_id = e.id
 					  AND jr.user_id = $2
@@ -678,7 +685,7 @@ func (r *EventRepository) loadEventDetailCore(
 				FROM participation p
 				WHERE p.event_id = e.id
 				  AND p.user_id = $2
-				  AND p.status = $4
+				  AND p.status IN ($4, $12)
 			)
 			OR EXISTS (
 				SELECT 1
@@ -700,6 +707,8 @@ func (r *EventRepository) loadEventDetailCore(
 		string(domain.PrivacyPublic),
 		string(domain.PrivacyProtected),
 		string(domain.InvitationStatusAccepted),
+		domain.ParticipationStatusCanceled,
+		string(domain.EventDetailParticipationStatusCanceled),
 	).Scan(
 		&id,
 		&title,
@@ -1439,11 +1448,25 @@ func (r *EventRepository) CancelEvent(ctx context.Context, eventID uuid.UUID) er
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
+	// Snapshot the current approved participant count (excluding the host's own participation).
+	var approvedCount int
+	if err := tx.QueryRow(ctx, `
+		SELECT approved_participant_count
+		FROM event
+		WHERE id = $1
+	`, eventID).Scan(&approvedCount); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return eventapp.ErrEventNotCancelable
+		}
+		return fmt.Errorf("cancel event: snapshot count: %w", err)
+	}
+
 	tag, err := tx.Exec(ctx, `
 		UPDATE event
-		SET status = 'CANCELED'
+		SET status = 'CANCELED',
+		    canceled_approved_participant_count = $2
 		WHERE id = $1 AND status = 'ACTIVE'
-	`, eventID)
+	`, eventID, approvedCount)
 	if err != nil {
 		return fmt.Errorf("cancel event: %w", err)
 	}
