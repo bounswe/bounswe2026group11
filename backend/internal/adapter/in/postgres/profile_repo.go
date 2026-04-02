@@ -127,7 +127,7 @@ func (r *ProfileRepository) GetCreatedEvents(ctx context.Context, userID uuid.UU
 	return scanEventSummaries(rows)
 }
 
-// GetAttendedEvents returns a summary of events the given user has an APPROVED participation in.
+// GetAttendedEvents returns a summary of events the given user has an APPROVED or CANCELED participation in.
 func (r *ProfileRepository) GetAttendedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT
@@ -142,7 +142,7 @@ func (r *ProfileRepository) GetAttendedEvents(ctx context.Context, userID uuid.U
 		JOIN participation p ON p.event_id = e.id
 		LEFT JOIN event_category ec ON ec.id = e.category_id
 		WHERE p.user_id = $1
-		  AND p.status = 'APPROVED'
+		  AND p.status IN ('APPROVED', 'CANCELED')
 		ORDER BY e.start_time DESC
 	`, userID)
 	if err != nil {
@@ -161,11 +161,15 @@ func scanEventSummaries(rows interface {
 	for rows.Next() {
 		var (
 			e        domain.EventSummary
+			endTime  pgtype.Timestamptz
 			category pgtype.Text
 			imageURL pgtype.Text
 		)
-		if err := rows.Scan(&e.ID, &e.Title, &e.StartTime, &e.EndTime, &e.Status, &category, &imageURL); err != nil {
+		if err := rows.Scan(&e.ID, &e.Title, &e.StartTime, &endTime, &e.Status, &category, &imageURL); err != nil {
 			return nil, fmt.Errorf("scan event summary: %w", err)
+		}
+		if endTime.Valid {
+			e.EndTime = endTime.Time
 		}
 		e.Category = textPtr(category)
 		e.ImageURL = textPtr(imageURL)

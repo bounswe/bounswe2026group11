@@ -2335,3 +2335,115 @@ func TestTransitionEventStatuses_StartedToInProgress(t *testing.T) {
 		t.Fatalf("expected status %q, got %q", domain.EventStatusInProgress, event.Status)
 	}
 }
+
+func TestCancelEventSuccessPath(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	// when
+	err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID)
+
+	// then
+	if err != nil {
+		t.Fatalf("CancelEvent() error = %v", err)
+	}
+
+	event, err := harness.EventRepo.GetEventByID(context.Background(), ref.ID)
+	if err != nil {
+		t.Fatalf("GetEventByID() error = %v", err)
+	}
+	if event.Status != domain.EventStatusCanceled {
+		t.Fatalf("expected status %q, got %q", domain.EventStatusCanceled, event.Status)
+	}
+}
+
+func TestCancelEventForbiddenForNonHost(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	other := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	// when
+	err := harness.Service.CancelEvent(context.Background(), other.ID, ref.ID)
+
+	// then
+	if err == nil {
+		t.Fatal("expected forbidden error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Status != 403 {
+		t.Fatalf("expected 403 AppError, got %v", err)
+	}
+}
+
+func TestCancelEventReturnsConflictForNonActiveEvent(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	// cancel once
+	if err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID); err != nil {
+		t.Fatalf("first CancelEvent() error = %v", err)
+	}
+
+	// when: cancel again
+	err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID)
+
+	// then
+	if err == nil {
+		t.Fatal("expected conflict error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Status != 409 {
+		t.Fatalf("expected 409 AppError, got %v", err)
+	}
+}
+
+func TestCancelEventAppearsInParticipantProfile(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	participant := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	if _, err := harness.Service.JoinEvent(context.Background(), participant.ID, ref.ID); err != nil {
+		t.Fatalf("JoinEvent() error = %v", err)
+	}
+
+	// when
+	if err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID); err != nil {
+		t.Fatalf("CancelEvent() error = %v", err)
+	}
+
+	// then — canceled event must still appear in the participant's attended events
+	profile, err := harness.ProfileService.GetMyProfile(context.Background(), participant.ID)
+	if err != nil {
+		t.Fatalf("GetMyProfile() error = %v", err)
+	}
+
+	var found bool
+	for _, e := range profile.AttendedEvents {
+		if e.ID == ref.ID.String() {
+			found = true
+			if e.Status != string(domain.EventStatusCanceled) {
+				t.Fatalf("expected event status %q, got %q", domain.EventStatusCanceled, e.Status)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("canceled event %s not found in participant's attended_events", ref.ID)
+	}
+}

@@ -2,10 +2,14 @@ package event
 
 import (
 	"context"
+	"errors"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 )
+
+// ErrEventNotCancelable is returned by Repository.CancelEvent when the event is not in ACTIVE status.
+var ErrEventNotCancelable = errors.New("event is not cancelable")
 
 // Repository is the application-layer persistence port for event flows.
 type Repository interface {
@@ -14,4 +18,5 @@ type Repository interface {
 	GetEventDetail(ctx context.Context, userID, eventID uuid.UUID) (*EventDetailRecord, error)
 	GetEventByID(ctx context.Context, eventID uuid.UUID) (*domain.Event, error)
 	TransitionEventStatuses(ctx context.Context) error
+	CancelEvent(ctx context.Context, eventID uuid.UUID) error
 }
