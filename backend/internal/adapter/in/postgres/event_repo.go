@@ -606,7 +606,12 @@ func (r *EventRepository) loadEventDetailCore(
 			e.description,
 			e.image_url,
 			e.privacy_level,
-			CASE WHEN e.status = 'ACTIVE' AND e.end_time < NOW() THEN 'COMPLETED' ELSE e.status END AS status,
+			CASE
+				WHEN e.status = 'ACTIVE' AND e.end_time < NOW() THEN 'COMPLETED'
+				WHEN e.status = 'ACTIVE' AND e.start_time < NOW() THEN 'IN_PROGRESS'
+				WHEN e.status = 'IN_PROGRESS' AND e.end_time < NOW() THEN 'COMPLETED'
+				ELSE e.status
+			END AS status,
 			e.start_time,
 			e.end_time,
 			e.capacity,
@@ -1425,12 +1430,18 @@ func (r *EventRepository) SetEventImageIfVersion(
 
 var _ imageuploadapp.EventRepository = (*EventRepository)(nil)
 
-// ExpireActiveEvents sets status to COMPLETED for all ACTIVE events whose end_time has passed.
-func (r *EventRepository) ExpireActiveEvents(ctx context.Context) error {
+// TransitionEventStatuses moves ACTIVE events to IN_PROGRESS when their
+// start_time has passed and IN_PROGRESS (or ACTIVE) events to COMPLETED when
+// their end_time has passed.
+func (r *EventRepository) TransitionEventStatuses(ctx context.Context) error {
 	_, err := r.pool.Exec(ctx, `
 		UPDATE event
-		SET status = 'COMPLETED'
-		WHERE status = 'ACTIVE' AND end_time < NOW()
+		SET status = CASE
+			WHEN end_time < NOW() THEN 'COMPLETED'
+			ELSE 'IN_PROGRESS'
+		END
+		WHERE (status = 'ACTIVE' AND start_time < NOW())
+		   OR (status = 'IN_PROGRESS' AND end_time < NOW())
 	`)
 	return err
 }
