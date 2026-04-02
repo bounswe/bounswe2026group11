@@ -10,6 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -18,6 +19,8 @@ import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewMo
 import { formatEventDateLabel } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { EventDetail } from '@/models/event';
+import JoinRequestsModal from '@/components/events/JoinRequestsModal';
+import ParticipantListModal from '@/components/events/ParticipantListModal';
 
 interface EventDetailViewProps {
   eventId: string;
@@ -43,6 +46,18 @@ function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
 function StatusBadge({ status }: { status: string }) {
   if (status === 'ACTIVE') return null;
   const isCanceled = status === 'CANCELED';
+  const isInProgress = status === 'IN_PROGRESS';
+  
+  if (isInProgress) {
+    return (
+      <View style={[styles.badge, styles.badgeInProgress]}>
+        <Text style={[styles.badgeText, styles.badgeTextInProgress]}>
+          In Progress
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.badge, isCanceled ? styles.badgeCanceled : styles.badgeCompleted]}>
       <Text style={[styles.badgeText, isCanceled ? styles.badgeTextCanceled : styles.badgeTextCompleted]}>
@@ -104,7 +119,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       return (
         <View style={[styles.actionButton, styles.actionButtonDisabled]}>
           <Ionicons name="lock-closed" size={18} color="#9CA3AF" />
-          <Text style={[styles.actionButtonTextDisabled, styles.constraintText]}>
+          <Text style={[styles.actionButtonTextDisabled, styles.actionButtonConstraintText]}>
             {vm.constraintViolation}
           </Text>
         </View>
@@ -303,6 +318,58 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           </View>
         </View>
 
+        {/* Host Management */}
+        {vm.event.viewer_context.is_host && vm.event.host_context && (
+          <>
+            <View style={styles.divider} />
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Host Management</Text>
+              <View style={styles.hostActions}>
+                <TouchableOpacity
+                  style={[styles.hostActionBtn, styles.hostActionBtnSecondary]}
+                  onPress={() => vm.setShowAttendeesModal(true)}
+                >
+                  <Ionicons name="people" size={18} color="#111827" />
+                  <Text style={styles.hostActionText}>
+                    Attendees ({vm.event.host_context.approved_participants.length})
+                  </Text>
+                </TouchableOpacity>
+
+                {vm.event.privacy_level === 'PROTECTED' && (
+                  <TouchableOpacity
+                    style={[styles.hostActionBtn, styles.hostActionBtnPrimary]}
+                    onPress={() => vm.setShowRequestsModal(true)}
+                  >
+                    <Ionicons name="mail" size={18} color="#FFFFFF" />
+                    <Text style={styles.hostActionTextWhite}>
+                      Pending Requests ({vm.event.host_context.pending_join_requests.length})
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {vm.event.status === 'ACTIVE' && (
+                  <TouchableOpacity
+                    style={[styles.hostActionBtn, styles.hostActionBtnDanger]}
+                    onPress={() => {
+                      Alert.alert(
+                        'Cancel Event',
+                        'Are you sure you want to cancel this event? This action cannot be undone.',
+                        [
+                          { text: 'No, Keep It', style: 'cancel' },
+                          { text: 'Yes, Cancel', style: 'destructive', onPress: vm.handleCancelEvent },
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                    <Text style={styles.hostActionTextDanger}>Cancel Event</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </>
+        )}
+
         {/* Description */}
         {event.description ? (
           <>
@@ -459,6 +526,24 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           </View>
         </View>
       </Modal>
+
+      {/* Host Modals */}
+      {vm.event.viewer_context.is_host && vm.event.host_context && (
+        <>
+          <JoinRequestsModal
+            visible={vm.showRequestsModal}
+            requests={vm.event.host_context.pending_join_requests}
+            onClose={() => vm.setShowRequestsModal(false)}
+            onApprove={vm.handleApproveRequest}
+            onReject={vm.handleRejectRequest}
+          />
+          <ParticipantListModal
+            visible={vm.showAttendeesModal}
+            participants={vm.event.host_context.approved_participants}
+            onClose={() => vm.setShowAttendeesModal(false)}
+          />
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -556,6 +641,9 @@ const styles = StyleSheet.create({
   badgeCompleted: {
     backgroundColor: '#F3F4F6',
   },
+  badgeInProgress: {
+    backgroundColor: '#FEF3C7',
+  },
   badgeText: {
     fontSize: 12,
     fontWeight: '700',
@@ -571,6 +659,9 @@ const styles = StyleSheet.create({
   },
   badgeTextCompleted: {
     color: '#374151',
+  },
+  badgeTextInProgress: {
+    color: '#B45309',
   },
 
   /* Section */
@@ -762,7 +853,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#9CA3AF',
   },
-  constraintText: {
+  actionButtonConstraintText: {
     fontSize: 14,
     flex: 1,
     textAlign: 'center',
@@ -918,5 +1009,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#6B7280',
+  },
+  hostActions: {
+    flexDirection: 'column',
+    gap: 12,
+    marginTop: 8,
+  },
+  hostActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+  },
+  hostActionBtnSecondary: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+  },
+  hostActionBtnPrimary: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#2563EB',
+  },
+  hostActionBtnDanger: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
+  },
+  hostActionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  hostActionTextWhite: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  hostActionTextDanger: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#DC2626',
   },
 });
