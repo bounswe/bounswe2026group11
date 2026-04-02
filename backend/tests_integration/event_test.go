@@ -2286,20 +2286,20 @@ func assertDiscoverEventIDsInOrder(t *testing.T, items []eventapp.DiscoverableEv
 	}
 }
 
-func TestExpireActiveEvents(t *testing.T) {
+func TestTransitionEventStatuses_ExpiredToCompleted(t *testing.T) {
 	t.Parallel()
 
-	// given
+	// given — an ACTIVE event whose end_time is in the past
 	harness := common.NewEventHarness(t)
 	host := common.GivenUser(t, harness.AuthRepo)
 	expiredEventID := common.GivenExpiredEvent(t, host.ID)
 
 	// when
-	err := harness.EventRepo.ExpireActiveEvents(context.Background())
+	err := harness.EventRepo.TransitionEventStatuses(context.Background())
 
 	// then
 	if err != nil {
-		t.Fatalf("ExpireActiveEvents() error = %v", err)
+		t.Fatalf("TransitionEventStatuses() error = %v", err)
 	}
 
 	event, err := harness.EventRepo.GetEventByID(context.Background(), expiredEventID)
@@ -2308,5 +2308,30 @@ func TestExpireActiveEvents(t *testing.T) {
 	}
 	if event.Status != domain.EventStatusCompleted {
 		t.Fatalf("expected status %q, got %q", domain.EventStatusCompleted, event.Status)
+	}
+}
+
+func TestTransitionEventStatuses_StartedToInProgress(t *testing.T) {
+	t.Parallel()
+
+	// given — an ACTIVE event whose start_time has passed but end_time is in the future
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	startedEventID := common.GivenStartedEvent(t, host.ID)
+
+	// when
+	err := harness.EventRepo.TransitionEventStatuses(context.Background())
+
+	// then
+	if err != nil {
+		t.Fatalf("TransitionEventStatuses() error = %v", err)
+	}
+
+	event, err := harness.EventRepo.GetEventByID(context.Background(), startedEventID)
+	if err != nil {
+		t.Fatalf("GetEventByID() error = %v", err)
+	}
+	if event.Status != domain.EventStatusInProgress {
+		t.Fatalf("expected status %q, got %q", domain.EventStatusInProgress, event.Status)
 	}
 }
