@@ -9,6 +9,7 @@ import (
 const (
 	ParticipationStatusApproved = "APPROVED"
 	ParticipationStatusPending  = "PENDING"
+	ParticipationStatusCanceled = "CANCELED"
 )
 
 // Participation records a user's membership status in an event.

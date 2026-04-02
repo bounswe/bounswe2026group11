@@ -42,6 +42,9 @@ const (
 	ErrorCodeJoinRequestModerationNotAllowed = "join_request_moderation_not_allowed"
 	ErrorCodeJoinRequestStateInvalid         = "join_request_state_invalid"
 	ErrorCodeJoinRequestCooldownActive       = "join_request_cooldown_active"
+	ErrorCodeEventCancelNotAllowed           = "event_cancel_not_allowed"
+	ErrorCodeEventNotCancelable              = "event_not_cancelable"
+
 	ErrorCodeImageUploadTokenInvalid         = "image_upload_token_invalid"
 	ErrorCodeImageUploadNotAllowed           = "image_upload_not_allowed"
 	ErrorCodeImageUploadIncomplete           = "image_upload_incomplete"

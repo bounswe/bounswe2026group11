@@ -69,6 +69,18 @@ func (r *fakeEventRepo) TransitionEventStatuses(_ context.Context) error {
 	return r.err
 }
 
+func (r *fakeEventRepo) CancelEvent(_ context.Context, eventID uuid.UUID) error {
+	if r.err != nil {
+		return r.err
+	}
+	e, ok := r.events[eventID]
+	if !ok || e.Status != domain.EventStatusActive {
+		return ErrEventNotCancelable
+	}
+	e.Status = domain.EventStatusCanceled
+	return nil
+}
+
 func (r *fakeEventRepo) ListDiscoverableEvents(_ context.Context, userID uuid.UUID, params DiscoverEventsParams) ([]DiscoverableEventRecord, error) {
 	r.discoverCallCount++
 	r.lastDiscoverUserID = userID
