@@ -6,6 +6,11 @@ import {
   LocationSuggestion,
   DiscoverEventsParams,
   DiscoverEventsResponse,
+  EventDetailResponse,
+  JoinEventResponse,
+  JoinRequestResponse,
+  ApproveJoinRequestResponse,
+  RejectJoinRequestResponse,
 } from '@/models/event';
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
@@ -40,6 +45,56 @@ export function discoverEvents(
   if (params.limit != null) qs.set('limit', String(params.limit));
   if (params.cursor) qs.set('cursor', params.cursor);
   return apiGetAuth<DiscoverEventsResponse>(`/events/?${qs}`, token);
+}
+
+export function getEventDetail(
+  eventId: string,
+  token: string,
+): Promise<EventDetailResponse> {
+  return apiGetAuth<EventDetailResponse>(`/events/${eventId}`, token);
+}
+
+export function joinEvent(
+  eventId: string,
+  token: string,
+): Promise<JoinEventResponse> {
+  return apiPostAuth<JoinEventResponse>(`/events/${eventId}/join`, {}, token);
+}
+
+export function requestJoinEvent(
+  eventId: string,
+  token: string,
+  message?: string,
+): Promise<JoinRequestResponse> {
+  return apiPostAuth<JoinRequestResponse>(
+    `/events/${eventId}/join-request`,
+    message ? { message } : {},
+    token,
+  );
+}
+
+export function approveJoinRequest(
+  eventId: string,
+  joinRequestId: string,
+  token: string,
+): Promise<ApproveJoinRequestResponse> {
+  return apiPostAuth<ApproveJoinRequestResponse>(
+    `/events/${eventId}/join-requests/${joinRequestId}/approve`,
+    {},
+    token,
+  );
+}
+
+export function rejectJoinRequest(
+  eventId: string,
+  joinRequestId: string,
+  token: string,
+): Promise<RejectJoinRequestResponse> {
+  return apiPostAuth<RejectJoinRequestResponse>(
+    `/events/${eventId}/join-requests/${joinRequestId}/reject`,
+    {},
+    token,
+  );
 }
 
 export async function searchLocation(

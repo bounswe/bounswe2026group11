@@ -21,3 +21,5 @@ mail_provider: mock   # set this to "resend" for real mail delivery or set to "m
 mail_domain: socialeventmapper.com
 rating_global_prior: 4.0
 rating_bayesian_m: 5
+spaces_presign_ttl: 15m
+spaces_upload_cache_control: public, max-age=604800, immutable

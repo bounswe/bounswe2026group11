@@ -78,6 +78,7 @@ func NewAuthHarness(t *testing.T) *AuthHarness {
 // EventHarness bundles the shared wiring used by event integration tests.
 type EventHarness struct {
 	Service       eventapp.UseCase
+	EventRepo     *postgresrepo.EventRepository
 	RatingService ratingapp.UseCase
 	AuthRepo      authapp.Repository
 }
@@ -95,11 +96,8 @@ func NewEventHarness(t *testing.T) *EventHarness {
 	joinRequestService := joinrequestapp.NewService(joinRequestRepo)
 
 	return &EventHarness{
-		Service: eventapp.NewService(
-			eventRepo,
-			participationService,
-			joinRequestService,
-		),
+		Service:    eventapp.NewService(eventRepo, participationService, joinRequestService),
+		EventRepo:  eventRepo,
 		RatingService: ratingapp.NewService(ratingRepo, ratingapp.Settings{
 			GlobalPrior: 4.0,
 			BayesianM:   5,

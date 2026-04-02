@@ -42,6 +42,14 @@ type Config struct {
 	ResendClientAPIKey     string
 	RatingGlobalPrior      float64
 	RatingBayesianM        int
+	SpacesAccessKey        string
+	SpacesSecretKey        string
+	SpacesEndpoint         string
+	SpacesBucket           string
+	SpacesCDNBaseURL       string
+	SpacesS3Region         string
+	SpacesPresignTTL       time.Duration
+	SpacesUploadCacheCtrl  string
 }
 
 // Load reads configuration using the following precedence:
@@ -92,6 +100,14 @@ func Load() (*Config, error) {
 	bind("resend_client_api_key", "RESEND_CLIENT_API_KEY")
 	bind("rating_global_prior", "RATING_GLOBAL_PRIOR")
 	bind("rating_bayesian_m", "RATING_BAYESIAN_M")
+	bind("spaces_access_key", "SPACES_ACCESS_KEY")
+	bind("spaces_secret_key", "SPACES_SECRET_KEY")
+	bind("spaces_endpoint", "SPACES_ENDPOINT")
+	bind("spaces_bucket", "SPACES_BUCKET")
+	bind("spaces_cdn_base_url", "SPACES_CDN_BASE_URL")
+	bind("spaces_s3_region", "SPACES_S3_REGION")
+	bind("spaces_presign_ttl", "SPACES_PRESIGN_TTL")
+	bind("spaces_upload_cache_control", "SPACES_UPLOAD_CACHE_CONTROL")
 
 	cfg := &Config{
 		AppPort:                v.GetInt("app_port"),
@@ -118,6 +134,14 @@ func Load() (*Config, error) {
 		ResendClientAPIKey:     strings.TrimSpace(v.GetString("resend_client_api_key")),
 		RatingGlobalPrior:      v.GetFloat64("rating_global_prior"),
 		RatingBayesianM:        v.GetInt("rating_bayesian_m"),
+		SpacesAccessKey:        strings.TrimSpace(v.GetString("spaces_access_key")),
+		SpacesSecretKey:        strings.TrimSpace(v.GetString("spaces_secret_key")),
+		SpacesEndpoint:         strings.TrimSpace(v.GetString("spaces_endpoint")),
+		SpacesBucket:           strings.TrimSpace(v.GetString("spaces_bucket")),
+		SpacesCDNBaseURL:       strings.TrimSpace(v.GetString("spaces_cdn_base_url")),
+		SpacesS3Region:         strings.TrimSpace(v.GetString("spaces_s3_region")),
+		SpacesPresignTTL:       v.GetDuration("spaces_presign_ttl"),
+		SpacesUploadCacheCtrl:  strings.TrimSpace(v.GetString("spaces_upload_cache_control")),
 	}
 
 	if err := validate(v, cfg); err != nil {
@@ -324,6 +348,48 @@ func validate(v *viper.Viper, c *Config) error {
 	}
 	if c.RatingBayesianM < 1 {
 		return fmt.Errorf("RATING_BAYESIAN_M must be at least 1")
+	}
+	if !v.IsSet("spaces_access_key") && c.SpacesAccessKey == "" {
+		return missing("SPACES_ACCESS_KEY")
+	}
+	if c.SpacesAccessKey == "" {
+		return fmt.Errorf("SPACES_ACCESS_KEY is required and cannot be empty")
+	}
+	if !v.IsSet("spaces_secret_key") && c.SpacesSecretKey == "" {
+		return missing("SPACES_SECRET_KEY")
+	}
+	if c.SpacesSecretKey == "" {
+		return fmt.Errorf("SPACES_SECRET_KEY is required and cannot be empty")
+	}
+	if !v.IsSet("spaces_endpoint") && c.SpacesEndpoint == "" {
+		return missing("SPACES_ENDPOINT")
+	}
+	if c.SpacesEndpoint == "" {
+		return fmt.Errorf("SPACES_ENDPOINT is required and cannot be empty")
+	}
+	if !v.IsSet("spaces_bucket") && c.SpacesBucket == "" {
+		return missing("SPACES_BUCKET")
+	}
+	if c.SpacesBucket == "" {
+		return fmt.Errorf("SPACES_BUCKET is required and cannot be empty")
+	}
+	if !v.IsSet("spaces_cdn_base_url") && c.SpacesCDNBaseURL == "" {
+		return missing("SPACES_CDN_BASE_URL")
+	}
+	if c.SpacesCDNBaseURL == "" {
+		return fmt.Errorf("SPACES_CDN_BASE_URL is required and cannot be empty")
+	}
+	if !v.IsSet("spaces_s3_region") && c.SpacesS3Region == "" {
+		return missing("SPACES_S3_REGION")
+	}
+	if c.SpacesS3Region == "" {
+		return fmt.Errorf("SPACES_S3_REGION is required and cannot be empty")
+	}
+	if c.SpacesPresignTTL <= 0 {
+		return fmt.Errorf("SPACES_PRESIGN_TTL must be greater than zero")
+	}
+	if c.SpacesUploadCacheCtrl == "" {
+		return fmt.Errorf("SPACES_UPLOAD_CACHE_CONTROL is required and cannot be empty")
 	}
 
 	return nil

@@ -105,3 +105,159 @@ export interface DiscoverEventsResponse {
   items: DiscoverEventItem[];
   page_info: DiscoverPageInfo;
 }
+
+/* ── Event Detail ── */
+
+export interface EventDetailCategory {
+  id: number;
+  name: string;
+}
+
+export interface EventDetailPoint {
+  lat: number;
+  lon: number;
+}
+
+export interface EventDetailLocation {
+  type: 'POINT' | 'ROUTE';
+  address: string | null;
+  point: EventDetailPoint | null;
+  route_points: EventDetailPoint[];
+}
+
+export interface EventDetailUserSummary {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+export interface EventDetailConstraint {
+  type: string;
+  info: string;
+}
+
+export interface EventDetailRatingWindow {
+  opens_at: string;
+  closes_at: string;
+  is_active: boolean;
+}
+
+export interface EventDetailEmbeddedRating {
+  id: string;
+  rating: number;
+  message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventDetailViewerContext {
+  is_host: boolean;
+  is_favorited: boolean;
+  participation_status: 'JOINED' | 'PENDING' | 'INVITED' | 'NONE';
+}
+
+export interface EventDetailHostContextUser {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  final_score: number | null;
+  rating_count: number;
+}
+
+export interface EventDetailApprovedParticipant {
+  participation_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  host_rating: EventDetailEmbeddedRating | null;
+  user: EventDetailHostContextUser;
+}
+
+export interface EventDetailPendingJoinRequest {
+  join_request_id: string;
+  status: string;
+  message: string | null;
+  created_at: string;
+  updated_at: string;
+  user: EventDetailHostContextUser;
+}
+
+export interface EventDetailInvitation {
+  invitation_id: string;
+  status: string;
+  message: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+  user: EventDetailHostContextUser;
+}
+
+export interface EventDetailHostContext {
+  approved_participants: EventDetailApprovedParticipant[];
+  pending_join_requests: EventDetailPendingJoinRequest[];
+  invitations: EventDetailInvitation[];
+}
+
+export interface EventDetailResponse {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  privacy_level: 'PUBLIC' | 'PROTECTED' | 'PRIVATE';
+  status: string;
+  start_time: string;
+  end_time: string | null;
+  capacity: number | null;
+  minimum_age: number | null;
+  preferred_gender: string | null;
+  approved_participant_count: number;
+  pending_participant_count: number;
+  favorite_count: number;
+  created_at: string;
+  updated_at: string;
+  category: EventDetailCategory | null;
+  host: EventDetailUserSummary;
+  host_score: HostScoreSummary;
+  location: EventDetailLocation;
+  tags: string[];
+  constraints: EventDetailConstraint[];
+  rating_window: EventDetailRatingWindow;
+  viewer_event_rating: EventDetailEmbeddedRating | null;
+  viewer_context: EventDetailViewerContext;
+  host_context: EventDetailHostContext | null;
+}
+
+/* ── Join / Join Request ── */
+
+export interface JoinEventResponse {
+  participation_id: string;
+  event_id: string;
+  status: string;
+  created_at: string;
+}
+
+export interface JoinRequestResponse {
+  join_request_id: string;
+  event_id: string;
+  status: string;
+  created_at: string;
+}
+
+export interface ApproveJoinRequestResponse {
+  join_request_id: string;
+  event_id: string;
+  join_request_status: string;
+  participation_id: string;
+  participation_status: string;
+  updated_at: string;
+}
+
+export interface RejectJoinRequestResponse {
+  join_request_id: string;
+  event_id: string;
+  status: string;
+  updated_at: string;
+  cooldown_ends_at: string;
+}

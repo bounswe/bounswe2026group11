@@ -65,6 +65,10 @@ func (r *fakeEventRepo) GetEventDetail(_ context.Context, userID, eventID uuid.U
 	return nil, domain.ErrNotFound
 }
 
+func (r *fakeEventRepo) TransitionEventStatuses(_ context.Context) error {
+	return r.err
+}
+
 func (r *fakeEventRepo) ListDiscoverableEvents(_ context.Context, userID uuid.UUID, params DiscoverEventsParams) ([]DiscoverableEventRecord, error) {
 	r.discoverCallCount++
 	r.lastDiscoverUserID = userID

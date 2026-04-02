@@ -52,6 +52,77 @@ paths:
         "401":
           description: Missing or invalid access token.
 
+  /me/avatar/upload-url:
+    post:
+      summary: Create direct-upload URLs for the current user's avatar
+      description: |
+        Preferred avatar upload flow:
+        1. Call this endpoint to receive two presigned `PUT` uploads: `ORIGINAL` and `SMALL`.
+        2. Upload both client-generated JPEG files directly to DigitalOcean Spaces using the returned `url`, `method`, and `headers`.
+        3. Call `POST /me/avatar/confirm` with the returned `confirm_token`.
+
+        Client rule:
+        - Forward every returned upload header exactly as returned, including `x-amz-acl: public-read`.
+
+        Naming convention:
+        - original object key: `profiles/{user_id}/avatar/v{n}-{upload_id}`
+        - small object key: `profiles/{user_id}/avatar/v{n}-{upload_id}-small`
+
+        Persistence and cache behavior:
+        - The backend stores the returned `base_url` in `profile.avatar_url`.
+        - Clients can fetch the small variant by appending `-small` to the stored `base_url`.
+        - Existing files are never deleted. Each new upload increments the avatar version so cached CDN URLs remain immutable.
+        - This flow remains compatible with limited-access Spaces keys because each uploaded object is explicitly written with the `public-read` canned ACL.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Presigned upload instructions created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageUploadInitResponse"
+        "401":
+          description: Missing or invalid access token.
+
+  /me/avatar/confirm:
+    post:
+      summary: Confirm an uploaded avatar image
+      description: >
+        Confirms a previously presigned avatar upload after both `ORIGINAL` and
+        `SMALL` files have been uploaded successfully. The request body contains
+        only the opaque `confirm_token`; clients do not send object URLs back.
+        The confirmed CDN URL is readable without a signed GET URL because the upload step uses `x-amz-acl: public-read`.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageUploadConfirmRequest"
+      responses:
+        "204":
+          description: Avatar URL confirmed and persisted successfully.
+        "400":
+          description: Invalid request body or expired/invalid confirm token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Missing or invalid access token.
+        "409":
+          description: Upload incomplete or superseded by a newer avatar version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -227,6 +298,72 @@ components:
           maxLength: 512
           description: URL of the user's avatar image.
           example: "https://example.com/avatars/john.jpg"
+
+    ImageUploadInitResponse:
+      type: object
+      additionalProperties: false
+      required: [base_url, version, confirm_token, uploads]
+      properties:
+        base_url:
+          type: string
+          description: >
+            Versioned CDN base URL persisted in the database after confirm.
+            Append `-small` to fetch the small variant.
+          example: "https://sem-bucket.fra1.cdn.digitaloceanspaces.com/profiles/550e8400-e29b-41d4-a716-446655440000/avatar/v3-2c1a8d5a-77c5-4e6a-b5da-84af656ba6fa"
+        version:
+          type: integer
+          minimum: 1
+          description: New image version reserved for this upload attempt.
+          example: 3
+        confirm_token:
+          type: string
+          description: Opaque signed token required by the confirm endpoint.
+        uploads:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: "#/components/schemas/ImageUploadInstruction"
+
+    ImageUploadInstruction:
+      type: object
+      additionalProperties: false
+      required: [variant, method, url, headers]
+      properties:
+        variant:
+          type: string
+          enum: [ORIGINAL, SMALL]
+          description: Which client-generated JPEG variant this upload represents.
+        method:
+          type: string
+          enum: [PUT]
+          description: HTTP method to use for the direct upload.
+        url:
+          type: string
+          format: uri
+          description: Presigned Spaces upload URL.
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: >
+            Headers that must be sent exactly as returned. Current uploads require
+            `Content-Type: image/jpeg` and
+            `Cache-Control: public, max-age=604800, immutable`, and
+            `x-amz-acl: public-read`.
+          example:
+            Content-Type: image/jpeg
+            Cache-Control: public, max-age=604800, immutable
+            x-amz-acl: public-read
+
+    ImageUploadConfirmRequest:
+      type: object
+      additionalProperties: false
+      required: [confirm_token]
+      properties:
+        confirm_token:
+          type: string
+          description: Opaque signed token returned by the corresponding upload-url endpoint.
 
     EventSummary:
       type: object

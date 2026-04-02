@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -6,42 +6,55 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import HomeHeader from '@/components/home/HomeHeader';
 import SearchSection from '@/components/home/SearchSection';
-import CategoryChips from '@/components/home/CategoryChips';
 import EmptyState from '@/components/home/EmptyState';
 import LoadingState from '@/components/home/LoadingState';
 import BottomTabBar from '@/components/common/BottomTabBar';
 import EventCard from '@/components/events/EventCard';
+import FiltersBottomSheet from '@/components/home/FiltersBottomSheet';
 import { useHomeViewModel } from '@/viewmodels/home/useHomeViewModel';
+import LocationPickerPanel from '@/components/home/LocationPickerPanel';
 
 export default function HomeView() {
   const vm = useHomeViewModel();
+
+  const locationButtonRef = useRef<any>(null);
+  const [locationPopupTop, setLocationPopupTop] = useState(140);
+
+  const handleOpenLocationPicker = () => {
+    if (locationButtonRef.current?.measureInWindow) {
+      locationButtonRef.current.measureInWindow(
+        (_x: number, y: number, _width: number, height: number) => {
+          setLocationPopupTop(y + height + 8);
+          vm.openLocationModal();
+        },
+      );
+      return;
+    }
+
+    vm.openLocationModal();
+  };
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.topSection}>
           <HomeHeader
+            ref={locationButtonRef}
             locationLabel={vm.locationLabel}
             notificationCount={vm.notificationCount}
-            onPressLocation={() => router.replace('/home' as Href)}
+            onPressLocation={handleOpenLocationPicker}
           />
 
           <SearchSection
             query={vm.searchText}
             onChangeQuery={vm.updateSearchText}
             onSubmitSearch={vm.submitSearch}
+            onPressFilter={vm.openFilterModal}
           />
-
-          <CategoryChips
-            categories={vm.categories}
-            selectedCategoryId={vm.selectedCategoryId}
-            onSelectCategory={vm.selectCategory}
-          />
-
 
           {vm.apiError ? (
             <View style={styles.errorBanner}>
@@ -83,6 +96,35 @@ export default function HomeView() {
       </View>
 
       <BottomTabBar />
+
+      <FiltersBottomSheet
+        visible={vm.isFilterModalOpen}
+        categories={vm.categories}
+        draftFilters={vm.filterDraft}
+        errorMessage={vm.filterError}
+        onClose={vm.closeFilterModal}
+        onReset={vm.resetFilterDraft}
+        onApply={vm.applyFilterDraft}
+        onToggleCategory={vm.toggleDraftCategory}
+        onTogglePrivacy={vm.toggleDraftPrivacy}
+        onChangeStartDate={vm.updateDraftStartDate}
+        onChangeEndDate={vm.updateDraftEndDate}
+        onChangeRadius={vm.updateDraftRadiusKm}
+      />
+
+      <LocationPickerPanel
+        visible={vm.isLocationModalOpen}
+        query={vm.locationQuery}
+        suggestions={vm.locationSuggestions}
+        isSearching={vm.isSearchingLocation}
+        selectedLocation={vm.pendingLocation}
+        onClose={vm.closeLocationModal}
+        onReset={vm.resetLocationDraft}
+        onChangeQuery={vm.updateLocationQuery}
+        onSelectSuggestion={vm.selectLocationSuggestion}
+        onApply={vm.applySelectedLocation}
+        anchorTop={locationPopupTop}
+      />
     </SafeAreaView>
   );
 }
@@ -97,11 +139,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   topSection: {
-    paddingTop: 12,
+    paddingTop: 8,
   },
   listWrapper: {
     flex: 1,
-    marginTop: 4,
+    marginTop: 6,
   },
   listContent: {
     paddingBottom: 20,
@@ -115,6 +157,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
+    marginTop: 8,
     marginBottom: 8,
   },
   errorBannerText: {

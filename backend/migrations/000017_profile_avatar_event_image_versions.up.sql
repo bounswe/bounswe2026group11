@@ -1,0 +1,5 @@
+ALTER TABLE profile
+    ADD COLUMN avatar_version INT NOT NULL DEFAULT 0;
+
+ALTER TABLE event
+    ADD COLUMN image_version INT NOT NULL DEFAULT 0;

@@ -102,6 +102,7 @@ export interface ListCategoriesResponse {
   items: EventCategory[];
 }
 
+
 export interface EventDetailCategory {
   id: number;
   name: string;
@@ -192,4 +193,17 @@ export interface RequestJoinResponse {
   event_id: string;
   status: string;
   created_at: string;
+}
+export type HomeFilterPrivacyLevel = Extract<
+  PrivacyLevel,
+  'PUBLIC' | 'PROTECTED'
+>;
+
+export interface HomeFiltersDraft {
+  categoryIds: number[];
+  privacyLevels: HomeFilterPrivacyLevel[];
+  startDate: string;
+  endDate: string;
+  radiusKm: number;
+
 }

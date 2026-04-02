@@ -8,6 +8,7 @@ import (
 	"time"
 
 	eventapp "github.com/bounswe/bounswe2026group11/backend/internal/application/event"
+	imageuploadapp "github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -282,6 +283,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 
 	filters := []string{
 		fmt.Sprintf("e.status = %s", statusPlaceholder),
+		"(e.end_time IS NULL OR e.end_time > NOW())",
 		fmt.Sprintf("e.privacy_level = ANY(%s::text[])", privacyPlaceholder),
 		fmt.Sprintf(
 			"((e.location_type = '%s' AND %s) OR (e.location_type <> '%s' AND ST_DWithin(el.geom, %s, %s)))",
@@ -604,7 +606,12 @@ func (r *EventRepository) loadEventDetailCore(
 			e.description,
 			e.image_url,
 			e.privacy_level,
-			e.status,
+			CASE
+				WHEN e.status = 'ACTIVE' AND e.end_time < NOW() THEN 'COMPLETED'
+				WHEN e.status = 'ACTIVE' AND e.start_time < NOW() THEN 'IN_PROGRESS'
+				WHEN e.status = 'IN_PROGRESS' AND e.end_time < NOW() THEN 'COMPLETED'
+				ELSE e.status
+			END AS status,
 			e.start_time,
 			e.end_time,
 			e.capacity,
@@ -1379,3 +1386,63 @@ func (r *EventRepository) GetEventByID(ctx context.Context, eventID uuid.UUID) (
 
 	return event, nil
 }
+
+// GetEventImageState returns the event host and current image version for direct uploads.
+func (r *EventRepository) GetEventImageState(ctx context.Context, eventID uuid.UUID) (*imageuploadapp.EventImageState, error) {
+	var state imageuploadapp.EventImageState
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, host_id, image_version
+		FROM event
+		WHERE id = $1
+	`, eventID).Scan(&state.EventID, &state.HostID, &state.CurrentVersion)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("get event image state: %w", err)
+	}
+
+	return &state, nil
+}
+
+// SetEventImageIfVersion updates the event image URL only if the current version matches expectedVersion.
+func (r *EventRepository) SetEventImageIfVersion(
+	ctx context.Context,
+	eventID uuid.UUID,
+	expectedVersion, nextVersion int,
+	baseURL string,
+	updatedAt time.Time,
+) (bool, error) {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE event
+		SET image_url = $2,
+		    image_version = $3,
+		    updated_at = $4
+		WHERE id = $1
+		  AND image_version = $5
+	`, eventID, baseURL, nextVersion, updatedAt, expectedVersion)
+	if err != nil {
+		return false, fmt.Errorf("set event image: %w", err)
+	}
+
+	return tag.RowsAffected() == 1, nil
+}
+
+var _ imageuploadapp.EventRepository = (*EventRepository)(nil)
+
+// TransitionEventStatuses moves ACTIVE events to IN_PROGRESS when their
+// start_time has passed and IN_PROGRESS (or ACTIVE) events to COMPLETED when
+// their end_time has passed.
+func (r *EventRepository) TransitionEventStatuses(ctx context.Context) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE event
+		SET status = CASE
+			WHEN end_time < NOW() THEN 'COMPLETED'
+			ELSE 'IN_PROGRESS'
+		END
+		WHERE (status = 'ACTIVE' AND start_time < NOW())
+		   OR (status = 'IN_PROGRESS' AND end_time < NOW())
+	`)
+	return err
+}
+

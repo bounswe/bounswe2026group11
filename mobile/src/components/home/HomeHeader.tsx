@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -9,30 +9,35 @@ interface HomeHeaderProps {
   onPressLocation?: () => void;
 }
 
-export default function HomeHeader({
-  locationLabel,
-  notificationCount,
-  onPressNotifications,
-  onPressLocation,
-}: HomeHeaderProps) {
+const HomeHeader = forwardRef<any, HomeHeaderProps>(function HomeHeader(
+  {
+    locationLabel,
+    notificationCount,
+    onPressNotifications,
+    onPressLocation,
+  },
+  locationButtonRef,
+) {
   return (
     <View style={styles.container}>
       <View style={styles.leftSection}>
         <Text style={styles.kicker}>Discover events near</Text>
 
-        <TouchableOpacity
-          style={styles.locationButton}
-          activeOpacity={0.85}
-          onPress={onPressLocation}
-          accessibilityRole="button"
-          accessibilityLabel="Select location"
-        >
-          <Ionicons name="location-sharp" size={16} color="#FFFFFF" />
-          <Text style={styles.locationButtonText} numberOfLines={1}>
-            {locationLabel}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View ref={locationButtonRef} collapsable={false}>
+          <TouchableOpacity
+            style={styles.locationButton}
+            activeOpacity={0.85}
+            onPress={onPressLocation}
+            accessibilityRole="button"
+            accessibilityLabel="Select location"
+          >
+            <Ionicons name="location-sharp" size={16} color="#FFFFFF" />
+            <Text style={styles.locationButtonText} numberOfLines={1}>
+              {locationLabel}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <TouchableOpacity
@@ -49,7 +54,7 @@ export default function HomeHeader({
       </TouchableOpacity>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -114,3 +119,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+export default HomeHeader;

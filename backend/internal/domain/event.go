@@ -44,9 +44,10 @@ const (
 	GenderFemale EventParticipantGender = "FEMALE"
 	GenderOther  EventParticipantGender = "OTHER"
 
-	EventStatusActive    EventStatus = "ACTIVE"
-	EventStatusCanceled  EventStatus = "CANCELED"
-	EventStatusCompleted EventStatus = "COMPLETED"
+	EventStatusActive     EventStatus = "ACTIVE"
+	EventStatusInProgress EventStatus = "IN_PROGRESS"
+	EventStatusCanceled   EventStatus = "CANCELED"
+	EventStatusCompleted  EventStatus = "COMPLETED"
 
 	EventDiscoverySortStartTime EventDiscoverySort = "START_TIME"
 	EventDiscoverySortDistance  EventDiscoverySort = "DISTANCE"

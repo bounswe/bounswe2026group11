@@ -35,6 +35,7 @@ CREATE TABLE profile (
     display_name TEXT,
     bio TEXT,
     avatar_url TEXT,
+    avatar_version INT NOT NULL DEFAULT 0,
 
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -124,6 +125,7 @@ CREATE TABLE event (
     minimum_age INT,
     preferred_gender TEXT,
     location_type TEXT,
+    image_version INT NOT NULL DEFAULT 0,
     version_no INT NOT NULL DEFAULT 0,
     tag_text TEXT,
     search_vector tsvector,

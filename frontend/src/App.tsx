@@ -7,6 +7,7 @@ import AppShell from './components/AppShell';
 import ProtectedRoute from './components/ProtectedRoute';
 import DiscoverPage from './views/discover/DiscoverPage';
 import CreateEventPage from './views/events/CreateEventPage';
+import EventDetailPage from './views/events/EventDetailPage';
 import MyEventsPage from './views/events/MyEventsPage';
 import InvitationsPage from './views/invitations/InvitationsPage';
 import FavoritesPage from './views/favorites/FavoritesPage';
@@ -28,6 +29,7 @@ export default function App() {
 
         {/* Protected routes — require auth */}
         <Route path="/events/create" element={<ProtectedRoute><CreateEventPage /></ProtectedRoute>} />
+        <Route path="/events/:id" element={<EventDetailPage />} />
         <Route path="/my-events" element={<ProtectedRoute><MyEventsPage /></ProtectedRoute>} />
         <Route path="/invitations" element={<ProtectedRoute><InvitationsPage /></ProtectedRoute>} />
         <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />

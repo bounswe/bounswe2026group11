@@ -73,7 +73,7 @@ export default function CreateEventView() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.replace('/home' as Href)}
+            onPress={() => router.back()}
             accessibilityRole="button"
             accessibilityLabel="Go back to home"
           >
@@ -275,7 +275,7 @@ export default function CreateEventView() {
               <TextInput
                 style={[
                   styles.input,
-                  vm.errors.startDateTime && styles.inputError,
+                  vm.errors.startDate && styles.inputError,
                 ]}
                 placeholder="dd.mm.yyyy"
                 placeholderTextColor="#9CA3AF"
@@ -286,13 +286,16 @@ export default function CreateEventView() {
                 keyboardType="numbers-and-punctuation"
                 editable={!vm.isLoading}
               />
+              {vm.errors.startDate && (
+                <Text style={styles.fieldError}>{vm.errors.startDate}</Text>
+              )}
             </View>
             <View style={styles.dateTimeColSmall}>
               <Text style={styles.label}>{' '}</Text>
               <TextInput
                 style={[
                   styles.input,
-                  vm.errors.startDateTime && styles.inputError,
+                  vm.errors.startTime && styles.inputError,
                 ]}
                 placeholder="HH:mm"
                 placeholderTextColor="#9CA3AF"
@@ -302,11 +305,11 @@ export default function CreateEventView() {
                 maxLength={5}
                 editable={!vm.isLoading}
               />
+              {vm.errors.startTime && (
+                <Text style={styles.fieldError}>{vm.errors.startTime}</Text>
+              )}
             </View>
           </View>
-          {vm.errors.startDateTime && (
-            <Text style={styles.fieldError}>{vm.errors.startDateTime}</Text>
-          )}
         </View>
 
         {/* End Date/Time */}
@@ -317,7 +320,7 @@ export default function CreateEventView() {
               <TextInput
                 style={[
                   styles.input,
-                  vm.errors.endDateTime && styles.inputError,
+                  vm.errors.endDate && styles.inputError,
                 ]}
                 placeholder="dd.mm.yyyy"
                 placeholderTextColor="#9CA3AF"
@@ -328,13 +331,16 @@ export default function CreateEventView() {
                 keyboardType="numbers-and-punctuation"
                 editable={!vm.isLoading}
               />
+              {vm.errors.endDate && (
+                <Text style={styles.fieldError}>{vm.errors.endDate}</Text>
+              )}
             </View>
             <View style={styles.dateTimeColSmall}>
               <Text style={styles.label}>{' '}</Text>
               <TextInput
                 style={[
                   styles.input,
-                  vm.errors.endDateTime && styles.inputError,
+                  vm.errors.endTime && styles.inputError,
                 ]}
                 placeholder="HH:mm"
                 placeholderTextColor="#9CA3AF"
@@ -344,11 +350,11 @@ export default function CreateEventView() {
                 maxLength={5}
                 editable={!vm.isLoading}
               />
+              {vm.errors.endTime && (
+                <Text style={styles.fieldError}>{vm.errors.endTime}</Text>
+              )}
             </View>
           </View>
-          {vm.errors.endDateTime && (
-            <Text style={styles.fieldError}>{vm.errors.endDateTime}</Text>
-          )}
         </View>
 
         {/* Privacy Level */}
