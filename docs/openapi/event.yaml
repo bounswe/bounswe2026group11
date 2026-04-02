@@ -733,6 +733,60 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /events/{id}/cancel:
+    patch:
+      tags: [Events]
+      summary: Cancel an event
+      description: |
+        Transitions an **ACTIVE** event to **CANCELED**. Only the event host may perform this action.
+
+        Rules:
+        - The event must exist and have `status: ACTIVE`.
+        - Only the authenticated host can cancel their own event.
+        - Canceled events are excluded from discovery results but remain accessible via the detail endpoint.
+      operationId: cancelEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Event UUID.
+      responses:
+        "204":
+          description: Event canceled successfully.
+        "401":
+          description: Missing or invalid access token.
+        "403":
+          description: The caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: event_cancel_not_allowed
+                  message: Only the event host can cancel this event.
+        "404":
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Event is not in ACTIVE status and cannot be canceled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: event_not_cancelable
+                  message: Only ACTIVE events can be canceled.
+
   /events/{id}/join-request:
     post:
       tags: [Events]
@@ -1795,7 +1849,7 @@ components:
           enum: [PUBLIC, PROTECTED, PRIVATE]
         status:
           type: string
-          description: Current event status as stored in the database, for example `ACTIVE`, `CANCELED`, or `COMPLETED`.
+          description: Current event status as stored in the database, for example `ACTIVE`, `IN_PROGRESS`, `CANCELED`, or `COMPLETED`.
           example: ACTIVE
         start_time:
           type: string

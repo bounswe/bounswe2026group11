@@ -2286,20 +2286,20 @@ func assertDiscoverEventIDsInOrder(t *testing.T, items []eventapp.DiscoverableEv
 	}
 }
 
-func TestExpireActiveEvents(t *testing.T) {
+func TestTransitionEventStatuses_ExpiredToCompleted(t *testing.T) {
 	t.Parallel()
 
-	// given
+	// given — an ACTIVE event whose end_time is in the past
 	harness := common.NewEventHarness(t)
 	host := common.GivenUser(t, harness.AuthRepo)
 	expiredEventID := common.GivenExpiredEvent(t, host.ID)
 
 	// when
-	err := harness.EventRepo.ExpireActiveEvents(context.Background())
+	err := harness.EventRepo.TransitionEventStatuses(context.Background())
 
 	// then
 	if err != nil {
-		t.Fatalf("ExpireActiveEvents() error = %v", err)
+		t.Fatalf("TransitionEventStatuses() error = %v", err)
 	}
 
 	event, err := harness.EventRepo.GetEventByID(context.Background(), expiredEventID)
@@ -2308,5 +2308,103 @@ func TestExpireActiveEvents(t *testing.T) {
 	}
 	if event.Status != domain.EventStatusCompleted {
 		t.Fatalf("expected status %q, got %q", domain.EventStatusCompleted, event.Status)
+	}
+}
+
+func TestTransitionEventStatuses_StartedToInProgress(t *testing.T) {
+	t.Parallel()
+
+	// given — an ACTIVE event whose start_time has passed but end_time is in the future
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	startedEventID := common.GivenStartedEvent(t, host.ID)
+
+	// when
+	err := harness.EventRepo.TransitionEventStatuses(context.Background())
+
+	// then
+	if err != nil {
+		t.Fatalf("TransitionEventStatuses() error = %v", err)
+	}
+
+	event, err := harness.EventRepo.GetEventByID(context.Background(), startedEventID)
+	if err != nil {
+		t.Fatalf("GetEventByID() error = %v", err)
+	}
+	if event.Status != domain.EventStatusInProgress {
+		t.Fatalf("expected status %q, got %q", domain.EventStatusInProgress, event.Status)
+	}
+}
+
+func TestCancelEventSuccessPath(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	// when
+	err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID)
+
+	// then
+	if err != nil {
+		t.Fatalf("CancelEvent() error = %v", err)
+	}
+
+	event, err := harness.EventRepo.GetEventByID(context.Background(), ref.ID)
+	if err != nil {
+		t.Fatalf("GetEventByID() error = %v", err)
+	}
+	if event.Status != domain.EventStatusCanceled {
+		t.Fatalf("expected status %q, got %q", domain.EventStatusCanceled, event.Status)
+	}
+}
+
+func TestCancelEventForbiddenForNonHost(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	other := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	// when
+	err := harness.Service.CancelEvent(context.Background(), other.ID, ref.ID)
+
+	// then
+	if err == nil {
+		t.Fatal("expected forbidden error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Status != 403 {
+		t.Fatalf("expected 403 AppError, got %v", err)
+	}
+}
+
+func TestCancelEventReturnsConflictForNonActiveEvent(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	// cancel once
+	if err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID); err != nil {
+		t.Fatalf("first CancelEvent() error = %v", err)
+	}
+
+	// when: cancel again
+	err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID)
+
+	// then
+	if err == nil {
+		t.Fatal("expected conflict error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Status != 409 {
+		t.Fatalf("expected 409 AppError, got %v", err)
 	}
 }

@@ -239,6 +239,33 @@ func GivenExpiredEvent(t *testing.T, hostID uuid.UUID) uuid.UUID {
 	return id
 }
 
+// GivenStartedEvent inserts an ACTIVE event whose start_time is in the past
+// but end_time is still in the future.
+func GivenStartedEvent(t *testing.T, hostID uuid.UUID) uuid.UUID {
+	t.Helper()
+
+	pool := RequirePool(t)
+	categoryID := GivenEventCategory(t)
+	now := time.Now().UTC()
+
+	var id uuid.UUID
+	err := pool.QueryRow(context.Background(), `
+		INSERT INTO event (host_id, title, privacy_level, status, location_type, start_time, end_time, category_id)
+		VALUES ($1, $2, 'PUBLIC', 'ACTIVE', 'POINT', $3, $4, $5)
+		RETURNING id`,
+		hostID,
+		"started_event_"+uuid.NewString()[:8],
+		now.Add(-1*time.Hour),
+		now.Add(2*time.Hour),
+		categoryID,
+	).Scan(&id)
+	if err != nil {
+		t.Fatalf("GivenStartedEvent() insert error = %v", err)
+	}
+
+	return id
+}
+
 func StringPtr(value string) *string {
 	return &value
 }

@@ -257,7 +257,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 	lonPlaceholder := addArg(params.Origin.Lon)
 	latPlaceholder := addArg(params.Origin.Lat)
 	userPlaceholder := addArg(userID)
-	statusPlaceholder := addArg(string(domain.EventStatusActive))
+	statusPlaceholder := addArg([]string{string(domain.EventStatusActive), string(domain.EventStatusInProgress)})
 	privacyPlaceholder := addArg(toPrivacyLevelStringSlice(params.PrivacyLevels))
 	radiusPlaceholder := addArg(params.RadiusMeters)
 
@@ -282,7 +282,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 	relevanceExpr := "NULL::double precision"
 
 	filters := []string{
-		fmt.Sprintf("e.status = %s", statusPlaceholder),
+		fmt.Sprintf("e.status = ANY(%s::text[])", statusPlaceholder),
 		"(e.end_time IS NULL OR e.end_time > NOW())",
 		fmt.Sprintf("e.privacy_level = ANY(%s::text[])", privacyPlaceholder),
 		fmt.Sprintf(
@@ -606,7 +606,12 @@ func (r *EventRepository) loadEventDetailCore(
 			e.description,
 			e.image_url,
 			e.privacy_level,
-			CASE WHEN e.status = 'ACTIVE' AND e.end_time < NOW() THEN 'COMPLETED' ELSE e.status END AS status,
+			CASE
+				WHEN e.status = 'ACTIVE' AND e.end_time < NOW() THEN 'COMPLETED'
+				WHEN e.status = 'ACTIVE' AND e.start_time < NOW() THEN 'IN_PROGRESS'
+				WHEN e.status = 'IN_PROGRESS' AND e.end_time < NOW() THEN 'COMPLETED'
+				ELSE e.status
+			END AS status,
 			e.start_time,
 			e.end_time,
 			e.capacity,
@@ -1425,12 +1430,51 @@ func (r *EventRepository) SetEventImageIfVersion(
 
 var _ imageuploadapp.EventRepository = (*EventRepository)(nil)
 
-// ExpireActiveEvents sets status to COMPLETED for all ACTIVE events whose end_time has passed.
-func (r *EventRepository) ExpireActiveEvents(ctx context.Context) error {
+// CancelEvent sets the event status to CANCELED and cancels all its participations atomically.
+// Returns ErrEventNotCancelable if the event is not in ACTIVE status.
+func (r *EventRepository) CancelEvent(ctx context.Context, eventID uuid.UUID) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("cancel event: begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	tag, err := tx.Exec(ctx, `
+		UPDATE event
+		SET status = 'CANCELED'
+		WHERE id = $1 AND status = 'ACTIVE'
+	`, eventID)
+	if err != nil {
+		return fmt.Errorf("cancel event: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return eventapp.ErrEventNotCancelable
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE participation
+		SET status = $1, updated_at = NOW()
+		WHERE event_id = $2
+	`, domain.ParticipationStatusCanceled, eventID)
+	if err != nil {
+		return fmt.Errorf("cancel event participations: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+// TransitionEventStatuses moves ACTIVE events to IN_PROGRESS when their
+// start_time has passed and IN_PROGRESS (or ACTIVE) events to COMPLETED when
+// their end_time has passed.
+func (r *EventRepository) TransitionEventStatuses(ctx context.Context) error {
 	_, err := r.pool.Exec(ctx, `
 		UPDATE event
-		SET status = 'COMPLETED'
-		WHERE status = 'ACTIVE' AND end_time < NOW()
+		SET status = CASE
+			WHEN end_time < NOW() THEN 'COMPLETED'
+			ELSE 'IN_PROGRESS'
+		END
+		WHERE (status = 'ACTIVE' AND start_time < NOW())
+		   OR (status = 'IN_PROGRESS' AND end_time < NOW())
 	`)
 	return err
 }

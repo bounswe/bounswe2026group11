@@ -170,6 +170,10 @@ func (s *stubEventService) RejectJoinRequest(_ context.Context, _, eventID, join
 	}, nil
 }
 
+func (s *stubEventService) CancelEvent(_ context.Context, _, eventID uuid.UUID) error {
+	return s.err
+}
+
 // fakeVerifier implements domain.TokenVerifier for tests in this package.
 type fakeVerifier struct {
 	claims *domain.AuthClaims

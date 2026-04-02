@@ -13,4 +13,5 @@ type UseCase interface {
 	RequestJoin(ctx context.Context, userID, eventID uuid.UUID, input RequestJoinInput) (*RequestJoinResult, error)
 	ApproveJoinRequest(ctx context.Context, hostUserID, eventID, joinRequestID uuid.UUID) (*ApproveJoinRequestResult, error)
 	RejectJoinRequest(ctx context.Context, hostUserID, eventID, joinRequestID uuid.UUID) (*RejectJoinRequestResult, error)
+	CancelEvent(ctx context.Context, userID, eventID uuid.UUID) error
 }
