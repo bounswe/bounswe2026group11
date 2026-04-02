@@ -1,8 +1,14 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import Slider from '@react-native-community/slider';
 import {
+  Animated,
+  Dimensions,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
@@ -32,6 +38,10 @@ interface FiltersBottomSheetProps {
   onChangeEndDate: (value: string) => void;
   onChangeRadius: (value: number) => void;
 }
+
+const CATEGORY_PREVIEW_COUNT = 6;
+const SWIPE_CLOSE_THRESHOLD = 80;
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 function formatDigitsToDate(digits: string): string {
   if (digits.length === 0) return '';
@@ -68,27 +78,190 @@ export default function FiltersBottomSheet({
   onChangeEndDate,
   onChangeRadius,
 }: FiltersBottomSheetProps) {
+  const [categoriesExpanded, setCategoriesExpanded] = useState(false);
+  const [activePicker, setActivePicker] = useState<'start' | 'end' | null>(
+    null,
+  );
+
+  // Start off-screen so the sheet is hidden when Modal first mounts
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+
+  const animateClose = useCallback(() => {
+    Animated.timing(translateY, {
+      toValue: SCREEN_HEIGHT,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      onClose();
+    });
+  }, [onClose, translateY]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_evt, gestureState) =>
+        gestureState.dy > 10,
+      onPanResponderMove: (_evt, gestureState) => {
+        if (gestureState.dy > 0) {
+          translateY.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_evt, gestureState) => {
+        if (gestureState.dy > SWIPE_CLOSE_THRESHOLD) {
+          Animated.timing(translateY, {
+            toValue: SCREEN_HEIGHT,
+            duration: 250,
+            useNativeDriver: true,
+          }).start(() => {
+            onClose();
+          });
+        } else {
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 8,
+          }).start();
+        }
+      },
+    }),
+  ).current;
+
+  // Slide up when opening, reset state
+  useEffect(() => {
+    if (visible) {
+      setCategoriesExpanded(false);
+      translateY.setValue(SCREEN_HEIGHT);
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible, translateY]);
+
+  const getCurrentPickerDate = useCallback(() => {
+    const today = new Date();
+    const targetText =
+      activePicker === 'start' ? draftFilters.startDate : draftFilters.endDate;
+
+    if (targetText && targetText.length === 10) {
+      const parts = targetText.split('.');
+      if (parts.length === 3) {
+        const d = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const y = parseInt(parts[2], 10);
+        const parsed = new Date(y, m, d);
+        if (!isNaN(parsed.getTime())) {
+          return parsed;
+        }
+      }
+    }
+    return today;
+  }, [activePicker, draftFilters.startDate, draftFilters.endDate]);
+
+  const handleValueChange = useCallback(
+    (event: any, selectedDate?: Date) => {
+      if (Platform.OS === 'android') {
+        setActivePicker(null);
+      }
+      if (!selectedDate) return;
+
+      const prevDate = getCurrentPickerDate();
+      
+      const currentYear = prevDate.getFullYear();
+      const currentMonth = prevDate.getMonth();
+      const currentDay = prevDate.getDate();
+
+      const newYear = selectedDate.getFullYear();
+      const newMonth = selectedDate.getMonth();
+      const newDay = selectedDate.getDate();
+
+      const dayChanged = newDay !== currentDay;
+      const monthChanged = newMonth !== currentMonth;
+      const yearChanged = newYear !== currentYear;
+      
+      // Only close automatically if the user just tapped a different day in the current month.
+      // If month or year changed (either via swipe or the month/year scroll wheel), leave it open.
+      const onlyDayChanged = dayChanged && !monthChanged && !yearChanged;
+
+      const day = String(newDay).padStart(2, '0');
+      const month = String(newMonth + 1).padStart(2, '0');
+      const year = String(newYear);
+      const formatted = `${day}.${month}.${year}`;
+
+      if (activePicker === 'start') {
+        onChangeStartDate(formatted);
+      } else if (activePicker === 'end') {
+        onChangeEndDate(formatted);
+      }
+
+      if (Platform.OS === 'ios' && onlyDayChanged) {
+        setActivePicker(null);
+      }
+    },
+    [activePicker, onChangeStartDate, onChangeEndDate, getCurrentPickerDate],
+  );
+
+  const handleDismiss = useCallback(() => {
+    setActivePicker(null);
+  }, []);
+
+  const getMinimumDatePickerDate = useCallback(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (activePicker === 'end' && draftFilters.startDate?.length === 10) {
+      const parts = draftFilters.startDate.split('.');
+      if (parts.length === 3) {
+        const d = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const y = parseInt(parts[2], 10);
+        const parsedStartDate = new Date(y, m, d);
+        if (!isNaN(parsedStartDate.getTime()) && parsedStartDate >= today) {
+          return parsedStartDate;
+        }
+      }
+    }
+    return today;
+  }, [activePicker, draftFilters.startDate]);
+
+
+
   const isPrivacySelected = (value: HomeFilterPrivacyLevel) =>
     draftFilters.privacyLevels.includes(value);
+
+  const visibleCategories = categoriesExpanded
+    ? categories
+    : categories.slice(0, CATEGORY_PREVIEW_COUNT);
+
+  const fromError = errorMessage?.startsWith('From') ? errorMessage : null;
+  const toError = errorMessage?.startsWith('To') ? errorMessage : null;
+  const generalError =
+    errorMessage && !fromError && !toError ? errorMessage : null;
 
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="none"
       transparent
-      onRequestClose={onClose}
+      onRequestClose={animateClose}
     >
       <View style={styles.backdrop}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardContainer}
         >
-          <View style={styles.sheet}>
-            <View style={styles.handle} />
+          <Animated.View
+            style={[styles.sheet, { transform: [{ translateY }] }]}
+          >
+            {/* Drag handle area – swipe down to close */}
+            <View {...panResponder.panHandlers} style={styles.handleZone}>
+              <View style={styles.handle} />
+            </View>
 
             <View style={styles.headerRow}>
               <TouchableOpacity
-                onPress={onClose}
+                onPress={animateClose}
                 activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel="Close filters"
@@ -100,12 +273,12 @@ export default function FiltersBottomSheet({
 
               <TouchableOpacity
                 onPress={onReset}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
                 style={styles.resetButton}
                 accessibilityRole="button"
                 accessibilityLabel="Reset filters"
               >
-                <Ionicons name="refresh-outline" size={20} color="#111827" />
+                <Ionicons name="refresh-outline" size={18} color="#111827" />
                 <Text style={styles.resetText}>Reset</Text>
               </TouchableOpacity>
             </View>
@@ -117,12 +290,8 @@ export default function FiltersBottomSheet({
               keyboardShouldPersistTaps="handled"
             >
               <Text style={styles.sectionTitle}>Categories</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryRow}
-              >
-                {categories.map((category) => {
+              <View style={styles.categoryWrap}>
+                {visibleCategories.map((category) => {
                   const isSelected = draftFilters.categoryIds.includes(category.id);
 
                   return (
@@ -146,7 +315,19 @@ export default function FiltersBottomSheet({
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </View>
+
+              {categories.length > CATEGORY_PREVIEW_COUNT ? (
+                <TouchableOpacity
+                  onPress={() => setCategoriesExpanded((prev) => !prev)}
+                  activeOpacity={0.8}
+                  style={styles.showMoreButton}
+                >
+                  <Text style={styles.showMoreText}>
+                    {categoriesExpanded ? 'Show less' : 'Show more'}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
 
               <Text style={styles.sectionTitle}>Privacy Level</Text>
               <View style={styles.row}>
@@ -193,37 +374,114 @@ export default function FiltersBottomSheet({
               <Text style={styles.sectionTitle}>Date Range</Text>
               <View style={styles.row}>
                 <View style={styles.dateColumn}>
-                  <Text style={styles.inputLabel}>From</Text>
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="dd.mm.yyyy"
-                    placeholderTextColor="#9CA3AF"
-                    value={draftFilters.startDate}
-                    onChangeText={(value) =>
-                      onChangeStartDate(
-                        formatDateInput(value, draftFilters.startDate),
-                      )
-                    }
-                    keyboardType="numbers-and-punctuation"
-                    maxLength={10}
-                  />
+                  <Text
+                    style={[
+                      styles.inputLabel,
+                      fromError && styles.inputLabelError,
+                    ]}
+                  >
+                    From
+                  </Text>
+                  <View style={styles.dateInputContainer}>
+                    <TextInput
+                      style={[
+                        styles.dateInput,
+                        fromError && styles.dateInputError,
+                      ]}
+                      placeholder="dd.mm.yyyy"
+                      placeholderTextColor="#9CA3AF"
+                      value={draftFilters.startDate}
+                      onChangeText={(value) =>
+                        onChangeStartDate(
+                          formatDateInput(value, draftFilters.startDate),
+                        )
+                      }
+                      keyboardType="numbers-and-punctuation"
+                      maxLength={10}
+                    />
+                    <TouchableOpacity
+                      style={styles.calendarIconInside}
+                      onPress={() =>
+                        setActivePicker((prev) =>
+                          prev === 'start' ? null : 'start',
+                        )
+                      }
+                      activeOpacity={0.7}
+                      accessibilityLabel="Pick start date"
+                    >
+                      <Ionicons
+                        name="calendar-outline"
+                        size={20}
+                        color="#6B7280"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  {fromError ? (
+                    <Text style={styles.fieldErrorText}>{fromError}</Text>
+                  ) : null}
                 </View>
 
                 <View style={styles.dateColumn}>
-                  <Text style={styles.inputLabel}>To</Text>
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="dd.mm.yyyy"
-                    placeholderTextColor="#9CA3AF"
-                    value={draftFilters.endDate}
-                    onChangeText={(value) =>
-                      onChangeEndDate(formatDateInput(value, draftFilters.endDate))
-                    }
-                    keyboardType="numbers-and-punctuation"
-                    maxLength={10}
-                  />
+                  <Text
+                    style={[
+                      styles.inputLabel,
+                      toError && styles.inputLabelError,
+                    ]}
+                  >
+                    To
+                  </Text>
+                  <View style={styles.dateInputContainer}>
+                    <TextInput
+                      style={[
+                        styles.dateInput,
+                        toError && styles.dateInputError,
+                      ]}
+                      placeholder="dd.mm.yyyy"
+                      placeholderTextColor="#9CA3AF"
+                      value={draftFilters.endDate}
+                      onChangeText={(value) =>
+                        onChangeEndDate(
+                          formatDateInput(value, draftFilters.endDate),
+                        )
+                      }
+                      keyboardType="numbers-and-punctuation"
+                      maxLength={10}
+                    />
+                    <TouchableOpacity
+                      style={styles.calendarIconInside}
+                      onPress={() =>
+                        setActivePicker((prev) =>
+                          prev === 'end' ? null : 'end',
+                        )
+                      }
+                      activeOpacity={0.7}
+                      accessibilityLabel="Pick end date"
+                    >
+                      <Ionicons
+                        name="calendar-outline"
+                        size={20}
+                        color="#6B7280"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  {toError ? (
+                    <Text style={styles.fieldErrorText}>{toError}</Text>
+                  ) : null}
                 </View>
               </View>
+
+              {activePicker != null ? (
+                <View style={styles.datePickerWrapper}>
+                  <DateTimePicker
+                    value={getCurrentPickerDate()}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                    minimumDate={getMinimumDatePickerDate()}
+                    onValueChange={handleValueChange}
+                    onDismiss={handleDismiss}
+                  />
+                </View>
+              ) : null}
 
               <View style={styles.radiusHeader}>
                 <Text style={styles.sectionTitle}>Distance Radius</Text>
@@ -246,11 +504,10 @@ export default function FiltersBottomSheet({
                 <Text style={styles.rangeText}>1 km</Text>
                 <Text style={styles.rangeText}>50 km</Text>
               </View>
-                {errorMessage ? (
-                    <View style={styles.errorBanner}>
-                        <Text style={styles.errorBannerText}>{errorMessage}</Text>
-                    </View>
-                ) : null}
+
+              {generalError ? (
+                <Text style={styles.fieldErrorText}>{generalError}</Text>
+              ) : null}
 
               <TouchableOpacity
                 style={styles.applyButton}
@@ -260,7 +517,7 @@ export default function FiltersBottomSheet({
                 <Text style={styles.applyButtonText}>Apply Filters</Text>
               </TouchableOpacity>
             </ScrollView>
-          </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -282,15 +539,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingTop: 8,
+    paddingTop: 0,
+  },
+  handleZone: {
+    paddingTop: 10,
+    paddingBottom: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   handle: {
-    alignSelf: 'center',
     width: 54,
     height: 6,
     borderRadius: 999,
     backgroundColor: '#E5E7EB',
-    marginBottom: 10,
   },
   headerRow: {
     minHeight: 44,
@@ -306,13 +567,19 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   resetButton: {
+    minHeight: 38,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   resetText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#111827',
   },
   scroll: {
@@ -329,15 +596,22 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     marginTop: 10,
   },
-  categoryRow: {
+  categoryWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
     paddingBottom: 6,
   },
   categoryChip: {
+    minHeight: 44,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 999,
     backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   categoryChipText: {
     fontSize: 14,
@@ -346,9 +620,20 @@ const styles = StyleSheet.create({
   },
   selectedChip: {
     backgroundColor: '#111827',
+    borderColor: '#111827',
   },
   selectedChipText: {
     color: '#FFFFFF',
+  },
+  showMoreButton: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  showMoreText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2563EB',
   },
   row: {
     flexDirection: 'row',
@@ -363,6 +648,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   optionButtonText: {
     fontSize: 15,
@@ -371,6 +658,7 @@ const styles = StyleSheet.create({
   },
   selectedOptionButton: {
     backgroundColor: '#111827',
+    borderColor: '#111827',
   },
   selectedOptionButtonText: {
     color: '#FFFFFF',
@@ -378,19 +666,55 @@ const styles = StyleSheet.create({
   dateColumn: {
     flex: 1,
   },
+  dateInputContainer: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  calendarIconInside: {
+    position: 'absolute',
+    right: 14,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  datePickerWrapper: {
+    alignItems: 'center',
+    marginBottom: 16,
+    marginHorizontal: Platform.OS === 'ios' ? 0 : 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+  },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#6B7280',
     marginBottom: 8,
   },
+  inputLabelError: {
+    color: '#DC2626',
+  },
   dateInput: {
     height: 56,
     borderRadius: 18,
     backgroundColor: '#F3F4F6',
-    paddingHorizontal: 16,
+    paddingLeft: 16,
+    paddingRight: 46, // Space for the icon
     fontSize: 15,
     color: '#111827',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  dateInputError: {
+    borderColor: '#FCA5A5',
+    color: '#DC2626',
+  },
+  fieldErrorText: {
+    marginTop: 6,
+    color: '#DC2626',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '500',
   },
   radiusHeader: {
     flexDirection: 'row',
@@ -430,17 +754,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
-    errorBanner: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 12,
-    },
-    errorBannerText: {
-    color: '#DC2626',
-    fontSize: 14,
-    lineHeight: 20,
-    },
 });
