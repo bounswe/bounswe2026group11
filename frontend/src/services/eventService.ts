@@ -1,4 +1,4 @@
-import { apiPostAuth, apiGet, apiGetAuth } from './api';
+import { apiPostAuth, apiPatchAuth, apiGet, apiGetAuth } from './api';
 import {
   CreateEventRequest,
   CreateEventResponse,
@@ -95,6 +95,13 @@ export function rejectJoinRequest(
     {},
     token,
   );
+}
+
+export function cancelEvent(
+  eventId: string,
+  token: string,
+): Promise<void> {
+  return apiPatchAuth<void>(`/events/${eventId}/cancel`, {}, token);
 }
 
 export async function searchLocation(
