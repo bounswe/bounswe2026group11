@@ -283,7 +283,9 @@ func (r *EventRepository) ListDiscoverableEvents(
 
 	filters := []string{
 		fmt.Sprintf("e.status = ANY(%s::text[])", statusPlaceholder),
-		"(e.end_time IS NULL OR e.end_time > NOW())",
+		// Open-ended events (no end_time) are treated as finished once start_time has passed;
+		// timed events stay discoverable until end_time.
+		"(e.start_time >= NOW() OR (e.end_time IS NOT NULL AND e.end_time > NOW()))",
 		fmt.Sprintf("e.privacy_level = ANY(%s::text[])", privacyPlaceholder),
 		fmt.Sprintf(
 			"((e.location_type = '%s' AND %s) OR (e.location_type <> '%s' AND ST_DWithin(el.geom, %s, %s)))",
@@ -612,9 +614,11 @@ func (r *EventRepository) loadEventDetailCore(
 			e.image_url,
 			e.privacy_level,
 			CASE
-				WHEN e.status = 'ACTIVE' AND e.end_time < NOW() THEN 'COMPLETED'
+				WHEN e.status = 'ACTIVE' AND e.start_time < NOW() AND e.end_time IS NULL THEN 'COMPLETED'
+				WHEN e.status = 'ACTIVE' AND e.end_time IS NOT NULL AND e.end_time < NOW() THEN 'COMPLETED'
 				WHEN e.status = 'ACTIVE' AND e.start_time < NOW() THEN 'IN_PROGRESS'
-				WHEN e.status = 'IN_PROGRESS' AND e.end_time < NOW() THEN 'COMPLETED'
+				WHEN e.status = 'IN_PROGRESS' AND e.end_time IS NOT NULL AND e.end_time < NOW() THEN 'COMPLETED'
+				WHEN e.status = 'IN_PROGRESS' AND e.end_time IS NULL THEN 'COMPLETED'
 				ELSE e.status
 			END AS status,
 			e.start_time,
@@ -1492,17 +1496,21 @@ func (r *EventRepository) CancelEvent(ctx context.Context, eventID uuid.UUID) er
 }
 
 // TransitionEventStatuses moves ACTIVE events to IN_PROGRESS when their
-// start_time has passed and IN_PROGRESS (or ACTIVE) events to COMPLETED when
-// their end_time has passed.
+// start_time has passed and they have an end_time in the future; events without
+// end_time go straight to COMPLETED once start_time has passed. IN_PROGRESS
+// events become COMPLETED when end_time has passed (or immediately if end_time
+// is null, e.g. legacy rows).
 func (r *EventRepository) TransitionEventStatuses(ctx context.Context) error {
 	_, err := r.pool.Exec(ctx, `
 		UPDATE event
 		SET status = CASE
+			WHEN end_time IS NULL THEN 'COMPLETED'
 			WHEN end_time < NOW() THEN 'COMPLETED'
 			ELSE 'IN_PROGRESS'
 		END
 		WHERE (status = 'ACTIVE' AND start_time < NOW())
-		   OR (status = 'IN_PROGRESS' AND end_time < NOW())
+		   OR (status = 'IN_PROGRESS' AND end_time IS NOT NULL AND end_time < NOW())
+		   OR (status = 'IN_PROGRESS' AND end_time IS NULL)
 	`)
 	return err
 }
@@ -1572,5 +1580,3 @@ func (r *EventRepository) ListFavoriteEvents(ctx context.Context, userID uuid.UU
 	}
 	return records, rows.Err()
 }
-
-

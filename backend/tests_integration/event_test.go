@@ -2336,6 +2336,31 @@ func TestTransitionEventStatuses_StartedToInProgress(t *testing.T) {
 	}
 }
 
+func TestTransitionEventStatuses_OpenEndedStartPassedToCompleted(t *testing.T) {
+	t.Parallel()
+
+	// given — an ACTIVE open-ended event (no end_time) whose start_time has passed
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	eventID := common.GivenOpenEndedStartedEvent(t, host.ID)
+
+	// when
+	err := harness.EventRepo.TransitionEventStatuses(context.Background())
+
+	// then
+	if err != nil {
+		t.Fatalf("TransitionEventStatuses() error = %v", err)
+	}
+
+	event, err := harness.EventRepo.GetEventByID(context.Background(), eventID)
+	if err != nil {
+		t.Fatalf("GetEventByID() error = %v", err)
+	}
+	if event.Status != domain.EventStatusCompleted {
+		t.Fatalf("expected status %q, got %q", domain.EventStatusCompleted, event.Status)
+	}
+}
+
 func TestCancelEventSuccessPath(t *testing.T) {
 	t.Parallel()
 

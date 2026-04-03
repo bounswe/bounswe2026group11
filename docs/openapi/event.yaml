@@ -1915,7 +1915,9 @@ components:
           enum: [PUBLIC, PROTECTED, PRIVATE]
         status:
           type: string
-          description: Current event status as stored in the database, for example `ACTIVE`, `IN_PROGRESS`, `CANCELED`, or `COMPLETED`.
+          description: |
+            Current event status, for example `ACTIVE`, `IN_PROGRESS`, `CANCELED`, or `COMPLETED`.
+            The background job advances status over time: events with an `end_time` become `IN_PROGRESS` after `start_time` and `COMPLETED` after `end_time`; events without `end_time` become `COMPLETED` once `start_time` has passed (open-ended / single-moment events).
           example: ACTIVE
         start_time:
           type: string

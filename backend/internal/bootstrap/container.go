@@ -100,9 +100,9 @@ func New(ctx context.Context) (*Container, error) {
 	return container, nil
 }
 
-// StartEventExpiryJob immediately transitions event statuses
-// (ACTIVE → IN_PROGRESS → COMPLETED), then repeats every interval until ctx
-// is cancelled.
+// StartEventExpiryJob immediately transitions event statuses (timed events:
+// ACTIVE → IN_PROGRESS → COMPLETED; open-ended events: ACTIVE → COMPLETED once
+// start_time has passed), then repeats every interval until ctx is cancelled.
 func (c *Container) StartEventExpiryJob(ctx context.Context, interval time.Duration) {
 	expire := func() {
 		if err := c.eventRepo.TransitionEventStatuses(ctx); err != nil {

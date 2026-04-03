@@ -99,9 +99,9 @@ func NewEventHarness(t *testing.T) *EventHarness {
 	joinRequestService := joinrequestapp.NewService(joinRequestRepo)
 
 	return &EventHarness{
-		Service:        eventapp.NewService(eventRepo, participationService, joinRequestService),
-		EventRepo:      eventRepo,
-		RatingService:  ratingapp.NewService(ratingRepo, ratingapp.Settings{
+		Service:   eventapp.NewService(eventRepo, participationService, joinRequestService),
+		EventRepo: eventRepo,
+		RatingService: ratingapp.NewService(ratingRepo, ratingapp.Settings{
 			GlobalPrior: 4.0,
 			BayesianM:   5,
 		}),

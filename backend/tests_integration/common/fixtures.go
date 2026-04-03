@@ -266,6 +266,32 @@ func GivenStartedEvent(t *testing.T, hostID uuid.UUID) uuid.UUID {
 	return id
 }
 
+// GivenOpenEndedStartedEvent inserts an ACTIVE open-ended event (end_time NULL)
+// whose start_time is already in the past.
+func GivenOpenEndedStartedEvent(t *testing.T, hostID uuid.UUID) uuid.UUID {
+	t.Helper()
+
+	pool := RequirePool(t)
+	categoryID := GivenEventCategory(t)
+	now := time.Now().UTC()
+
+	var id uuid.UUID
+	err := pool.QueryRow(context.Background(), `
+		INSERT INTO event (host_id, title, privacy_level, status, location_type, start_time, end_time, category_id)
+		VALUES ($1, $2, 'PUBLIC', 'ACTIVE', 'POINT', $3, NULL, $4)
+		RETURNING id`,
+		hostID,
+		"open_ended_started_"+uuid.NewString()[:8],
+		now.Add(-1*time.Hour),
+		categoryID,
+	).Scan(&id)
+	if err != nil {
+		t.Fatalf("GivenOpenEndedStartedEvent() insert error = %v", err)
+	}
+
+	return id
+}
+
 func StringPtr(value string) *string {
 	return &value
 }
