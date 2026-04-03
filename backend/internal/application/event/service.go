@@ -182,6 +182,38 @@ func (s *Service) JoinEvent(ctx context.Context, userID, eventID uuid.UUID) (*Jo
 	}, nil
 }
 
+// LeaveEvent allows an approved participant to leave an event before it ends.
+// The event host cannot leave their own event.
+func (s *Service) LeaveEvent(ctx context.Context, userID, eventID uuid.UUID) (*LeaveEventResult, error) {
+	event, err := s.eventRepo.GetEventByID(ctx, eventID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+		}
+		return nil, err
+	}
+
+	if event.HostID == userID {
+		return nil, domain.ForbiddenError(domain.ErrorCodeHostCannotLeave, "The event host cannot leave their own event.")
+	}
+
+	if !canLeaveEvent(event, s.now().UTC()) {
+		return nil, domain.ConflictError(domain.ErrorCodeEventNotLeaveable, "This event can no longer be left.")
+	}
+
+	p, err := s.participationService.LeaveParticipation(ctx, eventID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LeaveEventResult{
+		ParticipationID: p.ID.String(),
+		EventID:         p.EventID.String(),
+		Status:          p.Status,
+		UpdatedAt:       p.UpdatedAt,
+	}, nil
+}
+
 // RequestJoin creates a join request for a PROTECTED event.
 // The host must approve the request before the user becomes a participant.
 //
@@ -358,4 +390,14 @@ func (s *Service) ListFavoriteEvents(ctx context.Context, userID uuid.UUID) (*Fa
 	}
 
 	return &FavoriteEventsResult{Items: items}, nil
+}
+
+func canLeaveEvent(event *domain.Event, now time.Time) bool {
+	if event.Status == domain.EventStatusCanceled || event.Status == domain.EventStatusCompleted {
+		return false
+	}
+	if event.EndTime != nil && !now.Before(*event.EndTime) {
+		return false
+	}
+	return true
 }

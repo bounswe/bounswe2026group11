@@ -37,6 +37,7 @@ const (
 	ErrorCodeAlreadyRequested                = "already_requested"
 	ErrorCodeEventJoinNotAllowed             = "event_join_not_allowed"
 	ErrorCodeHostCannotJoin                  = "host_cannot_join"
+	ErrorCodeHostCannotLeave                 = "host_cannot_leave"
 	ErrorCodeCapacityExceeded                = "capacity_exceeded"
 	ErrorCodeJoinRequestNotFound             = "join_request_not_found"
 	ErrorCodeJoinRequestModerationNotAllowed = "join_request_moderation_not_allowed"
@@ -48,6 +49,8 @@ const (
 	ErrorCodeEventNotCompletable             = "event_not_completable"
 	ErrorCodeEventCanceled                   = "event_canceled"
 	ErrorCodeEventNotJoinable                = "event_not_joinable"
+	ErrorCodeEventLeaveNotAllowed            = "event_leave_not_allowed"
+	ErrorCodeEventNotLeaveable               = "event_not_leaveable"
 	ErrorCodeFavoriteLocationNotFound        = "favorite_location_not_found"
 	ErrorCodeFavoriteLocationLimitExceeded   = "favorite_location_limit_exceeded"
 

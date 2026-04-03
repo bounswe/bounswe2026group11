@@ -10,4 +10,5 @@ import (
 // UseCase is the inbound application port for participation flows.
 type UseCase interface {
 	CreateApprovedParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error)
+	LeaveParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error)
 }

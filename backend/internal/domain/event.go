@@ -54,6 +54,7 @@ const (
 	EventDiscoverySortRelevance EventDiscoverySort = "RELEVANCE"
 
 	EventDetailParticipationStatusJoined   EventDetailParticipationStatus = "JOINED"
+	EventDetailParticipationStatusLeaved   EventDetailParticipationStatus = "LEAVED"
 	EventDetailParticipationStatusPending  EventDetailParticipationStatus = "PENDING"
 	EventDetailParticipationStatusInvited  EventDetailParticipationStatus = "INVITED"
 	EventDetailParticipationStatusNone     EventDetailParticipationStatus = "NONE"

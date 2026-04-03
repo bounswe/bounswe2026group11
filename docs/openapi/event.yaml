@@ -733,6 +733,118 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /events/{id}/leave:
+    patch:
+      tags: [Events]
+      summary: Leave an event
+      description: |
+        Marks the authenticated user's participation as `LEAVED`.
+
+        Rules:
+        - The event must exist.
+        - The authenticated user must currently have an `APPROVED` participation.
+        - The event host cannot leave their own event.
+        - A pending join request does not qualify; only approved participants may leave.
+        - Leaving is allowed before `start_time` and while the event is still active.
+        - Leaving is no longer allowed after the event has ended or once the event is already `CANCELED` or `COMPLETED`.
+        - If the user leaves before `start_time`, the event is excluded from completed/past participation lists.
+        - If the user leaves after `start_time`, completed/past participation lists may still include the event after it finishes.
+      operationId: leaveEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event to leave.
+          example: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+      responses:
+        '200':
+          description: Successfully left the event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveEventResponse'
+              examples:
+                left:
+                  value:
+                    participation_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                    event_id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                    status: LEAVED
+                    updated_at: "2026-03-26T11:30:00+03:00"
+        '400':
+          description: Invalid event ID format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                invalid_id:
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        id: must be a valid UUID
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: The event host cannot leave their own event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                host_cannot_leave:
+                  value:
+                    error:
+                      code: host_cannot_leave
+                      message: The event host cannot leave their own event.
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                not_found:
+                  value:
+                    error:
+                      code: event_not_found
+                      message: The requested event does not exist.
+        '409':
+          description: |
+            Conflict. Either the caller is not an approved participant (`event_leave_not_allowed`)
+            or the event can no longer be left in its current timing/state (`event_not_leaveable`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                event_leave_not_allowed:
+                  value:
+                    error:
+                      code: event_leave_not_allowed
+                      message: Only approved participants can leave this event.
+                event_not_leaveable:
+                  value:
+                    error:
+                      code: event_not_leaveable
+                      message: This event can no longer be left.
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /events/{id}/cancel:
     patch:
       tags: [Events]
@@ -2166,10 +2278,11 @@ components:
           type: boolean
         participation_status:
           type: string
-          enum: [JOINED, PENDING, INVITED, NONE]
+          enum: [JOINED, LEAVED, PENDING, INVITED, CANCELED, NONE]
           description: |
             Resolved for the authenticated user with the following precedence:
-            approved participation -> `JOINED`, pending join request -> `PENDING`,
+            approved participation -> `JOINED`, leaved participation -> `LEAVED`,
+            canceled participation -> `CANCELED`, pending join request -> `PENDING`,
             invitation row -> `INVITED`, otherwise `NONE`.
 
     EventHostScoreSummary:
@@ -2521,6 +2634,31 @@ components:
           format: date-time
           example: "2026-03-26T11:00:00+03:00"
 
+    LeaveEventResponse:
+      type: object
+      additionalProperties: false
+      required: [participation_id, event_id, status, updated_at]
+      properties:
+        participation_id:
+          type: string
+          format: uuid
+          description: UUID of the updated participation record.
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        event_id:
+          type: string
+          format: uuid
+          description: UUID of the event that was left.
+          example: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+        status:
+          type: string
+          enum: [LEAVED]
+          description: Participation status after leaving. Always `LEAVED`.
+          example: LEAVED
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-03-26T11:30:00+03:00"
+
     RequestJoinRequest:
       type: object
       additionalProperties: false
@@ -2645,4 +2783,3 @@ components:
         favorited_at:
           type: string
           format: date-time
-

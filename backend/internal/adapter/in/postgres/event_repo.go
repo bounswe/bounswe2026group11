@@ -658,21 +658,28 @@ func (r *EventRepository) loadEventDetailCore(
 					FROM participation p
 					WHERE p.event_id = e.id
 					  AND p.user_id = $2
-					  AND p.status = $12
-				) THEN $13
+					  AND p.status = $6
+				) THEN $7
+				WHEN EXISTS (
+					SELECT 1
+					FROM participation p
+					WHERE p.event_id = e.id
+					  AND p.user_id = $2
+					  AND p.status = $14
+				) THEN $15
 				WHEN EXISTS (
 					SELECT 1
 					FROM join_request jr
 					WHERE jr.event_id = e.id
 					  AND jr.user_id = $2
-					  AND jr.status = $6
-				) THEN $7
+					  AND jr.status = $8
+				) THEN $9
 				WHEN EXISTS (
 					SELECT 1
 					FROM invitation inv
 					WHERE inv.event_id = e.id
 					  AND inv.invited_user_id = $2
-				) THEN $8
+				) THEN $10
 				ELSE $3
 			END AS participation_status
 		FROM event e
@@ -683,21 +690,21 @@ func (r *EventRepository) loadEventDetailCore(
 		LEFT JOIN user_score us ON us.user_id = host.id
 		WHERE e.id = $1
 		  AND (
-			e.privacy_level IN ($9, $10)
+			e.privacy_level IN ($11, $12)
 			OR e.host_id = $2
 			OR EXISTS (
 				SELECT 1
 				FROM participation p
 				WHERE p.event_id = e.id
 				  AND p.user_id = $2
-				  AND p.status IN ($4, $12)
+				  AND p.status IN ($4, $6, $14)
 			)
 			OR EXISTS (
 				SELECT 1
 				FROM invitation inv
 				WHERE inv.event_id = e.id
 				  AND inv.invited_user_id = $2
-				  AND inv.status = $11
+				  AND inv.status = $13
 			)
 		  )
 	`,
@@ -706,6 +713,8 @@ func (r *EventRepository) loadEventDetailCore(
 		string(domain.EventDetailParticipationStatusNone),
 		domain.ParticipationStatusApproved,
 		string(domain.EventDetailParticipationStatusJoined),
+		domain.ParticipationStatusLeaved,
+		string(domain.EventDetailParticipationStatusLeaved),
 		string(domain.JoinRequestStatusPending),
 		string(domain.EventDetailParticipationStatusPending),
 		string(domain.EventDetailParticipationStatusInvited),
@@ -1087,9 +1096,14 @@ func (r *EventRepository) loadApprovedParticipants(
 			return nil, fmt.Errorf("scan approved participant: %w", err)
 		}
 
+		participationStatus, ok := domain.ParseParticipationStatus(status)
+		if !ok {
+			return nil, fmt.Errorf("scan approved participant: unknown participation status %q", status)
+		}
+
 		participant := eventapp.EventDetailApprovedParticipantRecord{
 			ParticipationID: participationID,
-			Status:          status,
+			Status:          participationStatus,
 			CreatedAt:       createdAt,
 			UpdatedAt:       updatedAt,
 			User: eventapp.EventDetailHostContextUserRecord{
@@ -1444,7 +1458,8 @@ func (r *EventRepository) SetEventImageIfVersion(
 
 var _ imageuploadapp.EventRepository = (*EventRepository)(nil)
 
-// CancelEvent sets the event status to CANCELED and cancels all its participations atomically.
+// CancelEvent sets the event status to CANCELED and transitions active
+// participations to CANCELED atomically while preserving historical LEAVED rows.
 // Returns ErrEventNotCancelable if the event is not in ACTIVE status.
 func (r *EventRepository) CancelEvent(ctx context.Context, eventID uuid.UUID) error {
 	tx, err := r.pool.Begin(ctx)
@@ -1483,7 +1498,8 @@ func (r *EventRepository) CancelEvent(ctx context.Context, eventID uuid.UUID) er
 		UPDATE participation
 		SET status = $1, updated_at = NOW()
 		WHERE event_id = $2
-	`, domain.ParticipationStatusCanceled, eventID)
+		  AND status <> $3
+	`, domain.ParticipationStatusCanceled, eventID, domain.ParticipationStatusLeaved)
 	if err != nil {
 		return fmt.Errorf("cancel event participations: %w", err)
 	}

@@ -208,7 +208,7 @@ type EventDetailHostContext struct {
 // EventDetailApprovedParticipant is returned only to the host.
 type EventDetailApprovedParticipant struct {
 	ParticipationID string                     `json:"participation_id"`
-	Status          string                     `json:"status"`
+	Status          domain.ParticipationStatus `json:"status"`
 	CreatedAt       time.Time                  `json:"created_at"`
 	UpdatedAt       time.Time                  `json:"updated_at"`
 	HostRating      *EventDetailRating         `json:"host_rating"`
@@ -255,10 +255,18 @@ type FavoriteEventsResult struct {
 
 // JoinEventResult is returned after a user successfully joins a public event.
 type JoinEventResult struct {
-	ParticipationID string    `json:"participation_id"`
-	EventID         string    `json:"event_id"`
-	Status          string    `json:"status"`
-	CreatedAt       time.Time `json:"created_at"`
+	ParticipationID string                     `json:"participation_id"`
+	EventID         string                     `json:"event_id"`
+	Status          domain.ParticipationStatus `json:"status"`
+	CreatedAt       time.Time                  `json:"created_at"`
+}
+
+// LeaveEventResult is returned after a user successfully leaves an event.
+type LeaveEventResult struct {
+	ParticipationID string                     `json:"participation_id"`
+	EventID         string                     `json:"event_id"`
+	Status          domain.ParticipationStatus `json:"status"`
+	UpdatedAt       time.Time                  `json:"updated_at"`
 }
 
 // RequestJoinInput is the validated input for creating a protected-event join request.
@@ -277,12 +285,12 @@ type RequestJoinResult struct {
 
 // ApproveJoinRequestResult is returned after a host approves a join request.
 type ApproveJoinRequestResult struct {
-	JoinRequestID       string    `json:"join_request_id"`
-	EventID             string    `json:"event_id"`
-	JoinRequestStatus   string    `json:"join_request_status"`
-	ParticipationID     string    `json:"participation_id"`
-	ParticipationStatus string    `json:"participation_status"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	JoinRequestID       string                     `json:"join_request_id"`
+	EventID             string                     `json:"event_id"`
+	JoinRequestStatus   string                     `json:"join_request_status"`
+	ParticipationID     string                     `json:"participation_id"`
+	ParticipationStatus domain.ParticipationStatus `json:"participation_status"`
+	UpdatedAt           time.Time                  `json:"updated_at"`
 }
 
 // RejectJoinRequestResult is returned after a host rejects a join request.
