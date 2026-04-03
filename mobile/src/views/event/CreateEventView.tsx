@@ -25,8 +25,6 @@ import {
   CONSTRAINT_TYPES,
   CONSTRAINT_TYPE_LIMITS,
   ConstraintType,
-  formatTimeInput,
-  formatDateInput,
   TITLE_MAX_LENGTH,
   DESCRIPTION_MAX_LENGTH,
 } from '@/viewmodels/event/useCreateEventViewModel';
@@ -58,7 +56,14 @@ export default function CreateEventView() {
         const m = parseInt(parts[1], 10) - 1;
         const y = parseInt(parts[2], 10);
         const parsed = new Date(y, m, d);
-        if (!isNaN(parsed.getTime())) return parsed;
+        if (
+          !isNaN(parsed.getTime()) &&
+          parsed.getDate() === d &&
+          parsed.getMonth() === m &&
+          parsed.getFullYear() === y
+        ) {
+          return parsed;
+        }
       }
     }
     return new Date();
@@ -90,23 +95,24 @@ export default function CreateEventView() {
     return parseTimeString(timeStr);
   }, [activeTimePicker, vm.formData.startTime, vm.formData.endTime, parseTimeString]);
 
+  const getStartOfDay = useCallback((date: Date): Date => {
+    const minDate = new Date(date);
+    minDate.setHours(0, 0, 0, 0);
+    return minDate;
+  }, []);
+
   const getMinimumDatePickerDate = useCallback(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     if (activeDatePicker === 'end' && vm.formData.startDate?.length === 10) {
       const parsedStart = parseDateString(vm.formData.startDate);
-      if (parsedStart >= today) return parsedStart;
-    }
-    return today;
-  }, [activeDatePicker, vm.formData.startDate, parseDateString]);
-
-  const handleDateChange = useCallback(
-    (_event: any, selectedDate?: Date) => {
-      if (Platform.OS === 'android') {
-        setActiveDatePicker(null);
+      if (!isNaN(parsedStart.getTime())) {
+        return getStartOfDay(parsedStart);
       }
-      if (!selectedDate) return;
+    }
+    return getStartOfDay(new Date());
+  }, [activeDatePicker, vm.formData.startDate, parseDateString, getStartOfDay]);
 
+  const handleDateValueChange = useCallback(
+    (_event: any, selectedDate: Date) => {
       const prevDate = getCurrentPickerDate();
       const onlyDayChanged =
         selectedDate.getDate() !== prevDate.getDate() &&
@@ -124,20 +130,15 @@ export default function CreateEventView() {
         vm.updateField('endDate', formatted);
       }
 
-      if (Platform.OS === 'ios' && onlyDayChanged) {
+      if (Platform.OS === 'android' || (Platform.OS === 'ios' && onlyDayChanged)) {
         setActiveDatePicker(null);
       }
     },
     [activeDatePicker, getCurrentPickerDate, vm],
   );
 
-  const handleTimeChange = useCallback(
-    (_event: any, selectedDate?: Date) => {
-      if (Platform.OS === 'android') {
-        setActiveTimePicker(null);
-      }
-      if (!selectedDate) return;
-
+  const handleTimeValueChange = useCallback(
+    (_event: any, selectedDate: Date) => {
       const hours = String(selectedDate.getHours()).padStart(2, '0');
       const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
       const formatted = `${hours}:${minutes}`;
@@ -148,12 +149,37 @@ export default function CreateEventView() {
         vm.updateField('endTime', formatted);
       }
 
-      if (Platform.OS === 'ios') {
+      if (Platform.OS === 'android' || Platform.OS === 'ios') {
         setActiveTimePicker(null);
       }
     },
     [activeTimePicker, vm],
   );
+
+  const handleDateDismiss = useCallback(() => {
+    setActiveDatePicker(null);
+  }, []);
+
+  const handleTimeDismiss = useCallback(() => {
+    setActiveTimePicker(null);
+  }, []);
+
+  const toggleDatePicker = useCallback((target: 'start' | 'end') => {
+    setActiveTimePicker(null);
+    setActiveDatePicker((prev) => (prev === target ? null : target));
+  }, []);
+
+  const toggleTimePicker = useCallback((target: 'start' | 'end') => {
+    setActiveDatePicker(null);
+    setActiveTimePicker((prev) => (prev === target ? null : target));
+  }, []);
+
+  const clearEndDateTime = useCallback(() => {
+    vm.updateField('endDate', '');
+    vm.updateField('endTime', '');
+    setActiveDatePicker((prev) => (prev === 'end' ? null : prev));
+    setActiveTimePicker((prev) => (prev === 'end' ? null : prev));
+  }, [vm]);
 
   // When collapsed, show the first N categories plus the selected one if it's outside that range
   const visibleCategories = (() => {
@@ -260,6 +286,10 @@ export default function CreateEventView() {
               <Text style={styles.imageUploadText}>Add Event Image</Text>
             </TouchableOpacity>
           )}
+          <Text style={styles.fieldHint}>
+            The selected image will be uploaded after the event is created.
+          </Text>
+          {vm.imageError && <Text style={styles.fieldError}>{vm.imageError}</Text>}
         </View>
 
         {/* Title */}
@@ -411,61 +441,56 @@ export default function CreateEventView() {
               <Text style={styles.label}>
                 Start <Text style={styles.required}>*</Text>
               </Text>
-              <View style={styles.dateInputContainer}>
-                <TextInput
+              <TouchableOpacity
+                style={[
+                  styles.input,
+                  styles.pickerField,
+                  vm.errors.startDate && styles.inputError,
+                ]}
+                onPress={() => toggleDatePicker('start')}
+                disabled={vm.isLoading}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Pick start date"
+              >
+                <Text
                   style={[
-                    styles.input,
-                    styles.dateInputWithIcon,
-                    vm.errors.startDate && styles.inputError,
+                    styles.pickerFieldText,
+                    !vm.formData.startDate && styles.pickerPlaceholderText,
                   ]}
-                  placeholder="dd.mm.yyyy"
-                  placeholderTextColor="#9CA3AF"
-                  value={vm.formData.startDate}
-                  onChangeText={(v) =>
-                    vm.updateField('startDate', formatDateInput(v, vm.formData.startDate))
-                  }
-                  keyboardType="numbers-and-punctuation"
-                  editable={!vm.isLoading}
-                />
-                <TouchableOpacity
-                  style={styles.pickerIconButton}
-                  onPress={() => setActiveDatePicker((prev) => prev === 'start' ? null : 'start')}
-                  activeOpacity={0.7}
-                  accessibilityLabel="Pick start date"
                 >
-                  <Ionicons name="calendar-outline" size={20} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
+                  {vm.formData.startDate || 'Select date'}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+              </TouchableOpacity>
               {vm.errors.startDate && (
                 <Text style={styles.fieldError}>{vm.errors.startDate}</Text>
               )}
             </View>
             <View style={styles.dateTimeColSmall}>
               <Text style={styles.label}>{' '}</Text>
-              <View style={styles.dateInputContainer}>
-                <TextInput
+              <TouchableOpacity
+                style={[
+                  styles.input,
+                  styles.pickerField,
+                  vm.errors.startTime && styles.inputError,
+                ]}
+                onPress={() => toggleTimePicker('start')}
+                disabled={vm.isLoading}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Pick start time"
+              >
+                <Text
                   style={[
-                    styles.input,
-                    styles.timeInputWithIcon,
-                    vm.errors.startTime && styles.inputError,
+                    styles.pickerFieldText,
+                    !vm.formData.startTime && styles.pickerPlaceholderText,
                   ]}
-                  placeholder="HH:mm"
-                  placeholderTextColor="#9CA3AF"
-                  value={vm.formData.startTime}
-                  onChangeText={(v) => vm.updateField('startTime', formatTimeInput(v, vm.formData.startTime))}
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={5}
-                  editable={!vm.isLoading}
-                />
-                <TouchableOpacity
-                  style={styles.pickerIconButton}
-                  onPress={() => setActiveTimePicker((prev) => prev === 'start' ? null : 'start')}
-                  activeOpacity={0.7}
-                  accessibilityLabel="Pick start time"
                 >
-                  <Ionicons name="time-outline" size={20} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
+                  {vm.formData.startTime || 'Select time'}
+                </Text>
+                <Ionicons name="time-outline" size={20} color="#6B7280" />
+              </TouchableOpacity>
               {vm.errors.startTime && (
                 <Text style={styles.fieldError}>{vm.errors.startTime}</Text>
               )}
@@ -478,7 +503,8 @@ export default function CreateEventView() {
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
                 minimumDate={getMinimumDatePickerDate()}
-                onChange={handleDateChange}
+                onValueChange={handleDateValueChange}
+                onDismiss={handleDateDismiss}
               />
             </View>
           )}
@@ -489,7 +515,8 @@ export default function CreateEventView() {
                 mode="time"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 is24Hour={true}
-                onChange={handleTimeChange}
+                onValueChange={handleTimeValueChange}
+                onDismiss={handleTimeDismiss}
               />
             </View>
           )}
@@ -499,62 +526,69 @@ export default function CreateEventView() {
         <View style={styles.fieldGroup}>
           <View style={styles.dateTimeRow}>
             <View style={styles.dateTimeCol}>
-              <Text style={styles.label}>End</Text>
-              <View style={styles.dateInputContainer}>
-                <TextInput
-                  style={[
-                    styles.input,
-                    styles.dateInputWithIcon,
-                    vm.errors.endDate && styles.inputError,
-                  ]}
-                  placeholder="dd.mm.yyyy"
-                  placeholderTextColor="#9CA3AF"
-                  value={vm.formData.endDate}
-                  onChangeText={(v) =>
-                    vm.updateField('endDate', formatDateInput(v, vm.formData.endDate))
-                  }
-                  keyboardType="numbers-and-punctuation"
-                  editable={!vm.isLoading}
-                />
-                <TouchableOpacity
-                  style={styles.pickerIconButton}
-                  onPress={() => setActiveDatePicker((prev) => prev === 'end' ? null : 'end')}
-                  activeOpacity={0.7}
-                  accessibilityLabel="Pick end date"
-                >
-                  <Ionicons name="calendar-outline" size={20} color="#6B7280" />
-                </TouchableOpacity>
+              <View style={styles.inlineLabelRow}>
+                <Text style={styles.label}>End</Text>
+                {(vm.formData.endDate || vm.formData.endTime) && (
+                  <TouchableOpacity
+                    onPress={clearEndDateTime}
+                    disabled={vm.isLoading}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear end date and time"
+                  >
+                    <Text style={styles.inlineActionText}>Clear</Text>
+                  </TouchableOpacity>
+                )}
               </View>
+              <TouchableOpacity
+                style={[
+                  styles.input,
+                  styles.pickerField,
+                  vm.errors.endDate && styles.inputError,
+                ]}
+                onPress={() => toggleDatePicker('end')}
+                disabled={vm.isLoading}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Pick end date"
+              >
+                <Text
+                  style={[
+                    styles.pickerFieldText,
+                    !vm.formData.endDate && styles.pickerPlaceholderText,
+                  ]}
+                >
+                  {vm.formData.endDate || 'Select date'}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+              </TouchableOpacity>
               {vm.errors.endDate && (
                 <Text style={styles.fieldError}>{vm.errors.endDate}</Text>
               )}
             </View>
             <View style={styles.dateTimeColSmall}>
               <Text style={styles.label}>{' '}</Text>
-              <View style={styles.dateInputContainer}>
-                <TextInput
+              <TouchableOpacity
+                style={[
+                  styles.input,
+                  styles.pickerField,
+                  vm.errors.endTime && styles.inputError,
+                ]}
+                onPress={() => toggleTimePicker('end')}
+                disabled={vm.isLoading}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Pick end time"
+              >
+                <Text
                   style={[
-                    styles.input,
-                    styles.timeInputWithIcon,
-                    vm.errors.endTime && styles.inputError,
+                    styles.pickerFieldText,
+                    !vm.formData.endTime && styles.pickerPlaceholderText,
                   ]}
-                  placeholder="HH:mm"
-                  placeholderTextColor="#9CA3AF"
-                  value={vm.formData.endTime}
-                  onChangeText={(v) => vm.updateField('endTime', formatTimeInput(v, vm.formData.endTime))}
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={5}
-                  editable={!vm.isLoading}
-                />
-                <TouchableOpacity
-                  style={styles.pickerIconButton}
-                  onPress={() => setActiveTimePicker((prev) => prev === 'end' ? null : 'end')}
-                  activeOpacity={0.7}
-                  accessibilityLabel="Pick end time"
                 >
-                  <Ionicons name="time-outline" size={20} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
+                  {vm.formData.endTime || 'Select time'}
+                </Text>
+                <Ionicons name="time-outline" size={20} color="#6B7280" />
+              </TouchableOpacity>
               {vm.errors.endTime && (
                 <Text style={styles.fieldError}>{vm.errors.endTime}</Text>
               )}
@@ -567,7 +601,8 @@ export default function CreateEventView() {
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
                 minimumDate={getMinimumDatePickerDate()}
-                onChange={handleDateChange}
+                onValueChange={handleDateValueChange}
+                onDismiss={handleDateDismiss}
               />
             </View>
           )}
@@ -578,7 +613,8 @@ export default function CreateEventView() {
                 mode="time"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 is24Hour={true}
-                onChange={handleTimeChange}
+                onValueChange={handleTimeValueChange}
+                onDismiss={handleTimeDismiss}
               />
             </View>
           )}
@@ -977,6 +1013,17 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 6,
   },
+  inlineLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  inlineActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
   required: {
     color: '#EF4444',
   },
@@ -1003,6 +1050,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
   },
+  fieldHint: {
+    color: '#6B7280',
+    fontSize: 13,
+    marginTop: 8,
+  },
   imageUploadArea: {
     borderWidth: 2,
     borderColor: '#D1D5DB',
@@ -1017,6 +1069,19 @@ const styles = StyleSheet.create({
   imageUploadText: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  pickerField: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pickerFieldText: {
+    color: '#111827',
+    fontSize: 16,
+  },
+  pickerPlaceholderText: {
+    color: '#9CA3AF',
   },
   imagePreviewContainer: {
     position: 'relative',

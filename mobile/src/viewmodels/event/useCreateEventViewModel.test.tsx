@@ -7,8 +7,11 @@ import { ApiError } from '@/services/api';
 import type { CreateEventResponse } from '@/models/event';
 import {
   useCreateEventViewModel,
+  formatDateForForm,
   formatTimeInput,
   formatDateInput,
+  validateLiveDateInput,
+  validateLiveTimeInput,
   TITLE_MIN_LENGTH,
   TITLE_MAX_LENGTH,
   DESCRIPTION_MIN_LENGTH,
@@ -20,7 +23,20 @@ import {
 
 jest.mock('@/services/eventService');
 
+const ImagePicker = require('expo-image-picker');
+const ImageManipulator = require('expo-image-manipulator');
+const { Alert } = require('react-native');
+
 const mockCreateEvent = jest.mocked(eventService.createEvent);
+const mockGetEventImageUploadUrl = jest.mocked(eventService.getEventImageUploadUrl);
+const mockUploadFileToPresignedUrl = jest.mocked(eventService.uploadFileToPresignedUrl);
+const mockConfirmEventImageUpload = jest.mocked(eventService.confirmEventImageUpload);
+const mockRequestMediaLibraryPermissionsAsync =
+  ImagePicker.requestMediaLibraryPermissionsAsync as jest.MockedFunction<any>;
+const mockLaunchImageLibraryAsync =
+  ImagePicker.launchImageLibraryAsync as jest.MockedFunction<any>;
+const mockManipulateAsync = ImageManipulator.manipulateAsync as jest.MockedFunction<any>;
+const mockAlert = Alert.alert as jest.MockedFunction<any>;
 
 const futureDate = (() => {
   const d = new Date();
@@ -61,19 +77,54 @@ const responseFixture: CreateEventResponse = {
   created_at: '2026-03-28T10:00:00.000Z',
 };
 
+const uploadInitFixture = {
+  base_url: 'https://cdn.example.com/events/123/cover/v1-upload',
+  version: 1,
+  confirm_token: 'confirm-token',
+  uploads: [
+    {
+      variant: 'ORIGINAL',
+      method: 'PUT',
+      url: 'https://upload.example.com/original',
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'Cache-Control': 'public, max-age=604800, immutable',
+        'x-amz-acl': 'public-read',
+      },
+    },
+    {
+      variant: 'SMALL',
+      method: 'PUT',
+      url: 'https://upload.example.com/small',
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'Cache-Control': 'public, max-age=604800, immutable',
+        'x-amz-acl': 'public-read',
+      },
+    },
+  ],
+};
+
 describe('useCreateEventViewModel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCreateEvent.mockResolvedValue(responseFixture);
+    mockGetEventImageUploadUrl.mockResolvedValue(uploadInitFixture as any);
+    mockUploadFileToPresignedUrl.mockResolvedValue(undefined);
+    mockConfirmEventImageUpload.mockResolvedValue(undefined);
+    mockRequestMediaLibraryPermissionsAsync.mockResolvedValue({ status: 'granted' } as any);
+    mockLaunchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: [] } as any);
+    mockManipulateAsync.mockResolvedValue({ uri: 'file:///mock-manipulated.jpg' } as any);
   });
 
   // ─── Initial state ───
-  it('starts with empty form and no errors', () => {
+  it('starts with today as the default start date and no errors', () => {
     const { result } = renderHook(() => useCreateEventViewModel());
     expect(result.current.formData.title).toBe('');
     expect(result.current.formData.description).toBe('');
     expect(result.current.formData.categoryId).toBeNull();
     expect(result.current.formData.lat).toBeNull();
+    expect(result.current.formData.startDate).toBe(formatDateForForm(new Date()));
     expect(result.current.formData.privacyLevel).toBe('PUBLIC');
     expect(result.current.isLoading).toBe(false);
     expect(result.current.apiError).toBeNull();
@@ -130,6 +181,26 @@ describe('useCreateEventViewModel', () => {
 
   // ─── Start date validation ───
   describe('start date validation', () => {
+    it('shows time validation immediately while typing an invalid hour', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('startTime', formatTimeInput('28', ''));
+      });
+      expect(result.current.errors.startTime).toBe('Invalid time: hour must be 0-23');
+      expect(mockCreateEvent).not.toHaveBeenCalled();
+    });
+
+    it('shows date validation immediately when an impossible day is entered', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('startDate', '35.06.2030');
+      });
+      expect(result.current.errors.startDate).toBeTruthy();
+      expect(result.current.errors.startTime).toBeNull();
+    });
+
     it('shows error on both fields when start date and time are missing', async () => {
       const { result } = renderHook(() => useCreateEventViewModel());
       await act(async () => {
@@ -247,6 +318,16 @@ describe('useCreateEventViewModel', () => {
 
   // ─── End date validation ───
   describe('end date validation', () => {
+    it('shows end date error immediately when end time becomes earlier than start', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('endDate', futureDate);
+        result.current.updateField('endTime', '13:00');
+      });
+      expect(result.current.errors.endDate).toBe('End must be after start');
+    });
+
     it('shows error on date when end date is before start date', async () => {
       const { result } = renderHook(() => useCreateEventViewModel());
       await act(async () => {
@@ -279,7 +360,7 @@ describe('useCreateEventViewModel', () => {
       const { result } = renderHook(() => useCreateEventViewModel());
       await act(async () => {
         fillValidForm(result.current);
-        result.current.updateField('endDate', pastDate);
+        result.current.updateField('endDate', futureDate);
         result.current.updateField('endTime', '10:00');
       });
       await act(async () => { await result.current.handleSubmit('token'); });
@@ -296,6 +377,11 @@ describe('useCreateEventViewModel', () => {
   describe('error clearing', () => {
     it('clears start date error when start date is updated', async () => {
       const { result } = renderHook(() => useCreateEventViewModel());
+      await act(async () => {
+        fillValidForm(result.current);
+        result.current.updateField('startDate', pastDate);
+        result.current.updateField('startTime', '10:00');
+      });
       await act(async () => { await result.current.handleSubmit('token'); });
       expect(result.current.errors.startDate).toBeTruthy();
 
@@ -571,8 +657,80 @@ describe('useCreateEventViewModel', () => {
       });
 
       expect(mockCreateEvent).toHaveBeenCalledTimes(1);
+      expect(mockGetEventImageUploadUrl).not.toHaveBeenCalled();
       expect(response).toEqual(responseFixture);
       expect(result.current.successMessage).toBe('Event created successfully!');
+    });
+
+    it('uploads the selected image through the backend flow after event creation', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      mockLaunchImageLibraryAsync.mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'file:///selected-image.jpg' }],
+      } as any);
+      mockManipulateAsync
+        .mockResolvedValueOnce({ uri: 'file:///original-image.jpg' } as any)
+        .mockResolvedValueOnce({ uri: 'file:///small-image.jpg' } as any);
+
+      await act(async () => {
+        await result.current.pickImage();
+        fillValidForm(result.current);
+      });
+
+      await act(async () => {
+        await result.current.handleSubmit('test-token');
+      });
+
+      expect(result.current.selectedImageUri).toBe('file:///selected-image.jpg');
+      expect(mockCreateEvent).toHaveBeenCalledTimes(1);
+      expect(mockGetEventImageUploadUrl).toHaveBeenCalledWith(responseFixture.id, 'test-token');
+      expect(mockUploadFileToPresignedUrl).toHaveBeenNthCalledWith(
+        1,
+        'PUT',
+        uploadInitFixture.uploads[0].url,
+        uploadInitFixture.uploads[0].headers,
+        'file:///original-image.jpg',
+      );
+      expect(mockUploadFileToPresignedUrl).toHaveBeenNthCalledWith(
+        2,
+        'PUT',
+        uploadInitFixture.uploads[1].url,
+        uploadInitFixture.uploads[1].headers,
+        'file:///small-image.jpg',
+      );
+      expect(mockConfirmEventImageUpload).toHaveBeenCalledWith(
+        responseFixture.id,
+        uploadInitFixture.confirm_token,
+        'test-token',
+      );
+      expect(result.current.successMessage).toBe('Event created successfully!');
+      expect(result.current.imageError).toBeNull();
+    });
+
+    it('shows a clear image error when upload fails after event creation', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      mockLaunchImageLibraryAsync.mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'file:///selected-image.jpg' }],
+      } as any);
+      mockUploadFileToPresignedUrl.mockRejectedValueOnce(new Error('Upload failed with status 500'));
+
+      await act(async () => {
+        await result.current.pickImage();
+        fillValidForm(result.current);
+      });
+
+      let response: CreateEventResponse | null = null;
+      await act(async () => {
+        response = await result.current.handleSubmit('test-token');
+      });
+
+      expect(response).toEqual(responseFixture);
+      expect(result.current.successMessage).toBe('Event created successfully!');
+      expect(result.current.imageError).toBe(
+        'The event was created, but uploading the image to storage failed.',
+      );
+      expect(mockConfirmEventImageUpload).not.toHaveBeenCalled();
     });
 
     it('does not call API when validation fails', async () => {
@@ -659,6 +817,26 @@ describe('useCreateEventViewModel', () => {
     const { PRIVACY_OPTIONS } = require('./useCreateEventViewModel');
     expect(PRIVACY_OPTIONS.map((o: { value: string }) => o.value)).not.toContain('PRIVATE');
   });
+
+  describe('image picking', () => {
+    it('shows an inline error and alert when photo permission is denied', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      mockRequestMediaLibraryPermissionsAsync.mockResolvedValueOnce({ status: 'denied' } as any);
+
+      await act(async () => {
+        await result.current.pickImage();
+      });
+
+      expect(result.current.imageError).toBe(
+        'Please allow access to your photo library to add an event image.',
+      );
+      expect(mockAlert).toHaveBeenCalledWith(
+        'Permission required',
+        'Please allow access to your photo library to add an event image.',
+      );
+      expect(result.current.selectedImageUri).toBeNull();
+    });
+  });
 });
 
 // ─── formatDateInput (pure function) ───
@@ -711,5 +889,46 @@ describe('formatTimeInput', () => {
     expect(formatTimeInput('14:', '14')).toBe('14:');
     expect(formatTimeInput('14:3', '14:')).toBe('14:3');
     expect(formatTimeInput('14:30', '14:3')).toBe('14:30');
+  });
+});
+
+describe('validateLiveDateInput', () => {
+  it('does not show an error for partial valid input', () => {
+    expect(validateLiveDateInput('1')).toBeNull();
+    expect(validateLiveDateInput('12.')).toBeNull();
+    expect(validateLiveDateInput('12.0')).toBeNull();
+  });
+
+  it('shows an immediate error when day is out of range', () => {
+    expect(validateLiveDateInput('35')).toBe('Invalid date: day must be 1-31');
+  });
+
+  it('shows an immediate error when month is out of range', () => {
+    expect(validateLiveDateInput('12.13')).toBe('Invalid date: month must be 1-12');
+  });
+
+  it('uses full date validation when the date is complete', () => {
+    expect(validateLiveDateInput('30.02.2030')).toBe('Invalid date');
+    expect(validateLiveDateInput('28.02.2030')).toBeNull();
+  });
+});
+
+describe('validateLiveTimeInput', () => {
+  it('does not show an error for partial valid input', () => {
+    expect(validateLiveTimeInput('1')).toBeNull();
+    expect(validateLiveTimeInput('12:')).toBeNull();
+    expect(validateLiveTimeInput('12:3')).toBeNull();
+  });
+
+  it('shows an immediate error when hour is out of range', () => {
+    expect(validateLiveTimeInput('28')).toBe('Invalid time: hour must be 0-23');
+  });
+
+  it('shows an immediate error when minute is out of range', () => {
+    expect(validateLiveTimeInput('10:70')).toBe('Invalid time: minute must be 0-59');
+  });
+
+  it('uses full time validation when the time is complete', () => {
+    expect(validateLiveTimeInput('09:30')).toBeNull();
   });
 });

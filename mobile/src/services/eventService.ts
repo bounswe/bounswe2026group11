@@ -142,6 +142,7 @@ export async function confirmEventImageUpload(
 }
 
 export async function uploadFileToPresignedUrl(
+  method: string,
   url: string,
   headers: Record<string, string>,
   fileUri: string,
@@ -150,7 +151,7 @@ export async function uploadFileToPresignedUrl(
   const blob = await response.blob();
 
   const uploadResponse = await fetch(url, {
-    method: 'PUT',
+    method: method.toUpperCase(),
     headers,
     body: blob,
   });
