@@ -1479,3 +1479,70 @@ func (r *EventRepository) TransitionEventStatuses(ctx context.Context) error {
 	return err
 }
 
+// AddFavorite inserts a row into favorite_event. If the row already exists the
+// operation is silently ignored (idempotent).
+func (r *EventRepository) AddFavorite(ctx context.Context, userID, eventID uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO favorite_event (user_id, event_id)
+		VALUES ($1, $2)
+		ON CONFLICT (user_id, event_id) DO NOTHING
+	`, userID, eventID)
+	if err != nil {
+		return fmt.Errorf("add favorite: %w", err)
+	}
+	return nil
+}
+
+// RemoveFavorite deletes a row from favorite_event. If no row exists the
+// operation is silently ignored (idempotent).
+func (r *EventRepository) RemoveFavorite(ctx context.Context, userID, eventID uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `
+		DELETE FROM favorite_event
+		WHERE user_id = $1 AND event_id = $2
+	`, userID, eventID)
+	if err != nil {
+		return fmt.Errorf("remove favorite: %w", err)
+	}
+	return nil
+}
+
+// ListFavoriteEvents returns all events the user has favorited, ordered by most
+// recently favorited first.
+func (r *EventRepository) ListFavoriteEvents(ctx context.Context, userID uuid.UUID) ([]eventapp.FavoriteEventRecord, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT e.id, e.title, ec.name, e.image_url, e.status,
+		       e.start_time, e.end_time, fav.created_at
+		FROM favorite_event fav
+		JOIN event e ON e.id = fav.event_id
+		LEFT JOIN event_category ec ON ec.id = e.category_id
+		WHERE fav.user_id = $1
+		ORDER BY fav.created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list favorite events: %w", err)
+	}
+	defer rows.Close()
+
+	var records []eventapp.FavoriteEventRecord
+	for rows.Next() {
+		var (
+			r       eventapp.FavoriteEventRecord
+			status  string
+			catName *string
+			endTime pgtype.Timestamptz
+		)
+		if err := rows.Scan(&r.ID, &r.Title, &catName, &r.ImageURL, &status,
+			&r.StartTime, &endTime, &r.FavoritedAt); err != nil {
+			return nil, fmt.Errorf("scan favorite event: %w", err)
+		}
+		r.Status = domain.EventStatus(status)
+		r.CategoryName = catName
+		if endTime.Valid {
+			r.EndTime = &endTime.Time
+		}
+		records = append(records, r)
+	}
+	return records, rows.Err()
+}
+
+

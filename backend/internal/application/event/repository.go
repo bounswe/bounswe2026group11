@@ -19,4 +19,7 @@ type Repository interface {
 	GetEventByID(ctx context.Context, eventID uuid.UUID) (*domain.Event, error)
 	TransitionEventStatuses(ctx context.Context) error
 	CancelEvent(ctx context.Context, eventID uuid.UUID) error
+	AddFavorite(ctx context.Context, userID, eventID uuid.UUID) error
+	RemoveFavorite(ctx context.Context, userID, eventID uuid.UUID) error
+	ListFavoriteEvents(ctx context.Context, userID uuid.UUID) ([]FavoriteEventRecord, error)
 }
