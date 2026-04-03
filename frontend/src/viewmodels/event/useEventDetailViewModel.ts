@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getEventDetail, joinEvent, requestJoinEvent, approveJoinRequest, rejectJoinRequest } from '@/services/eventService';
+import { getEventDetail, joinEvent, requestJoinEvent, approveJoinRequest, rejectJoinRequest, cancelEvent } from '@/services/eventService';
 import type { EventDetailResponse } from '@/models/event';
 import { ApiError } from '@/services/api';
 
@@ -155,8 +155,36 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     }
   }, [eventId, token]);
 
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  const handleCancel = useCallback(async () => {
+    if (!eventId || !token) return;
+    setCancelLoading(true);
+    setCancelError(null);
+
+    try {
+      await cancelEvent(eventId, token);
+      const updated = await getEventDetail(eventId, token);
+      setEvent(updated);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const errorMap: Record<string, string> = {
+          event_cancel_not_allowed: 'Only the event host can cancel this event.',
+          event_not_cancelable: 'Only active events can be canceled.',
+        };
+        setCancelError(errorMap[err.code] ?? err.message);
+      } else {
+        setCancelError('Failed to cancel event. Please try again.');
+      }
+    } finally {
+      setCancelLoading(false);
+    }
+  }, [eventId, token]);
+
   const dismissJoinError = useCallback(() => setJoinError(null), []);
   const dismissModerateError = useCallback(() => setModerateError(null), []);
+  const dismissCancelError = useCallback(() => setCancelError(null), []);
 
   return {
     event,
@@ -166,12 +194,16 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     joinError,
     moderatingId,
     moderateError,
+    cancelLoading,
+    cancelError,
     retry: fetchDetail,
     handleJoin,
     handleRequestJoin,
     handleApprove,
     handleReject,
+    handleCancel,
     dismissJoinError,
     dismissModerateError,
+    dismissCancelError,
   };
 }
