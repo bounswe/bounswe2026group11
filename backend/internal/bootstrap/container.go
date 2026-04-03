@@ -18,6 +18,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/category"
 	emailapp "github.com/bounswe/bounswe2026group11/backend/internal/application/email"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
+	favoritelocation "github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
@@ -32,26 +33,28 @@ import (
 // Container is the backend composition root. It owns long-lived infrastructure
 // dependencies and exposes application services to the delivery layer.
 type Container struct {
-	Config               *config.Config
-	DB                   *pgxpool.Pool
-	MailProvider         emailapp.Provider
-	TokenIssuer          auth.TokenIssuer
-	TokenVerifier        domain.TokenVerifier
-	authRepo             *postgres.AuthRepository
-	eventRepo            *postgres.EventRepository
-	participationRepo    *postgres.ParticipationRepository
-	joinRequestRepo      *postgres.JoinRequestRepository
-	ratingRepo           *postgres.RatingRepository
-	categoryRepo         *postgres.CategoryRepository
-	profileRepo          *postgres.ProfileRepository
-	AuthService          auth.UseCase
-	EventService         event.UseCase
-	ParticipationService participation.UseCase
-	JoinRequestService   join_request.UseCase
-	RatingService        rating.UseCase
-	CategoryService      category.UseCase
-	ProfileService       profile.UseCase
-	ImageUploadService   imageupload.UseCase
+	Config                  *config.Config
+	DB                      *pgxpool.Pool
+	MailProvider            emailapp.Provider
+	TokenIssuer             auth.TokenIssuer
+	TokenVerifier           domain.TokenVerifier
+	authRepo                *postgres.AuthRepository
+	eventRepo               *postgres.EventRepository
+	participationRepo       *postgres.ParticipationRepository
+	joinRequestRepo         *postgres.JoinRequestRepository
+	ratingRepo              *postgres.RatingRepository
+	categoryRepo            *postgres.CategoryRepository
+	profileRepo             *postgres.ProfileRepository
+	favoriteLocationRepo    *postgres.FavoriteLocationRepository
+	AuthService             auth.UseCase
+	EventService            event.UseCase
+	ParticipationService    participation.UseCase
+	JoinRequestService      join_request.UseCase
+	RatingService           rating.UseCase
+	CategoryService         category.UseCase
+	ProfileService          profile.UseCase
+	FavoriteLocationService favoritelocation.UseCase
+	ImageUploadService      imageupload.UseCase
 	// Extend with additional services as features are added
 }
 
@@ -89,6 +92,7 @@ func New(ctx context.Context) (*Container, error) {
 	container.ratingRepo = postgres.NewRatingRepository(container.DB)
 	container.categoryRepo = postgres.NewCategoryRepository(container.DB)
 	container.profileRepo = postgres.NewProfileRepository(container.DB)
+	container.favoriteLocationRepo = postgres.NewFavoriteLocationRepository(container.DB)
 	container.ParticipationService = newParticipationService(container)
 	container.JoinRequestService = newJoinRequestService(container)
 	container.RatingService = newRatingService(container)
@@ -96,6 +100,7 @@ func New(ctx context.Context) (*Container, error) {
 	container.EventService = newEventService(container)
 	container.CategoryService = newCategoryService(container)
 	container.ProfileService = newProfileService(container)
+	container.FavoriteLocationService = newFavoriteLocationService(container)
 	container.ImageUploadService = newImageUploadService(container, spacesStorage)
 	return container, nil
 }
@@ -193,6 +198,11 @@ func newCategoryService(c *Container) category.UseCase {
 // newProfileService wires the profile use-case service with its driven adapter.
 func newProfileService(c *Container) profile.UseCase {
 	return profile.NewService(c.profileRepo)
+}
+
+// newFavoriteLocationService wires the favorite-location use-case service with its driven adapter.
+func newFavoriteLocationService(c *Container) favoritelocation.UseCase {
+	return favoritelocation.NewService(c.favoriteLocationRepo)
 }
 
 func newImageUploadService(c *Container, storage *spacesadapter.Storage) imageupload.UseCase {

@@ -48,6 +48,8 @@ const (
 	ErrorCodeEventNotCompletable             = "event_not_completable"
 	ErrorCodeEventCanceled                   = "event_canceled"
 	ErrorCodeEventNotJoinable                = "event_not_joinable"
+	ErrorCodeFavoriteLocationNotFound        = "favorite_location_not_found"
+	ErrorCodeFavoriteLocationLimitExceeded   = "favorite_location_limit_exceeded"
 
 	ErrorCodeImageUploadTokenInvalid    = "image_upload_token_invalid"
 	ErrorCodeImageUploadNotAllowed      = "image_upload_not_allowed"
