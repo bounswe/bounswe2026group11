@@ -220,7 +220,11 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         </Text>
 
         <TouchableOpacity style={styles.headerIconBtn} onPress={vm.handleToggleFavorite}>
-          <Feather name="heart" size={22} color={vm.isFavorited ? '#EF4444' : '#111827'} />
+          <MaterialIcons
+            name={vm.isFavorited ? 'favorite' : 'favorite-border'}
+            size={22}
+            color={vm.isFavorited ? '#EF4444' : '#111827'}
+          />
         </TouchableOpacity>
       </View>
 

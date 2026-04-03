@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { router, usePathname, type Href } from 'expo-router';
 
 type TabItem = {
@@ -74,8 +74,8 @@ export default function BottomTabBar() {
             )}
 
             {tab.key === 'favorites' && (
-              <Ionicons
-                name={active ? 'heart' : 'heart-outline'}
+              <MaterialIcons
+                name={active ? 'favorite' : 'favorite-border'}
                 size={22}
                 color={active ? '#111827' : '#9CA3AF'}
               />
