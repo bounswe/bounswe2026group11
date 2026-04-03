@@ -70,10 +70,11 @@ func (h *Handler) UpdateFavoriteLocation(c *fiber.Ctx) error {
 	}
 
 	var body updateFavoriteLocationBody
-	if len(c.Body()) > 0 {
-		if err := c.BodyParser(&body); err != nil {
-			return httpapi.WriteError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
-		}
+	if len(c.Body()) == 0 {
+		return httpapi.WriteError(c, domain.ValidationError(map[string]string{"body": "must not be empty"}))
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return httpapi.WriteError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
 	}
 
 	claims := httpapi.UserClaims(c)

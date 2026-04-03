@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http/httptest"
 	"testing"
 
@@ -206,6 +207,30 @@ func TestUpdateFavoriteLocationRejectsInvalidID(t *testing.T) {
 	}
 }
 
+func TestUpdateFavoriteLocationRejectsEmptyBody(t *testing.T) {
+	// given
+	service := &stubFavoriteLocationService{}
+	app := newFavoriteLocationTestApp(service, authedVerifier())
+	req := httptest.NewRequest(fiber.MethodPatch, "/me/favorite-locations/"+uuid.NewString(), nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+	if service.updateCallCount != 0 {
+		t.Fatalf("expected update not to be called, got %d", service.updateCallCount)
+	}
+}
+
 func TestListFavoriteLocationsReturnsResponseBody(t *testing.T) {
 	// given
 	service := &stubFavoriteLocationService{
@@ -243,5 +268,37 @@ func TestListFavoriteLocationsReturnsResponseBody(t *testing.T) {
 	}
 	if len(body.Items) != 1 || body.Items[0].Name != "Home" {
 		t.Fatalf("unexpected response body %#v", body)
+	}
+}
+
+func TestListFavoriteLocationsReturnsEmptyArrayInsteadOfNull(t *testing.T) {
+	// given
+	service := &stubFavoriteLocationService{
+		listResult: &favoritelocationapp.ListFavoriteLocationsResult{
+			Items: []favoritelocationapp.FavoriteLocationResult{},
+		},
+	}
+	app := newFavoriteLocationTestApp(service, authedVerifier())
+	req := httptest.NewRequest(fiber.MethodGet, "/me/favorite-locations", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("ReadAll() error = %v", err)
+	}
+	if string(body) != `{"items":[]}` {
+		t.Fatalf("expected body %q, got %q", `{"items":[]}`, string(body))
 	}
 }
