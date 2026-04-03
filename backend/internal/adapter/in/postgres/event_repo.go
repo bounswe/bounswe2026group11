@@ -1491,6 +1491,23 @@ func (r *EventRepository) CancelEvent(ctx context.Context, eventID uuid.UUID) er
 	return tx.Commit(ctx)
 }
 
+// CompleteEvent sets the event status to COMPLETED when it is ACTIVE or IN_PROGRESS.
+// Returns ErrEventNotCompletable when the event is CANCELED, COMPLETED, or any other non-completable status.
+func (r *EventRepository) CompleteEvent(ctx context.Context, eventID uuid.UUID) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE event
+		SET status = 'COMPLETED', updated_at = NOW()
+		WHERE id = $1 AND status IN ('ACTIVE', 'IN_PROGRESS')
+	`, eventID)
+	if err != nil {
+		return fmt.Errorf("complete event: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return eventapp.ErrEventNotCompletable
+	}
+	return nil
+}
+
 // TransitionEventStatuses moves ACTIVE events to IN_PROGRESS when their
 // start_time has passed and IN_PROGRESS (or ACTIVE) events to COMPLETED when
 // their end_time has passed.

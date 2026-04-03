@@ -2409,6 +2409,117 @@ func TestCancelEventReturnsConflictForNonActiveEvent(t *testing.T) {
 	}
 }
 
+func TestCompleteEventSuccessPath(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	if err := harness.Service.CompleteEvent(context.Background(), host.ID, ref.ID); err != nil {
+		t.Fatalf("CompleteEvent() error = %v", err)
+	}
+
+	event, err := harness.EventRepo.GetEventByID(context.Background(), ref.ID)
+	if err != nil {
+		t.Fatalf("GetEventByID() error = %v", err)
+	}
+	if event.Status != domain.EventStatusCompleted {
+		t.Fatalf("expected status %q, got %q", domain.EventStatusCompleted, event.Status)
+	}
+}
+
+func TestCompleteEventSuccessOpenEnded(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	categoryID := common.GivenEventCategory(t)
+	start := time.Now().UTC().Add(24 * time.Hour)
+	result, err := harness.Service.CreateEvent(context.Background(), host.ID, eventapp.CreateEventInput{
+		Title:        "open_ended_complete_" + uuid.NewString()[:8],
+		Description:  common.StringPtr("no end time"),
+		CategoryID:   &categoryID,
+		LocationType: domain.LocationPoint,
+		Lat:          common.Float64Ptr(41.0),
+		Lon:          common.Float64Ptr(29.0),
+		StartTime:    start,
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	if err != nil {
+		t.Fatalf("CreateEvent() error = %v", err)
+	}
+	eventID, err := uuid.Parse(result.ID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() error = %v", err)
+	}
+	if result.EndTime != nil {
+		t.Fatal("expected nil end_time for open-ended fixture")
+	}
+
+	if err := harness.Service.CompleteEvent(context.Background(), host.ID, eventID); err != nil {
+		t.Fatalf("CompleteEvent() error = %v", err)
+	}
+
+	event, err := harness.EventRepo.GetEventByID(context.Background(), eventID)
+	if err != nil {
+		t.Fatalf("GetEventByID() error = %v", err)
+	}
+	if event.Status != domain.EventStatusCompleted {
+		t.Fatalf("expected status %q, got %q", domain.EventStatusCompleted, event.Status)
+	}
+}
+
+func TestCompleteEventForbiddenForNonHost(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	other := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	err := harness.Service.CompleteEvent(context.Background(), other.ID, ref.ID)
+	if err == nil {
+		t.Fatal("expected forbidden error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Status != 403 {
+		t.Fatalf("expected 403 AppError, got %v", err)
+	}
+}
+
+func TestCompleteEventReturnsConflictForCanceledOrCompleted(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	if err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID); err != nil {
+		t.Fatalf("CancelEvent() error = %v", err)
+	}
+	err := harness.Service.CompleteEvent(context.Background(), host.ID, ref.ID)
+	if err == nil {
+		t.Fatal("expected conflict error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Status != 409 {
+		t.Fatalf("expected 409 AppError, got %v", err)
+	}
+
+	ref2 := common.GivenPublicEvent(t, harness.Service, host.ID)
+	if err := harness.Service.CompleteEvent(context.Background(), host.ID, ref2.ID); err != nil {
+		t.Fatalf("first CompleteEvent() error = %v", err)
+	}
+	err = harness.Service.CompleteEvent(context.Background(), host.ID, ref2.ID)
+	if err == nil {
+		t.Fatal("expected second complete to fail")
+	}
+	if !errors.As(err, &appErr) || appErr.Status != 409 {
+		t.Fatalf("expected 409 AppError on second complete, got %v", err)
+	}
+}
+
 func TestCancelEventAppearsInParticipantProfile(t *testing.T) {
 	t.Parallel()
 

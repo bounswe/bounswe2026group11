@@ -787,6 +787,62 @@ paths:
                   code: event_not_cancelable
                   message: Only ACTIVE events can be canceled.
 
+  /events/{id}/complete:
+    patch:
+      tags: [Events]
+      summary: Mark event as completed (host)
+      description: |
+        Transitions an **ACTIVE** or **IN_PROGRESS** event to **COMPLETED**. Only the event host may perform this action.
+
+        Use this to close **open-ended** events (no `end_time`) or to finish a timed event early. The background job may also complete events when `end_time` has passed.
+
+        Rules:
+        - The event must exist.
+        - Only the authenticated host can complete their own event.
+        - If the event is already **CANCELED** or **COMPLETED**, the request returns **409**.
+      operationId: completeEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Event UUID.
+      responses:
+        "204":
+          description: Event marked as completed successfully.
+        "401":
+          description: Missing or invalid access token.
+        "403":
+          description: The caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: event_complete_not_allowed
+                  message: Only the event host can complete this event.
+        "404":
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Event is already CANCELED or COMPLETED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: event_not_completable
+                  message: The event cannot be completed because it is already CANCELED or COMPLETED.
+
   /events/{id}/join-request:
     post:
       tags: [Events]

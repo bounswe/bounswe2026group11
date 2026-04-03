@@ -44,6 +44,8 @@ const (
 	ErrorCodeJoinRequestCooldownActive       = "join_request_cooldown_active"
 	ErrorCodeEventCancelNotAllowed           = "event_cancel_not_allowed"
 	ErrorCodeEventNotCancelable              = "event_not_cancelable"
+	ErrorCodeEventCompleteNotAllowed         = "event_complete_not_allowed"
+	ErrorCodeEventNotCompletable             = "event_not_completable"
 	ErrorCodeEventCanceled                   = "event_canceled"
 	ErrorCodeEventNotJoinable                = "event_not_joinable"
 	ErrorCodeFavoriteLocationNotFound        = "favorite_location_not_found"

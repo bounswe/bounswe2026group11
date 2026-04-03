@@ -174,6 +174,10 @@ func (s *stubEventService) CancelEvent(_ context.Context, _, eventID uuid.UUID) 
 	return s.err
 }
 
+func (s *stubEventService) CompleteEvent(_ context.Context, _, _ uuid.UUID) error {
+	return s.err
+}
+
 func (s *stubEventService) AddFavorite(_ context.Context, _, _ uuid.UUID) error {
 	return s.err
 }
@@ -941,5 +945,23 @@ func TestRejectJoinRequestParsesIDsBeforeCallingService(t *testing.T) {
 	}
 	if svc.lastRejectJoinEventID != eventID || svc.lastRejectJoinRequestID != joinRequestID {
 		t.Fatalf("expected parsed event %s and join request %s, got %s and %s", eventID, joinRequestID, svc.lastRejectJoinEventID, svc.lastRejectJoinRequestID)
+	}
+}
+
+func TestCompleteEventReturns204(t *testing.T) {
+	app := newEventTestApp(&stubEventService{}, authedVerifier())
+	eventID := uuid.New()
+
+	req := httptest.NewRequest(fiber.MethodPatch, "/events/"+eventID.String()+"/complete", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != fiber.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", fiber.StatusNoContent, resp.StatusCode)
 	}
 }

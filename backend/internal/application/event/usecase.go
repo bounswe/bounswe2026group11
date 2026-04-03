@@ -14,6 +14,7 @@ type UseCase interface {
 	ApproveJoinRequest(ctx context.Context, hostUserID, eventID, joinRequestID uuid.UUID) (*ApproveJoinRequestResult, error)
 	RejectJoinRequest(ctx context.Context, hostUserID, eventID, joinRequestID uuid.UUID) (*RejectJoinRequestResult, error)
 	CancelEvent(ctx context.Context, userID, eventID uuid.UUID) error
+	CompleteEvent(ctx context.Context, userID, eventID uuid.UUID) error
 	AddFavorite(ctx context.Context, userID, eventID uuid.UUID) error
 	RemoveFavorite(ctx context.Context, userID, eventID uuid.UUID) error
 	ListFavoriteEvents(ctx context.Context, userID uuid.UUID) (*FavoriteEventsResult, error)

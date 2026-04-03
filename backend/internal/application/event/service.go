@@ -302,6 +302,30 @@ func (s *Service) CancelEvent(ctx context.Context, userID, eventID uuid.UUID) er
 	return nil
 }
 
+// CompleteEvent transitions an ACTIVE or IN_PROGRESS event to COMPLETED. Only the host may call this.
+func (s *Service) CompleteEvent(ctx context.Context, userID, eventID uuid.UUID) error {
+	event, err := s.eventRepo.GetEventByID(ctx, eventID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+		}
+		return err
+	}
+
+	if event.HostID != userID {
+		return domain.ForbiddenError(domain.ErrorCodeEventCompleteNotAllowed, "Only the event host can complete this event.")
+	}
+
+	if err := s.eventRepo.CompleteEvent(ctx, eventID); err != nil {
+		if errors.Is(err, ErrEventNotCompletable) {
+			return domain.ConflictError(domain.ErrorCodeEventNotCompletable, "The event cannot be completed because it is already CANCELED or COMPLETED.")
+		}
+		return err
+	}
+
+	return nil
+}
+
 // AddFavorite saves an event to the user's favorites list.
 func (s *Service) AddFavorite(ctx context.Context, userID, eventID uuid.UUID) error {
 	return s.eventRepo.AddFavorite(ctx, userID, eventID)

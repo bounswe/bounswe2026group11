@@ -81,6 +81,18 @@ func (r *fakeEventRepo) CancelEvent(_ context.Context, eventID uuid.UUID) error 
 	return nil
 }
 
+func (r *fakeEventRepo) CompleteEvent(_ context.Context, eventID uuid.UUID) error {
+	if r.err != nil {
+		return r.err
+	}
+	e, ok := r.events[eventID]
+	if !ok || (e.Status != domain.EventStatusActive && e.Status != domain.EventStatusInProgress) {
+		return ErrEventNotCompletable
+	}
+	e.Status = domain.EventStatusCompleted
+	return nil
+}
+
 func (r *fakeEventRepo) AddFavorite(_ context.Context, _, _ uuid.UUID) error {
 	return r.err
 }
@@ -1116,6 +1128,65 @@ func protectedEvent(hostID uuid.UUID) *domain.Event {
 		HostID:       hostID,
 		PrivacyLevel: domain.PrivacyProtected,
 		Status:       domain.EventStatusActive,
+	}
+}
+
+func TestCompleteEventHostSuccess(t *testing.T) {
+	hostID := uuid.New()
+	ev := publicEvent(hostID)
+	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+
+	if err := svc.CompleteEvent(context.Background(), hostID, ev.ID); err != nil {
+		t.Fatalf("CompleteEvent() error = %v", err)
+	}
+	if ev.Status != domain.EventStatusCompleted {
+		t.Fatalf("expected status COMPLETED, got %q", ev.Status)
+	}
+}
+
+func TestCompleteEventHostSuccessInProgress(t *testing.T) {
+	hostID := uuid.New()
+	ev := publicEvent(hostID)
+	ev.Status = domain.EventStatusInProgress
+	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+
+	if err := svc.CompleteEvent(context.Background(), hostID, ev.ID); err != nil {
+		t.Fatalf("CompleteEvent() error = %v", err)
+	}
+	if ev.Status != domain.EventStatusCompleted {
+		t.Fatalf("expected status COMPLETED, got %q", ev.Status)
+	}
+}
+
+func TestCompleteEventForbiddenForNonHost(t *testing.T) {
+	hostID := uuid.New()
+	other := uuid.New()
+	ev := publicEvent(hostID)
+	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+
+	err := svc.CompleteEvent(context.Background(), other, ev.ID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Status != 403 || appErr.Code != domain.ErrorCodeEventCompleteNotAllowed {
+		t.Fatalf("expected 403 event_complete_not_allowed, got %v", err)
+	}
+}
+
+func TestCompleteEventConflictWhenTerminal(t *testing.T) {
+	hostID := uuid.New()
+	ev := publicEvent(hostID)
+	ev.Status = domain.EventStatusCompleted
+	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+
+	err := svc.CompleteEvent(context.Background(), hostID, ev.ID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Status != 409 || appErr.Code != domain.ErrorCodeEventNotCompletable {
+		t.Fatalf("expected 409 event_not_completable, got %v", err)
 	}
 }
 

@@ -36,6 +36,7 @@ func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.
 	group.Post("/:id/join-requests/:joinRequestId/approve", auth, handler.ApproveJoinRequest)
 	group.Post("/:id/join-requests/:joinRequestId/reject", auth, handler.RejectJoinRequest)
 	group.Patch("/:id/cancel", auth, handler.CancelEvent)
+	group.Patch("/:id/complete", auth, handler.CompleteEvent)
 	group.Post("/:id/favorite", auth, handler.AddFavorite)
 	group.Delete("/:id/favorite", auth, handler.RemoveFavorite)
 }
@@ -276,6 +277,22 @@ func (h *EventHandler) CancelEvent(c *fiber.Ctx) error {
 
 	claims := httpapi.UserClaims(c)
 	if err := h.service.CancelEvent(c.UserContext(), claims.UserID, eventID); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// CompleteEvent handles PATCH /events/:id/complete.
+// Transitions an ACTIVE or IN_PROGRESS event to COMPLETED. Only the host may perform this.
+func (h *EventHandler) CompleteEvent(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	if err := h.service.CompleteEvent(c.UserContext(), claims.UserID, eventID); err != nil {
 		return httpapi.WriteError(c, err)
 	}
 
