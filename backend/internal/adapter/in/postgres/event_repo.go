@@ -346,6 +346,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 				el.address AS location_address,
 				e.privacy_level,
 				e.approved_participant_count,
+				e.favorite_count,
 				(fav.event_id IS NOT NULL) AS is_favorited,
 				us.final_score AS host_final_score,
 				COALESCE(us.hosted_event_rating_count, 0) AS host_rating_count,
@@ -367,6 +368,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 			location_address,
 			privacy_level,
 			approved_participant_count,
+			favorite_count,
 			is_favorited,
 			host_final_score,
 			host_rating_count,
@@ -395,6 +397,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 			locationAddress          pgtype.Text
 			privacyLevel             string
 			approvedParticipantCount int
+			favoriteCount            int
 			isFavorited              bool
 			hostFinalScore           pgtype.Float8
 			hostRatingCount          int
@@ -411,6 +414,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 			&locationAddress,
 			&privacyLevel,
 			&approvedParticipantCount,
+			&favoriteCount,
 			&isFavorited,
 			&hostFinalScore,
 			&hostRatingCount,
@@ -427,6 +431,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 			StartTime:                startTime,
 			PrivacyLevel:             domain.EventPrivacyLevel(privacyLevel),
 			ApprovedParticipantCount: approvedParticipantCount,
+			FavoriteCount:            favoriteCount,
 			IsFavorited:              isFavorited,
 			HostScore: eventapp.EventHostScoreSummaryRecord{
 				HostedEventRatingCount: hostRatingCount,

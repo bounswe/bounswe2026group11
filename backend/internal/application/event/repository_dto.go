@@ -65,6 +65,7 @@ type DiscoverableEventRecord struct {
 	LocationAddress          *string
 	PrivacyLevel             domain.EventPrivacyLevel
 	ApprovedParticipantCount int
+	FavoriteCount            int
 	IsFavorited              bool
 	HostScore                EventHostScoreSummaryRecord
 	DistanceMeters           float64

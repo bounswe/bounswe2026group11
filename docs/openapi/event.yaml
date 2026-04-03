@@ -1297,6 +1297,7 @@ paths:
                         location_address: Belgrad Forest, Istanbul
                         privacy_level: PUBLIC
                         approved_participant_count: 42
+                        favorite_count: 8
                         is_favorited: true
                         host_score:
                           final_score: 4.18
@@ -1309,6 +1310,7 @@ paths:
                         location_address: Besiktas, Istanbul
                         privacy_level: PROTECTED
                         approved_participant_count: 18
+                        favorite_count: 3
                         is_favorited: false
                         host_score:
                           final_score: null
@@ -1796,6 +1798,7 @@ components:
         - start_time
         - privacy_level
         - approved_participant_count
+        - favorite_count
         - is_favorited
         - host_score
       properties:
@@ -1839,6 +1842,11 @@ components:
           minimum: 0
           description: Current count of approved participants.
           example: 42
+        favorite_count:
+          type: integer
+          minimum: 0
+          description: Total number of users who have favorited this event.
+          example: 8
         is_favorited:
           type: boolean
           description: Whether the authenticated user has favorited the event.

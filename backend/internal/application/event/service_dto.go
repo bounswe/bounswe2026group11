@@ -83,6 +83,7 @@ type DiscoverableEventItem struct {
 	LocationAddress          *string               `json:"location_address"`
 	PrivacyLevel             string                `json:"privacy_level"`
 	ApprovedParticipantCount int                   `json:"approved_participant_count"`
+	FavoriteCount            int                   `json:"favorite_count"`
 	IsFavorited              bool                  `json:"is_favorited"`
 	HostScore                EventHostScoreSummary `json:"host_score"`
 }
