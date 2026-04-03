@@ -78,6 +78,7 @@ const TABS: { key: MyEventsTab; label: string }[] = [
   { key: 'organized', label: 'Organized' },
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'past', label: 'Past' },
+  { key: 'canceled', label: 'Canceled' },
 ];
 
 export default function MyEventsPage() {
@@ -88,6 +89,7 @@ export default function MyEventsPage() {
     organized: vm.organized.length,
     upcoming: vm.upcoming.length,
     past: vm.past.length,
+    canceled: vm.canceled.length,
   };
 
   return (
@@ -149,6 +151,12 @@ export default function MyEventsPage() {
             <EventList
               events={vm.past}
               emptyMessage="No past events yet."
+            />
+          )}
+          {vm.activeTab === 'canceled' && (
+            <EventList
+              events={vm.canceled}
+              emptyMessage="No canceled events."
             />
           )}
         </>
