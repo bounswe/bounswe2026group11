@@ -1,0 +1,345 @@
+openapi: 3.1.0
+info:
+  title: Social Event Mapper - Favorite Location API
+  version: 0.1.0
+  description: >
+    Authenticated endpoints for managing the current user's saved favorite locations.
+
+paths:
+  /me/favorite-locations:
+    get:
+      summary: List current user's favorite locations
+      description: >
+        Returns the authenticated user's favorite locations ordered alphabetically by
+        the user-defined `name`, using a case-insensitive ascending sort. When names
+        compare equally, the server breaks ties by `id` ascending for deterministic
+        ordering.
+      tags:
+        - Favorite Locations
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Favorite locations listed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteLocationsResponse"
+              examples:
+                default:
+                  value:
+                    items:
+                      - id: "550e8400-e29b-41d4-a716-446655440000"
+                        name: Home
+                        address: "Beşiktaş, Istanbul"
+                        lat: 41.0430
+                        lon: 29.0094
+                      - id: "550e8400-e29b-41d4-a716-446655440001"
+                        name: Work
+                        address: "Levent, Istanbul"
+                        lat: 41.0781
+                        lon: 29.0124
+        "401":
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                missing_token:
+                  value:
+                    error:
+                      code: missing_token
+                      message: Authorization header with Bearer token is required.
+
+    post:
+      summary: Create a favorite location
+      description: >
+        Creates a new favorite location for the authenticated user. Each user may
+        store at most `3` favorite locations. Coordinates use WGS84 decimal degrees.
+      tags:
+        - Favorite Locations
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFavoriteLocationRequest"
+            examples:
+              default:
+                value:
+                  name: Home
+                  address: "Kadıköy, Istanbul"
+                  lat: 40.9917
+                  lon: 29.0277
+      responses:
+        "201":
+          description: Favorite location created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteLocation"
+        "400":
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                invalid_body:
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        lat: must be between -90 and 90
+        "401":
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: User already has the maximum allowed number of favorite locations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                limit_exceeded:
+                  value:
+                    error:
+                      code: favorite_location_limit_exceeded
+                      message: Users can save at most 3 favorite locations.
+
+  /me/favorite-locations/{id}:
+    patch:
+      summary: Update a favorite location
+      description: >
+        Partially updates one of the authenticated user's favorite locations.
+        Omitted fields remain unchanged. If the `id` does not belong to the current
+        user, the server returns `404`.
+      tags:
+        - Favorite Locations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFavoriteLocationRequest"
+            examples:
+              rename_only:
+                value:
+                  name: Parents
+              move_location:
+                value:
+                  address: "Üsküdar, Istanbul"
+                  lat: 41.0236
+                  lon: 29.0152
+      responses:
+        "200":
+          description: Favorite location updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteLocation"
+        "400":
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Favorite location was not found for the authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                not_found:
+                  value:
+                    error:
+                      code: favorite_location_not_found
+                      message: The requested favorite location does not exist.
+
+    delete:
+      summary: Delete a favorite location
+      description: >
+        Removes one of the authenticated user's favorite locations. If the `id`
+        does not belong to the current user, the server returns `404`.
+      tags:
+        - Favorite Locations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Favorite location deleted successfully.
+        "401":
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Favorite location was not found for the authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    FavoriteLocation:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - address
+        - lat
+        - lon
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Favorite location identifier.
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          maxLength: 64
+          description: User-defined label for the saved place.
+          example: Home
+        address:
+          type: string
+          maxLength: 512
+          description: User-facing address text.
+          example: "Kadıköy, Istanbul"
+        lat:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          description: Latitude in WGS84 decimal degrees.
+          example: 40.9917
+        lon:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          description: Longitude in WGS84 decimal degrees.
+          example: 29.0277
+
+    FavoriteLocationsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FavoriteLocation"
+
+    CreateFavoriteLocationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - address
+        - lat
+        - lon
+      properties:
+        name:
+          type: string
+          maxLength: 64
+        address:
+          type: string
+          maxLength: 512
+        lat:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        lon:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+
+    UpdateFavoriteLocationRequest:
+      type: object
+      additionalProperties: false
+      description: >
+        All fields are optional. Any field omitted from the request remains unchanged.
+      properties:
+        name:
+          type: string
+          maxLength: 64
+        address:
+          type: string
+          maxLength: 512
+        lat:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        lon:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties:
+            type: string

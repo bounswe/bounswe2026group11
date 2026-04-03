@@ -1572,5 +1572,3 @@ func (r *EventRepository) ListFavoriteEvents(ctx context.Context, userID uuid.UU
 	}
 	return records, rows.Err()
 }
-
-

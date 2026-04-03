@@ -46,11 +46,13 @@ const (
 	ErrorCodeEventNotCancelable              = "event_not_cancelable"
 	ErrorCodeEventCanceled                   = "event_canceled"
 	ErrorCodeEventNotJoinable                = "event_not_joinable"
+	ErrorCodeFavoriteLocationNotFound        = "favorite_location_not_found"
+	ErrorCodeFavoriteLocationLimitExceeded   = "favorite_location_limit_exceeded"
 
-	ErrorCodeImageUploadTokenInvalid         = "image_upload_token_invalid"
-	ErrorCodeImageUploadNotAllowed           = "image_upload_not_allowed"
-	ErrorCodeImageUploadIncomplete           = "image_upload_incomplete"
-	ErrorCodeImageUploadVersionConflict      = "image_upload_version_conflict"
+	ErrorCodeImageUploadTokenInvalid    = "image_upload_token_invalid"
+	ErrorCodeImageUploadNotAllowed      = "image_upload_not_allowed"
+	ErrorCodeImageUploadIncomplete      = "image_upload_incomplete"
+	ErrorCodeImageUploadVersionConflict = "image_upload_version_conflict"
 )
 
 // ErrNotFound is a sentinel error returned when a queried entity does not exist.

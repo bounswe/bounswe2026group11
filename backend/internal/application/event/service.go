@@ -335,4 +335,3 @@ func (s *Service) ListFavoriteEvents(ctx context.Context, userID uuid.UUID) (*Fa
 
 	return &FavoriteEventsResult{Items: items}, nil
 }
-
