@@ -2012,13 +2012,16 @@ func TestRequestJoinReactivatesRejectedRequestAfterCooldown(t *testing.T) {
 }
 
 type discoveryEventSeed struct {
-	HostID       uuid.UUID
-	Title        string
-	Description  string
-	CategoryID   int
-	Lat          float64
-	Lon          float64
-	StartTime    time.Time
+	HostID      uuid.UUID
+	Title       string
+	Description string
+	CategoryID  int
+	Lat         float64
+	Lon         float64
+	StartTime   time.Time
+	// EndTime, when set, makes the event timed; required for discover tests that need a
+	// started event still visible (open-ended past-start events are excluded from discovery).
+	EndTime      *time.Time
 	PrivacyLevel domain.EventPrivacyLevel
 	Tags         []string
 }
@@ -2044,6 +2047,7 @@ func createDiscoveryEvent(t *testing.T, harness *common.EventHarness, seed disco
 		Lat:          &seed.Lat,
 		Lon:          &seed.Lon,
 		StartTime:    seed.StartTime,
+		EndTime:      seed.EndTime,
 		PrivacyLevel: seed.PrivacyLevel,
 		Tags:         seed.Tags,
 	})

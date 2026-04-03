@@ -25,6 +25,7 @@ func TestEventRatingUpdatesHostScoreAndEventReadModels(t *testing.T) {
 	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("rated_host"))
 	participant := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("rated_participant"))
 	startTime := time.Now().UTC().Add(-2 * time.Hour)
+	endTime := time.Now().UTC().Add(2 * time.Hour)
 	lat := 41.015
 	lon := 29.02
 	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
@@ -35,6 +36,7 @@ func TestEventRatingUpdatesHostScoreAndEventReadModels(t *testing.T) {
 		Lat:          lat,
 		Lon:          lon,
 		StartTime:    startTime,
+		EndTime:      &endTime,
 		PrivacyLevel: domain.PrivacyPublic,
 	})
 	insertParticipation(t, eventID, participant.ID, domain.ParticipationStatusApproved)
