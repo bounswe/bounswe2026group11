@@ -2408,3 +2408,99 @@ func TestCancelEventReturnsConflictForNonActiveEvent(t *testing.T) {
 		t.Fatalf("expected 409 AppError, got %v", err)
 	}
 }
+
+func TestAddAndRemoveFavorite(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	user := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	// when: add favorite
+	err := harness.EventRepo.AddFavorite(context.Background(), user.ID, ref.ID)
+	if err != nil {
+		t.Fatalf("AddFavorite() error = %v", err)
+	}
+
+	// then: appears in favorites list
+	favs, err := harness.EventRepo.ListFavoriteEvents(context.Background(), user.ID)
+	if err != nil {
+		t.Fatalf("ListFavoriteEvents() error = %v", err)
+	}
+	if len(favs) != 1 || favs[0].ID != ref.ID {
+		t.Fatalf("expected 1 favorite with ID %s, got %d items", ref.ID, len(favs))
+	}
+
+	// when: add again (idempotent)
+	err = harness.EventRepo.AddFavorite(context.Background(), user.ID, ref.ID)
+	if err != nil {
+		t.Fatalf("AddFavorite() duplicate error = %v", err)
+	}
+
+	// when: remove favorite
+	err = harness.EventRepo.RemoveFavorite(context.Background(), user.ID, ref.ID)
+	if err != nil {
+		t.Fatalf("RemoveFavorite() error = %v", err)
+	}
+
+	// then: no longer in favorites
+	favs, err = harness.EventRepo.ListFavoriteEvents(context.Background(), user.ID)
+	if err != nil {
+		t.Fatalf("ListFavoriteEvents() after remove error = %v", err)
+	}
+	if len(favs) != 0 {
+		t.Fatalf("expected 0 favorites after remove, got %d", len(favs))
+	}
+}
+
+func TestListMyEventsUpcomingAndCompleted(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	activeRef := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	// cancel one event to test canceled listing
+	cancelRef := common.GivenPublicEvent(t, harness.Service, host.ID)
+	_ = harness.Service.CancelEvent(context.Background(), host.ID, cancelRef.ID)
+
+	// when: list upcoming (ACTIVE events)
+	upcoming, err := harness.Service.ListMyUpcomingEvents(context.Background(), host.ID)
+	if err != nil {
+		t.Fatalf("ListMyUpcomingEvents() error = %v", err)
+	}
+
+	// then: active event should be in upcoming
+	found := false
+	for _, item := range upcoming.Items {
+		if item.ID == activeRef.ID.String() {
+			found = true
+			if !item.IsHost {
+				t.Fatal("expected is_host = true for host's own event")
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected active event %s in upcoming list", activeRef.ID)
+	}
+
+	// when: list canceled
+	canceled, err := harness.Service.ListMyCanceledEvents(context.Background(), host.ID)
+	if err != nil {
+		t.Fatalf("ListMyCanceledEvents() error = %v", err)
+	}
+
+	// then: canceled event should be in list
+	found = false
+	for _, item := range canceled.Items {
+		if item.ID == cancelRef.ID.String() {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected canceled event %s in canceled list", cancelRef.ID)
+	}
+}

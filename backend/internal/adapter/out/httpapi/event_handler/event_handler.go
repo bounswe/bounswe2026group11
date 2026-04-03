@@ -36,6 +36,14 @@ func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.
 	group.Post("/:id/join-requests/:joinRequestId/approve", auth, handler.ApproveJoinRequest)
 	group.Post("/:id/join-requests/:joinRequestId/reject", auth, handler.RejectJoinRequest)
 	group.Patch("/:id/cancel", auth, handler.CancelEvent)
+	group.Post("/:id/favorite", auth, handler.AddFavorite)
+	group.Delete("/:id/favorite", auth, handler.RemoveFavorite)
+
+	me := router.Group("/me")
+	me.Get("/favorites", auth, handler.ListFavoriteEvents)
+	me.Get("/events/upcoming", auth, handler.ListMyUpcomingEvents)
+	me.Get("/events/completed", auth, handler.ListMyCompletedEvents)
+	me.Get("/events/canceled", auth, handler.ListMyCanceledEvents)
 }
 
 // DiscoverEvents handles GET /events.
@@ -278,6 +286,80 @@ func (h *EventHandler) CancelEvent(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// AddFavorite handles POST /events/:id/favorite.
+func (h *EventHandler) AddFavorite(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	if err := h.service.AddFavorite(c.UserContext(), claims.UserID, eventID); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// RemoveFavorite handles DELETE /events/:id/favorite.
+func (h *EventHandler) RemoveFavorite(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	if err := h.service.RemoveFavorite(c.UserContext(), claims.UserID, eventID); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// ListFavoriteEvents handles GET /me/favorites.
+func (h *EventHandler) ListFavoriteEvents(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.ListFavoriteEvents(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
+}
+
+// ListMyUpcomingEvents handles GET /me/events/upcoming.
+func (h *EventHandler) ListMyUpcomingEvents(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.ListMyUpcomingEvents(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
+}
+
+// ListMyCompletedEvents handles GET /me/events/completed.
+func (h *EventHandler) ListMyCompletedEvents(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.ListMyCompletedEvents(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
+}
+
+// ListMyCanceledEvents handles GET /me/events/canceled.
+func (h *EventHandler) ListMyCanceledEvents(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.ListMyCanceledEvents(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
 }
 
 func parseEventIDParam(c *fiber.Ctx) (uuid.UUID, error) {

@@ -81,6 +81,22 @@ func (r *fakeEventRepo) CancelEvent(_ context.Context, eventID uuid.UUID) error 
 	return nil
 }
 
+func (r *fakeEventRepo) AddFavorite(_ context.Context, _, _ uuid.UUID) error {
+	return r.err
+}
+
+func (r *fakeEventRepo) RemoveFavorite(_ context.Context, _, _ uuid.UUID) error {
+	return r.err
+}
+
+func (r *fakeEventRepo) ListFavoriteEvents(_ context.Context, _ uuid.UUID) ([]FavoriteEventRecord, error) {
+	return nil, r.err
+}
+
+func (r *fakeEventRepo) ListMyEvents(_ context.Context, _ uuid.UUID, _ []domain.EventStatus) ([]MyEventRecord, error) {
+	return nil, r.err
+}
+
 func (r *fakeEventRepo) ListDiscoverableEvents(_ context.Context, userID uuid.UUID, params DiscoverEventsParams) ([]DiscoverableEventRecord, error) {
 	r.discoverCallCount++
 	r.lastDiscoverUserID = userID

@@ -81,6 +81,30 @@ type DiscoverEventsCursor struct {
 	RelevanceScore    *float64                  `json:"relevance_score,omitempty"`
 }
 
+// MyEventRecord is the repository-level projection for personal event listings.
+type MyEventRecord struct {
+	ID           uuid.UUID
+	Title        string
+	CategoryName *string
+	ImageURL     *string
+	Status       domain.EventStatus
+	StartTime    time.Time
+	EndTime      *time.Time
+	IsHost       bool
+}
+
+// FavoriteEventRecord is the repository-level projection for favorite event listings.
+type FavoriteEventRecord struct {
+	ID           uuid.UUID
+	Title        string
+	CategoryName *string
+	ImageURL     *string
+	Status       domain.EventStatus
+	StartTime    time.Time
+	EndTime      *time.Time
+	FavoritedAt  time.Time
+}
+
 // EventDetailRecord is the repository-level projection used for event detail responses.
 type EventDetailRecord struct {
 	ID                       uuid.UUID

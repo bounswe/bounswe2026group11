@@ -282,3 +282,75 @@ func (s *Service) CancelEvent(ctx context.Context, userID, eventID uuid.UUID) er
 
 	return nil
 }
+
+// AddFavorite saves an event to the user's favorites list.
+func (s *Service) AddFavorite(ctx context.Context, userID, eventID uuid.UUID) error {
+	return s.eventRepo.AddFavorite(ctx, userID, eventID)
+}
+
+// RemoveFavorite removes an event from the user's favorites list.
+func (s *Service) RemoveFavorite(ctx context.Context, userID, eventID uuid.UUID) error {
+	return s.eventRepo.RemoveFavorite(ctx, userID, eventID)
+}
+
+// ListFavoriteEvents returns events the user has favorited, ordered by most recent.
+func (s *Service) ListFavoriteEvents(ctx context.Context, userID uuid.UUID) (*FavoriteEventsResult, error) {
+	records, err := s.eventRepo.ListFavoriteEvents(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]FavoriteEventItem, len(records))
+	for i, r := range records {
+		items[i] = FavoriteEventItem{
+			ID:          r.ID.String(),
+			Title:       r.Title,
+			Category:    r.CategoryName,
+			ImageURL:    r.ImageURL,
+			Status:      string(r.Status),
+			StartTime:   r.StartTime,
+			EndTime:     r.EndTime,
+			FavoritedAt: r.FavoritedAt,
+		}
+	}
+
+	return &FavoriteEventsResult{Items: items}, nil
+}
+
+// ListMyUpcomingEvents returns the user's upcoming events (ACTIVE or IN_PROGRESS).
+func (s *Service) ListMyUpcomingEvents(ctx context.Context, userID uuid.UUID) (*MyEventsResult, error) {
+	return s.listMyEvents(ctx, userID, []domain.EventStatus{domain.EventStatusActive, domain.EventStatusInProgress})
+}
+
+// ListMyCompletedEvents returns the user's completed events.
+func (s *Service) ListMyCompletedEvents(ctx context.Context, userID uuid.UUID) (*MyEventsResult, error) {
+	return s.listMyEvents(ctx, userID, []domain.EventStatus{domain.EventStatusCompleted})
+}
+
+// ListMyCanceledEvents returns the user's canceled events.
+func (s *Service) ListMyCanceledEvents(ctx context.Context, userID uuid.UUID) (*MyEventsResult, error) {
+	return s.listMyEvents(ctx, userID, []domain.EventStatus{domain.EventStatusCanceled})
+}
+
+func (s *Service) listMyEvents(ctx context.Context, userID uuid.UUID, statuses []domain.EventStatus) (*MyEventsResult, error) {
+	records, err := s.eventRepo.ListMyEvents(ctx, userID, statuses)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]MyEventItem, len(records))
+	for i, r := range records {
+		items[i] = MyEventItem{
+			ID:        r.ID.String(),
+			Title:     r.Title,
+			Category:  r.CategoryName,
+			ImageURL:  r.ImageURL,
+			Status:    string(r.Status),
+			StartTime: r.StartTime,
+			EndTime:   r.EndTime,
+			IsHost:    r.IsHost,
+		}
+	}
+
+	return &MyEventsResult{Items: items}, nil
+}

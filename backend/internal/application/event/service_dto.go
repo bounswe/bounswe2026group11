@@ -235,6 +235,40 @@ type EventDetailInvitation struct {
 	User         EventDetailHostContextUser `json:"user"`
 }
 
+// MyEventItem is a compact event summary returned by the my-events endpoints.
+type MyEventItem struct {
+	ID        string     `json:"id"`
+	Title     string     `json:"title"`
+	Category  *string    `json:"category"`
+	ImageURL  *string    `json:"image_url"`
+	Status    string     `json:"status"`
+	StartTime time.Time  `json:"start_time"`
+	EndTime   *time.Time `json:"end_time"`
+	IsHost    bool       `json:"is_host"`
+}
+
+// MyEventsResult wraps a list of personal event items.
+type MyEventsResult struct {
+	Items []MyEventItem `json:"items"`
+}
+
+// FavoriteEventItem is the compact event summary returned by the favorites list.
+type FavoriteEventItem struct {
+	ID          string     `json:"id"`
+	Title       string     `json:"title"`
+	Category    *string    `json:"category"`
+	ImageURL    *string    `json:"image_url"`
+	Status      string     `json:"status"`
+	StartTime   time.Time  `json:"start_time"`
+	EndTime     *time.Time `json:"end_time"`
+	FavoritedAt time.Time  `json:"favorited_at"`
+}
+
+// FavoriteEventsResult wraps a list of favorite event items.
+type FavoriteEventsResult struct {
+	Items []FavoriteEventItem `json:"items"`
+}
+
 // JoinEventResult is returned after a user successfully joins a public event.
 type JoinEventResult struct {
 	ParticipationID string    `json:"participation_id"`
