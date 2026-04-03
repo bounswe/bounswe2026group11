@@ -14,6 +14,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/security"
 	authapp "github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
 	eventapp "github.com/bounswe/bounswe2026group11/backend/internal/application/event"
+	favoritelocationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location"
 	joinrequestapp "github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	participationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
 	profileapp "github.com/bounswe/bounswe2026group11/backend/internal/application/profile"
@@ -85,6 +86,13 @@ type EventHarness struct {
 	AuthRepo       authapp.Repository
 }
 
+// FavoriteLocationHarness bundles the shared wiring used by favorite-location integration tests.
+type FavoriteLocationHarness struct {
+	Service  favoritelocationapp.UseCase
+	Repo     *postgresrepo.FavoriteLocationRepository
+	AuthRepo authapp.Repository
+}
+
 // NewEventHarness creates an event service that shares the package-level pool.
 func NewEventHarness(t *testing.T) *EventHarness {
 	t.Helper()
@@ -99,14 +107,28 @@ func NewEventHarness(t *testing.T) *EventHarness {
 	joinRequestService := joinrequestapp.NewService(joinRequestRepo)
 
 	return &EventHarness{
-		Service:        eventapp.NewService(eventRepo, participationService, joinRequestService),
-		EventRepo:      eventRepo,
-		RatingService:  ratingapp.NewService(ratingRepo, ratingapp.Settings{
+		Service:   eventapp.NewService(eventRepo, participationService, joinRequestService),
+		EventRepo: eventRepo,
+		RatingService: ratingapp.NewService(ratingRepo, ratingapp.Settings{
 			GlobalPrior: 4.0,
 			BayesianM:   5,
 		}),
 		ProfileService: profileapp.NewService(profileRepo),
 		AuthRepo:       postgresrepo.NewAuthRepository(pool),
+	}
+}
+
+// NewFavoriteLocationHarness creates a favorite-location service backed by the shared integration database.
+func NewFavoriteLocationHarness(t *testing.T) *FavoriteLocationHarness {
+	t.Helper()
+
+	pool := RequirePool(t)
+	repo := postgresrepo.NewFavoriteLocationRepository(pool)
+
+	return &FavoriteLocationHarness{
+		Service:  favoritelocationapp.NewService(repo),
+		Repo:     repo,
+		AuthRepo: postgresrepo.NewAuthRepository(pool),
 	}
 }
 
