@@ -194,7 +194,7 @@ type EventDetailHostContextRecord struct {
 // EventDetailApprovedParticipantRecord is a host-visible approved participation projection.
 type EventDetailApprovedParticipantRecord struct {
 	ParticipationID uuid.UUID
-	Status          string
+	Status          domain.ParticipationStatus
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	HostRating      *EventDetailRatingRecord

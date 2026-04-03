@@ -407,11 +407,16 @@ func (r *JoinRequestRepository) insertApprovedParticipation(
 		return nil, fmt.Errorf("insert participation: %w", err)
 	}
 
+	parsedStatus, ok := domain.ParseParticipationStatus(status)
+	if !ok {
+		return nil, fmt.Errorf("insert participation: unknown participation status %q", status)
+	}
+
 	return &domain.Participation{
 		ID:        id,
 		EventID:   eventID,
 		UserID:    userID,
-		Status:    status,
+		Status:    parsedStatus,
 		CreatedAt: createdAt,
 		UpdatedAt: updatedAt,
 	}, nil

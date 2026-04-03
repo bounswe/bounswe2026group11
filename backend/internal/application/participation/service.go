@@ -24,3 +24,9 @@ func NewService(repo Repository) *Service {
 func (s *Service) CreateApprovedParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
 	return s.repo.CreateParticipation(ctx, eventID, userID)
 }
+
+// LeaveParticipation marks an APPROVED participation as LEAVED for the given
+// event and user.
+func (s *Service) LeaveParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
+	return s.repo.LeaveParticipation(ctx, eventID, userID)
+}

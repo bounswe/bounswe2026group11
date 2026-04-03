@@ -56,11 +56,56 @@ func (r *ParticipationRepository) CreateParticipation(ctx context.Context, event
 		return nil, mapParticipationInsertError(err)
 	}
 
+	parsedStatus, ok := domain.ParseParticipationStatus(status)
+	if !ok {
+		return nil, fmt.Errorf("insert participation: unknown participation status %q", status)
+	}
+
 	return &domain.Participation{
 		ID:        id,
 		EventID:   eventID,
 		UserID:    userID,
-		Status:    status,
+		Status:    parsedStatus,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+	}, nil
+}
+
+// LeaveParticipation transitions an APPROVED participation to LEAVED.
+func (r *ParticipationRepository) LeaveParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
+	var (
+		id        uuid.UUID
+		status    string
+		createdAt time.Time
+		updatedAt time.Time
+	)
+
+	err := r.pool.QueryRow(ctx, `
+		UPDATE participation
+		SET status = $3,
+		    updated_at = NOW()
+		WHERE event_id = $1
+		  AND user_id = $2
+		  AND status = $4
+		RETURNING id, status, created_at, updated_at
+	`, eventID, userID, domain.ParticipationStatusLeaved, domain.ParticipationStatusApproved).Scan(&id, &status, &createdAt, &updatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, r.mapLeaveParticipationNoRow(ctx, eventID)
+		}
+		return nil, fmt.Errorf("leave participation: %w", err)
+	}
+
+	parsedStatus, ok := domain.ParseParticipationStatus(status)
+	if !ok {
+		return nil, fmt.Errorf("leave participation: unknown participation status %q", status)
+	}
+
+	return &domain.Participation{
+		ID:        id,
+		EventID:   eventID,
+		UserID:    userID,
+		Status:    parsedStatus,
 		CreatedAt: createdAt,
 		UpdatedAt: updatedAt,
 	}, nil
@@ -94,6 +139,18 @@ func (r *ParticipationRepository) mapCreateParticipationNoRow(ctx context.Contex
 	}
 
 	return fmt.Errorf("insert participation: join preconditions changed during insert")
+}
+
+func (r *ParticipationRepository) mapLeaveParticipationNoRow(ctx context.Context, eventID uuid.UUID) error {
+	event, err := r.loadEventJoinState(ctx, eventID)
+	if err != nil {
+		return err
+	}
+	if event == nil {
+		return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+	}
+
+	return domain.ConflictError(domain.ErrorCodeEventLeaveNotAllowed, "Only approved participants can leave this event.")
 }
 
 func (r *ParticipationRepository) loadEventJoinState(ctx context.Context, eventID uuid.UUID) (*domain.Event, error) {

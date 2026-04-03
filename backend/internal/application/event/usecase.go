@@ -10,6 +10,7 @@ type UseCase interface {
 	DiscoverEvents(ctx context.Context, userID uuid.UUID, input DiscoverEventsInput) (*DiscoverEventsResult, error)
 	GetEventDetail(ctx context.Context, userID, eventID uuid.UUID) (*GetEventDetailResult, error)
 	JoinEvent(ctx context.Context, userID, eventID uuid.UUID) (*JoinEventResult, error)
+	LeaveEvent(ctx context.Context, userID, eventID uuid.UUID) (*LeaveEventResult, error)
 	RequestJoin(ctx context.Context, userID, eventID uuid.UUID, input RequestJoinInput) (*RequestJoinResult, error)
 	ApproveJoinRequest(ctx context.Context, hostUserID, eventID, joinRequestID uuid.UUID) (*ApproveJoinRequestResult, error)
 	RejectJoinRequest(ctx context.Context, hostUserID, eventID, joinRequestID uuid.UUID) (*RejectJoinRequestResult, error)

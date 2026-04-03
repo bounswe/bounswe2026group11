@@ -143,10 +143,10 @@ func (r *ProfileRepository) GetUpcomingEvents(ctx context.Context, userID uuid.U
 		JOIN participation p ON p.event_id = e.id
 		LEFT JOIN event_category ec ON ec.id = e.category_id
 		WHERE p.user_id = $1
-		  AND p.status = 'APPROVED'
-		  AND e.status IN ('ACTIVE', 'IN_PROGRESS')
+		  AND p.status = $2
+		  AND e.status IN ($3, $4)
 		ORDER BY e.start_time ASC
-	`, userID)
+	`, userID, domain.ParticipationStatusApproved, domain.EventStatusActive, domain.EventStatusInProgress)
 	if err != nil {
 		return nil, fmt.Errorf("get upcoming events: %w", err)
 	}
@@ -154,8 +154,8 @@ func (r *ProfileRepository) GetUpcomingEvents(ctx context.Context, userID uuid.U
 	return scanEventSummaries(rows)
 }
 
-// GetCompletedEvents returns events the user had an APPROVED participation in
-// that are now COMPLETED.
+// GetCompletedEvents returns events the user either completed as an APPROVED
+// participant or left after the event had already started.
 func (r *ProfileRepository) GetCompletedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT
@@ -170,10 +170,13 @@ func (r *ProfileRepository) GetCompletedEvents(ctx context.Context, userID uuid.
 		JOIN participation p ON p.event_id = e.id
 		LEFT JOIN event_category ec ON ec.id = e.category_id
 		WHERE p.user_id = $1
-		  AND p.status = 'APPROVED'
-		  AND e.status = 'COMPLETED'
+		  AND (
+			p.status = $2
+			OR (p.status = $3 AND p.updated_at >= e.start_time)
+		  )
+		  AND e.status = $4
 		ORDER BY e.start_time DESC
-	`, userID)
+	`, userID, domain.ParticipationStatusApproved, domain.ParticipationStatusLeaved, domain.EventStatusCompleted)
 	if err != nil {
 		return nil, fmt.Errorf("get completed events: %w", err)
 	}
@@ -197,10 +200,10 @@ func (r *ProfileRepository) GetCanceledEvents(ctx context.Context, userID uuid.U
 		JOIN participation p ON p.event_id = e.id
 		LEFT JOIN event_category ec ON ec.id = e.category_id
 		WHERE p.user_id = $1
-		  AND p.status = 'CANCELED'
-		  AND e.status = 'CANCELED'
+		  AND p.status = $2
+		  AND e.status = $3
 		ORDER BY e.start_time DESC
-	`, userID)
+	`, userID, domain.ParticipationStatusCanceled, domain.EventStatusCanceled)
 	if err != nil {
 		return nil, fmt.Errorf("get canceled events: %w", err)
 	}

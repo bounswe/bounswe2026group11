@@ -32,6 +32,7 @@ func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.
 	group.Get("/:id", auth, handler.GetEventDetail)
 	group.Post("/", auth, handler.CreateEvent)
 	group.Post("/:id/join", auth, handler.JoinEvent)
+	group.Patch("/:id/leave", auth, handler.LeaveEvent)
 	group.Post("/:id/join-request", auth, handler.RequestJoin)
 	group.Post("/:id/join-requests/:joinRequestId/approve", auth, handler.ApproveJoinRequest)
 	group.Post("/:id/join-requests/:joinRequestId/reject", auth, handler.RejectJoinRequest)
@@ -195,6 +196,23 @@ func (h *EventHandler) JoinEvent(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(result)
+}
+
+// LeaveEvent handles PATCH /events/:id/leave.
+// Allows the authenticated user to leave an event they previously joined.
+func (h *EventHandler) LeaveEvent(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.LeaveEvent(c.UserContext(), claims.UserID, eventID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
 }
 
 // RequestJoin handles POST /events/:id/join-request.

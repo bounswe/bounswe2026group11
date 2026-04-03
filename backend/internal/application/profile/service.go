@@ -59,8 +59,8 @@ func (s *Service) GetMyHostedEvents(ctx context.Context, userID uuid.UUID) ([]Ev
 	return toEventSummaries(events), nil
 }
 
-// GetMyUpcomingEvents returns events the user has an approved participation in
-// that are still ACTIVE or IN_PROGRESS.
+// GetMyUpcomingEvents returns events the user is still actively participating
+// in with an APPROVED participation.
 func (s *Service) GetMyUpcomingEvents(ctx context.Context, userID uuid.UUID) ([]EventSummary, error) {
 	events, err := s.repo.GetUpcomingEvents(ctx, userID)
 	if err != nil {
@@ -69,7 +69,8 @@ func (s *Service) GetMyUpcomingEvents(ctx context.Context, userID uuid.UUID) ([]
 	return toEventSummaries(events), nil
 }
 
-// GetMyCompletedEvents returns events the user participated in that have COMPLETED.
+// GetMyCompletedEvents returns completed events the user either finished as an
+// APPROVED participant or left after the event had already started.
 func (s *Service) GetMyCompletedEvents(ctx context.Context, userID uuid.UUID) ([]EventSummary, error) {
 	events, err := s.repo.GetCompletedEvents(ctx, userID)
 	if err != nil {
