@@ -89,6 +89,27 @@ export async function apiPostAuth<T>(endpoint: string, body: unknown, token: str
   return response.json();
 }
 
+export async function apiDeleteAuth<T>(endpoint: string, token: string): Promise<T> {
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorBody: ErrorResponse = await response.json();
+    throw new ApiError(response.status, errorBody);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json();
+}
+
 export async function apiPatchAuth<T>(endpoint: string, body: unknown, token: string): Promise<T> {
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     method: 'PATCH',
