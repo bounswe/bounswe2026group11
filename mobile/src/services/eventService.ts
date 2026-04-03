@@ -1,4 +1,4 @@
-import { apiGet, apiGetAuth, apiPostAuth } from '@/services/api';
+import { apiGet, apiGetAuth, apiPostAuth, apiPatchAuth } from '@/services/api';
 import {
   CreateEventRequest,
   CreateEventResponse,
@@ -43,6 +43,37 @@ export async function requestJoinEvent(
   token: string,
 ): Promise<RequestJoinResponse> {
   return apiPostAuth<RequestJoinResponse>(`/events/${id}/join-request`, body, token);
+}
+
+export async function approveJoinRequest(
+  eventId: string,
+  joinRequestId: string,
+  token: string,
+): Promise<any> {
+  return apiPostAuth<any>(
+    `/events/${eventId}/join-requests/${joinRequestId}/approve`,
+    {},
+    token,
+  );
+}
+
+export async function rejectJoinRequest(
+  eventId: string,
+  joinRequestId: string,
+  token: string,
+): Promise<any> {
+  return apiPostAuth<any>(
+    `/events/${eventId}/join-requests/${joinRequestId}/reject`,
+    {},
+    token,
+  );
+}
+
+export async function cancelEvent(
+  eventId: string,
+  token: string,
+): Promise<any> {
+  return apiPatchAuth<any>(`/events/${eventId}/cancel`, {}, token);
 }
 
 export async function searchLocation(
