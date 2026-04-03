@@ -3,6 +3,7 @@
  */
 import { renderHook, act, waitFor } from '@testing-library/react';
 import * as eventService from '@/services/eventService';
+import * as favoriteService from '@/services/favoriteService';
 import { ApiError } from '@/services/api';
 import type {
   EventDetail,
@@ -16,6 +17,7 @@ import {
 } from './useEventDetailViewModel';
 
 jest.mock('@/services/eventService');
+jest.mock('@/services/favoriteService');
 
 const mockUser: UserSummary = {
   id: 'user-uuid-001',
@@ -49,6 +51,8 @@ const mockRequestJoinEvent = jest.mocked(eventService.requestJoinEvent);
 const mockApproveJoinRequest = jest.mocked(eventService.approveJoinRequest);
 const mockRejectJoinRequest = jest.mocked(eventService.rejectJoinRequest);
 const mockCancelEvent = jest.mocked(eventService.cancelEvent);
+const mockAddFavorite = jest.mocked(favoriteService.addFavorite);
+const mockRemoveFavorite = jest.mocked(favoriteService.removeFavorite);
 
 const mockErrorBody = { error: { code: 'server_error', message: 'Unexpected error' } };
 
@@ -263,6 +267,8 @@ describe('useEventDetailViewModel', () => {
     mockApproveJoinRequest.mockResolvedValue(undefined);
     mockRejectJoinRequest.mockResolvedValue(undefined);
     mockCancelEvent.mockResolvedValue(undefined);
+    mockAddFavorite.mockResolvedValue(undefined);
+    mockRemoveFavorite.mockResolvedValue(undefined);
   });
 
   // ─── Initial loading state ───
@@ -376,7 +382,7 @@ describe('useEventDetailViewModel', () => {
 
   // ─── Favorite toggle ───
   describe('handleToggleFavorite', () => {
-    it('toggles isFavorited from true to false', async () => {
+    it('calls removeFavorite and decrements count when currently favorited', async () => {
       const { result } = renderHook(() =>
         useEventDetailViewModel('event-uuid-001'),
       );
@@ -384,25 +390,53 @@ describe('useEventDetailViewModel', () => {
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
       expect(result.current.isFavorited).toBe(true);
+      expect(result.current.event?.favorite_count).toBe(8);
 
-      act(() => {
-        result.current.handleToggleFavorite();
+      await act(async () => {
+        await result.current.handleToggleFavorite();
       });
 
+      expect(mockRemoveFavorite).toHaveBeenCalledWith('event-uuid-001', 'mock-token');
       expect(result.current.isFavorited).toBe(false);
+      expect(result.current.event?.favorite_count).toBe(7);
     });
 
-    it('toggles isFavorited back on second call', async () => {
+    it('calls addFavorite and increments count when currently not favorited', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(protectedEventFixture);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-002'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.isFavorited).toBe(false);
+
+      await act(async () => {
+        await result.current.handleToggleFavorite();
+      });
+
+      expect(mockAddFavorite).toHaveBeenCalledWith('event-uuid-002', 'mock-token');
+      expect(result.current.isFavorited).toBe(true);
+      expect(result.current.event?.favorite_count).toBe(9);
+    });
+
+    it('rolls back optimistic favorite change when API fails', async () => {
+      mockRemoveFavorite.mockRejectedValueOnce(new Error('network'));
+
       const { result } = renderHook(() =>
         useEventDetailViewModel('event-uuid-001'),
       );
 
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      act(() => { result.current.handleToggleFavorite(); });
-      act(() => { result.current.handleToggleFavorite(); });
+      await act(async () => {
+        await result.current.handleToggleFavorite();
+      });
 
       expect(result.current.isFavorited).toBe(true);
+      expect(result.current.event?.favorite_count).toBe(8);
+      expect(result.current.actionError).toBe('Failed to update favorite. Please try again.');
     });
 
     it('initialises isFavorited from viewer_context', async () => {

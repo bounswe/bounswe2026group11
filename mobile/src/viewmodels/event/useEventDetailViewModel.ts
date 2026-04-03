@@ -8,6 +8,7 @@ import {
   rejectJoinRequest,
   cancelEvent,
 } from '@/services/eventService';
+import { addFavorite, removeFavorite } from '@/services/favoriteService';
 import { useAuth } from '@/contexts/AuthContext';
 
 export type ActionState =
@@ -39,7 +40,7 @@ export interface EventDetailViewModel {
 
   handleJoin: () => Promise<void>;
   handleRequestJoin: () => Promise<void>;
-  handleToggleFavorite: () => void;
+  handleToggleFavorite: () => Promise<void>;
   retry: () => void;
 
   showRequestsModal: boolean;
@@ -195,10 +196,34 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     }
   }, [token, event, joinRequestMessage]);
 
-  const handleToggleFavorite = useCallback(() => {
-    // TODO: wire to POST /events/{id}/favorite when backend endpoint is available
-    setIsFavorited((prev) => !prev);
-  }, []);
+  const handleToggleFavorite = useCallback(async () => {
+    if (!token || !event) return;
+
+    const wasFavorited = isFavorited;
+    const previousCount = event.favorite_count;
+    const nextCount = wasFavorited
+      ? Math.max(0, previousCount - 1)
+      : previousCount + 1;
+
+    setIsFavorited(!wasFavorited);
+    setEvent((prev) =>
+      prev ? { ...prev, favorite_count: nextCount } : prev,
+    );
+
+    try {
+      if (wasFavorited) {
+        await removeFavorite(event.id, token);
+      } else {
+        await addFavorite(event.id, token);
+      }
+    } catch {
+      setIsFavorited(wasFavorited);
+      setEvent((prev) =>
+        prev ? { ...prev, favorite_count: previousCount } : prev,
+      );
+      setActionError('Failed to update favorite. Please try again.');
+    }
+  }, [token, event, isFavorited]);
 
   const handleApproveRequest = useCallback(
     async (joinRequestId: string) => {

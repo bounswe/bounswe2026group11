@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { EventSummary } from '@/models/event';
+import { getFavoriteCountForDisplay } from '@/utils/eventFavoriteCount';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
 
@@ -15,7 +16,7 @@ function formatPrivacyLabel(value: EventSummary['privacy_level']) {
 }
 
 export default function EventCard({ event, onPress }: EventCardProps) {
-  const favoriteCount = event.favorite_count ?? 0;
+  const favoriteCount = getFavoriteCountForDisplay(event);
   const ratingLabel =
     event.host_score.final_score != null
       ? event.host_score.final_score.toFixed(1)

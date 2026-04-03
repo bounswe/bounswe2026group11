@@ -234,6 +234,7 @@ export interface HomeViewModel {
   updateDraftRadiusKm: (value: number) => void;
   loadMoreEvents: () => Promise<void>;
   refreshEvents: () => Promise<void>;
+  silentRefresh: () => Promise<void>;
   openLocationModal: () => void;
   closeLocationModal: () => void;
   updateLocationQuery: (value: string) => void;
@@ -582,6 +583,44 @@ export function useHomeViewModel(): HomeViewModel {
     await loadEvents('refresh');
   }, [loadEvents]);
 
+  const silentRefresh = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      const combinedCategoryIds =
+        selectedCategoryId != null
+          ? Array.from(
+              new Set([selectedCategoryId, ...appliedFilters.categoryIds]),
+            )
+          : appliedFilters.categoryIds;
+
+      const response = await listEvents(
+        {
+          lat: selectedLocation ? Number(selectedLocation.lat) : DEFAULT_LOCATION.lat,
+          lon: selectedLocation ? Number(selectedLocation.lon) : DEFAULT_LOCATION.lon,
+          radius_meters: appliedFilters.radiusKm * 1000,
+          q: appliedSearchText || undefined,
+          category_ids:
+            combinedCategoryIds.length > 0 ? combinedCategoryIds : undefined,
+          privacy_levels:
+            appliedFilters.privacyLevels.length > 0
+              ? appliedFilters.privacyLevels
+              : undefined,
+          start_from: parseStrictDateToIso(appliedFilters.startDate, 'start'),
+          start_to: parseStrictDateToIso(appliedFilters.endDate, 'end'),
+          limit: PAGE_SIZE,
+        },
+        token,
+      );
+
+      setHasMore(response.page_info.has_next);
+      setNextCursor(response.page_info.next_cursor);
+      setEvents(response.items);
+    } catch {
+      // Silent — don't overwrite existing data on failure
+    }
+  }, [token, appliedSearchText, selectedCategoryId, appliedFilters, selectedLocation]);
+
     return {
     locationLabel: selectedLocation
       ? formatEventLocation(selectedLocation.display_name)
@@ -623,5 +662,6 @@ export function useHomeViewModel(): HomeViewModel {
     resetLocationDraft,
     loadMoreEvents,
     refreshEvents,
+    silentRefresh,
   };
 }
