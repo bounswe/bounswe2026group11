@@ -198,6 +198,46 @@ function JoinActionSection({
   );
 }
 
+function CancelConfirmModal({
+  onConfirm,
+  onClose,
+  loading,
+}: {
+  onConfirm: () => void;
+  onClose: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="ed-modal-overlay" onClick={onClose}>
+      <div className="ed-modal" onClick={(e) => e.stopPropagation()}>
+        <h3 className="ed-modal-title">Cancel Event</h3>
+        <p className="ed-modal-text">
+          Are you sure you want to cancel this event? This action cannot be undone.
+          All participants will be notified.
+        </p>
+        <div className="ed-modal-actions">
+          <button
+            type="button"
+            className="ed-modal-cancel-btn"
+            onClick={onClose}
+            disabled={loading}
+          >
+            Go Back
+          </button>
+          <button
+            type="button"
+            className="ed-modal-confirm-btn"
+            onClick={onConfirm}
+            disabled={loading}
+          >
+            {loading ? <span className="spinner" /> : 'Yes, Cancel Event'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EventContent({
   event,
   joinLoading,
@@ -210,6 +250,10 @@ function EventContent({
   onApprove,
   onReject,
   onDismissModerateError,
+  cancelLoading,
+  cancelError,
+  onCancel,
+  onDismissCancelError,
 }: {
   event: EventDetailResponse;
   joinLoading: boolean;
@@ -222,8 +266,13 @@ function EventContent({
   onApprove: (joinRequestId: string) => void;
   onReject: (joinRequestId: string) => void;
   onDismissModerateError: () => void;
+  cancelLoading: boolean;
+  cancelError: string | null;
+  onCancel: () => void;
+  onDismissCancelError: () => void;
 }) {
   const navigate = useNavigate();
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   return (
     <div className="ed-page">
@@ -420,6 +469,26 @@ function EventContent({
           <div className="ed-section">
             <h2 className="ed-section-title">Management</h2>
 
+            {/* Cancel event button */}
+            {event.status === 'ACTIVE' && (
+              <div className="ed-mgmt-group">
+                {cancelError && (
+                  <div className="ed-join-error" style={{ marginBottom: 10 }}>
+                    <span>{cancelError}</span>
+                    <button type="button" className="ed-join-error-dismiss" onClick={onDismissCancelError}>&times;</button>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="ed-cancel-event-btn"
+                  onClick={() => setShowCancelModal(true)}
+                  disabled={cancelLoading}
+                >
+                  Cancel Event
+                </button>
+              </div>
+            )}
+
             {/* Approved participants */}
             <div className="ed-mgmt-group">
               <h3 className="ed-mgmt-title">
@@ -545,6 +614,18 @@ function EventContent({
           </div>
         )}
       </div>
+
+      {/* Cancel confirmation modal */}
+      {showCancelModal && (
+        <CancelConfirmModal
+          loading={cancelLoading}
+          onConfirm={() => {
+            onCancel();
+            setShowCancelModal(false);
+          }}
+          onClose={() => setShowCancelModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -607,6 +688,10 @@ export default function EventDetailPage() {
       onApprove={vm.handleApprove}
       onReject={vm.handleReject}
       onDismissModerateError={vm.dismissModerateError}
+      cancelLoading={vm.cancelLoading}
+      cancelError={vm.cancelError}
+      onCancel={vm.handleCancel}
+      onDismissCancelError={vm.dismissCancelError}
     />
   );
 }
