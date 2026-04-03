@@ -23,7 +23,12 @@ export default function BottomTabBar() {
   return (
     <View style={styles.container}>
       {TABS.map((tab) => {
-        const active = tab.key === 'explore' ? pathname === '/home' : false;
+        const active =
+          tab.key === 'explore'
+            ? pathname === '/home'
+            : tab.key === 'favorites'
+              ? pathname === '/favorites'
+              : false;
 
         if (tab.primary) {
           const createActive = pathname === '/event/create';
@@ -55,6 +60,8 @@ export default function BottomTabBar() {
             onPress={() => {
               if (tab.key === 'explore') {
                 router.push('/home' as Href);
+              } else if (tab.key === 'favorites') {
+                router.push('/favorites' as Href);
               }
             }}
           >
@@ -68,9 +75,9 @@ export default function BottomTabBar() {
 
             {tab.key === 'favorites' && (
               <Ionicons
-                name="heart-outline"
+                name={active ? 'heart' : 'heart-outline'}
                 size={22}
-                color="#9CA3AF"
+                color={active ? '#111827' : '#9CA3AF'}
               />
             )}
 
