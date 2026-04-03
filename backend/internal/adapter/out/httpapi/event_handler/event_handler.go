@@ -38,9 +38,6 @@ func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.
 	group.Patch("/:id/cancel", auth, handler.CancelEvent)
 	group.Post("/:id/favorite", auth, handler.AddFavorite)
 	group.Delete("/:id/favorite", auth, handler.RemoveFavorite)
-
-	me := router.Group("/me")
-	me.Get("/favorites", auth, handler.ListFavoriteEvents)
 }
 
 // DiscoverEvents handles GET /events.
@@ -313,17 +310,6 @@ func (h *EventHandler) RemoveFavorite(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
-}
-
-// ListFavoriteEvents handles GET /me/favorites.
-func (h *EventHandler) ListFavoriteEvents(c *fiber.Ctx) error {
-	claims := httpapi.UserClaims(c)
-	result, err := h.service.ListFavoriteEvents(c.UserContext(), claims.UserID)
-	if err != nil {
-		return httpapi.WriteError(c, err)
-	}
-
-	return c.JSON(result)
 }
 
 func parseEventIDParam(c *fiber.Ctx) (uuid.UUID, error) {
