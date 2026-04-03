@@ -11,6 +11,9 @@ import (
 // ErrEventNotCancelable is returned by Repository.CancelEvent when the event is not in ACTIVE status.
 var ErrEventNotCancelable = errors.New("event is not cancelable")
 
+// ErrEventNotCompletable is returned by Repository.CompleteEvent when the event is not ACTIVE or IN_PROGRESS.
+var ErrEventNotCompletable = errors.New("event is not completable")
+
 // Repository is the application-layer persistence port for event flows.
 type Repository interface {
 	CreateEvent(ctx context.Context, params CreateEventParams) (*domain.Event, error)
@@ -19,6 +22,7 @@ type Repository interface {
 	GetEventByID(ctx context.Context, eventID uuid.UUID) (*domain.Event, error)
 	TransitionEventStatuses(ctx context.Context) error
 	CancelEvent(ctx context.Context, eventID uuid.UUID) error
+	CompleteEvent(ctx context.Context, eventID uuid.UUID) error
 	AddFavorite(ctx context.Context, userID, eventID uuid.UUID) error
 	RemoveFavorite(ctx context.Context, userID, eventID uuid.UUID) error
 	ListFavoriteEvents(ctx context.Context, userID uuid.UUID) ([]FavoriteEventRecord, error)
