@@ -301,3 +301,38 @@ func (s *Service) CancelEvent(ctx context.Context, userID, eventID uuid.UUID) er
 
 	return nil
 }
+
+// AddFavorite saves an event to the user's favorites list.
+func (s *Service) AddFavorite(ctx context.Context, userID, eventID uuid.UUID) error {
+	return s.eventRepo.AddFavorite(ctx, userID, eventID)
+}
+
+// RemoveFavorite removes an event from the user's favorites list.
+func (s *Service) RemoveFavorite(ctx context.Context, userID, eventID uuid.UUID) error {
+	return s.eventRepo.RemoveFavorite(ctx, userID, eventID)
+}
+
+// ListFavoriteEvents returns events the user has favorited, ordered by most recent.
+func (s *Service) ListFavoriteEvents(ctx context.Context, userID uuid.UUID) (*FavoriteEventsResult, error) {
+	records, err := s.eventRepo.ListFavoriteEvents(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]FavoriteEventItem, len(records))
+	for i, r := range records {
+		items[i] = FavoriteEventItem{
+			ID:          r.ID.String(),
+			Title:       r.Title,
+			Category:    r.CategoryName,
+			ImageURL:    r.ImageURL,
+			Status:      string(r.Status),
+			StartTime:   r.StartTime,
+			EndTime:     r.EndTime,
+			FavoritedAt: r.FavoritedAt,
+		}
+	}
+
+	return &FavoriteEventsResult{Items: items}, nil
+}
+

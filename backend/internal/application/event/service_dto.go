@@ -83,6 +83,7 @@ type DiscoverableEventItem struct {
 	LocationAddress          *string               `json:"location_address"`
 	PrivacyLevel             string                `json:"privacy_level"`
 	ApprovedParticipantCount int                   `json:"approved_participant_count"`
+	FavoriteCount            int                   `json:"favorite_count"`
 	IsFavorited              bool                  `json:"is_favorited"`
 	HostScore                EventHostScoreSummary `json:"host_score"`
 }
@@ -233,6 +234,23 @@ type EventDetailInvitation struct {
 	CreatedAt    time.Time                  `json:"created_at"`
 	UpdatedAt    time.Time                  `json:"updated_at"`
 	User         EventDetailHostContextUser `json:"user"`
+}
+
+// FavoriteEventItem is the compact event summary returned by the favorites list.
+type FavoriteEventItem struct {
+	ID          string     `json:"id"`
+	Title       string     `json:"title"`
+	Category    *string    `json:"category"`
+	ImageURL    *string    `json:"image_url"`
+	Status      string     `json:"status"`
+	StartTime   time.Time  `json:"start_time"`
+	EndTime     *time.Time `json:"end_time"`
+	FavoritedAt time.Time  `json:"favorited_at"`
+}
+
+// FavoriteEventsResult wraps a list of favorite event items.
+type FavoriteEventsResult struct {
+	Items []FavoriteEventItem `json:"items"`
 }
 
 // JoinEventResult is returned after a user successfully joins a public event.

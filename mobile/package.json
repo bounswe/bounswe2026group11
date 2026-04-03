@@ -10,6 +10,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@react-native-community/datetimepicker": "^9.1.0",
     "@react-native-community/slider": "5.1.2",
     "expo": "~55.0.8",
     "expo-linking": "~55.0.8",

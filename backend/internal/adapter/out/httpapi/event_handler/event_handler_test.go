@@ -174,6 +174,18 @@ func (s *stubEventService) CancelEvent(_ context.Context, _, eventID uuid.UUID) 
 	return s.err
 }
 
+func (s *stubEventService) AddFavorite(_ context.Context, _, _ uuid.UUID) error {
+	return s.err
+}
+
+func (s *stubEventService) RemoveFavorite(_ context.Context, _, _ uuid.UUID) error {
+	return s.err
+}
+
+func (s *stubEventService) ListFavoriteEvents(_ context.Context, _ uuid.UUID) (*event.FavoriteEventsResult, error) {
+	return &event.FavoriteEventsResult{Items: []event.FavoriteEventItem{}}, s.err
+}
+
 // fakeVerifier implements domain.TokenVerifier for tests in this package.
 type fakeVerifier struct {
 	claims *domain.AuthClaims

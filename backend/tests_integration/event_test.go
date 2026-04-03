@@ -2635,3 +2635,48 @@ func TestGetMyUpcomingEventsExcludesCanceledEvent(t *testing.T) {
 		}
 	}
 }
+
+func TestAddAndRemoveFavorite(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	user := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	// when: add favorite
+	err := harness.EventRepo.AddFavorite(context.Background(), user.ID, ref.ID)
+	if err != nil {
+		t.Fatalf("AddFavorite() error = %v", err)
+	}
+
+	// then: appears in favorites list
+	favs, err := harness.EventRepo.ListFavoriteEvents(context.Background(), user.ID)
+	if err != nil {
+		t.Fatalf("ListFavoriteEvents() error = %v", err)
+	}
+	if len(favs) != 1 || favs[0].ID != ref.ID {
+		t.Fatalf("expected 1 favorite with ID %s, got %d items", ref.ID, len(favs))
+	}
+
+	// when: add again (idempotent)
+	err = harness.EventRepo.AddFavorite(context.Background(), user.ID, ref.ID)
+	if err != nil {
+		t.Fatalf("AddFavorite() duplicate error = %v", err)
+	}
+
+	// when: remove favorite
+	err = harness.EventRepo.RemoveFavorite(context.Background(), user.ID, ref.ID)
+	if err != nil {
+		t.Fatalf("RemoveFavorite() error = %v", err)
+	}
+
+	// then: no longer in favorites
+	favs, err = harness.EventRepo.ListFavoriteEvents(context.Background(), user.ID)
+	if err != nil {
+		t.Fatalf("ListFavoriteEvents() after remove error = %v", err)
+	}
+	if len(favs) != 0 {
+		t.Fatalf("expected 0 favorites after remove, got %d", len(favs))
+	}
+}

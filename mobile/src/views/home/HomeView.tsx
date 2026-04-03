@@ -45,7 +45,6 @@ export default function HomeView() {
           <HomeHeader
             ref={locationButtonRef}
             locationLabel={vm.locationLabel}
-            notificationCount={vm.notificationCount}
             onPressLocation={handleOpenLocationPicker}
           />
 

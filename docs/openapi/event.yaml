@@ -1297,6 +1297,7 @@ paths:
                         location_address: Belgrad Forest, Istanbul
                         privacy_level: PUBLIC
                         approved_participant_count: 42
+                        favorite_count: 8
                         is_favorited: true
                         host_score:
                           final_score: 4.18
@@ -1309,6 +1310,7 @@ paths:
                         location_address: Besiktas, Istanbul
                         privacy_level: PROTECTED
                         approved_participant_count: 18
+                        favorite_count: 3
                         is_favorited: false
                         host_score:
                           final_score: null
@@ -1511,6 +1513,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /events/{id}/favorite:
+    post:
+      tags: [Events]
+      summary: Add event to favorites
+      description: Saves the event to the authenticated user's favorites. Idempotent — calling twice has no additional effect.
+      operationId: addFavorite
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Event added to favorites (or already favorited).
+        '401':
+          description: Missing or invalid access token.
+    delete:
+      tags: [Events]
+      summary: Remove event from favorites
+      description: Removes the event from the authenticated user's favorites. Idempotent — calling when not favorited has no effect.
+      operationId: removeFavorite
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Event removed from favorites (or was not favorited).
+        '401':
+          description: Missing or invalid access token.
+
+  /me/favorites:
+    get:
+      tags: [Events]
+      summary: List favorite events
+      description: Returns the authenticated user's favorite events ordered by most recently favorited first.
+      operationId: listFavoriteEvents
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Favorite events listed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteEventsResponse'
+        '401':
+          description: Missing or invalid access token.
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1738,6 +1798,7 @@ components:
         - start_time
         - privacy_level
         - approved_participant_count
+        - favorite_count
         - is_favorited
         - host_score
       properties:
@@ -1781,6 +1842,11 @@ components:
           minimum: 0
           description: Current count of approved participants.
           example: 42
+        favorite_count:
+          type: integer
+          minimum: 0
+          description: Total number of users who have favorited this event.
+          example: 8
         is_favorited:
           type: boolean
           description: Whether the authenticated user has favorited the event.
@@ -2479,3 +2545,48 @@ components:
         cooldown_ends_at:
           type: string
           format: date-time
+
+    FavoriteEventsResponse:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FavoriteEventItem'
+
+    FavoriteEventItem:
+      type: object
+      additionalProperties: false
+      required: [id, title, status, start_time, favorited_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        category:
+          type:
+            - string
+            - "null"
+        image_url:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+          description: Event status, for example `ACTIVE`, `IN_PROGRESS`, `CANCELED`, or `COMPLETED`.
+          example: ACTIVE
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type:
+            - string
+            - "null"
+          format: date-time
+        favorited_at:
+          type: string
+          format: date-time
+

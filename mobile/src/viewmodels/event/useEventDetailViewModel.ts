@@ -4,6 +4,9 @@ import {
   getEventDetail,
   joinEvent,
   requestJoinEvent,
+  approveJoinRequest,
+  rejectJoinRequest,
+  cancelEvent,
 } from '@/services/eventService';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -38,6 +41,14 @@ export interface EventDetailViewModel {
   handleRequestJoin: () => Promise<void>;
   handleToggleFavorite: () => void;
   retry: () => void;
+
+  showRequestsModal: boolean;
+  setShowRequestsModal: (val: boolean) => void;
+  showAttendeesModal: boolean;
+  setShowAttendeesModal: (val: boolean) => void;
+  handleApproveRequest: (joinRequestId: string) => Promise<void>;
+  handleRejectRequest: (joinRequestId: string) => Promise<void>;
+  handleCancelEvent: () => Promise<void>;
 }
 
 function computeAgeFromBirthDate(birthDate: string): number {
@@ -96,6 +107,9 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
 
   const [showJoinRequestModal, setShowJoinRequestModal] = useState(false);
   const [joinRequestMessage, setJoinRequestMessage] = useState('');
+
+  const [showRequestsModal, setShowRequestsModal] = useState(false);
+  const [showAttendeesModal, setShowAttendeesModal] = useState(false);
 
   const isQuotaFull =
     event?.capacity != null &&
@@ -186,6 +200,54 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     setIsFavorited((prev) => !prev);
   }, []);
 
+  const handleApproveRequest = useCallback(
+    async (joinRequestId: string) => {
+      if (!token || !event) return;
+      try {
+        await approveJoinRequest(event.id, joinRequestId, token);
+        await fetchEvent(true);
+      } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'message' in err) {
+          setActionError((err as { message: string }).message);
+        } else {
+          setActionError('Failed to approve request.');
+        }
+      }
+    },
+    [token, event, fetchEvent],
+  );
+
+  const handleRejectRequest = useCallback(
+    async (joinRequestId: string) => {
+      if (!token || !event) return;
+      try {
+        await rejectJoinRequest(event.id, joinRequestId, token);
+        await fetchEvent(true);
+      } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'message' in err) {
+          setActionError((err as { message: string }).message);
+        } else {
+          setActionError('Failed to reject request.');
+        }
+      }
+    },
+    [token, event, fetchEvent],
+  );
+
+  const handleCancelEvent = useCallback(async () => {
+    if (!token || !event) return;
+    try {
+      await cancelEvent(event.id, token);
+      await fetchEvent(true);
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'message' in err) {
+        setActionError((err as { message: string }).message);
+      } else {
+        setActionError('Failed to cancel event.');
+      }
+    }
+  }, [token, event, fetchEvent]);
+
   const openJoinRequestModal = useCallback(() => {
     setActionError(null);
     setShowJoinRequestModal(true);
@@ -220,5 +282,12 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     handleRequestJoin,
     handleToggleFavorite,
     retry,
+    showRequestsModal,
+    setShowRequestsModal,
+    showAttendeesModal,
+    setShowAttendeesModal,
+    handleApproveRequest,
+    handleRejectRequest,
+    handleCancelEvent,
   };
 }
