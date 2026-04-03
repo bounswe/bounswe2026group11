@@ -20,31 +20,46 @@ import (
 func TestEventRatingUpdatesHostScoreAndEventReadModels(t *testing.T) {
 	t.Parallel()
 
-	// given
+	// given — rating uses an open-ended past-start event (window opens at start_time).
+	// Discover excludes that shape, so we add a second timed ongoing event for the same host
+	// to assert host_score read models on DiscoverEvents (scores are per host, not per event).
 	harness := common.NewEventHarness(t)
 	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("rated_host"))
 	participant := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("rated_participant"))
 	startTime := time.Now().UTC().Add(-2 * time.Hour)
-	endTime := time.Now().UTC().Add(2 * time.Hour)
+	endOngoing := time.Now().UTC().Add(2 * time.Hour)
 	lat := 41.015
 	lon := 29.02
-	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+	categoryID := common.GivenEventCategory(t)
+
+	discoverVisibleID := createDiscoveryEvent(t, harness, discoveryEventSeed{
 		HostID:       host.ID,
-		Title:        "Recently Finished Event",
-		Description:  "still inside rating window",
-		CategoryID:   common.GivenEventCategory(t),
+		Title:        "Ongoing Timed For Discover",
+		Description:  "listed while end_time is in the future",
+		CategoryID:   categoryID,
 		Lat:          lat,
 		Lon:          lon,
 		StartTime:    startTime,
-		EndTime:      &endTime,
+		EndTime:      &endOngoing,
 		PrivacyLevel: domain.PrivacyPublic,
 	})
-	insertParticipation(t, eventID, participant.ID, domain.ParticipationStatusApproved)
+	ratedEventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Open Ended For Rating",
+		Description:  "still inside rating window",
+		CategoryID:   categoryID,
+		Lat:          lat,
+		Lon:          lon,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+
+	insertParticipation(t, ratedEventID, participant.ID, domain.ParticipationStatusApproved)
 	initialMessage := "Excellent hosting."
 	updatedMessage := "Solid overall host."
 
 	// when
-	_, err := harness.RatingService.UpsertEventRating(context.Background(), participant.ID, eventID, ratingapp.UpsertRatingInput{
+	_, err := harness.RatingService.UpsertEventRating(context.Background(), participant.ID, ratedEventID, ratingapp.UpsertRatingInput{
 		Rating:  5,
 		Message: &initialMessage,
 	})
@@ -52,7 +67,7 @@ func TestEventRatingUpdatesHostScoreAndEventReadModels(t *testing.T) {
 		t.Fatalf("UpsertEventRating() create error = %v", err)
 	}
 
-	detailAfterCreate, err := harness.Service.GetEventDetail(context.Background(), participant.ID, eventID)
+	detailAfterCreate, err := harness.Service.GetEventDetail(context.Background(), participant.ID, ratedEventID)
 	if err != nil {
 		t.Fatalf("GetEventDetail() after create error = %v", err)
 	}
@@ -65,7 +80,7 @@ func TestEventRatingUpdatesHostScoreAndEventReadModels(t *testing.T) {
 		t.Fatalf("DiscoverEvents() after create error = %v", err)
 	}
 
-	_, err = harness.RatingService.UpsertEventRating(context.Background(), participant.ID, eventID, ratingapp.UpsertRatingInput{
+	_, err = harness.RatingService.UpsertEventRating(context.Background(), participant.ID, ratedEventID, ratingapp.UpsertRatingInput{
 		Rating:  3,
 		Message: &updatedMessage,
 	})
@@ -73,16 +88,16 @@ func TestEventRatingUpdatesHostScoreAndEventReadModels(t *testing.T) {
 		t.Fatalf("UpsertEventRating() update error = %v", err)
 	}
 
-	detailAfterUpdate, err := harness.Service.GetEventDetail(context.Background(), participant.ID, eventID)
+	detailAfterUpdate, err := harness.Service.GetEventDetail(context.Background(), participant.ID, ratedEventID)
 	if err != nil {
 		t.Fatalf("GetEventDetail() after update error = %v", err)
 	}
 
-	if err := harness.RatingService.DeleteEventRating(context.Background(), participant.ID, eventID); err != nil {
+	if err := harness.RatingService.DeleteEventRating(context.Background(), participant.ID, ratedEventID); err != nil {
 		t.Fatalf("DeleteEventRating() error = %v", err)
 	}
 
-	detailAfterDelete, err := harness.Service.GetEventDetail(context.Background(), participant.ID, eventID)
+	detailAfterDelete, err := harness.Service.GetEventDetail(context.Background(), participant.ID, ratedEventID)
 	if err != nil {
 		t.Fatalf("GetEventDetail() after delete error = %v", err)
 	}
@@ -100,9 +115,9 @@ func TestEventRatingUpdatesHostScoreAndEventReadModels(t *testing.T) {
 		t.Fatal("expected rating window to be active")
 	}
 
-	discovered := findDiscoveredEvent(discoveryAfterCreate.Items, eventID)
+	discovered := findDiscoveredEvent(discoveryAfterCreate.Items, discoverVisibleID)
 	if discovered == nil {
-		t.Fatalf("expected discovery result to contain event %s", eventID)
+		t.Fatalf("expected discovery result to contain event %s", discoverVisibleID)
 	}
 	requireApproxFloat(t, discovered.HostScore.FinalScore, expectedCreatedScore)
 	if discovered.HostScore.HostedEventRatingCount != 1 {
