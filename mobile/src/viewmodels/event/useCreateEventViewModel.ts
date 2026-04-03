@@ -1,6 +1,15 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
+import { Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { ApiError } from '@/services/api';
-import { createEvent, searchLocation } from '@/services/eventService';
+import {
+  createEvent,
+  searchLocation,
+  getEventImageUploadUrl,
+  uploadFileToPresignedUrl,
+  confirmEventImageUpload,
+} from '@/services/eventService';
 import {
   PrivacyLevel,
   LocationSuggestion,
@@ -95,8 +104,10 @@ export interface CreateEventViewModel {
   formData: CreateEventFormData;
   errors: CreateEventFormErrors;
   isLoading: boolean;
+  isUploadingImage: boolean;
   apiError: string | null;
   successMessage: string | null;
+  selectedImageUri: string | null;
   locationSuggestions: LocationSuggestion[];
   isSearchingLocation: boolean;
   categoriesExpanded: boolean;
@@ -114,6 +125,8 @@ export interface CreateEventViewModel {
   addGenderConstraint: (gender: 'MALE' | 'FEMALE') => void;
   addConstraint: () => void;
   removeConstraint: (index: number) => void;
+  pickImage: () => Promise<void>;
+  removeImage: () => void;
   handleSubmit: (token: string) => Promise<CreateEventResponse | null>;
 }
 
@@ -321,6 +334,8 @@ export function useCreateEventViewModel(): CreateEventViewModel {
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const constraintTypeCounts = useMemo(() => {
@@ -537,6 +552,74 @@ export function useCreateEventViewModel(): CreateEventViewModel {
     }));
   }, []);
 
+  const pickImage = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission required',
+        'Please allow access to your photo library to add an event image.',
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setSelectedImageUri(result.assets[0].uri);
+    }
+  }, []);
+
+  const removeImage = useCallback(() => {
+    setSelectedImageUri(null);
+  }, []);
+
+  const uploadEventImage = useCallback(
+    async (eventId: string, imageUri: string, token: string): Promise<void> => {
+      setIsUploadingImage(true);
+      try {
+        // Resize to original (max 1200px wide) as JPEG
+        const original = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        // Resize to small thumbnail (max 400px wide) as JPEG
+        const small = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 400 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        // 1. Get presigned upload URLs
+        const uploadInit = await getEventImageUploadUrl(eventId, token);
+
+        const originalUpload = uploadInit.uploads.find((u) => u.variant === 'ORIGINAL');
+        const smallUpload = uploadInit.uploads.find((u) => u.variant === 'SMALL');
+        if (!originalUpload || !smallUpload) {
+          throw new Error('Missing upload instructions from server');
+        }
+
+        // 2. Upload both variants
+        await Promise.all([
+          uploadFileToPresignedUrl(originalUpload.url, originalUpload.headers, original.uri),
+          uploadFileToPresignedUrl(smallUpload.url, smallUpload.headers, small.uri),
+        ]);
+
+        // 3. Confirm
+        await confirmEventImageUpload(eventId, uploadInit.confirm_token, token);
+      } finally {
+        setIsUploadingImage(false);
+      }
+    },
+    [],
+  );
+
   const handleSubmit = useCallback(
     async (token: string): Promise<CreateEventResponse | null> => {
       const validationErrors = validateForm(formData);
@@ -608,7 +691,19 @@ export function useCreateEventViewModel(): CreateEventViewModel {
         };
 
         const result = await createEvent(request, token);
-        setSuccessMessage('Event created successfully!');
+
+        // Upload image if one was selected
+        if (selectedImageUri) {
+          try {
+            await uploadEventImage(result.id, selectedImageUri, token);
+            setSuccessMessage('Event created with image!');
+          } catch {
+            setSuccessMessage('Event created, but image upload failed. You can add an image later.');
+          }
+        } else {
+          setSuccessMessage('Event created successfully!');
+        }
+
         return result;
       } catch (err) {
         if (err instanceof ApiError) {
@@ -636,15 +731,17 @@ export function useCreateEventViewModel(): CreateEventViewModel {
         setIsLoading(false);
       }
     },
-    [formData],
+    [formData, selectedImageUri, uploadEventImage],
   );
 
   return {
     formData,
     errors,
     isLoading,
+    isUploadingImage,
     apiError,
     successMessage,
+    selectedImageUri,
     locationSuggestions,
     isSearchingLocation,
     categoriesExpanded,
@@ -659,6 +756,8 @@ export function useCreateEventViewModel(): CreateEventViewModel {
     addGenderConstraint,
     addConstraint,
     removeConstraint,
+    pickImage,
+    removeImage,
     handleSubmit,
   };
 }

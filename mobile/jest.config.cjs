@@ -9,6 +9,8 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^react-native$': '<rootDir>/jest/mocks/react-native.js',
+    '^expo-image-picker$': '<rootDir>/jest/mocks/expo-image-picker.js',
+    '^expo-image-manipulator$': '<rootDir>/jest/mocks/expo-image-manipulator.js',
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   clearMocks: true,

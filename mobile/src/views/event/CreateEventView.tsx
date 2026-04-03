@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { router, type Href } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -228,10 +229,37 @@ export default function CreateEventView() {
 
         {/* Image */}
         <View style={styles.fieldGroup}>
-          <TouchableOpacity style={styles.imageUploadArea}>
-            <MaterialIcons name="add-photo-alternate" size={36} color="#9CA3AF" />
-            <Text style={styles.imageUploadText}>Add Event Image</Text>
-          </TouchableOpacity>
+          {vm.selectedImageUri ? (
+            <View style={styles.imagePreviewContainer}>
+              <Image
+                source={{ uri: vm.selectedImageUri }}
+                style={styles.imagePreview}
+                resizeMode="cover"
+              />
+              <TouchableOpacity
+                style={styles.imageRemoveButton}
+                onPress={vm.removeImage}
+                disabled={vm.isLoading}
+              >
+                <MaterialIcons name="close" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+              {vm.isUploadingImage && (
+                <View style={styles.imageUploadOverlay}>
+                  <ActivityIndicator size="large" color="#FFFFFF" />
+                  <Text style={styles.imageUploadOverlayText}>Uploading...</Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.imageUploadArea}
+              onPress={vm.pickImage}
+              disabled={vm.isLoading}
+            >
+              <MaterialIcons name="add-photo-alternate" size={36} color="#9CA3AF" />
+              <Text style={styles.imageUploadText}>Add Event Image</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Title */}
@@ -989,6 +1017,40 @@ const styles = StyleSheet.create({
   imageUploadText: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  imagePreviewContainer: {
+    position: 'relative',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 10,
+  },
+  imageRemoveButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 14,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageUploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    gap: 8,
+  },
+  imageUploadOverlayText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   chipRow: {
     flexDirection: 'row',

@@ -249,5 +249,20 @@ export interface HomeFiltersDraft {
   startDate: string;
   endDate: string;
   radiusKm: number;
+}
 
+// Image upload types (presigned URL flow)
+
+export interface PresignedUpload {
+  variant: 'ORIGINAL' | 'SMALL';
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+}
+
+export interface ImageUploadInitResponse {
+  base_url: string;
+  version: number;
+  confirm_token: string;
+  uploads: PresignedUpload[];
 }

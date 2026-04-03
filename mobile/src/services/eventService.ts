@@ -10,6 +10,7 @@ import {
   PaginatedEventsResponse,
   RequestJoinRequest,
   RequestJoinResponse,
+  ImageUploadInitResponse,
 } from '@/models/event';
 
 
@@ -115,6 +116,48 @@ function appendArrayParam(
 ) {
   if (!values || values.length === 0) return;
   params.set(key, values.join(','));
+}
+
+export async function getEventImageUploadUrl(
+  eventId: string,
+  token: string,
+): Promise<ImageUploadInitResponse> {
+  return apiPostAuth<ImageUploadInitResponse>(
+    `/events/${eventId}/image/upload-url`,
+    {},
+    token,
+  );
+}
+
+export async function confirmEventImageUpload(
+  eventId: string,
+  confirmToken: string,
+  token: string,
+): Promise<void> {
+  return apiPostAuth<void>(
+    `/events/${eventId}/image/confirm`,
+    { confirm_token: confirmToken },
+    token,
+  );
+}
+
+export async function uploadFileToPresignedUrl(
+  url: string,
+  headers: Record<string, string>,
+  fileUri: string,
+): Promise<void> {
+  const response = await fetch(fileUri);
+  const blob = await response.blob();
+
+  const uploadResponse = await fetch(url, {
+    method: 'PUT',
+    headers,
+    body: blob,
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error(`Upload failed with status ${uploadResponse.status}`);
+  }
 }
 
 export async function listEvents(
