@@ -10,7 +10,7 @@ import {
   Animated,
   PanResponder,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { EventDetailPendingJoinRequest } from '@/models/event';
 
 interface JoinRequestsModalProps {
@@ -86,7 +86,7 @@ export default function JoinRequestsModal({
           <View style={styles.header}>
             <Text style={styles.title}>Pending Requests ({requests.length})</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color="#111827" />
+              <Feather name="x" size={24} color="#111827" />
             </TouchableOpacity>
           </View>
 
@@ -103,7 +103,7 @@ export default function JoinRequestsModal({
                   />
                 ) : (
                   <View style={styles.avatarFallback}>
-                    <Ionicons name="person" size={20} color="#9CA3AF" />
+                    <Feather name="user" size={20} color="#9CA3AF" />
                   </View>
                 )}
 
@@ -124,14 +124,14 @@ export default function JoinRequestsModal({
                     style={[styles.actionBtn, styles.rejectBtn]}
                     onPress={() => onReject(item.join_request_id)}
                   >
-                    <Ionicons name="close" size={20} color="#DC2626" />
+                    <Feather name="x" size={20} color="#DC2626" />
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.approveBtn]}
                     onPress={() => onApprove(item.join_request_id)}
                   >
-                    <Ionicons name="checkmark" size={20} color="#16A34A" />
+                    <Feather name="check" size={20} color="#16A34A" />
                   </TouchableOpacity>
                 </View>
               </View>

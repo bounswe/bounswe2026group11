@@ -138,6 +138,53 @@ export function formatDateForForm(date: Date): string {
   return `${day}.${month}.${year}`;
 }
 
+function decodeFileUriOnce(uri: string): string {
+  if (!uri.startsWith('file://')) {
+    return uri;
+  }
+
+  try {
+    return `file://${decodeURIComponent(uri.slice('file://'.length))}`;
+  } catch {
+    return uri;
+  }
+}
+
+export function normalizePickedImageUri(uri: string): string {
+  let normalized = uri;
+
+  for (let i = 0; i < 3; i += 1) {
+    const next = decodeFileUriOnce(normalized);
+    if (next === normalized) break;
+    normalized = next;
+  }
+
+  return normalized;
+}
+
+function getPickedImageUriCandidates(uri: string): string[] {
+  return [...new Set([uri, decodeFileUriOnce(uri), normalizePickedImageUri(uri)])];
+}
+
+async function preparePickedImageUri(uri: string): Promise<string> {
+  let lastError: unknown = null;
+
+  for (const candidateUri of getPickedImageUriCandidates(uri)) {
+    try {
+      const preparedImage = await ImageManipulator.manipulateAsync(
+        candidateUri,
+        [],
+        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG },
+      );
+      return preparedImage.uri;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error('Could not prepare the selected image');
+}
+
 export const INITIAL_FORM_DATA: CreateEventFormData = {
   title: '',
   description: '',
@@ -431,8 +478,16 @@ function getImageUploadErrorMessage(error: unknown): string {
   }
 
   if (error instanceof Error) {
+    if (error.message === 'Network request failed') {
+      return 'The event was created, but uploading the image failed because the network request did not complete.';
+    }
+
     if (error.message === 'Missing upload instructions from server') {
       return 'The server returned incomplete image upload instructions.';
+    }
+
+    if (error.message.startsWith('Unsupported upload method')) {
+      return 'The server returned an unsupported image upload method.';
     }
 
     if (error.message.startsWith('Upload failed with status')) {
@@ -803,7 +858,14 @@ export function useCreateEventViewModel(): CreateEventViewModel {
         return;
       }
 
-      setSelectedImageUri(asset.uri);
+      try {
+        const preparedImageUri = await preparePickedImageUri(asset.uri);
+        setSelectedImageUri(preparedImageUri);
+      } catch {
+        setImageError('We could not process the selected image. Please try a different one.');
+        return;
+      }
+
       setSuccessMessage(null);
     } catch {
       setImageError('We could not open your photo library. Please try again.');

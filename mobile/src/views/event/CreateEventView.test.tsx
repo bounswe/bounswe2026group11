@@ -161,9 +161,6 @@ describe('CreateEventView', () => {
     expect(screen.getByText(formatDateForForm(new Date()))).toBeTruthy();
     expect(screen.queryByPlaceholderText('HH:mm')).toBeNull();
     expect(
-      screen.getByText('The selected image will be uploaded after the event is created.'),
-    ).toBeTruthy();
-    expect(
       screen.getByText('The event was created, but uploading the image to storage failed.'),
     ).toBeTruthy();
   });

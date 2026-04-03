@@ -1,28 +1,21 @@
+import * as FileSystem from 'expo-file-system/legacy';
 import { uploadFileToPresignedUrl } from './eventService';
 
+jest.mock('expo-file-system/legacy');
+
 describe('uploadFileToPresignedUrl', () => {
-  const originalFetch = global.fetch;
+  const mockUploadAsync = jest.mocked(FileSystem.uploadAsync);
 
   beforeEach(() => {
-    global.fetch = jest.fn();
+    mockUploadAsync.mockResolvedValue({
+      status: 200,
+      headers: {},
+      body: '',
+      mimeType: 'image/jpeg',
+    });
   });
 
-  afterEach(() => {
-    global.fetch = originalFetch;
-  });
-
-  it('uploads the fetched file blob with the provided method and headers', async () => {
-    const fileBlob = { mock: 'blob' };
-    const fetchMock = global.fetch as jest.MockedFunction<typeof fetch>;
-
-    fetchMock
-      .mockResolvedValueOnce({
-        blob: async () => fileBlob,
-      } as unknown as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-      } as unknown as Response);
-
+  it('uploads the local file with the provided method and headers', async () => {
     await uploadFileToPresignedUrl(
       'put',
       'https://upload.example.com/object',
@@ -30,25 +23,20 @@ describe('uploadFileToPresignedUrl', () => {
       'file:///event-image.jpg',
     );
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, 'file:///event-image.jpg');
-    expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://upload.example.com/object', {
-      method: 'PUT',
+    expect(mockUploadAsync).toHaveBeenCalledWith('https://upload.example.com/object', 'file:///event-image.jpg', {
+      httpMethod: 'PUT',
       headers: { 'Content-Type': 'image/jpeg', 'x-amz-acl': 'public-read' },
-      body: fileBlob,
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
     });
   });
 
   it('throws a clear error when the upload request fails', async () => {
-    const fetchMock = global.fetch as jest.MockedFunction<typeof fetch>;
-
-    fetchMock
-      .mockResolvedValueOnce({
-        blob: async () => ({ mock: 'blob' }),
-      } as unknown as Response)
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 403,
-      } as unknown as Response);
+    mockUploadAsync.mockResolvedValueOnce({
+      status: 403,
+      headers: {},
+      body: '',
+      mimeType: 'image/jpeg',
+    });
 
     await expect(
       uploadFileToPresignedUrl(
@@ -58,5 +46,18 @@ describe('uploadFileToPresignedUrl', () => {
         'file:///event-image.jpg',
       ),
     ).rejects.toThrow('Upload failed with status 403');
+  });
+
+  it('throws a clear error for unsupported upload methods', async () => {
+    await expect(
+      uploadFileToPresignedUrl(
+        'DELETE',
+        'https://upload.example.com/object',
+        { 'Content-Type': 'image/jpeg' },
+        'file:///event-image.jpg',
+      ),
+    ).rejects.toThrow('Unsupported upload method: DELETE');
+
+    expect(mockUploadAsync).not.toHaveBeenCalled();
   });
 });

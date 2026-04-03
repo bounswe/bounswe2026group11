@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { router, type Href } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLogoutViewModel } from '@/viewmodels/auth/useLogoutViewModel';
@@ -286,9 +285,6 @@ export default function CreateEventView() {
               <Text style={styles.imageUploadText}>Add Event Image</Text>
             </TouchableOpacity>
           )}
-          <Text style={styles.fieldHint}>
-            The selected image will be uploaded after the event is created.
-          </Text>
           {vm.imageError && <Text style={styles.fieldError}>{vm.imageError}</Text>}
         </View>
 
@@ -461,7 +457,7 @@ export default function CreateEventView() {
                 >
                   {vm.formData.startDate || 'Select date'}
                 </Text>
-                <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+                <MaterialIcons name="event" size={20} color="#6B7280" />
               </TouchableOpacity>
               {vm.errors.startDate && (
                 <Text style={styles.fieldError}>{vm.errors.startDate}</Text>
@@ -489,7 +485,7 @@ export default function CreateEventView() {
                 >
                   {vm.formData.startTime || 'Select time'}
                 </Text>
-                <Ionicons name="time-outline" size={20} color="#6B7280" />
+                <MaterialIcons name="schedule" size={20} color="#6B7280" />
               </TouchableOpacity>
               {vm.errors.startTime && (
                 <Text style={styles.fieldError}>{vm.errors.startTime}</Text>
@@ -559,7 +555,7 @@ export default function CreateEventView() {
                 >
                   {vm.formData.endDate || 'Select date'}
                 </Text>
-                <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+                <MaterialIcons name="event" size={20} color="#6B7280" />
               </TouchableOpacity>
               {vm.errors.endDate && (
                 <Text style={styles.fieldError}>{vm.errors.endDate}</Text>
@@ -587,7 +583,7 @@ export default function CreateEventView() {
                 >
                   {vm.formData.endTime || 'Select time'}
                 </Text>
-                <Ionicons name="time-outline" size={20} color="#6B7280" />
+                <MaterialIcons name="schedule" size={20} color="#6B7280" />
               </TouchableOpacity>
               {vm.errors.endTime && (
                 <Text style={styles.fieldError}>{vm.errors.endTime}</Text>
@@ -1049,11 +1045,6 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 13,
     marginTop: 4,
-  },
-  fieldHint: {
-    color: '#6B7280',
-    fontSize: 13,
-    marginTop: 8,
   },
   imageUploadArea: {
     borderWidth: 2,

@@ -1,4 +1,5 @@
 import { apiGet, apiGetAuth, apiPostAuth, apiPatchAuth } from '@/services/api';
+import * as FileSystem from 'expo-file-system/legacy';
 import {
   CreateEventRequest,
   CreateEventResponse,
@@ -15,6 +16,7 @@ import {
 
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
+type SupportedUploadMethod = 'POST' | 'PUT' | 'PATCH';
 
 
 export async function createEvent(
@@ -147,16 +149,22 @@ export async function uploadFileToPresignedUrl(
   headers: Record<string, string>,
   fileUri: string,
 ): Promise<void> {
-  const response = await fetch(fileUri);
-  const blob = await response.blob();
+  const normalizedMethod = method.toUpperCase();
+  if (
+    normalizedMethod !== 'POST'
+    && normalizedMethod !== 'PUT'
+    && normalizedMethod !== 'PATCH'
+  ) {
+    throw new Error(`Unsupported upload method: ${method}`);
+  }
 
-  const uploadResponse = await fetch(url, {
-    method: method.toUpperCase(),
+  const uploadResponse = await FileSystem.uploadAsync(url, fileUri, {
+    httpMethod: normalizedMethod as SupportedUploadMethod,
     headers,
-    body: blob,
+    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
   });
 
-  if (!uploadResponse.ok) {
+  if (uploadResponse.status < 200 || uploadResponse.status >= 300) {
     throw new Error(`Upload failed with status ${uploadResponse.status}`);
   }
 }

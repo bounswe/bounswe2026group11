@@ -10,6 +10,7 @@ import {
   formatDateForForm,
   formatTimeInput,
   formatDateInput,
+  normalizePickedImageUri,
   validateLiveDateInput,
   validateLiveTimeInput,
   TITLE_MIN_LENGTH,
@@ -669,6 +670,7 @@ describe('useCreateEventViewModel', () => {
         assets: [{ uri: 'file:///selected-image.jpg' }],
       } as any);
       mockManipulateAsync
+        .mockResolvedValueOnce({ uri: 'file:///prepared-preview.jpg' } as any)
         .mockResolvedValueOnce({ uri: 'file:///original-image.jpg' } as any)
         .mockResolvedValueOnce({ uri: 'file:///small-image.jpg' } as any);
 
@@ -681,7 +683,7 @@ describe('useCreateEventViewModel', () => {
         await result.current.handleSubmit('test-token');
       });
 
-      expect(result.current.selectedImageUri).toBe('file:///selected-image.jpg');
+      expect(result.current.selectedImageUri).toBe('file:///prepared-preview.jpg');
       expect(mockCreateEvent).toHaveBeenCalledTimes(1);
       expect(mockGetEventImageUploadUrl).toHaveBeenCalledWith(responseFixture.id, 'test-token');
       expect(mockUploadFileToPresignedUrl).toHaveBeenNthCalledWith(
@@ -729,6 +731,30 @@ describe('useCreateEventViewModel', () => {
       expect(result.current.successMessage).toBe('Event created successfully!');
       expect(result.current.imageError).toBe(
         'The event was created, but uploading the image to storage failed.',
+      );
+      expect(mockConfirmEventImageUpload).not.toHaveBeenCalled();
+    });
+
+    it('shows a user-friendly message when the image upload network request fails', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      mockLaunchImageLibraryAsync.mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'file:///selected-image.jpg' }],
+      } as any);
+      mockUploadFileToPresignedUrl.mockRejectedValueOnce(new Error('Network request failed'));
+
+      await act(async () => {
+        await result.current.pickImage();
+        fillValidForm(result.current);
+      });
+
+      await act(async () => {
+        await result.current.handleSubmit('test-token');
+      });
+
+      expect(result.current.successMessage).toBe('Event created successfully!');
+      expect(result.current.imageError).toBe(
+        'The event was created, but uploading the image failed because the network request did not complete.',
       );
       expect(mockConfirmEventImageUpload).not.toHaveBeenCalled();
     });
@@ -819,6 +845,59 @@ describe('useCreateEventViewModel', () => {
   });
 
   describe('image picking', () => {
+    it('tries safer URI variants and stores a prepared preview image for Android-style picker paths', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      mockLaunchImageLibraryAsync.mockResolvedValueOnce({
+        canceled: false,
+        assets: [
+          {
+            uri: 'file:///data/user/0/host.exp.exponent/cache/ExperienceData/%2540anonymous%252Fsocial-event-mapper/ImagePicker/example.png',
+          },
+        ],
+      } as any);
+      mockManipulateAsync
+        .mockRejectedValueOnce(new Error('Loading bitmap failed'))
+        .mockRejectedValueOnce(new Error('Loading bitmap failed'))
+        .mockResolvedValueOnce({ uri: 'file:///safe-preview.jpg' } as any);
+
+      await act(async () => {
+        await result.current.pickImage();
+      });
+
+      expect(mockManipulateAsync).toHaveBeenNthCalledWith(
+        1,
+        'file:///data/user/0/host.exp.exponent/cache/ExperienceData/%2540anonymous%252Fsocial-event-mapper/ImagePicker/example.png',
+        [],
+        { compress: 0.9, format: 'jpeg' },
+      );
+      expect(mockManipulateAsync).toHaveBeenNthCalledWith(
+        3,
+        'file:///data/user/0/host.exp.exponent/cache/ExperienceData/@anonymous/social-event-mapper/ImagePicker/example.png',
+        [],
+        { compress: 0.9, format: 'jpeg' },
+      );
+      expect(result.current.selectedImageUri).toBe('file:///safe-preview.jpg');
+      expect(result.current.imageError).toBeNull();
+    });
+
+    it('shows an inline error when the selected image cannot be processed', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      mockLaunchImageLibraryAsync.mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'file:///selected-image.jpg' }],
+      } as any);
+      mockManipulateAsync.mockRejectedValue(new Error('Loading bitmap failed'));
+
+      await act(async () => {
+        await result.current.pickImage();
+      });
+
+      expect(result.current.selectedImageUri).toBeNull();
+      expect(result.current.imageError).toBe(
+        'We could not process the selected image. Please try a different one.',
+      );
+    });
+
     it('shows an inline error and alert when photo permission is denied', async () => {
       const { result } = renderHook(() => useCreateEventViewModel());
       mockRequestMediaLibraryPermissionsAsync.mockResolvedValueOnce({ status: 'denied' } as any);
@@ -930,5 +1009,23 @@ describe('validateLiveTimeInput', () => {
 
   it('uses full time validation when the time is complete', () => {
     expect(validateLiveTimeInput('09:30')).toBeNull();
+  });
+});
+
+describe('normalizePickedImageUri', () => {
+  it('fully decodes Android file URIs until they reach a filesystem path', () => {
+    expect(
+      normalizePickedImageUri(
+        'file:///data/user/0/host.exp.exponent/cache/ExperienceData/%2540anonymous%252Fsocial-event-mapper/ImagePicker/example.png',
+      ),
+    ).toBe(
+      'file:///data/user/0/host.exp.exponent/cache/ExperienceData/@anonymous/social-event-mapper/ImagePicker/example.png',
+    );
+  });
+
+  it('leaves non-encoded file URIs unchanged', () => {
+    expect(normalizePickedImageUri('file:///selected-image.jpg')).toBe(
+      'file:///selected-image.jpg',
+    );
   });
 });

@@ -82,16 +82,16 @@ export default function BottomTabBar() {
             )}
 
             {tab.key === 'events' && (
-              <Ionicons
-                name="calendar-outline"
+              <Feather
+                name="calendar"
                 size={22}
                 color="#9CA3AF"
               />
             )}
 
             {tab.key === 'profile' && (
-              <Ionicons
-                name="person-outline"
+              <Feather
+                name="user"
                 size={22}
                 color="#9CA3AF"
               />
