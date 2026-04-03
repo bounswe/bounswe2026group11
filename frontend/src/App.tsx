@@ -1,5 +1,6 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import LandingPage from './views/auth/LandingPage';
 import LoginView from './views/auth/LoginView';
 import RegisterView from './views/auth/RegisterView';
 import ForgotPasswordView from './views/auth/ForgotPasswordView';
@@ -23,9 +24,11 @@ export default function App() {
 
   return (
     <Routes>
+      {/* Landing page */}
+      <Route path="/" element={<LandingPage />} />
+
       {/* App shell wraps all main pages (public + protected) */}
       <Route element={<AppShell />}>
-        <Route path="/" element={<Navigate to="/discover" replace />} />
         <Route path="/discover" element={<DiscoverPage />} />
 
         {/* Protected routes — require auth */}
