@@ -157,6 +157,10 @@ func (s *Service) JoinEvent(ctx context.Context, userID, eventID uuid.UUID) (*Jo
 		return nil, domain.ForbiddenError(domain.ErrorCodeHostCannotJoin, "The event host cannot join their own event.")
 	}
 
+	if event.Status == domain.EventStatusCanceled || event.Status == domain.EventStatusCompleted {
+		return nil, domain.ConflictError(domain.ErrorCodeEventNotJoinable, "This event is no longer accepting participants.")
+	}
+
 	if event.PrivacyLevel != domain.PrivacyPublic {
 		return nil, domain.ConflictError(domain.ErrorCodeEventJoinNotAllowed, "Only PUBLIC events can be joined directly.")
 	}
@@ -199,6 +203,10 @@ func (s *Service) RequestJoin(ctx context.Context, userID, eventID uuid.UUID, in
 		return nil, domain.ForbiddenError(domain.ErrorCodeHostCannotJoin, "The event host cannot request to join their own event.")
 	}
 
+	if event.Status == domain.EventStatusCanceled || event.Status == domain.EventStatusCompleted {
+		return nil, domain.ConflictError(domain.ErrorCodeEventNotJoinable, "This event is no longer accepting participants.")
+	}
+
 	if event.PrivacyLevel != domain.PrivacyProtected {
 		return nil, domain.ConflictError(domain.ErrorCodeEventJoinNotAllowed, "Only PROTECTED events accept join requests.")
 	}
@@ -224,6 +232,17 @@ func (s *Service) ApproveJoinRequest(
 	ctx context.Context,
 	hostUserID, eventID, joinRequestID uuid.UUID,
 ) (*ApproveJoinRequestResult, error) {
+	event, err := s.eventRepo.GetEventByID(ctx, eventID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+		}
+		return nil, err
+	}
+	if event.Status == domain.EventStatusCanceled || event.Status == domain.EventStatusCompleted {
+		return nil, domain.ConflictError(domain.ErrorCodeEventNotJoinable, "This event is no longer accepting participants.")
+	}
+
 	result, err := s.joinRequestService.ApproveJoinRequest(ctx, eventID, joinRequestID, hostUserID)
 	if err != nil {
 		return nil, err

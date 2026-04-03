@@ -53,10 +53,11 @@ const (
 	EventDiscoverySortDistance  EventDiscoverySort = "DISTANCE"
 	EventDiscoverySortRelevance EventDiscoverySort = "RELEVANCE"
 
-	EventDetailParticipationStatusJoined  EventDetailParticipationStatus = "JOINED"
-	EventDetailParticipationStatusPending EventDetailParticipationStatus = "PENDING"
-	EventDetailParticipationStatusInvited EventDetailParticipationStatus = "INVITED"
-	EventDetailParticipationStatusNone    EventDetailParticipationStatus = "NONE"
+	EventDetailParticipationStatusJoined   EventDetailParticipationStatus = "JOINED"
+	EventDetailParticipationStatusPending  EventDetailParticipationStatus = "PENDING"
+	EventDetailParticipationStatusInvited  EventDetailParticipationStatus = "INVITED"
+	EventDetailParticipationStatusNone     EventDetailParticipationStatus = "NONE"
+	EventDetailParticipationStatusCanceled EventDetailParticipationStatus = "CANCELED"
 
 	MaxEventTags        = 5
 	MaxEventConstraints = 5

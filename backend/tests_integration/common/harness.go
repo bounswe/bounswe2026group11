@@ -16,6 +16,7 @@ import (
 	eventapp "github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	joinrequestapp "github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	participationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
+	profileapp "github.com/bounswe/bounswe2026group11/backend/internal/application/profile"
 	ratingapp "github.com/bounswe/bounswe2026group11/backend/internal/application/rating"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/jackc/pgx/v5"
@@ -77,10 +78,11 @@ func NewAuthHarness(t *testing.T) *AuthHarness {
 
 // EventHarness bundles the shared wiring used by event integration tests.
 type EventHarness struct {
-	Service       eventapp.UseCase
-	EventRepo     *postgresrepo.EventRepository
-	RatingService ratingapp.UseCase
-	AuthRepo      authapp.Repository
+	Service        eventapp.UseCase
+	EventRepo      *postgresrepo.EventRepository
+	RatingService  ratingapp.UseCase
+	ProfileService profileapp.UseCase
+	AuthRepo       authapp.Repository
 }
 
 // NewEventHarness creates an event service that shares the package-level pool.
@@ -92,17 +94,19 @@ func NewEventHarness(t *testing.T) *EventHarness {
 	participationRepo := postgresrepo.NewParticipationRepository(pool)
 	joinRequestRepo := postgresrepo.NewJoinRequestRepository(pool)
 	ratingRepo := postgresrepo.NewRatingRepository(pool)
+	profileRepo := postgresrepo.NewProfileRepository(pool)
 	participationService := participationapp.NewService(participationRepo)
 	joinRequestService := joinrequestapp.NewService(joinRequestRepo)
 
 	return &EventHarness{
-		Service:    eventapp.NewService(eventRepo, participationService, joinRequestService),
-		EventRepo:  eventRepo,
-		RatingService: ratingapp.NewService(ratingRepo, ratingapp.Settings{
+		Service:        eventapp.NewService(eventRepo, participationService, joinRequestService),
+		EventRepo:      eventRepo,
+		RatingService:  ratingapp.NewService(ratingRepo, ratingapp.Settings{
 			GlobalPrior: 4.0,
 			BayesianM:   5,
 		}),
-		AuthRepo: postgresrepo.NewAuthRepository(pool),
+		ProfileService: profileapp.NewService(profileRepo),
+		AuthRepo:       postgresrepo.NewAuthRepository(pool),
 	}
 }
 

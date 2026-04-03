@@ -2409,13 +2409,239 @@ func TestCancelEventReturnsConflictForNonActiveEvent(t *testing.T) {
 	}
 }
 
-func TestAddAndRemoveFavorite(t *testing.T) {
+func TestCancelEventAppearsInParticipantProfile(t *testing.T) {
 	t.Parallel()
 
 	// given
 	harness := common.NewEventHarness(t)
 	host := common.GivenUser(t, harness.AuthRepo)
+	participant := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	if _, err := harness.Service.JoinEvent(context.Background(), participant.ID, ref.ID); err != nil {
+		t.Fatalf("JoinEvent() error = %v", err)
+	}
+
+	// when
+	if err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID); err != nil {
+		t.Fatalf("CancelEvent() error = %v", err)
+	}
+
+	// then — canceled event must appear in the participant's canceled events list
+	canceledEvents, err := harness.ProfileService.GetMyCanceledEvents(context.Background(), participant.ID)
+	if err != nil {
+		t.Fatalf("GetMyCanceledEvents() error = %v", err)
+	}
+
+	var found bool
+	for _, e := range canceledEvents {
+		if e.ID == ref.ID.String() {
+			found = true
+			if e.Status != string(domain.EventStatusCanceled) {
+				t.Fatalf("expected event status %q, got %q", domain.EventStatusCanceled, e.Status)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("canceled event %s not found in participant's canceled_events", ref.ID)
+	}
+}
+
+func TestJoinEventRejectsCanceledEvent(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	joiner := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	if err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID); err != nil {
+		t.Fatalf("CancelEvent() error = %v", err)
+	}
+
+	_, err := harness.Service.JoinEvent(context.Background(), joiner.ID, ref.ID)
+
+	if err == nil {
+		t.Fatal("expected error joining canceled event, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Code != domain.ErrorCodeEventNotJoinable {
+		t.Fatalf("expected %q, got %v", domain.ErrorCodeEventNotJoinable, err)
+	}
+}
+
+func TestRequestJoinRejectsCanceledEvent(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	requester := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenProtectedEvent(t, harness.Service, host.ID)
+
+	if err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID); err != nil {
+		t.Fatalf("CancelEvent() error = %v", err)
+	}
+
+	_, err := harness.Service.RequestJoin(context.Background(), requester.ID, ref.ID, eventapp.RequestJoinInput{})
+
+	if err == nil {
+		t.Fatal("expected error requesting join on canceled event, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Code != domain.ErrorCodeEventNotJoinable {
+		t.Fatalf("expected %q, got %v", domain.ErrorCodeEventNotJoinable, err)
+	}
+}
+
+func TestGetEventDetailShowsCanceledParticipationStatus(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	participant := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	if _, err := harness.Service.JoinEvent(context.Background(), participant.ID, ref.ID); err != nil {
+		t.Fatalf("JoinEvent() error = %v", err)
+	}
+	if err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID); err != nil {
+		t.Fatalf("CancelEvent() error = %v", err)
+	}
+
+	detail, err := harness.Service.GetEventDetail(context.Background(), participant.ID, ref.ID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+
+	if detail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusCanceled) {
+		t.Fatalf("expected participation_status %q, got %q",
+			domain.EventDetailParticipationStatusCanceled, detail.ViewerContext.ParticipationStatus)
+	}
+	if detail.Status != string(domain.EventStatusCanceled) {
+		t.Fatalf("expected event status %q, got %q", domain.EventStatusCanceled, detail.Status)
+	}
+}
+
+func TestCancelEventAppearsInHostProfile(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	if err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID); err != nil {
+		t.Fatalf("CancelEvent() error = %v", err)
+	}
+
+	canceledEvents, err := harness.ProfileService.GetMyCanceledEvents(context.Background(), host.ID)
+	if err != nil {
+		t.Fatalf("GetMyCanceledEvents() error = %v", err)
+	}
+
+	var found bool
+	for _, e := range canceledEvents {
+		if e.ID == ref.ID.String() {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("canceled event %s not found in host's canceled_events", ref.ID)
+	}
+}
+
+func TestGetMyHostedEventsReturnsCreatedEvents(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	other := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+	_ = common.GivenPublicEvent(t, harness.Service, other.ID) // another host's event
+
+	events, err := harness.ProfileService.GetMyHostedEvents(context.Background(), host.ID)
+	if err != nil {
+		t.Fatalf("GetMyHostedEvents() error = %v", err)
+	}
+
+	var found bool
+	for _, e := range events {
+		if e.ID == ref.ID.String() {
+			found = true
+		}
+		// must not include other host's events
+		if e.ID != ref.ID.String() {
+			t.Fatalf("unexpected event %s in hosted events", e.ID)
+		}
+	}
+	if !found {
+		t.Fatalf("event %s not found in hosted events", ref.ID)
+	}
+}
+
+func TestGetMyUpcomingEventsReturnsApprovedActiveEvents(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	participant := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	if _, err := harness.Service.JoinEvent(context.Background(), participant.ID, ref.ID); err != nil {
+		t.Fatalf("JoinEvent() error = %v", err)
+	}
+
+	events, err := harness.ProfileService.GetMyUpcomingEvents(context.Background(), participant.ID)
+	if err != nil {
+		t.Fatalf("GetMyUpcomingEvents() error = %v", err)
+	}
+
+	var found bool
+	for _, e := range events {
+		if e.ID == ref.ID.String() {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("event %s not found in upcoming events", ref.ID)
+	}
+}
+
+func TestGetMyUpcomingEventsExcludesCanceledEvent(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	participant := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	if _, err := harness.Service.JoinEvent(context.Background(), participant.ID, ref.ID); err != nil {
+		t.Fatalf("JoinEvent() error = %v", err)
+	}
+	if err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID); err != nil {
+		t.Fatalf("CancelEvent() error = %v", err)
+	}
+
+	events, err := harness.ProfileService.GetMyUpcomingEvents(context.Background(), participant.ID)
+	if err != nil {
+		t.Fatalf("GetMyUpcomingEvents() error = %v", err)
+	}
+
+	for _, e := range events {
+		if e.ID == ref.ID.String() {
+			t.Fatalf("canceled event %s should not appear in upcoming events", ref.ID)
+		}
+	}
+}
+
+func TestAddAndRemoveFavorite(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
 	user := common.GivenUser(t, harness.AuthRepo)
+	host := common.GivenUser(t, harness.AuthRepo)
 	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
 
 	// when: add favorite
@@ -2454,4 +2680,3 @@ func TestAddAndRemoveFavorite(t *testing.T) {
 		t.Fatalf("expected 0 favorites after remove, got %d", len(favs))
 	}
 }
-

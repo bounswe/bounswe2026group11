@@ -11,6 +11,8 @@ import (
 type Repository interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*domain.UserProfile, error)
 	UpdateProfile(ctx context.Context, params UpdateProfileParams) error
-	GetCreatedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error)
-	GetAttendedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error)
+	GetHostedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error)
+	GetUpcomingEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error)
+	GetCompletedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error)
+	GetCanceledEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error)
 }

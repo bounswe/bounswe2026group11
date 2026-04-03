@@ -19,20 +19,9 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
-// GetMyProfile returns the combined app_user + profile data for the given user,
-// including lists of events they created and attended.
+// GetMyProfile returns the combined app_user + profile data for the given user.
 func (s *Service) GetMyProfile(ctx context.Context, userID uuid.UUID) (*GetProfileResult, error) {
 	p, err := s.repo.GetProfile(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	createdEvents, err := s.repo.GetCreatedEvents(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	attendedEvents, err := s.repo.GetAttendedEvents(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -51,8 +40,6 @@ func (s *Service) GetMyProfile(ctx context.Context, userID uuid.UUID) (*GetProfi
 		DisplayName:            p.DisplayName,
 		Bio:                    p.Bio,
 		AvatarURL:              p.AvatarURL,
-		CreatedEvents:          toEventSummaries(createdEvents),
-		AttendedEvents:         toEventSummaries(attendedEvents),
 	}
 
 	if p.BirthDate != nil {
@@ -61,6 +48,44 @@ func (s *Service) GetMyProfile(ctx context.Context, userID uuid.UUID) (*GetProfi
 	}
 
 	return result, nil
+}
+
+// GetMyHostedEvents returns events created by the user.
+func (s *Service) GetMyHostedEvents(ctx context.Context, userID uuid.UUID) ([]EventSummary, error) {
+	events, err := s.repo.GetHostedEvents(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return toEventSummaries(events), nil
+}
+
+// GetMyUpcomingEvents returns events the user has an approved participation in
+// that are still ACTIVE or IN_PROGRESS.
+func (s *Service) GetMyUpcomingEvents(ctx context.Context, userID uuid.UUID) ([]EventSummary, error) {
+	events, err := s.repo.GetUpcomingEvents(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return toEventSummaries(events), nil
+}
+
+// GetMyCompletedEvents returns events the user participated in that have COMPLETED.
+func (s *Service) GetMyCompletedEvents(ctx context.Context, userID uuid.UUID) ([]EventSummary, error) {
+	events, err := s.repo.GetCompletedEvents(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return toEventSummaries(events), nil
+}
+
+// GetMyCanceledEvents returns events the user was part of (as host or participant)
+// that have been CANCELED.
+func (s *Service) GetMyCanceledEvents(ctx context.Context, userID uuid.UUID) ([]EventSummary, error) {
+	events, err := s.repo.GetCanceledEvents(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return toEventSummaries(events), nil
 }
 
 func toEventSummaries(events []domain.EventSummary) []EventSummary {
