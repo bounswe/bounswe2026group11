@@ -3441,17 +3441,18 @@ func TestDiscoverEventsAnonymousSeesOnlyPublicAndProtected(t *testing.T) {
 	common.GivenProtectedEvent(t, harness.Service, host.ID)
 
 	// when: anonymous caller with uuid.Nil
+	radiusMeters := 100_000
 	result, err := harness.Service.DiscoverEvents(context.Background(), uuid.Nil, eventapp.DiscoverEventsInput{
-		Lat:    common.Float64Ptr(41.0),
-		Lon:    common.Float64Ptr(29.0),
-		Radius: common.Float64Ptr(100_000),
+		Lat:          common.Float64Ptr(41.0),
+		Lon:          common.Float64Ptr(29.0),
+		RadiusMeters: &radiusMeters,
 	})
 
 	// then: no error and at least the two fixtures are returned
 	if err != nil {
 		t.Fatalf("DiscoverEvents() anonymous error = %v", err)
 	}
-	if len(result.Events) < 2 {
-		t.Fatalf("expected at least 2 events, got %d", len(result.Events))
+	if len(result.Items) < 2 {
+		t.Fatalf("expected at least 2 events, got %d", len(result.Items))
 	}
 }
