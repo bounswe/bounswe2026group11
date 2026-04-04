@@ -3408,6 +3408,7 @@ func TestGetEventDetailAnonymousCannotReadPrivateEvent(t *testing.T) {
 	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
 		HostID:       host.ID,
 		Title:        "Private Event",
+		Description:  "a private event",
 		CategoryID:   categoryID,
 		Lat:          41.0,
 		Lon:          29.0,
@@ -3441,7 +3442,7 @@ func TestDiscoverEventsAnonymousSeesOnlyPublicAndProtected(t *testing.T) {
 	common.GivenProtectedEvent(t, harness.Service, host.ID)
 
 	// when: anonymous caller with uuid.Nil
-	radiusMeters := 100_000
+	radiusMeters := 50_000
 	result, err := harness.Service.DiscoverEvents(context.Background(), uuid.Nil, eventapp.DiscoverEventsInput{
 		Lat:          common.Float64Ptr(41.0),
 		Lon:          common.Float64Ptr(29.0),
