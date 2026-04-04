@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 )
@@ -15,6 +16,7 @@ import (
 // forgot-password flows, password login, refresh-token rotation, and logout.
 type Service struct {
 	repo                    Repository
+	unitOfWork              uow.UnitOfWork
 	passwordHasher          PasswordHasher
 	otpHasher               PasswordHasher
 	tokenIssuer             TokenIssuer
@@ -37,6 +39,7 @@ var _ UseCase = (*Service)(nil)
 // NewService constructs an auth Service with the given adapters and configuration.
 func NewService(
 	repo Repository,
+	unitOfWork uow.UnitOfWork,
 	passwordHasher PasswordHasher,
 	otpHasher PasswordHasher,
 	tokenIssuer TokenIssuer,
@@ -50,6 +53,7 @@ func NewService(
 ) *Service {
 	return &Service{
 		repo:                    repo,
+		unitOfWork:              unitOfWork,
 		passwordHasher:          passwordHasher,
 		otpHasher:               otpHasher,
 		tokenIssuer:             tokenIssuer,
@@ -162,12 +166,12 @@ func (s *Service) VerifyPasswordResetOTP(ctx context.Context, input VerifyPasswo
 	}
 
 	expiresAt := now.Add(s.otpTTL)
-	err = s.repo.WithTx(ctx, func(repo Repository) error {
-		if err := repo.ConsumeOTPChallenge(ctx, challenge.ID, now); err != nil {
+	err = s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		if err := s.repo.ConsumeOTPChallenge(ctx, challenge.ID, now); err != nil {
 			return fmt.Errorf("consume otp challenge: %w", err)
 		}
 
-		if _, err := repo.UpsertOTPChallenge(ctx, UpsertOTPChallengeParams{
+		if _, err := s.repo.UpsertOTPChallenge(ctx, UpsertOTPChallengeParams{
 			UserID:      challenge.UserID,
 			Channel:     domain.OTPChannelEmail,
 			Destination: email,
@@ -218,19 +222,19 @@ func (s *Service) ResetPassword(ctx context.Context, input ResetPasswordInput) e
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	err = s.repo.WithTx(ctx, func(repo Repository) error {
-		userID, err := s.resolvePasswordResetUserID(ctx, repo, email, grant)
+	err = s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		userID, err := s.resolvePasswordResetUserID(ctx, s.repo, email, grant)
 		if err != nil {
 			return err
 		}
 
-		if err := repo.UpdatePassword(ctx, userID, passwordHash, now); err != nil {
+		if err := s.repo.UpdatePassword(ctx, userID, passwordHash, now); err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
 				return passwordResetTokenError()
 			}
 			return fmt.Errorf("update password: %w", err)
 		}
-		if err := repo.ConsumeOTPChallenge(ctx, grant.ID, now); err != nil {
+		if err := s.repo.ConsumeOTPChallenge(ctx, grant.ID, now); err != nil {
 			return fmt.Errorf("consume password reset grant: %w", err)
 		}
 		return nil
@@ -263,8 +267,8 @@ func (s *Service) VerifyRegistrationOTP(ctx context.Context, input VerifyRegistr
 	}
 
 	var session *Session
-	err = s.repo.WithTx(ctx, func(repo Repository) error {
-		user, createErr := repo.CreateUser(ctx, CreateUserParams{
+	err = s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		user, createErr := s.repo.CreateUser(ctx, CreateUserParams{
 			Username:        username,
 			Email:           email,
 			PhoneNumber:     phoneNumber,
@@ -278,14 +282,14 @@ func (s *Service) VerifyRegistrationOTP(ctx context.Context, input VerifyRegistr
 			return createErr
 		}
 
-		if err := repo.CreateProfile(ctx, user.ID); err != nil {
+		if err := s.repo.CreateProfile(ctx, user.ID); err != nil {
 			return fmt.Errorf("create profile: %w", err)
 		}
-		if err := repo.ConsumeOTPChallenge(ctx, challenge.ID, now); err != nil {
+		if err := s.repo.ConsumeOTPChallenge(ctx, challenge.ID, now); err != nil {
 			return fmt.Errorf("consume otp challenge: %w", err)
 		}
 
-		sessionValue, err := s.issueSession(ctx, repo, *user, uuid.New(), input.DeviceInfo, now)
+		sessionValue, err := s.issueSession(ctx, s.repo, *user, uuid.New(), input.DeviceInfo, now)
 		if err != nil {
 			return err
 		}
@@ -325,12 +329,12 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*Session, error)
 	}
 
 	var session *Session
-	err = s.repo.WithTx(ctx, func(repo Repository) error {
-		if err := repo.UpdateLastLogin(ctx, user.ID, now); err != nil {
+	err = s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		if err := s.repo.UpdateLastLogin(ctx, user.ID, now); err != nil {
 			return fmt.Errorf("update last login: %w", err)
 		}
 
-		sessionValue, err := s.issueSession(ctx, repo, *user, uuid.New(), input.DeviceInfo, now)
+		sessionValue, err := s.issueSession(ctx, s.repo, *user, uuid.New(), input.DeviceInfo, now)
 		if err != nil {
 			return err
 		}
@@ -358,8 +362,8 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, deviceInfo *
 	tokenHash := s.refreshTokens.HashToken(refreshToken)
 
 	var session *Session
-	err := s.repo.WithTx(ctx, func(repo Repository) error {
-		current, err := repo.GetRefreshTokenByHash(ctx, tokenHash)
+	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		current, err := s.repo.GetRefreshTokenByHash(ctx, tokenHash)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
 				return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
@@ -370,7 +374,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, deviceInfo *
 		// Reuse detection: if the token was already revoked, an attacker may
 		// have stolen it. Revoke the entire family as a precaution.
 		if current.RevokedAt != nil {
-			if err := repo.RevokeRefreshTokenFamily(ctx, current.FamilyID, now); err != nil {
+			if err := s.repo.RevokeRefreshTokenFamily(ctx, current.FamilyID, now); err != nil {
 				return fmt.Errorf("revoke refresh token family: %w", err)
 			}
 			return domain.AuthError(domain.ErrorCodeRefreshReused, "The refresh token has already been used.")
@@ -379,14 +383,14 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, deviceInfo *
 			return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
 		}
 
-		user, err := repo.GetUserByID(ctx, current.UserID)
+		user, err := s.repo.GetUserByID(ctx, current.UserID)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
 				return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
 			}
 			return fmt.Errorf("lookup user by id: %w", err)
 		}
-		familyStartedAt, err := repo.GetRefreshTokenFamilyCreatedAt(ctx, current.FamilyID)
+		familyStartedAt, err := s.repo.GetRefreshTokenFamilyCreatedAt(ctx, current.FamilyID)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
 				return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
@@ -399,14 +403,14 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, deviceInfo *
 			return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
 		}
 
-		sessionValue, newToken, err := s.issueRotatedSession(ctx, repo, *user, current.FamilyID, familyStartedAt.UTC(), current.ID, deviceInfo, now)
+		sessionValue, newToken, err := s.issueRotatedSession(ctx, s.repo, *user, current.FamilyID, familyStartedAt.UTC(), current.ID, deviceInfo, now)
 		if err != nil {
 			return err
 		}
-		if err := repo.RevokeRefreshToken(ctx, current.ID, now); err != nil {
+		if err := s.repo.RevokeRefreshToken(ctx, current.ID, now); err != nil {
 			return fmt.Errorf("revoke previous refresh token: %w", err)
 		}
-		if err := repo.SetRefreshTokenReplacement(ctx, current.ID, newToken.ID, now); err != nil {
+		if err := s.repo.SetRefreshTokenReplacement(ctx, current.ID, newToken.ID, now); err != nil {
 			return fmt.Errorf("set refresh token replacement: %w", err)
 		}
 		session = sessionValue
@@ -428,8 +432,8 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 
 	now := s.now().UTC()
 	tokenHash := s.refreshTokens.HashToken(refreshToken)
-	return s.repo.WithTx(ctx, func(repo Repository) error {
-		current, err := repo.GetRefreshTokenByHash(ctx, tokenHash)
+	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		current, err := s.repo.GetRefreshTokenByHash(ctx, tokenHash)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
 				return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
@@ -439,7 +443,7 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 		if current.RevokedAt != nil || now.After(current.ExpiresAt.UTC()) {
 			return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
 		}
-		if err := repo.RevokeRefreshToken(ctx, current.ID, now); err != nil {
+		if err := s.repo.RevokeRefreshToken(ctx, current.ID, now); err != nil {
 			return fmt.Errorf("revoke refresh token: %w", err)
 		}
 		return nil

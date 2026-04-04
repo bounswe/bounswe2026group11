@@ -19,108 +19,69 @@ import (
 type JoinRequestRepository struct {
 	pool *pgxpool.Pool
 	db   execer
-	tx   pgx.Tx
 }
 
 // NewJoinRequestRepository returns a repository that executes queries against the given connection pool.
 func NewJoinRequestRepository(pool *pgxpool.Pool) *JoinRequestRepository {
 	return &JoinRequestRepository{
 		pool: pool,
-		db:   pool,
+		db:   contextualRunner{fallback: pool},
 	}
-}
-
-func (r *JoinRequestRepository) withTx(ctx context.Context, fn func(repo *JoinRequestRepository) error) error {
-	if r.tx != nil {
-		return fn(r)
-	}
-
-	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
-	}
-
-	txRepo := &JoinRequestRepository{
-		pool: r.pool,
-		db:   tx,
-		tx:   tx,
-	}
-
-	if err := fn(txRepo); err != nil {
-		_ = tx.Rollback(ctx)
-		return err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit transaction: %w", err)
-	}
-
-	return nil
 }
 
 // CreateJoinRequest inserts or reactivates a join_request row for a protected event.
 func (r *JoinRequestRepository) CreateJoinRequest(ctx context.Context, params joinrequestapp.CreateJoinRequestParams) (*domain.JoinRequest, error) {
-	var created *domain.JoinRequest
+	event, err := r.loadEventState(ctx, params.EventID, false)
+	if err != nil {
+		return nil, err
+	}
+	if event == nil {
+		return nil, domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+	}
+	if event.HostID == params.UserID {
+		return nil, domain.ForbiddenError(domain.ErrorCodeHostCannotJoin, "The event host cannot request to join their own event.")
+	}
+	if event.PrivacyLevel != domain.PrivacyProtected {
+		return nil, domain.ConflictError(domain.ErrorCodeEventJoinNotAllowed, "Only PROTECTED events accept join requests.")
+	}
 
-	err := r.withTx(ctx, func(repo *JoinRequestRepository) error {
-		event, err := repo.loadEventState(ctx, params.EventID, false)
-		if err != nil {
-			return err
-		}
-		if event == nil {
-			return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
-		}
-		if event.HostID == params.UserID {
-			return domain.ForbiddenError(domain.ErrorCodeHostCannotJoin, "The event host cannot request to join their own event.")
-		}
-		if event.PrivacyLevel != domain.PrivacyProtected {
-			return domain.ConflictError(domain.ErrorCodeEventJoinNotAllowed, "Only PROTECTED events accept join requests.")
-		}
+	participation, err := loadParticipation(ctx, r.db, params.EventID, params.UserID, false)
+	if err != nil {
+		return nil, err
+	}
+	if participation != nil && !canReactivateLeavedParticipation(participation, event.StartTime) {
+		return nil, mapJoinParticipationConflict(
+			participation,
+			event.StartTime,
+			"You are already participating in this event.",
+			"You cannot request to join again after leaving once the event has started.",
+		)
+	}
 
-		participation, err := loadParticipation(ctx, repo.db, params.EventID, params.UserID, false)
-		if err != nil {
-			return err
-		}
-		if participation != nil && !canReactivateLeavedParticipation(participation, event.StartTime) {
-			return mapJoinParticipationConflict(
-				participation,
-				event.StartTime,
-				"You are already participating in this event.",
-				"You cannot request to join again after leaving once the event has started.",
-			)
-		}
-
-		existing, err := repo.loadJoinRequestByEventAndUser(ctx, params.EventID, params.UserID, true)
-		if err != nil {
-			return err
-		}
-
-		if existing == nil {
-			created, err = repo.insertJoinRequest(ctx, params)
-			if err == nil {
-				return nil
-			}
-			if !isConstraintError(err, "uq_join") {
-				return fmt.Errorf("insert join_request: %w", err)
-			}
-
-			existing, err = repo.loadJoinRequestByEventAndUser(ctx, params.EventID, params.UserID, true)
-			if err != nil {
-				return err
-			}
-			if existing == nil {
-				return fmt.Errorf("insert join_request: unique violation without matching row")
-			}
-		}
-
-		created, err = repo.handleExistingJoinRequestForCreate(ctx, existing, participation, event.StartTime, params)
-		return err
-	})
+	existing, err := r.loadJoinRequestByEventAndUser(ctx, params.EventID, params.UserID, true)
 	if err != nil {
 		return nil, err
 	}
 
-	return created, nil
+	if existing == nil {
+		created, err := r.insertJoinRequest(ctx, params)
+		if err == nil {
+			return created, nil
+		}
+		if !isConstraintError(err, "uq_join") {
+			return nil, fmt.Errorf("insert join_request: %w", err)
+		}
+
+		existing, err = r.loadJoinRequestByEventAndUser(ctx, params.EventID, params.UserID, true)
+		if err != nil {
+			return nil, err
+		}
+		if existing == nil {
+			return nil, fmt.Errorf("insert join_request: unique violation without matching row")
+		}
+	}
+
+	return r.handleExistingJoinRequestForCreate(ctx, existing, participation, event.StartTime, params)
 }
 
 // ApproveJoinRequest approves a pending join request and creates the corresponding
@@ -129,56 +90,46 @@ func (r *JoinRequestRepository) ApproveJoinRequest(
 	ctx context.Context,
 	params joinrequestapp.ApproveJoinRequestParams,
 ) (*joinrequestapp.ApproveJoinRequestResult, error) {
-	var result *joinrequestapp.ApproveJoinRequestResult
+	event, err := r.loadEventState(ctx, params.EventID, true)
+	if err != nil {
+		return nil, err
+	}
+	if event == nil {
+		return nil, domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+	}
+	if event.HostID != params.HostUserID {
+		return nil, domain.ForbiddenError(domain.ErrorCodeJoinRequestModerationNotAllowed, "Only the event host can moderate join requests.")
+	}
 
-	err := r.withTx(ctx, func(repo *JoinRequestRepository) error {
-		event, err := repo.loadEventState(ctx, params.EventID, true)
-		if err != nil {
-			return err
-		}
-		if event == nil {
-			return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
-		}
-		if event.HostID != params.HostUserID {
-			return domain.ForbiddenError(domain.ErrorCodeJoinRequestModerationNotAllowed, "Only the event host can moderate join requests.")
-		}
+	request, err := r.loadJoinRequestByID(ctx, params.EventID, params.JoinRequestID, true)
+	if err != nil {
+		return nil, err
+	}
+	if request == nil {
+		return nil, domain.NotFoundError(domain.ErrorCodeJoinRequestNotFound, "The requested join request does not exist.")
+	}
+	if request.Status != domain.JoinRequestStatusPending {
+		return nil, domain.ConflictError(domain.ErrorCodeJoinRequestStateInvalid, "Only PENDING join requests can be approved.")
+	}
 
-		request, err := repo.loadJoinRequestByID(ctx, params.EventID, params.JoinRequestID, true)
-		if err != nil {
-			return err
-		}
-		if request == nil {
-			return domain.NotFoundError(domain.ErrorCodeJoinRequestNotFound, "The requested join request does not exist.")
-		}
-		if request.Status != domain.JoinRequestStatusPending {
-			return domain.ConflictError(domain.ErrorCodeJoinRequestStateInvalid, "Only PENDING join requests can be approved.")
-		}
+	if event.Capacity != nil && event.ApprovedParticipantCount >= *event.Capacity {
+		return nil, domain.ConflictError(domain.ErrorCodeCapacityExceeded, "This event has reached its maximum capacity.")
+	}
 
-		if event.Capacity != nil && event.ApprovedParticipantCount >= *event.Capacity {
-			return domain.ConflictError(domain.ErrorCodeCapacityExceeded, "This event has reached its maximum capacity.")
-		}
-
-		participation, err := repo.insertOrReactivateApprovedParticipation(ctx, event, request.UserID)
-		if err != nil {
-			return err
-		}
-
-		updatedRequest, err := repo.updateJoinRequestStatus(ctx, request.ID, domain.JoinRequestStatusApproved, &participation.ID)
-		if err != nil {
-			return err
-		}
-
-		result = &joinrequestapp.ApproveJoinRequestResult{
-			JoinRequest:   updatedRequest,
-			Participation: participation,
-		}
-		return nil
-	})
+	participation, err := r.insertOrReactivateApprovedParticipation(ctx, event, request.UserID)
 	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	updatedRequest, err := r.updateJoinRequestStatus(ctx, request.ID, domain.JoinRequestStatusApproved, &participation.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &joinrequestapp.ApproveJoinRequestResult{
+		JoinRequest:   updatedRequest,
+		Participation: participation,
+	}, nil
 }
 
 // RejectJoinRequest rejects a pending join request and returns the resulting cooldown end time.
@@ -186,47 +137,37 @@ func (r *JoinRequestRepository) RejectJoinRequest(
 	ctx context.Context,
 	params joinrequestapp.RejectJoinRequestParams,
 ) (*joinrequestapp.RejectJoinRequestResult, error) {
-	var result *joinrequestapp.RejectJoinRequestResult
+	event, err := r.loadEventState(ctx, params.EventID, false)
+	if err != nil {
+		return nil, err
+	}
+	if event == nil {
+		return nil, domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+	}
+	if event.HostID != params.HostUserID {
+		return nil, domain.ForbiddenError(domain.ErrorCodeJoinRequestModerationNotAllowed, "Only the event host can moderate join requests.")
+	}
 
-	err := r.withTx(ctx, func(repo *JoinRequestRepository) error {
-		event, err := repo.loadEventState(ctx, params.EventID, false)
-		if err != nil {
-			return err
-		}
-		if event == nil {
-			return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
-		}
-		if event.HostID != params.HostUserID {
-			return domain.ForbiddenError(domain.ErrorCodeJoinRequestModerationNotAllowed, "Only the event host can moderate join requests.")
-		}
+	request, err := r.loadJoinRequestByID(ctx, params.EventID, params.JoinRequestID, true)
+	if err != nil {
+		return nil, err
+	}
+	if request == nil {
+		return nil, domain.NotFoundError(domain.ErrorCodeJoinRequestNotFound, "The requested join request does not exist.")
+	}
+	if request.Status != domain.JoinRequestStatusPending {
+		return nil, domain.ConflictError(domain.ErrorCodeJoinRequestStateInvalid, "Only PENDING join requests can be rejected.")
+	}
 
-		request, err := repo.loadJoinRequestByID(ctx, params.EventID, params.JoinRequestID, true)
-		if err != nil {
-			return err
-		}
-		if request == nil {
-			return domain.NotFoundError(domain.ErrorCodeJoinRequestNotFound, "The requested join request does not exist.")
-		}
-		if request.Status != domain.JoinRequestStatusPending {
-			return domain.ConflictError(domain.ErrorCodeJoinRequestStateInvalid, "Only PENDING join requests can be rejected.")
-		}
-
-		updatedRequest, err := repo.updateJoinRequestStatus(ctx, request.ID, domain.JoinRequestStatusRejected, nil)
-		if err != nil {
-			return err
-		}
-
-		result = &joinrequestapp.RejectJoinRequestResult{
-			JoinRequest:    updatedRequest,
-			CooldownEndsAt: updatedRequest.UpdatedAt.Add(domain.JoinRequestCooldown),
-		}
-		return nil
-	})
+	updatedRequest, err := r.updateJoinRequestStatus(ctx, request.ID, domain.JoinRequestStatusRejected, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return &joinrequestapp.RejectJoinRequestResult{
+		JoinRequest:    updatedRequest,
+		CooldownEndsAt: updatedRequest.UpdatedAt.Add(domain.JoinRequestCooldown),
+	}, nil
 }
 
 func (r *JoinRequestRepository) handleExistingJoinRequestForCreate(

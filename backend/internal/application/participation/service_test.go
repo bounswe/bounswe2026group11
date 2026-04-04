@@ -11,14 +11,16 @@ import (
 )
 
 type fakeParticipationRepo struct {
-	err              error
-	callCount        int
-	leaveCallCount   int
-	lastEventID      uuid.UUID
-	lastUserID       uuid.UUID
-	lastLeaveEventID uuid.UUID
-	lastLeaveUserID  uuid.UUID
-	result           *domain.Participation
+	err               error
+	callCount         int
+	leaveCallCount    int
+	cancelCallCount   int
+	lastEventID       uuid.UUID
+	lastUserID        uuid.UUID
+	lastLeaveEventID  uuid.UUID
+	lastLeaveUserID   uuid.UUID
+	lastCancelEventID uuid.UUID
+	result            *domain.Participation
 }
 
 func (r *fakeParticipationRepo) CreateParticipation(_ context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
@@ -65,6 +67,12 @@ func (r *fakeParticipationRepo) LeaveParticipation(_ context.Context, eventID, u
 		CreatedAt: now.Add(-time.Hour),
 		UpdatedAt: now,
 	}, nil
+}
+
+func (r *fakeParticipationRepo) CancelEventParticipations(_ context.Context, eventID uuid.UUID) error {
+	r.cancelCallCount++
+	r.lastCancelEventID = eventID
+	return r.err
 }
 
 func TestCreateApprovedParticipationDelegatesToRepo(t *testing.T) {
@@ -132,5 +140,18 @@ func TestLeaveParticipationDelegatesToRepo(t *testing.T) {
 	}
 	if result.Status != domain.ParticipationStatusLeaved {
 		t.Fatalf("expected status %q, got %q", domain.ParticipationStatusLeaved, result.Status)
+	}
+}
+
+func TestCancelEventParticipationsDelegatesToRepo(t *testing.T) {
+	repo := &fakeParticipationRepo{}
+	service := NewService(repo)
+	eventID := uuid.New()
+
+	if err := service.CancelEventParticipations(context.Background(), eventID); err != nil {
+		t.Fatalf("CancelEventParticipations() error = %v", err)
+	}
+	if repo.cancelCallCount != 1 || repo.lastCancelEventID != eventID {
+		t.Fatalf("expected cancel repo to receive event %s, got calls=%d event=%s", eventID, repo.cancelCallCount, repo.lastCancelEventID)
 	}
 }

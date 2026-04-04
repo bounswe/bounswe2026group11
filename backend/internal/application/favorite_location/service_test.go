@@ -10,6 +10,12 @@ import (
 	"github.com/google/uuid"
 )
 
+type fakeUnitOfWork struct{}
+
+func (u *fakeUnitOfWork) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return fn(ctx)
+}
+
 type fakeRepository struct {
 	listResult   []domain.FavoriteLocation
 	createResult *domain.FavoriteLocation
@@ -89,7 +95,7 @@ func (r *fakeRepository) Delete(_ context.Context, userID, favoriteLocationID uu
 func TestCreateMyFavoriteLocationTrimsAndPersistsValidatedFields(t *testing.T) {
 	// given
 	repo := &fakeRepository{}
-	service := NewService(repo)
+	service := NewService(repo, &fakeUnitOfWork{})
 	userID := uuid.New()
 
 	// when
@@ -122,7 +128,7 @@ func TestCreateMyFavoriteLocationTrimsAndPersistsValidatedFields(t *testing.T) {
 func TestCreateMyFavoriteLocationMapsLimitConflict(t *testing.T) {
 	// given
 	repo := &fakeRepository{err: ErrFavoriteLocationLimitExceeded}
-	service := NewService(repo)
+	service := NewService(repo, &fakeUnitOfWork{})
 
 	// when
 	_, err := service.CreateMyFavoriteLocation(context.Background(), CreateFavoriteLocationInput{
@@ -159,7 +165,7 @@ func TestUpdateMyFavoriteLocationMergesExistingFields(t *testing.T) {
 			UpdatedAt: time.Now().UTC(),
 		},
 	}
-	service := NewService(repo)
+	service := NewService(repo, &fakeUnitOfWork{})
 	newName := "  HQ  "
 
 	// when
@@ -190,7 +196,7 @@ func TestUpdateMyFavoriteLocationMergesExistingFields(t *testing.T) {
 func TestDeleteMyFavoriteLocationMapsNotFound(t *testing.T) {
 	// given
 	repo := &fakeRepository{err: domain.ErrNotFound}
-	service := NewService(repo)
+	service := NewService(repo, &fakeUnitOfWork{})
 
 	// when
 	err := service.DeleteMyFavoriteLocation(context.Background(), uuid.New(), uuid.New())

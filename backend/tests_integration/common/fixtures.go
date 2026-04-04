@@ -266,6 +266,86 @@ func GivenStartedEvent(t *testing.T, hostID uuid.UUID) uuid.UUID {
 	return id
 }
 
+// GivenStaleEvent inserts an ACTIVE event whose start_time is >30 days ago
+// and updated_at is >7 days ago, making it eligible for stale auto-completion.
+func GivenStaleEvent(t *testing.T, hostID uuid.UUID) uuid.UUID {
+	t.Helper()
+
+	pool := RequirePool(t)
+	categoryID := GivenEventCategory(t)
+	now := time.Now().UTC()
+
+	var id uuid.UUID
+	err := pool.QueryRow(context.Background(), `
+		INSERT INTO event (host_id, title, privacy_level, status, location_type, start_time, updated_at, category_id)
+		VALUES ($1, $2, 'PUBLIC', 'ACTIVE', 'POINT', $3, $4, $5)
+		RETURNING id`,
+		hostID,
+		"stale_event_"+uuid.NewString()[:8],
+		now.Add(-31*24*time.Hour),
+		now.Add(-8*24*time.Hour),
+		categoryID,
+	).Scan(&id)
+	if err != nil {
+		t.Fatalf("GivenStaleEvent() insert error = %v", err)
+	}
+
+	return id
+}
+
+// GivenVeryOldEvent inserts an ACTIVE event whose start_time is >60 days ago,
+// making it eligible for unconditional auto-completion.
+func GivenVeryOldEvent(t *testing.T, hostID uuid.UUID) uuid.UUID {
+	t.Helper()
+
+	pool := RequirePool(t)
+	categoryID := GivenEventCategory(t)
+	now := time.Now().UTC()
+
+	var id uuid.UUID
+	err := pool.QueryRow(context.Background(), `
+		INSERT INTO event (host_id, title, privacy_level, status, location_type, start_time, category_id)
+		VALUES ($1, $2, 'PUBLIC', 'ACTIVE', 'POINT', $3, $4)
+		RETURNING id`,
+		hostID,
+		"old_event_"+uuid.NewString()[:8],
+		now.Add(-61*24*time.Hour),
+		categoryID,
+	).Scan(&id)
+	if err != nil {
+		t.Fatalf("GivenVeryOldEvent() insert error = %v", err)
+	}
+
+	return id
+}
+
+// GivenRecentlyUpdatedOldEvent inserts an ACTIVE event whose start_time is >30 days ago
+// but updated_at is within the last 7 days — it should NOT be auto-completed by the stale rule.
+func GivenRecentlyUpdatedOldEvent(t *testing.T, hostID uuid.UUID) uuid.UUID {
+	t.Helper()
+
+	pool := RequirePool(t)
+	categoryID := GivenEventCategory(t)
+	now := time.Now().UTC()
+
+	var id uuid.UUID
+	err := pool.QueryRow(context.Background(), `
+		INSERT INTO event (host_id, title, privacy_level, status, location_type, start_time, updated_at, category_id)
+		VALUES ($1, $2, 'PUBLIC', 'ACTIVE', 'POINT', $3, $4, $5)
+		RETURNING id`,
+		hostID,
+		"recent_updated_event_"+uuid.NewString()[:8],
+		now.Add(-31*24*time.Hour),
+		now.Add(-1*24*time.Hour),
+		categoryID,
+	).Scan(&id)
+	if err != nil {
+		t.Fatalf("GivenRecentlyUpdatedOldEvent() insert error = %v", err)
+	}
+
+	return id
+}
+
 func StringPtr(value string) *string {
 	return &value
 }

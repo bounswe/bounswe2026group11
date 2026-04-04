@@ -16,17 +16,21 @@ import (
 // ParticipationRepository is the Postgres-backed implementation of participation.ParticipationRepository.
 type ParticipationRepository struct {
 	pool *pgxpool.Pool
+	db   execer
 }
 
 // NewParticipationRepository returns a repository that executes queries against the given connection pool.
 func NewParticipationRepository(pool *pgxpool.Pool) *ParticipationRepository {
-	return &ParticipationRepository{pool: pool}
+	return &ParticipationRepository{
+		pool: pool,
+		db:   contextualRunner{fallback: pool},
+	}
 }
 
 // CreateParticipation inserts an APPROVED participation row.
 // Rejoins before start reactivate the existing row instead of inserting a duplicate.
 func (r *ParticipationRepository) CreateParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
-	participation, err := scanParticipation(r.pool.QueryRow(ctx, `
+	participation, err := scanParticipation(r.db.QueryRow(ctx, `
 		WITH joinable_event AS (
 			SELECT id, start_time
 			FROM event
@@ -74,7 +78,7 @@ func (r *ParticipationRepository) CreateParticipation(ctx context.Context, event
 
 // LeaveParticipation transitions an APPROVED participation to LEAVED.
 func (r *ParticipationRepository) LeaveParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
-	participation, err := scanParticipation(r.pool.QueryRow(ctx, `
+	participation, err := scanParticipation(r.db.QueryRow(ctx, `
 		UPDATE participation
 		SET status = $3,
 		    updated_at = NOW()
@@ -113,7 +117,7 @@ func (r *ParticipationRepository) mapCreateParticipationNoRow(ctx context.Contex
 		return domain.ConflictError(domain.ErrorCodeCapacityExceeded, "This event has reached its maximum capacity.")
 	}
 
-	participation, err := loadParticipation(ctx, r.pool, eventID, userID, false)
+	participation, err := loadParticipation(ctx, r.db, eventID, userID, false)
 	if err != nil {
 		return err
 	}
@@ -150,7 +154,7 @@ func (r *ParticipationRepository) loadEventJoinState(ctx context.Context, eventI
 		startTime     time.Time
 	)
 
-	err := r.pool.QueryRow(ctx, `
+	err := r.db.QueryRow(ctx, `
 		SELECT host_id, privacy_level, capacity, approved_participant_count, start_time
 		FROM event
 		WHERE id = $1
@@ -174,4 +178,19 @@ func (r *ParticipationRepository) loadEventJoinState(ctx context.Context, eventI
 	}
 
 	return event, nil
+}
+
+// CancelEventParticipations transitions every non-LEAVED participation for the
+// event to CANCELED, preserving historical leave records.
+func (r *ParticipationRepository) CancelEventParticipations(ctx context.Context, eventID uuid.UUID) error {
+	if _, err := r.db.Exec(ctx, `
+		UPDATE participation
+		SET status = $1, updated_at = NOW()
+		WHERE event_id = $2
+		  AND status <> $3
+	`, domain.ParticipationStatusCanceled, eventID, domain.ParticipationStatusLeaved); err != nil {
+		return fmt.Errorf("cancel event participations: %w", err)
+	}
+
+	return nil
 }

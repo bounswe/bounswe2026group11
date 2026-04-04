@@ -39,6 +39,7 @@ func NewAuthHarness(t *testing.T) *AuthHarness {
 
 	pool, tx := BeginTx(t)
 	repo := postgresrepo.NewAuthRepositoryWithTx(pool, tx)
+	unitOfWork := postgresrepo.NewUnitOfWorkWithTx(pool, tx)
 	mailer := &CapturingMailer{}
 	refreshTokens := security.RefreshTokenManager{ByteLength: 32}
 	now := time.Now().UTC()
@@ -46,6 +47,7 @@ func NewAuthHarness(t *testing.T) *AuthHarness {
 
 	service := authapp.NewService(
 		repo,
+		unitOfWork,
 		bcryptHasher,
 		bcryptHasher,
 		jwtadapter.Issuer{
@@ -103,17 +105,18 @@ func NewEventHarness(t *testing.T) *EventHarness {
 	joinRequestRepo := postgresrepo.NewJoinRequestRepository(pool)
 	ratingRepo := postgresrepo.NewRatingRepository(pool)
 	profileRepo := postgresrepo.NewProfileRepository(pool)
+	unitOfWork := postgresrepo.NewUnitOfWork(pool)
 	participationService := participationapp.NewService(participationRepo)
-	joinRequestService := joinrequestapp.NewService(joinRequestRepo)
+	joinRequestService := joinrequestapp.NewService(joinRequestRepo, unitOfWork)
 
 	return &EventHarness{
-		Service:   eventapp.NewService(eventRepo, participationService, joinRequestService),
+		Service:   eventapp.NewService(eventRepo, participationService, joinRequestService, unitOfWork),
 		EventRepo: eventRepo,
-		RatingService: ratingapp.NewService(ratingRepo, ratingapp.Settings{
+		RatingService: ratingapp.NewService(ratingRepo, unitOfWork, ratingapp.Settings{
 			GlobalPrior: 4.0,
 			BayesianM:   5,
 		}),
-		ProfileService: profileapp.NewService(profileRepo),
+		ProfileService: profileapp.NewService(profileRepo, unitOfWork),
 		AuthRepo:       postgresrepo.NewAuthRepository(pool),
 	}
 }
@@ -124,9 +127,10 @@ func NewFavoriteLocationHarness(t *testing.T) *FavoriteLocationHarness {
 
 	pool := RequirePool(t)
 	repo := postgresrepo.NewFavoriteLocationRepository(pool)
+	unitOfWork := postgresrepo.NewUnitOfWork(pool)
 
 	return &FavoriteLocationHarness{
-		Service:  favoritelocationapp.NewService(repo),
+		Service:  favoritelocationapp.NewService(repo, unitOfWork),
 		Repo:     repo,
 		AuthRepo: postgresrepo.NewAuthRepository(pool),
 	}

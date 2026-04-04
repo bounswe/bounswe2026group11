@@ -10,7 +10,6 @@ import (
 
 // Repository is the application-layer persistence port for auth flows.
 type Repository interface {
-	WithTx(ctx context.Context, fn func(repo Repository) error) error
 	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*domain.User, error)
 	GetUserByID(ctx context.Context, userID uuid.UUID) (*domain.User, error)

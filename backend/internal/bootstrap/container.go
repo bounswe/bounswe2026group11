@@ -24,6 +24,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/profile"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/rating"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config"
 	"github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/database"
@@ -35,6 +36,7 @@ import (
 type Container struct {
 	Config                  *config.Config
 	DB                      *pgxpool.Pool
+	UnitOfWork              uow.UnitOfWork
 	MailProvider            emailapp.Provider
 	TokenIssuer             auth.TokenIssuer
 	TokenVerifier           domain.TokenVerifier
@@ -81,6 +83,7 @@ func New(ctx context.Context) (*Container, error) {
 	container := &Container{
 		Config:        cfg,
 		DB:            db,
+		UnitOfWork:    postgres.NewUnitOfWork(db),
 		MailProvider:  mailProvider,
 		TokenIssuer:   buildTokenIssuer(cfg),
 		TokenVerifier: buildTokenVerifier(cfg),
@@ -175,7 +178,7 @@ func buildSpacesStorage(cfg *config.Config) *spacesadapter.Storage {
 
 // newEventService wires the event use case with its driven adapters.
 func newEventService(c *Container) event.UseCase {
-	return event.NewService(c.eventRepo, c.ParticipationService, c.JoinRequestService)
+	return event.NewService(c.eventRepo, c.ParticipationService, c.JoinRequestService, c.UnitOfWork)
 }
 
 // newParticipationService wires the participation use-case service with its
@@ -187,7 +190,7 @@ func newParticipationService(c *Container) participation.UseCase {
 // newJoinRequestService wires the join request use-case service with its
 // driven adapter.
 func newJoinRequestService(c *Container) join_request.UseCase {
-	return join_request.NewService(c.joinRequestRepo)
+	return join_request.NewService(c.joinRequestRepo, c.UnitOfWork)
 }
 
 // newCategoryService wires the category use-case service with its driven adapter.
@@ -197,12 +200,12 @@ func newCategoryService(c *Container) category.UseCase {
 
 // newProfileService wires the profile use-case service with its driven adapter.
 func newProfileService(c *Container) profile.UseCase {
-	return profile.NewService(c.profileRepo)
+	return profile.NewService(c.profileRepo, c.UnitOfWork)
 }
 
 // newFavoriteLocationService wires the favorite-location use-case service with its driven adapter.
 func newFavoriteLocationService(c *Container) favoritelocation.UseCase {
-	return favoritelocation.NewService(c.favoriteLocationRepo)
+	return favoritelocation.NewService(c.favoriteLocationRepo, c.UnitOfWork)
 }
 
 func newImageUploadService(c *Container, storage *spacesadapter.Storage) imageupload.UseCase {
@@ -221,7 +224,7 @@ func newImageUploadService(c *Container, storage *spacesadapter.Storage) imageup
 
 // newRatingService wires the rating use-case service with its driven adapter.
 func newRatingService(c *Container) rating.UseCase {
-	return rating.NewService(c.ratingRepo, rating.Settings{
+	return rating.NewService(c.ratingRepo, c.UnitOfWork, rating.Settings{
 		GlobalPrior: c.Config.RatingGlobalPrior,
 		BayesianM:   c.Config.RatingBayesianM,
 	})
@@ -231,6 +234,7 @@ func newRatingService(c *Container) rating.UseCase {
 func newAuthService(c *Container) auth.UseCase {
 	return auth.NewService(
 		c.authRepo,
+		c.UnitOfWork,
 		hasher.BcryptHasher{},
 		hasher.BcryptHasher{},
 		c.TokenIssuer,

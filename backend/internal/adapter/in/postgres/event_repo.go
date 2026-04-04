@@ -20,52 +20,46 @@ import (
 // EventRepository is the Postgres-backed implementation of event.Repository.
 type EventRepository struct {
 	pool *pgxpool.Pool
+	db   execer
 }
 
 // NewEventRepository returns a repository that executes queries against the given connection pool.
 func NewEventRepository(pool *pgxpool.Pool) *EventRepository {
-	return &EventRepository{pool: pool}
+	return &EventRepository{
+		pool: pool,
+		db:   contextualRunner{fallback: pool},
+	}
 }
 
 // CreateEvent persists the event along with its location, tags, and constraints
 // in a single transaction, returning the created event.
 func (r *EventRepository) CreateEvent(ctx context.Context, params eventapp.CreateEventParams) (*domain.Event, error) {
-	tx, err := r.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	event, err := insertEventRow(ctx, tx, params)
+	event, err := insertEventRow(ctx, r.db, params)
 	if err != nil {
 		return nil, mapEventInsertError(err)
 	}
 
-	if err := insertHostParticipation(ctx, tx, event); err != nil {
+	if err := insertHostParticipation(ctx, r.db, event); err != nil {
 		return nil, err
 	}
 
-	if err := insertEventLocation(ctx, tx, event.ID, params.Address, params.LocationType, params.Point, params.RoutePoints); err != nil {
+	if err := insertEventLocation(ctx, r.db, event.ID, params.Address, params.LocationType, params.Point, params.RoutePoints); err != nil {
 		return nil, err
 	}
 
-	if err := insertEventTags(ctx, tx, event.ID, params.Tags); err != nil {
+	if err := insertEventTags(ctx, r.db, event.ID, params.Tags); err != nil {
 		return nil, err
 	}
 
-	if err := insertEventConstraints(ctx, tx, event.ID, params.Constraints); err != nil {
+	if err := insertEventConstraints(ctx, r.db, event.ID, params.Constraints); err != nil {
 		return nil, err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit transaction: %w", err)
 	}
 
 	return event, nil
 }
 
 // insertEventRow inserts the core event record and returns the populated Event entity.
-func insertEventRow(ctx context.Context, tx pgx.Tx, params eventapp.CreateEventParams) (*domain.Event, error) {
+func insertEventRow(ctx context.Context, db execer, params eventapp.CreateEventParams) (*domain.Event, error) {
 	var (
 		id           uuid.UUID
 		title        string
@@ -82,7 +76,7 @@ func insertEventRow(ctx context.Context, tx pgx.Tx, params eventapp.CreateEventP
 		preferredGender = new(string(*params.PreferredGender))
 	}
 
-	err := tx.QueryRow(ctx, `
+	err := db.QueryRow(ctx, `
 		INSERT INTO event (
 			host_id, title, description, image_url, category_id,
 			start_time, end_time, privacy_level, status,
@@ -129,8 +123,8 @@ func insertEventRow(ctx context.Context, tx pgx.Tx, params eventapp.CreateEventP
 // insertHostParticipation creates the host's internal APPROVED participation
 // row so downstream authorization can treat the host as part of the event
 // membership set without exposing them as a normal participant.
-func insertHostParticipation(ctx context.Context, tx pgx.Tx, event *domain.Event) error {
-	if _, err := tx.Exec(ctx, `
+func insertHostParticipation(ctx context.Context, db execer, event *domain.Event) error {
+	if _, err := db.Exec(ctx, `
 		INSERT INTO participation (event_id, user_id, status, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5)
 	`, event.ID, event.HostID, domain.ParticipationStatusApproved, event.CreatedAt, event.UpdatedAt); err != nil {
@@ -170,7 +164,7 @@ func mapEventInsertError(err error) error {
 // insertEventLocation inserts the PostGIS geography point for the event.
 func insertEventLocation(
 	ctx context.Context,
-	tx pgx.Tx,
+	db execer,
 	eventID uuid.UUID,
 	address *string,
 	locationType domain.EventLocationType,
@@ -182,7 +176,7 @@ func insertEventLocation(
 		if point == nil {
 			return fmt.Errorf("insert event_location: point geometry is required")
 		}
-		_, err := tx.Exec(ctx, `
+		_, err := db.Exec(ctx, `
 			INSERT INTO event_location (event_id, address, geom)
 			VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography)
 		`, eventID, address, point.Lon, point.Lat)
@@ -193,7 +187,7 @@ func insertEventLocation(
 		if len(routePoints) < domain.MinRoutePoints {
 			return fmt.Errorf("insert event_location: route geometry requires at least %d points", domain.MinRoutePoints)
 		}
-		_, err := tx.Exec(ctx, `
+		_, err := db.Exec(ctx, `
 			INSERT INTO event_location (event_id, address, geom)
 			VALUES ($1, $2, ST_GeogFromText($3))
 		`, eventID, address, buildRouteWKT(routePoints))
@@ -208,9 +202,9 @@ func insertEventLocation(
 }
 
 // insertEventTags inserts each tag row for the event.
-func insertEventTags(ctx context.Context, tx pgx.Tx, eventID uuid.UUID, tags []string) error {
+func insertEventTags(ctx context.Context, db execer, eventID uuid.UUID, tags []string) error {
 	for _, tag := range tags {
-		if _, err := tx.Exec(ctx, `
+		if _, err := db.Exec(ctx, `
 			INSERT INTO event_tag (event_id, name) VALUES ($1, $2)
 		`, eventID, tag); err != nil {
 			return fmt.Errorf("insert event_tag %q: %w", tag, err)
@@ -220,9 +214,9 @@ func insertEventTags(ctx context.Context, tx pgx.Tx, eventID uuid.UUID, tags []s
 }
 
 // insertEventConstraints inserts each constraint row for the event.
-func insertEventConstraints(ctx context.Context, tx pgx.Tx, eventID uuid.UUID, constraints []eventapp.EventConstraintParams) error {
+func insertEventConstraints(ctx context.Context, db execer, eventID uuid.UUID, constraints []eventapp.EventConstraintParams) error {
 	for _, c := range constraints {
-		if _, err := tx.Exec(ctx, `
+		if _, err := db.Exec(ctx, `
 			INSERT INTO event_constraint (event_id, constraint_type, constraint_info)
 			VALUES ($1, $2, $3)
 		`, eventID, c.Type, c.Info); err != nil {
@@ -604,7 +598,7 @@ func (r *EventRepository) loadEventDetailCore(
 		participationStatus      string
 	)
 
-	err := r.pool.QueryRow(ctx, `
+	err := r.db.QueryRow(ctx, `
 		SELECT
 			e.id,
 			e.title,
@@ -1461,32 +1455,13 @@ var _ imageuploadapp.EventRepository = (*EventRepository)(nil)
 // CancelEvent sets the event status to CANCELED and transitions active
 // participations to CANCELED atomically while preserving historical LEAVED rows.
 // Returns ErrEventNotCancelable if the event is not in ACTIVE status.
-func (r *EventRepository) CancelEvent(ctx context.Context, eventID uuid.UUID) error {
-	tx, err := r.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("cancel event: begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck
-
-	// Snapshot the current approved participant count (excluding the host's own participation).
-	var approvedCount int
-	if err := tx.QueryRow(ctx, `
-		SELECT approved_participant_count
-		FROM event
-		WHERE id = $1
-	`, eventID).Scan(&approvedCount); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return eventapp.ErrEventNotCancelable
-		}
-		return fmt.Errorf("cancel event: snapshot count: %w", err)
-	}
-
-	tag, err := tx.Exec(ctx, `
+func (r *EventRepository) CancelEvent(ctx context.Context, eventID uuid.UUID, canceledApprovedParticipantCount int) error {
+	tag, err := r.db.Exec(ctx, `
 		UPDATE event
 		SET status = 'CANCELED',
 		    canceled_approved_participant_count = $2
 		WHERE id = $1 AND status = 'ACTIVE'
-	`, eventID, approvedCount)
+	`, eventID, canceledApprovedParticipantCount)
 	if err != nil {
 		return fmt.Errorf("cancel event: %w", err)
 	}
@@ -1494,17 +1469,7 @@ func (r *EventRepository) CancelEvent(ctx context.Context, eventID uuid.UUID) er
 		return eventapp.ErrEventNotCancelable
 	}
 
-	_, err = tx.Exec(ctx, `
-		UPDATE participation
-		SET status = $1, updated_at = NOW()
-		WHERE event_id = $2
-		  AND status <> $3
-	`, domain.ParticipationStatusCanceled, eventID, domain.ParticipationStatusLeaved)
-	if err != nil {
-		return fmt.Errorf("cancel event participations: %w", err)
-	}
-
-	return tx.Commit(ctx)
+	return nil
 }
 
 // CompleteEvent sets the event status to COMPLETED when it is ACTIVE or IN_PROGRESS.
@@ -1525,17 +1490,28 @@ func (r *EventRepository) CompleteEvent(ctx context.Context, eventID uuid.UUID) 
 }
 
 // TransitionEventStatuses moves ACTIVE events to IN_PROGRESS when their
-// start_time has passed and IN_PROGRESS (or ACTIVE) events to COMPLETED when
-// their end_time has passed.
+// start_time has passed, and transitions ACTIVE/IN_PROGRESS events to COMPLETED
+// when any of the following conditions apply:
+//   - end_time has passed
+//   - start_time is older than 60 days (max duration, unconditional)
+//   - start_time is older than 30 days AND updated_at is older than 7 days (stale/zombie)
+//
+// updated_at reflects event-level mutations (title, description, cancel, etc.).
+// Participation activity does not advance updated_at.
 func (r *EventRepository) TransitionEventStatuses(ctx context.Context) error {
 	_, err := r.pool.Exec(ctx, `
 		UPDATE event
 		SET status = CASE
-			WHEN end_time < NOW() THEN 'COMPLETED'
+			WHEN end_time IS NOT NULL AND end_time < NOW()                                                         THEN 'COMPLETED'
+			WHEN start_time < NOW() - INTERVAL '60 days'                                                          THEN 'COMPLETED'
+			WHEN start_time < NOW() - INTERVAL '30 days' AND updated_at < NOW() - INTERVAL '7 days'               THEN 'COMPLETED'
 			ELSE 'IN_PROGRESS'
 		END
-		WHERE (status = 'ACTIVE' AND start_time < NOW())
-		   OR (status = 'IN_PROGRESS' AND end_time < NOW())
+		WHERE status IN ('ACTIVE', 'IN_PROGRESS')
+		  AND (
+		    start_time < NOW()
+		    OR (end_time IS NOT NULL AND end_time < NOW())
+		  )
 	`)
 	return err
 }
