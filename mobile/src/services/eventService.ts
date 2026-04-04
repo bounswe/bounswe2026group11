@@ -9,6 +9,10 @@ import {
   LocationSuggestion,
   ListEventsQuery,
   ListCategoriesResponse,
+  MyEventRelation,
+  MyEventStatus,
+  MyEventSummary,
+  MyEventsResponse,
   PaginatedEventsResponse,
   RequestJoinRequest,
   RequestJoinResponse,
@@ -18,6 +22,22 @@ import {
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 type SupportedUploadMethod = 'POST' | 'PUT' | 'PATCH';
+
+interface BackendEventSummary {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time?: string | null;
+  status: string;
+  category?: string | null;
+  image_url?: string | null;
+  participants_count?: number | null;
+  location_address?: string | null;
+}
+
+interface BackendEventsListResponse {
+  events: BackendEventSummary[];
+}
 
 
 export async function createEvent(
@@ -225,4 +245,84 @@ export async function listEvents(
   }
 
   return apiGetAuth<PaginatedEventsResponse>(`/events?${params.toString()}`, token);
+}
+
+function normalizeMyEventStatus(value: string): MyEventStatus | null {
+  if (
+    value === 'ACTIVE'
+    || value === 'IN_PROGRESS'
+    || value === 'COMPLETED'
+    || value === 'CANCELED'
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+function normalizeOptionalDateTime(value?: string | null): string | null {
+  if (!value) return null;
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  // Backend profile event summaries currently serialize a zero time when end_time is absent.
+  if (parsed.getUTCFullYear() <= 1) {
+    return null;
+  }
+
+  return value;
+}
+
+function mapToMyEventSummary(
+  summary: BackendEventSummary,
+  relation: MyEventRelation,
+): MyEventSummary | null {
+  const status = normalizeMyEventStatus(summary.status);
+  if (!status) return null;
+
+  return {
+    id: summary.id,
+    title: summary.title,
+    image_url: summary.image_url ?? null,
+    start_time: summary.start_time,
+    end_time: normalizeOptionalDateTime(summary.end_time),
+    location_address: summary.location_address ?? null,
+    approved_participant_count: summary.participants_count ?? null,
+    status,
+    relation,
+    badges: relation === 'HOSTING' ? [{ type: 'HOST', label: 'Host' }] : [],
+  };
+}
+
+export async function listMyEvents(token: string): Promise<MyEventsResponse> {
+  const [hostedResponse, upcomingResponse, completedResponse, canceledResponse] =
+    await Promise.all([
+      apiGetAuth<BackendEventsListResponse>('/me/events/hosted', token),
+      apiGetAuth<BackendEventsListResponse>('/me/events/upcoming', token),
+      apiGetAuth<BackendEventsListResponse>('/me/events/completed', token),
+      apiGetAuth<BackendEventsListResponse>('/me/events/canceled', token),
+    ]);
+
+  const hostedEvents = (hostedResponse.events ?? [])
+    .map((event) => mapToMyEventSummary(event, 'HOSTING'))
+    .filter((event): event is MyEventSummary => event != null);
+
+  const hostedEventIds = new Set(hostedEvents.map((event) => event.id));
+
+  const attendedSources = [
+    ...(upcomingResponse.events ?? []),
+    ...(completedResponse.events ?? []),
+    ...(canceledResponse.events ?? []),
+  ];
+
+  const attendedEvents = attendedSources
+    .filter((event) => !hostedEventIds.has(event.id))
+    .map((event) => mapToMyEventSummary(event, 'ATTENDING'))
+    .filter((event): event is MyEventSummary => event != null);
+
+  return {
+    hosted_events: hostedEvents,
+    attended_events: attendedEvents,
+  };
 }

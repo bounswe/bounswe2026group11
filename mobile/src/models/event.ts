@@ -70,6 +70,39 @@ export interface EventSummary {
   favorite_count?: number;
 }
 
+export type MyEventStatus =
+  | 'ACTIVE'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CANCELED';
+
+export type MyEventRelation = 'HOSTING' | 'ATTENDING';
+
+export type MyEventBadgeType = 'HOST' | 'TICKET' | 'INVITED';
+
+export interface MyEventBadge {
+  type: MyEventBadgeType;
+  label: string;
+}
+
+export interface MyEventSummary {
+  id: string;
+  title: string;
+  image_url?: string | null;
+  start_time: string;
+  end_time?: string | null;
+  location_address?: string | null;
+  approved_participant_count?: number | null;
+  status: MyEventStatus;
+  relation: MyEventRelation;
+  badges: MyEventBadge[];
+}
+
+export interface MyEventsResponse {
+  hosted_events: MyEventSummary[];
+  attended_events: MyEventSummary[];
+}
+
 export type DiscoverEventsSortBy = 'START_TIME' | 'DISTANCE' | 'RELEVANCE';
 
 export interface ListEventsQuery {
