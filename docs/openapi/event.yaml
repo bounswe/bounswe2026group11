@@ -636,6 +636,8 @@ paths:
         - The event must exist and have `privacy_level: PUBLIC`.
         - The authenticated user must not be the event host.
         - A user can only join the same event once; a second attempt returns `409`.
+        - If the user previously left before `start_time`, the backend reactivates the same participation row as `APPROVED`.
+        - If the user left at or after `start_time`, later direct join attempts return `409 already_participating`.
         - Calling this endpoint on a `PROTECTED` event returns `409 event_join_not_allowed`.
       operationId: joinEvent
       security:
@@ -748,7 +750,9 @@ paths:
         - Leaving is allowed before `start_time` and while the event is still active.
         - Leaving is no longer allowed after the event has ended or once the event is already `CANCELED` or `COMPLETED`.
         - If the user leaves before `start_time`, the event is excluded from completed/past participation lists.
+        - If the user leaves before `start_time`, they can join again directly on `PUBLIC` events or submit a new join request on `PROTECTED` events.
         - If the user leaves after `start_time`, completed/past participation lists may still include the event after it finishes.
+        - If the user leaves at or after `start_time`, they cannot join the same event again.
       operationId: leaveEvent
       security:
         - bearerAuth: []
@@ -969,6 +973,8 @@ paths:
         - A user can only submit one pending request per event; a second attempt returns `409`.
         - After the host rejects a request, the same user must wait **3 days** before requesting again.
         - When the cooldown expires, the backend reactivates the same `join_request` row as `PENDING`.
+        - If the user previously had an approved participation but left before `start_time`, the backend reactivates the same `join_request` row as `PENDING` so the host can approve them again.
+        - If the user left at or after `start_time`, later request attempts return `409 already_participating`.
         - Calling this endpoint on a `PUBLIC` event returns `409 event_join_not_allowed`.
       operationId: requestJoinEvent
       security:
@@ -1095,7 +1101,9 @@ paths:
       description: |
         Allows the authenticated event host to approve a **PENDING** join request for a
         **PROTECTED** event. Approval updates the join request to `APPROVED` and creates an
-        `APPROVED` participation row atomically.
+        `APPROVED` participation row atomically. If the requester had left before
+        `start_time`, approval reactivates the same participation row instead of creating a
+        second one.
       operationId: approveJoinRequest
       security:
         - bearerAuth: []
@@ -2617,7 +2625,7 @@ components:
         participation_id:
           type: string
           format: uuid
-          description: UUID of the newly created participation record.
+          description: UUID of the created or reactivated participation record.
           example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
         event_id:
           type: string
@@ -2632,6 +2640,7 @@ components:
         created_at:
           type: string
           format: date-time
+          description: Timestamp of the join or rejoin activation.
           example: "2026-03-26T11:00:00+03:00"
 
     LeaveEventResponse:
@@ -2678,7 +2687,7 @@ components:
         join_request_id:
           type: string
           format: uuid
-          description: UUID of the newly created join request.
+          description: UUID of the created or reactivated join request.
           example: b2c3d4e5-f6a7-8901-bcde-f01234567890
         event_id:
           type: string
@@ -2693,6 +2702,7 @@ components:
         created_at:
           type: string
           format: date-time
+          description: Timestamp of the join request creation or reactivation.
           example: "2026-03-26T12:00:00+03:00"
 
     ApproveJoinRequestResponse:
