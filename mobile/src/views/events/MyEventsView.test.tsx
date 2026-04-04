@@ -120,7 +120,7 @@ describe('MyEventsView', () => {
     expect(screen.getByText('Attending')).toBeTruthy();
     expect(screen.getByText('Bosphorus Sunrise Run')).toBeTruthy();
     expect(
-      screen.getByText(formatEventDateLabel(event.start_time, event.end_time)),
+      screen.getByText(formatEventDateLabel(event.start_time)),
     ).toBeTruthy();
     expect(screen.getByText('Bebek Sahili, Istanbul')).toBeTruthy();
     expect(screen.getByText('Host')).toBeTruthy();
