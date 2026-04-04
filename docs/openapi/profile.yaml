@@ -396,6 +396,17 @@ components:
             - string
             - "null"
           example: "https://example.com/images/yoga.jpg"
+        participants_count:
+          type: integer
+          minimum: 0
+          description: Current count of approved participants.
+          example: 24
+        location_address:
+          type:
+            - string
+            - "null"
+          description: Event location address text.
+          example: "Maçka Democracy Park, Istanbul"
 
     ErrorEnvelope:
       type: object
