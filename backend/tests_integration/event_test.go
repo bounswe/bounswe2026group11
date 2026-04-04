@@ -1457,6 +1457,89 @@ func TestJoinEventRejectsDuplicate(t *testing.T) {
 	common.RequireAppErrorCode(t, err, domain.ErrorCodeAlreadyParticipating)
 }
 
+func TestJoinEventAllowsRejoinAfterLeavingBeforeStart(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	participant := common.GivenUser(t, harness.AuthRepo)
+	event := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	firstJoin, err := harness.Service.JoinEvent(context.Background(), participant.ID, event.ID)
+	if err != nil {
+		t.Fatalf("JoinEvent() first call error = %v", err)
+	}
+	if _, err := harness.Service.LeaveEvent(context.Background(), participant.ID, event.ID); err != nil {
+		t.Fatalf("LeaveEvent() error = %v", err)
+	}
+
+	// when
+	secondJoin, err := harness.Service.JoinEvent(context.Background(), participant.ID, event.ID)
+
+	// then
+	if err != nil {
+		t.Fatalf("JoinEvent() second call error = %v", err)
+	}
+	if secondJoin.ParticipationID != firstJoin.ParticipationID {
+		t.Fatalf("expected reactivated participation_id %q, got %q", firstJoin.ParticipationID, secondJoin.ParticipationID)
+	}
+	if secondJoin.Status != domain.ParticipationStatusApproved {
+		t.Fatalf("expected status %q, got %q", domain.ParticipationStatusApproved, secondJoin.Status)
+	}
+
+	var storedStatus string
+	if err := common.RequirePool(t).QueryRow(
+		context.Background(),
+		`SELECT status FROM participation WHERE event_id = $1 AND user_id = $2`,
+		event.ID,
+		participant.ID,
+	).Scan(&storedStatus); err != nil {
+		t.Fatalf("load participation status error = %v", err)
+	}
+	if storedStatus != string(domain.ParticipationStatusApproved) {
+		t.Fatalf("expected stored participation status %q, got %q", domain.ParticipationStatusApproved, storedStatus)
+	}
+
+	detail, err := harness.Service.GetEventDetail(context.Background(), participant.ID, event.ID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if detail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
+		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusJoined, detail.ViewerContext.ParticipationStatus)
+	}
+}
+
+func TestJoinEventRejectsRejoinAfterLeavingStartedEvent(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	participant := common.GivenUser(t, harness.AuthRepo)
+	eventID := common.GivenStartedEvent(t, host.ID)
+
+	if _, err := harness.Service.JoinEvent(context.Background(), participant.ID, eventID); err != nil {
+		t.Fatalf("JoinEvent() first call error = %v", err)
+	}
+	if _, err := harness.Service.LeaveEvent(context.Background(), participant.ID, eventID); err != nil {
+		t.Fatalf("LeaveEvent() error = %v", err)
+	}
+
+	// when
+	_, err := harness.Service.JoinEvent(context.Background(), participant.ID, eventID)
+
+	// then
+	common.RequireAppErrorCode(t, err, domain.ErrorCodeAlreadyParticipating)
+	appErr, ok := errors.AsType[*domain.AppError](err)
+	if !ok {
+		t.Fatalf("expected AppError, got %v", err)
+	}
+	if appErr.Message != "You cannot rejoin an event after leaving once it has started." {
+		t.Fatalf("expected post-start leave message, got %q", appErr.Message)
+	}
+}
+
 func TestJoinEventRejectsHostJoiningOwnEvent(t *testing.T) {
 	t.Parallel()
 
@@ -1664,6 +1747,135 @@ func TestRequestJoinRejectsDuplicate(t *testing.T) {
 
 	// then
 	common.RequireAppErrorCode(t, err, domain.ErrorCodeAlreadyRequested)
+}
+
+func TestRequestJoinAllowsReapplyAfterApprovedParticipationLeavesBeforeStart(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	requester := common.GivenUser(t, harness.AuthRepo)
+	event := common.GivenProtectedEvent(t, harness.Service, host.ID)
+	initialMessage := "First request"
+	retryMessage := "Retry request"
+
+	firstRequest, err := harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{
+		Message: &initialMessage,
+	})
+	if err != nil {
+		t.Fatalf("RequestJoin() first call error = %v", err)
+	}
+
+	firstJoinRequestID, err := uuid.Parse(firstRequest.JoinRequestID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() first join_request_id error = %v", err)
+	}
+
+	firstApproval, err := harness.Service.ApproveJoinRequest(context.Background(), host.ID, event.ID, firstJoinRequestID)
+	if err != nil {
+		t.Fatalf("ApproveJoinRequest() first approval error = %v", err)
+	}
+
+	if _, err := harness.Service.LeaveEvent(context.Background(), requester.ID, event.ID); err != nil {
+		t.Fatalf("LeaveEvent() error = %v", err)
+	}
+
+	// when
+	retryRequest, err := harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{
+		Message: &retryMessage,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("RequestJoin() retry error = %v", err)
+	}
+	if retryRequest.JoinRequestID != firstRequest.JoinRequestID {
+		t.Fatalf("expected reactivated join_request_id %q, got %q", firstRequest.JoinRequestID, retryRequest.JoinRequestID)
+	}
+	if retryRequest.Status != string(domain.JoinRequestStatusPending) {
+		t.Fatalf("expected status %q, got %q", domain.JoinRequestStatusPending, retryRequest.Status)
+	}
+
+	var (
+		storedStatus       string
+		storedMessage      *string
+		hasNoParticipation bool
+	)
+	if err := common.RequirePool(t).QueryRow(
+		context.Background(),
+		`SELECT status, message, participation_id IS NULL
+		 FROM join_request
+		 WHERE id = $1`,
+		retryRequest.JoinRequestID,
+	).Scan(&storedStatus, &storedMessage, &hasNoParticipation); err != nil {
+		t.Fatalf("select reactivated join_request error = %v", err)
+	}
+	if storedStatus != string(domain.JoinRequestStatusPending) {
+		t.Fatalf("expected stored join request status %q, got %q", domain.JoinRequestStatusPending, storedStatus)
+	}
+	if storedMessage == nil || *storedMessage != retryMessage {
+		t.Fatalf("expected stored retry message %q, got %v", retryMessage, storedMessage)
+	}
+	if !hasNoParticipation {
+		t.Fatal("expected reactivated join request participation_id to be nil")
+	}
+
+	retryJoinRequestID, err := uuid.Parse(retryRequest.JoinRequestID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() retry join_request_id error = %v", err)
+	}
+
+	secondApproval, err := harness.Service.ApproveJoinRequest(context.Background(), host.ID, event.ID, retryJoinRequestID)
+	if err != nil {
+		t.Fatalf("ApproveJoinRequest() second approval error = %v", err)
+	}
+	if secondApproval.ParticipationID != firstApproval.ParticipationID {
+		t.Fatalf("expected reactivated participation_id %q, got %q", firstApproval.ParticipationID, secondApproval.ParticipationID)
+	}
+	if secondApproval.ParticipationStatus != domain.ParticipationStatusApproved {
+		t.Fatalf("expected participation status %q, got %q", domain.ParticipationStatusApproved, secondApproval.ParticipationStatus)
+	}
+}
+
+func TestRequestJoinRejectsReapplyAfterLeavingStartedEvent(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	requester := common.GivenUser(t, harness.AuthRepo)
+	eventID := givenStartedProtectedEvent(t, host.ID)
+
+	firstRequest, err := harness.Service.RequestJoin(context.Background(), requester.ID, eventID, eventapp.RequestJoinInput{})
+	if err != nil {
+		t.Fatalf("RequestJoin() first call error = %v", err)
+	}
+
+	firstJoinRequestID, err := uuid.Parse(firstRequest.JoinRequestID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() first join_request_id error = %v", err)
+	}
+
+	if _, err := harness.Service.ApproveJoinRequest(context.Background(), host.ID, eventID, firstJoinRequestID); err != nil {
+		t.Fatalf("ApproveJoinRequest() error = %v", err)
+	}
+	if _, err := harness.Service.LeaveEvent(context.Background(), requester.ID, eventID); err != nil {
+		t.Fatalf("LeaveEvent() error = %v", err)
+	}
+
+	// when
+	_, err = harness.Service.RequestJoin(context.Background(), requester.ID, eventID, eventapp.RequestJoinInput{})
+
+	// then
+	common.RequireAppErrorCode(t, err, domain.ErrorCodeAlreadyParticipating)
+	appErr, ok := errors.AsType[*domain.AppError](err)
+	if !ok {
+		t.Fatalf("expected AppError, got %v", err)
+	}
+	if appErr.Message != "You cannot request to join again after leaving once the event has started." {
+		t.Fatalf("expected post-start leave message, got %q", appErr.Message)
+	}
 }
 
 func TestRequestJoinRejectsHostRequestingOwnEvent(t *testing.T) {
@@ -2377,6 +2589,22 @@ func createProtectedEventWithCapacity(t *testing.T, harness *common.EventHarness
 	eventID, err := uuid.Parse(result.ID)
 	if err != nil {
 		t.Fatalf("uuid.Parse() event id error = %v", err)
+	}
+
+	return eventID
+}
+
+func givenStartedProtectedEvent(t *testing.T, hostID uuid.UUID) uuid.UUID {
+	t.Helper()
+
+	eventID := common.GivenStartedEvent(t, hostID)
+	if _, err := common.RequirePool(t).Exec(
+		context.Background(),
+		`UPDATE event SET privacy_level = $2 WHERE id = $1`,
+		eventID,
+		domain.PrivacyProtected,
+	); err != nil {
+		t.Fatalf("update started event privacy error = %v", err)
 	}
 
 	return eventID
