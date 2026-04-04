@@ -141,7 +141,7 @@ export interface EventDetailEmbeddedRating {
   updated_at: string;
 }
 
-export type ParticipationStatus = 'JOINED' | 'PENDING' | 'INVITED' | 'NONE';
+export type ParticipationStatus = 'JOINED' | 'PENDING' | 'INVITED' | 'NONE' | 'LEAVED' | 'CANCELED';
 
 export interface EventDetailViewerContext {
   is_host: boolean;
@@ -237,6 +237,13 @@ export interface RequestJoinResponse {
   event_id: string;
   status: string;
   created_at: string;
+}
+
+export interface LeaveEventResponse {
+  participation_id: string;
+  event_id: string;
+  status: string;
+  updated_at: string;
 }
 export type HomeFilterPrivacyLevel = Extract<
   PrivacyLevel,

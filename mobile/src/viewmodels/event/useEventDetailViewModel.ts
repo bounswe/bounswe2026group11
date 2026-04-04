@@ -3,6 +3,7 @@ import { EventDetail, ParticipationStatus } from '@/models/event';
 import {
   getEventDetail,
   joinEvent,
+  leaveEvent,
   requestJoinEvent,
   approveJoinRequest,
   rejectJoinRequest,
@@ -14,9 +15,11 @@ import { useAuth } from '@/contexts/AuthContext';
 export type ActionState =
   | 'idle'
   | 'joining'
+  | 'leaving'
   | 'requesting'
   | 'saving'
   | 'success_joined'
+  | 'success_left'
   | 'success_requested'
   | 'success_saved';
 
@@ -38,7 +41,9 @@ export interface EventDetailViewModel {
   closeJoinRequestModal: () => void;
   setJoinRequestMessage: (message: string) => void;
 
+  canLeave: boolean;
   handleJoin: () => Promise<void>;
+  handleLeaveEvent: () => Promise<void>;
   handleRequestJoin: () => Promise<void>;
   handleToggleFavorite: () => Promise<void>;
   retry: () => void;
@@ -116,6 +121,19 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     event?.capacity != null &&
     event.approved_participant_count >= event.capacity;
 
+  const canLeave = useMemo(() => {
+    if (!event) return false;
+    if (event.viewer_context.is_host) return false;
+    if (participationStatus !== 'JOINED') return false;
+    if (event.status === 'CANCELED' || event.status === 'COMPLETED') return false;
+    if (event.end_time) {
+      const now = new Date();
+      const endTime = new Date(event.end_time);
+      if (now >= endTime) return false;
+    }
+    return true;
+  }, [event, participationStatus]);
+
   const constraintViolation = useMemo(
     () =>
       event != null
@@ -166,6 +184,27 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         setActionError((err as { message: string }).message);
       } else {
         setActionError('Failed to join the event. Please try again.');
+      }
+    }
+  }, [token, event, fetchEvent]);
+
+  const handleLeaveEvent = useCallback(async () => {
+    if (!token || !event) return;
+
+    setActionError(null);
+    setActionState('leaving');
+
+    try {
+      await leaveEvent(event.id, token);
+      setActionState('success_left');
+      setParticipationStatus('LEAVED');
+      await fetchEvent(true);
+    } catch (err: unknown) {
+      setActionState('idle');
+      if (err && typeof err === 'object' && 'message' in err) {
+        setActionError((err as { message: string }).message);
+      } else {
+        setActionError('Failed to leave the event. Please try again.');
       }
     }
   }, [token, event, fetchEvent]);
@@ -297,6 +336,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     isFavorited,
     participationStatus,
     isQuotaFull,
+    canLeave,
     constraintViolation,
     showJoinRequestModal,
     joinRequestMessage,
@@ -304,6 +344,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     closeJoinRequestModal,
     setJoinRequestMessage,
     handleJoin,
+    handleLeaveEvent,
     handleRequestJoin,
     handleToggleFavorite,
     retry,

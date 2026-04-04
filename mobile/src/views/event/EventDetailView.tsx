@@ -86,11 +86,48 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       );
     }
 
-    if (status_ === 'JOINED' || vm.actionState === 'success_joined') {
+    if (status_ === 'LEAVED' || vm.actionState === 'success_left') {
       return (
         <View style={styles.statusChip}>
-          <Ionicons name="checkmark-circle" size={16} color="#059669" />
-          <Text style={styles.statusChipTextGreen}>You&apos;re attending</Text>
+          <Ionicons name="log-out-outline" size={16} color="#6B7280" />
+          <Text style={styles.statusChipTextGray}>You left this event</Text>
+        </View>
+      );
+    }
+
+    if (status_ === 'JOINED' || vm.actionState === 'success_joined') {
+      return (
+        <View>
+          <View style={styles.statusChip}>
+            <Ionicons name="checkmark-circle" size={16} color="#059669" />
+            <Text style={styles.statusChipTextGreen}>You&apos;re attending</Text>
+          </View>
+          {vm.canLeave && (
+            <TouchableOpacity
+              style={[styles.leaveButton, vm.actionState === 'leaving' && styles.actionButtonLoading]}
+              onPress={() => {
+                Alert.alert(
+                  'Leave Event',
+                  'Are you sure you want to leave this event?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Leave', style: 'destructive', onPress: vm.handleLeaveEvent },
+                  ],
+                );
+              }}
+              disabled={vm.actionState === 'leaving'}
+              activeOpacity={0.8}
+            >
+              {vm.actionState === 'leaving' ? (
+                <ActivityIndicator color="#DC2626" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="exit-outline" size={18} color="#DC2626" />
+                  <Text style={styles.leaveButtonText}>Leave Event</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       );
     }
@@ -890,6 +927,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#7C3AED',
+  },
+  statusChipTextGray: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#6B7280',
+  },
+  leaveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  leaveButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#DC2626',
   },
 
   /* Error states */
