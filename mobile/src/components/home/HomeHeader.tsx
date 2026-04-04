@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 
 interface HomeHeaderProps {
   locationLabel: string;
@@ -27,11 +27,11 @@ const HomeHeader = forwardRef<any, HomeHeaderProps>(function HomeHeader(
             accessibilityRole="button"
             accessibilityLabel="Select location"
           >
-            <Ionicons name="location-sharp" size={16} color="#FFFFFF" />
+            <Feather name="map-pin" size={16} color="#FFFFFF" />
             <Text style={styles.locationButtonText} numberOfLines={1}>
               {locationLabel}
             </Text>
-            <Ionicons name="chevron-down" size={16} color="#FFFFFF" />
+            <Feather name="chevron-down" size={16} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>

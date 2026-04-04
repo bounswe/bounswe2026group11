@@ -17,7 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import {
   EventCategory,
   HomeFilterPrivacyLevel,
@@ -266,7 +266,7 @@ export default function FiltersBottomSheet({
                 accessibilityRole="button"
                 accessibilityLabel="Close filters"
               >
-                <Ionicons name="close" size={28} color="#111827" />
+                <Feather name="x" size={28} color="#111827" />
               </TouchableOpacity>
 
               <Text style={styles.title}>Filters</Text>
@@ -278,7 +278,7 @@ export default function FiltersBottomSheet({
                 accessibilityRole="button"
                 accessibilityLabel="Reset filters"
               >
-                <Ionicons name="refresh-outline" size={18} color="#111827" />
+                <Feather name="rotate-ccw" size={18} color="#111827" />
                 <Text style={styles.resetText}>Reset</Text>
               </TouchableOpacity>
             </View>
@@ -409,11 +409,7 @@ export default function FiltersBottomSheet({
                       activeOpacity={0.7}
                       accessibilityLabel="Pick start date"
                     >
-                      <Ionicons
-                        name="calendar-outline"
-                        size={20}
-                        color="#6B7280"
-                      />
+                      <Feather name="calendar" size={20} color="#6B7280" />
                     </TouchableOpacity>
                   </View>
                   {fromError ? (
@@ -457,11 +453,7 @@ export default function FiltersBottomSheet({
                       activeOpacity={0.7}
                       accessibilityLabel="Pick end date"
                     >
-                      <Ionicons
-                        name="calendar-outline"
-                        size={20}
-                        color="#6B7280"
-                      />
+                      <Feather name="calendar" size={20} color="#6B7280" />
                     </TouchableOpacity>
                   </View>
                   {toError ? (

@@ -10,7 +10,7 @@ import {
   Animated,
   PanResponder,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { EventDetailApprovedParticipant } from '@/models/event';
 
 interface ParticipantListModalProps {
@@ -82,7 +82,7 @@ export default function ParticipantListModal({
           <View style={styles.header}>
             <Text style={styles.title}>Attendees ({participants.length})</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color="#111827" />
+              <Feather name="x" size={24} color="#111827" />
             </TouchableOpacity>
           </View>
 
@@ -99,7 +99,7 @@ export default function ParticipantListModal({
                   />
                 ) : (
                   <View style={styles.avatarFallback}>
-                    <Ionicons name="person" size={20} color="#9CA3AF" />
+                    <Feather name="user" size={20} color="#9CA3AF" />
                   </View>
                 )}
                 <View style={styles.info}>
