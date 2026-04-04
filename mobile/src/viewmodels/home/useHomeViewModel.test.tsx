@@ -3,6 +3,7 @@
  */
 import { renderHook, act, waitFor } from '@testing-library/react';
 import * as eventService from '@/services/eventService';
+import * as profileService from '@/services/profileService';
 import type {
   ListCategoriesResponse,
   PaginatedEventsResponse,
@@ -10,6 +11,7 @@ import type {
 import { useHomeViewModel } from './useHomeViewModel';
 
 jest.mock('@/services/eventService');
+jest.mock('@/services/profileService');
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
     token: 'mock-token',
@@ -22,6 +24,7 @@ jest.mock('@/contexts/AuthContext', () => ({
 const mockListEvents = jest.mocked(eventService.listEvents);
 const mockListCategories = jest.mocked(eventService.listCategories);
 const mockSearchLocation = jest.mocked(eventService.searchLocation);
+const mockGetMyProfile = jest.mocked(profileService.getMyProfile);
 
 const categoriesFixture: ListCategoriesResponse = {
   items: [
@@ -105,6 +108,22 @@ describe('useHomeViewModel', () => {
     jest.clearAllMocks();
     mockListCategories.mockResolvedValue(categoriesFixture);
     mockListEvents.mockResolvedValue(page1Fixture);
+    mockGetMyProfile.mockResolvedValue({
+      id: 'user-1',
+      username: 'mock',
+      email: 'mock@example.com',
+      phone_number: null,
+      gender: null,
+      birth_date: null,
+      email_verified: true,
+      status: 'active',
+      default_location_address: null,
+      default_location_lat: null,
+      default_location_lon: null,
+      display_name: null,
+      bio: null,
+      avatar_url: null,
+    });
     mockSearchLocation.mockResolvedValue([
       {
         display_name: 'Kadikoy, Istanbul, Turkiye',
@@ -148,6 +167,40 @@ describe('useHomeViewModel', () => {
     expect(result.current.categories).toEqual(categoriesFixture.items);
     expect(result.current.events).toEqual(page1Fixture.items);
     expect(result.current.hasMore).toBe(true);
+  });
+
+  it('uses profile default location when available', async () => {
+    mockGetMyProfile.mockResolvedValueOnce({
+      id: 'user-1',
+      username: 'mock',
+      email: 'mock@example.com',
+      phone_number: null,
+      gender: null,
+      birth_date: null,
+      email_verified: true,
+      status: 'active',
+      default_location_address: 'Kadikoy, Istanbul, Turkiye',
+      default_location_lat: 40.9909,
+      default_location_lon: 29.0293,
+      display_name: null,
+      bio: null,
+      avatar_url: null,
+    });
+
+    const { result } = renderHook(() => useHomeViewModel());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(mockListEvents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lat: 40.9909,
+        lon: 29.0293,
+      }),
+      'mock-token',
+    );
+    expect(result.current.locationLabel).toContain('Kadikoy');
   });
 
   it('updates search text', async () => {

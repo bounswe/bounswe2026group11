@@ -7,6 +7,7 @@ import {
   LocationSuggestion,
 } from '@/models/event';
 import { listCategories, listEvents, searchLocation } from '@/services/eventService';
+import { getMyProfile } from '@/services/profileService';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -25,6 +26,26 @@ const DEFAULT_FILTERS: HomeFiltersDraft = {
   endDate: '',
   radiusKm: 10,
 };
+
+function profileToSelectedLocation(profile: {
+  default_location_address: string | null;
+  default_location_lat: number | null;
+  default_location_lon: number | null;
+}): LocationSuggestion | null {
+  if (
+    !profile.default_location_address ||
+    profile.default_location_lat == null ||
+    profile.default_location_lon == null
+  ) {
+    return null;
+  }
+
+  return {
+    display_name: profile.default_location_address,
+    lat: String(profile.default_location_lat),
+    lon: String(profile.default_location_lon),
+  };
+}
 
 function parseStrictDateToIso(
   value: string,
@@ -277,6 +298,24 @@ export function useHomeViewModel(): HomeViewModel {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isProfileLocationReady, setIsProfileLocationReady] = useState(false);
+
+  const loadProfileLocation = useCallback(async () => {
+    if (!token) {
+      setSelectedLocation(null);
+      setIsProfileLocationReady(true);
+      return;
+    }
+
+    try {
+      const profile = await getMyProfile(token);
+      setSelectedLocation(profileToSelectedLocation(profile));
+    } catch {
+      setSelectedLocation(null);
+    } finally {
+      setIsProfileLocationReady(true);
+    }
+  }, [token]);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -367,12 +406,19 @@ export function useHomeViewModel(): HomeViewModel {
   }, [loadCategories]);
 
   useEffect(() => {
+    setIsProfileLocationReady(false);
+    void loadProfileLocation();
+  }, [loadProfileLocation]);
+
+  useEffect(() => {
+    if (!isProfileLocationReady) return;
+
     const timeout = setTimeout(() => {
       void loadEvents('initial');
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [loadEvents]);
+  }, [isProfileLocationReady, loadEvents]);
 
   const updateSearchText = useCallback((value: string) => {
     setSearchText(value);
@@ -587,6 +633,10 @@ export function useHomeViewModel(): HomeViewModel {
     if (!token) return;
 
     try {
+      const profile = await getMyProfile(token);
+      const profileLocation = profileToSelectedLocation(profile);
+      setSelectedLocation(profileLocation);
+
       const combinedCategoryIds =
         selectedCategoryId != null
           ? Array.from(
@@ -596,8 +646,8 @@ export function useHomeViewModel(): HomeViewModel {
 
       const response = await listEvents(
         {
-          lat: selectedLocation ? Number(selectedLocation.lat) : DEFAULT_LOCATION.lat,
-          lon: selectedLocation ? Number(selectedLocation.lon) : DEFAULT_LOCATION.lon,
+          lat: profileLocation ? Number(profileLocation.lat) : DEFAULT_LOCATION.lat,
+          lon: profileLocation ? Number(profileLocation.lon) : DEFAULT_LOCATION.lon,
           radius_meters: appliedFilters.radiusKm * 1000,
           q: appliedSearchText || undefined,
           category_ids:
@@ -619,7 +669,7 @@ export function useHomeViewModel(): HomeViewModel {
     } catch {
       // Silent — don't overwrite existing data on failure
     }
-  }, [token, appliedSearchText, selectedCategoryId, appliedFilters, selectedLocation]);
+  }, [token, appliedSearchText, selectedCategoryId, appliedFilters]);
 
     return {
     locationLabel: selectedLocation

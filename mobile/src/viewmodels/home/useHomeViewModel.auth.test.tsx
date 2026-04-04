@@ -3,9 +3,11 @@
  */
 import { renderHook, waitFor } from '@testing-library/react';
 import * as eventService from '@/services/eventService';
+import * as profileService from '@/services/profileService';
 import { useHomeViewModel } from './useHomeViewModel';
 
 jest.mock('@/services/eventService');
+jest.mock('@/services/profileService');
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
     token: null,
@@ -17,6 +19,7 @@ jest.mock('@/contexts/AuthContext', () => ({
 
 const mockListEvents = jest.mocked(eventService.listEvents);
 const mockListCategories = jest.mocked(eventService.listCategories);
+const mockGetMyProfile = jest.mocked(profileService.getMyProfile);
 
 describe('useHomeViewModel auth behavior', () => {
   beforeEach(() => {
@@ -42,5 +45,6 @@ describe('useHomeViewModel auth behavior', () => {
     expect(result.current.events).toEqual([]);
     expect(result.current.hasMore).toBe(false);
     expect(mockListEvents).not.toHaveBeenCalled();
+    expect(mockGetMyProfile).not.toHaveBeenCalled();
   });
 });
