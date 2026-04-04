@@ -1490,17 +1490,28 @@ func (r *EventRepository) CompleteEvent(ctx context.Context, eventID uuid.UUID) 
 }
 
 // TransitionEventStatuses moves ACTIVE events to IN_PROGRESS when their
-// start_time has passed and IN_PROGRESS (or ACTIVE) events to COMPLETED when
-// their end_time has passed.
+// start_time has passed, and transitions ACTIVE/IN_PROGRESS events to COMPLETED
+// when any of the following conditions apply:
+//   - end_time has passed
+//   - start_time is older than 60 days (max duration, unconditional)
+//   - start_time is older than 30 days AND updated_at is older than 7 days (stale/zombie)
+//
+// updated_at reflects event-level mutations (title, description, cancel, etc.).
+// Participation activity does not advance updated_at.
 func (r *EventRepository) TransitionEventStatuses(ctx context.Context) error {
 	_, err := r.pool.Exec(ctx, `
 		UPDATE event
 		SET status = CASE
-			WHEN end_time < NOW() THEN 'COMPLETED'
+			WHEN end_time IS NOT NULL AND end_time < NOW()                                                         THEN 'COMPLETED'
+			WHEN start_time < NOW() - INTERVAL '60 days'                                                          THEN 'COMPLETED'
+			WHEN start_time < NOW() - INTERVAL '30 days' AND updated_at < NOW() - INTERVAL '7 days'               THEN 'COMPLETED'
 			ELSE 'IN_PROGRESS'
 		END
-		WHERE (status = 'ACTIVE' AND start_time < NOW())
-		   OR (status = 'IN_PROGRESS' AND end_time < NOW())
+		WHERE status IN ('ACTIVE', 'IN_PROGRESS')
+		  AND (
+		    start_time < NOW()
+		    OR (end_time IS NOT NULL AND end_time < NOW())
+		  )
 	`)
 	return err
 }
