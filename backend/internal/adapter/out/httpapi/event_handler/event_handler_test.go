@@ -219,7 +219,7 @@ func (f *fakeVerifier) VerifyAccessToken(_ string) (*domain.AuthClaims, error) {
 func newEventTestApp(service event.UseCase, verifier domain.TokenVerifier) *fiber.App {
 	app := fiber.New()
 	handler := NewEventHandler(service)
-	RegisterEventRoutes(app, handler, httpapi.RequireAuth(verifier))
+	RegisterEventRoutes(app, handler, httpapi.RequireAuth(verifier), httpapi.OptionalAuth(verifier))
 	return app
 }
 
