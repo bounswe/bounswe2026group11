@@ -3,12 +3,13 @@ import { profileService } from '@/services/profileService';
 import type { EventSummary } from '@/models/profile';
 import { ApiError } from '@/services/api';
 
-export type MyEventsTab = 'organized' | 'upcoming' | 'past';
+export type MyEventsTab = 'organized' | 'upcoming' | 'past' | 'canceled';
 
 export function useMyEventsViewModel(token: string | null) {
   const [organized, setOrganized] = useState<EventSummary[]>([]);
   const [upcoming, setUpcoming] = useState<EventSummary[]>([]);
   const [past, setPast] = useState<EventSummary[]>([]);
+  const [canceled, setCanceled] = useState<EventSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<MyEventsTab>('organized');
@@ -19,20 +20,17 @@ export function useMyEventsViewModel(token: string | null) {
     setError(null);
 
     try {
-      const profile = await profileService.getMyProfile(token);
-      const now = new Date();
+      const [hosted, up, completed, canceled_] = await Promise.all([
+        profileService.getHostedEvents(token),
+        profileService.getUpcomingEvents(token),
+        profileService.getCompletedEvents(token),
+        profileService.getCanceledEvents(token),
+      ]);
 
-      setOrganized(profile.created_events ?? []);
-
-      const attended = profile.attended_events ?? [];
-      setUpcoming(
-        attended.filter((e) => new Date(e.start_time) >= now)
-          .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()),
-      );
-      setPast(
-        attended.filter((e) => new Date(e.start_time) < now)
-          .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()),
-      );
+      setOrganized(hosted);
+      setUpcoming(up);
+      setPast(completed);
+      setCanceled(canceled_);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -52,6 +50,7 @@ export function useMyEventsViewModel(token: string | null) {
     organized,
     upcoming,
     past,
+    canceled,
     isLoading,
     error,
     activeTab,

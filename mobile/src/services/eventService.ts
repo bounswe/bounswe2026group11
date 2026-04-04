@@ -1,4 +1,5 @@
-import { apiGet, apiGetAuth, apiPostAuth } from '@/services/api';
+import { apiGet, apiGetAuth, apiPostAuth, apiPatchAuth } from '@/services/api';
+import * as FileSystem from 'expo-file-system/legacy';
 import {
   CreateEventRequest,
   CreateEventResponse,
@@ -10,10 +11,12 @@ import {
   PaginatedEventsResponse,
   RequestJoinRequest,
   RequestJoinResponse,
+  ImageUploadInitResponse,
 } from '@/models/event';
 
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
+type SupportedUploadMethod = 'POST' | 'PUT' | 'PATCH';
 
 
 export async function createEvent(
@@ -43,6 +46,37 @@ export async function requestJoinEvent(
   token: string,
 ): Promise<RequestJoinResponse> {
   return apiPostAuth<RequestJoinResponse>(`/events/${id}/join-request`, body, token);
+}
+
+export async function approveJoinRequest(
+  eventId: string,
+  joinRequestId: string,
+  token: string,
+): Promise<any> {
+  return apiPostAuth<any>(
+    `/events/${eventId}/join-requests/${joinRequestId}/approve`,
+    {},
+    token,
+  );
+}
+
+export async function rejectJoinRequest(
+  eventId: string,
+  joinRequestId: string,
+  token: string,
+): Promise<any> {
+  return apiPostAuth<any>(
+    `/events/${eventId}/join-requests/${joinRequestId}/reject`,
+    {},
+    token,
+  );
+}
+
+export async function cancelEvent(
+  eventId: string,
+  token: string,
+): Promise<any> {
+  return apiPatchAuth<any>(`/events/${eventId}/cancel`, {}, token);
 }
 
 export async function searchLocation(
@@ -84,6 +118,55 @@ function appendArrayParam(
 ) {
   if (!values || values.length === 0) return;
   params.set(key, values.join(','));
+}
+
+export async function getEventImageUploadUrl(
+  eventId: string,
+  token: string,
+): Promise<ImageUploadInitResponse> {
+  return apiPostAuth<ImageUploadInitResponse>(
+    `/events/${eventId}/image/upload-url`,
+    {},
+    token,
+  );
+}
+
+export async function confirmEventImageUpload(
+  eventId: string,
+  confirmToken: string,
+  token: string,
+): Promise<void> {
+  return apiPostAuth<void>(
+    `/events/${eventId}/image/confirm`,
+    { confirm_token: confirmToken },
+    token,
+  );
+}
+
+export async function uploadFileToPresignedUrl(
+  method: string,
+  url: string,
+  headers: Record<string, string>,
+  fileUri: string,
+): Promise<void> {
+  const normalizedMethod = method.toUpperCase();
+  if (
+    normalizedMethod !== 'POST'
+    && normalizedMethod !== 'PUT'
+    && normalizedMethod !== 'PATCH'
+  ) {
+    throw new Error(`Unsupported upload method: ${method}`);
+  }
+
+  const uploadResponse = await FileSystem.uploadAsync(url, fileUri, {
+    httpMethod: normalizedMethod as SupportedUploadMethod,
+    headers,
+    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+  });
+
+  if (uploadResponse.status < 200 || uploadResponse.status >= 300) {
+    throw new Error(`Upload failed with status ${uploadResponse.status}`);
+  }
 }
 
 export async function listEvents(

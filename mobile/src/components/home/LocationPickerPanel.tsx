@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { LocationSuggestion } from '@/models/event';
 import { formatEventLocation } from '@/utils/eventLocation';
 
@@ -59,7 +59,7 @@ export default function LocationPickerPanel({
               accessibilityRole="button"
               accessibilityLabel="Close location picker"
             >
-              <Ionicons name="close" size={28} color="#111827" />
+              <Feather name="x" size={28} color="#111827" />
             </TouchableOpacity>
 
             <Text style={styles.title}>Choose Location</Text>
@@ -71,13 +71,13 @@ export default function LocationPickerPanel({
               accessibilityRole="button"
               accessibilityLabel="Reset location"
             >
-              <Ionicons name="refresh-outline" size={18} color="#111827" />
+              <Feather name="rotate-ccw" size={18} color="#111827" />
               <Text style={styles.resetText}>Reset</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.searchBox}>
-            <Ionicons name="search-outline" size={20} color="#6B7280" />
+            <Feather name="search" size={20} color="#6B7280" />
             <TextInput
               value={query}
               onChangeText={onChangeQuery}
@@ -110,8 +110,8 @@ export default function LocationPickerPanel({
                       onPress={() => onSelectSuggestion(item)}
                       activeOpacity={0.85}
                     >
-                      <Ionicons
-                        name={isSelected ? 'radio-button-on' : 'location-outline'}
+                      <Feather
+                        name={isSelected ? 'check-circle' : 'map-pin'}
                         size={18}
                         color={isSelected ? '#111827' : '#6B7280'}
                       />

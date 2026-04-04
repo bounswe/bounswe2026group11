@@ -15,22 +15,20 @@ type EventSummary struct {
 
 // GetProfileResult is the output of the GetMyProfile use case.
 type GetProfileResult struct {
-	ID                     string         `json:"id"`
-	Username               string         `json:"username"`
-	Email                  string         `json:"email"`
-	PhoneNumber            *string        `json:"phone_number"`
-	Gender                 *string        `json:"gender"`
-	BirthDate              *string        `json:"birth_date"`
-	EmailVerified          bool           `json:"email_verified"`
-	Status                 string         `json:"status"`
-	DefaultLocationAddress *string        `json:"default_location_address"`
-	DefaultLocationLat     *float64       `json:"default_location_lat"`
-	DefaultLocationLon     *float64       `json:"default_location_lon"`
-	DisplayName            *string        `json:"display_name"`
-	Bio                    *string        `json:"bio"`
-	AvatarURL              *string        `json:"avatar_url"`
-	CreatedEvents          []EventSummary `json:"created_events"`
-	AttendedEvents         []EventSummary `json:"attended_events"`
+	ID                     string   `json:"id"`
+	Username               string   `json:"username"`
+	Email                  string   `json:"email"`
+	PhoneNumber            *string  `json:"phone_number"`
+	Gender                 *string  `json:"gender"`
+	BirthDate              *string  `json:"birth_date"`
+	EmailVerified          bool     `json:"email_verified"`
+	Status                 string   `json:"status"`
+	DefaultLocationAddress *string  `json:"default_location_address"`
+	DefaultLocationLat     *float64 `json:"default_location_lat"`
+	DefaultLocationLon     *float64 `json:"default_location_lon"`
+	DisplayName            *string  `json:"display_name"`
+	Bio                    *string  `json:"bio"`
+	AvatarURL              *string  `json:"avatar_url"`
 }
 
 // UpdateProfileInput is the input to the UpdateMyProfile use case.

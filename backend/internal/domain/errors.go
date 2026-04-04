@@ -37,6 +37,7 @@ const (
 	ErrorCodeAlreadyRequested                = "already_requested"
 	ErrorCodeEventJoinNotAllowed             = "event_join_not_allowed"
 	ErrorCodeHostCannotJoin                  = "host_cannot_join"
+	ErrorCodeHostCannotLeave                 = "host_cannot_leave"
 	ErrorCodeCapacityExceeded                = "capacity_exceeded"
 	ErrorCodeJoinRequestNotFound             = "join_request_not_found"
 	ErrorCodeJoinRequestModerationNotAllowed = "join_request_moderation_not_allowed"
@@ -44,11 +45,19 @@ const (
 	ErrorCodeJoinRequestCooldownActive       = "join_request_cooldown_active"
 	ErrorCodeEventCancelNotAllowed           = "event_cancel_not_allowed"
 	ErrorCodeEventNotCancelable              = "event_not_cancelable"
+	ErrorCodeEventCompleteNotAllowed         = "event_complete_not_allowed"
+	ErrorCodeEventNotCompletable             = "event_not_completable"
+	ErrorCodeEventCanceled                   = "event_canceled"
+	ErrorCodeEventNotJoinable                = "event_not_joinable"
+	ErrorCodeEventLeaveNotAllowed            = "event_leave_not_allowed"
+	ErrorCodeEventNotLeaveable               = "event_not_leaveable"
+	ErrorCodeFavoriteLocationNotFound        = "favorite_location_not_found"
+	ErrorCodeFavoriteLocationLimitExceeded   = "favorite_location_limit_exceeded"
 
-	ErrorCodeImageUploadTokenInvalid         = "image_upload_token_invalid"
-	ErrorCodeImageUploadNotAllowed           = "image_upload_not_allowed"
-	ErrorCodeImageUploadIncomplete           = "image_upload_incomplete"
-	ErrorCodeImageUploadVersionConflict      = "image_upload_version_conflict"
+	ErrorCodeImageUploadTokenInvalid    = "image_upload_token_invalid"
+	ErrorCodeImageUploadNotAllowed      = "image_upload_not_allowed"
+	ErrorCodeImageUploadIncomplete      = "image_upload_incomplete"
+	ErrorCodeImageUploadVersionConflict = "image_upload_version_conflict"
 )
 
 // ErrNotFound is a sentinel error returned when a queried entity does not exist.

@@ -4,7 +4,11 @@ import {
   getEventDetail,
   joinEvent,
   requestJoinEvent,
+  approveJoinRequest,
+  rejectJoinRequest,
+  cancelEvent,
 } from '@/services/eventService';
+import { addFavorite, removeFavorite } from '@/services/favoriteService';
 import { useAuth } from '@/contexts/AuthContext';
 
 export type ActionState =
@@ -36,8 +40,16 @@ export interface EventDetailViewModel {
 
   handleJoin: () => Promise<void>;
   handleRequestJoin: () => Promise<void>;
-  handleToggleFavorite: () => void;
+  handleToggleFavorite: () => Promise<void>;
   retry: () => void;
+
+  showRequestsModal: boolean;
+  setShowRequestsModal: (val: boolean) => void;
+  showAttendeesModal: boolean;
+  setShowAttendeesModal: (val: boolean) => void;
+  handleApproveRequest: (joinRequestId: string) => Promise<void>;
+  handleRejectRequest: (joinRequestId: string) => Promise<void>;
+  handleCancelEvent: () => Promise<void>;
 }
 
 function computeAgeFromBirthDate(birthDate: string): number {
@@ -96,6 +108,9 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
 
   const [showJoinRequestModal, setShowJoinRequestModal] = useState(false);
   const [joinRequestMessage, setJoinRequestMessage] = useState('');
+
+  const [showRequestsModal, setShowRequestsModal] = useState(false);
+  const [showAttendeesModal, setShowAttendeesModal] = useState(false);
 
   const isQuotaFull =
     event?.capacity != null &&
@@ -181,10 +196,82 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     }
   }, [token, event, joinRequestMessage]);
 
-  const handleToggleFavorite = useCallback(() => {
-    // TODO: wire to POST /events/{id}/favorite when backend endpoint is available
-    setIsFavorited((prev) => !prev);
-  }, []);
+  const handleToggleFavorite = useCallback(async () => {
+    if (!token || !event) return;
+
+    const wasFavorited = isFavorited;
+    const previousCount = event.favorite_count;
+    const nextCount = wasFavorited
+      ? Math.max(0, previousCount - 1)
+      : previousCount + 1;
+
+    setIsFavorited(!wasFavorited);
+    setEvent((prev) =>
+      prev ? { ...prev, favorite_count: nextCount } : prev,
+    );
+
+    try {
+      if (wasFavorited) {
+        await removeFavorite(event.id, token);
+      } else {
+        await addFavorite(event.id, token);
+      }
+    } catch {
+      setIsFavorited(wasFavorited);
+      setEvent((prev) =>
+        prev ? { ...prev, favorite_count: previousCount } : prev,
+      );
+      setActionError('Failed to update favorite. Please try again.');
+    }
+  }, [token, event, isFavorited]);
+
+  const handleApproveRequest = useCallback(
+    async (joinRequestId: string) => {
+      if (!token || !event) return;
+      try {
+        await approveJoinRequest(event.id, joinRequestId, token);
+        await fetchEvent(true);
+      } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'message' in err) {
+          setActionError((err as { message: string }).message);
+        } else {
+          setActionError('Failed to approve request.');
+        }
+      }
+    },
+    [token, event, fetchEvent],
+  );
+
+  const handleRejectRequest = useCallback(
+    async (joinRequestId: string) => {
+      if (!token || !event) return;
+      try {
+        await rejectJoinRequest(event.id, joinRequestId, token);
+        await fetchEvent(true);
+      } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'message' in err) {
+          setActionError((err as { message: string }).message);
+        } else {
+          setActionError('Failed to reject request.');
+        }
+      }
+    },
+    [token, event, fetchEvent],
+  );
+
+  const handleCancelEvent = useCallback(async () => {
+    if (!token || !event) return;
+    try {
+      await cancelEvent(event.id, token);
+      await fetchEvent(true);
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'message' in err) {
+        setActionError((err as { message: string }).message);
+      } else {
+        setActionError('Failed to cancel event.');
+      }
+    }
+  }, [token, event, fetchEvent]);
 
   const openJoinRequestModal = useCallback(() => {
     setActionError(null);
@@ -220,5 +307,12 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     handleRequestJoin,
     handleToggleFavorite,
     retry,
+    showRequestsModal,
+    setShowRequestsModal,
+    showAttendeesModal,
+    setShowAttendeesModal,
+    handleApproveRequest,
+    handleRejectRequest,
+    handleCancelEvent,
   };
 }

@@ -23,8 +23,6 @@ export interface UserProfile {
   display_name?: string;
   bio?: string;
   avatar_url?: string;
-  created_events?: EventSummary[];
-  attended_events?: EventSummary[];
 }
 
 export interface UpdateProfileRequest {

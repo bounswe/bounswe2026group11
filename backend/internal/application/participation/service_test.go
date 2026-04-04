@@ -11,11 +11,14 @@ import (
 )
 
 type fakeParticipationRepo struct {
-	err         error
-	callCount   int
-	lastEventID uuid.UUID
-	lastUserID  uuid.UUID
-	result      *domain.Participation
+	err              error
+	callCount        int
+	leaveCallCount   int
+	lastEventID      uuid.UUID
+	lastUserID       uuid.UUID
+	lastLeaveEventID uuid.UUID
+	lastLeaveUserID  uuid.UUID
+	result           *domain.Participation
 }
 
 func (r *fakeParticipationRepo) CreateParticipation(_ context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
@@ -37,6 +40,29 @@ func (r *fakeParticipationRepo) CreateParticipation(_ context.Context, eventID, 
 		UserID:    userID,
 		Status:    domain.ParticipationStatusApproved,
 		CreatedAt: now,
+		UpdatedAt: now,
+	}, nil
+}
+
+func (r *fakeParticipationRepo) LeaveParticipation(_ context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
+	r.leaveCallCount++
+	r.lastLeaveEventID = eventID
+	r.lastLeaveUserID = userID
+
+	if r.err != nil {
+		return nil, r.err
+	}
+	if r.result != nil {
+		return r.result, nil
+	}
+
+	now := time.Now().UTC()
+	return &domain.Participation{
+		ID:        uuid.New(),
+		EventID:   eventID,
+		UserID:    userID,
+		Status:    domain.ParticipationStatusLeaved,
+		CreatedAt: now.Add(-time.Hour),
 		UpdatedAt: now,
 	}, nil
 }
@@ -78,5 +104,33 @@ func TestCreateApprovedParticipationPropagatesRepoError(t *testing.T) {
 	// then
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error %v, got %v", expectedErr, err)
+	}
+}
+
+func TestLeaveParticipationDelegatesToRepo(t *testing.T) {
+	// given
+	repo := &fakeParticipationRepo{}
+	service := NewService(repo)
+	eventID := uuid.New()
+	userID := uuid.New()
+
+	// when
+	result, err := service.LeaveParticipation(context.Background(), eventID, userID)
+
+	// then
+	if err != nil {
+		t.Fatalf("LeaveParticipation() error = %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected participation result, got nil")
+	}
+	if repo.leaveCallCount != 1 {
+		t.Fatalf("expected leave repo to be called once, got %d", repo.leaveCallCount)
+	}
+	if repo.lastLeaveEventID != eventID || repo.lastLeaveUserID != userID {
+		t.Fatalf("expected leave repo to receive event %s and user %s", eventID, userID)
+	}
+	if result.Status != domain.ParticipationStatusLeaved {
+		t.Fatalf("expected status %q, got %q", domain.ParticipationStatusLeaved, result.Status)
 	}
 }

@@ -2,6 +2,7 @@ package profile_handler
 
 import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/profile"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/gofiber/fiber/v2"
@@ -9,12 +10,13 @@ import (
 
 // ProfileHandler groups HTTP handlers that delegate to the profile use-case port.
 type ProfileHandler struct {
-	service profile.UseCase
+	service      profile.UseCase
+	eventService event.UseCase
 }
 
-// NewProfileHandler creates a profile handler backed by the given use case.
-func NewProfileHandler(service profile.UseCase) *ProfileHandler {
-	return &ProfileHandler{service: service}
+// NewProfileHandler creates a profile handler backed by the given use cases.
+func NewProfileHandler(service profile.UseCase, eventService event.UseCase) *ProfileHandler {
+	return &ProfileHandler{service: service, eventService: eventService}
 }
 
 // RegisterProfileRoutes mounts all profile endpoints under /me.
@@ -22,6 +24,11 @@ func RegisterProfileRoutes(router fiber.Router, handler *ProfileHandler, auth fi
 	me := router.Group("/me", auth)
 	me.Get("", handler.GetMyProfile)
 	me.Patch("", handler.UpdateMyProfile)
+	me.Get("/events/hosted", handler.GetMyHostedEvents)
+	me.Get("/events/upcoming", handler.GetMyUpcomingEvents)
+	me.Get("/events/completed", handler.GetMyCompletedEvents)
+	me.Get("/events/canceled", handler.GetMyCanceledEvents)
+	me.Get("/favorites", handler.ListFavoriteEvents)
 }
 
 // GetMyProfile handles GET /me.
@@ -34,6 +41,46 @@ func (h *ProfileHandler) GetMyProfile(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(result)
+}
+
+// GetMyHostedEvents handles GET /me/events/hosted.
+func (h *ProfileHandler) GetMyHostedEvents(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	events, err := h.service.GetMyHostedEvents(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(fiber.Map{"events": events})
+}
+
+// GetMyUpcomingEvents handles GET /me/events/upcoming.
+func (h *ProfileHandler) GetMyUpcomingEvents(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	events, err := h.service.GetMyUpcomingEvents(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(fiber.Map{"events": events})
+}
+
+// GetMyCompletedEvents handles GET /me/events/completed.
+func (h *ProfileHandler) GetMyCompletedEvents(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	events, err := h.service.GetMyCompletedEvents(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(fiber.Map{"events": events})
+}
+
+// GetMyCanceledEvents handles GET /me/events/canceled.
+func (h *ProfileHandler) GetMyCanceledEvents(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	events, err := h.service.GetMyCanceledEvents(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(fiber.Map{"events": events})
 }
 
 // updateProfileBody is the request body for PATCH /me.
@@ -74,4 +121,15 @@ func (h *ProfileHandler) UpdateMyProfile(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// ListFavoriteEvents handles GET /me/favorites.
+func (h *ProfileHandler) ListFavoriteEvents(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	result, err := h.eventService.ListFavoriteEvents(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
 }

@@ -65,6 +65,7 @@ type DiscoverableEventRecord struct {
 	LocationAddress          *string
 	PrivacyLevel             domain.EventPrivacyLevel
 	ApprovedParticipantCount int
+	FavoriteCount            int
 	IsFavorited              bool
 	HostScore                EventHostScoreSummaryRecord
 	DistanceMeters           float64
@@ -79,6 +80,18 @@ type DiscoverEventsCursor struct {
 	EventID           uuid.UUID                 `json:"event_id"`
 	DistanceMeters    *float64                  `json:"distance_meters,omitempty"`
 	RelevanceScore    *float64                  `json:"relevance_score,omitempty"`
+}
+
+// FavoriteEventRecord is the repository-level projection for favorite event listings.
+type FavoriteEventRecord struct {
+	ID           uuid.UUID
+	Title        string
+	CategoryName *string
+	ImageURL     *string
+	Status       domain.EventStatus
+	StartTime    time.Time
+	EndTime      *time.Time
+	FavoritedAt  time.Time
 }
 
 // EventDetailRecord is the repository-level projection used for event detail responses.
@@ -181,7 +194,7 @@ type EventDetailHostContextRecord struct {
 // EventDetailApprovedParticipantRecord is a host-visible approved participation projection.
 type EventDetailApprovedParticipantRecord struct {
 	ParticipationID uuid.UUID
-	Status          string
+	Status          domain.ParticipationStatus
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	HostRating      *EventDetailRatingRecord

@@ -10,14 +10,17 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { EventDetail } from '@/models/event';
+import JoinRequestsModal from '@/components/events/JoinRequestsModal';
+import ParticipantListModal from '@/components/events/ParticipantListModal';
 
 interface EventDetailViewProps {
   eventId: string;
@@ -28,8 +31,8 @@ function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
   const isProtected = level === 'PROTECTED';
   return (
     <View style={[styles.badge, isProtected ? styles.badgeProtected : styles.badgePublic]}>
-      <Ionicons
-        name={isProtected ? 'lock-closed-outline' : 'globe-outline'}
+      <Feather
+        name={isProtected ? 'lock' : 'globe'}
         size={12}
         color={isProtected ? '#92400E' : '#1E40AF'}
       />
@@ -43,6 +46,18 @@ function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
 function StatusBadge({ status }: { status: string }) {
   if (status === 'ACTIVE') return null;
   const isCanceled = status === 'CANCELED';
+  const isInProgress = status === 'IN_PROGRESS';
+  
+  if (isInProgress) {
+    return (
+      <View style={[styles.badge, styles.badgeInProgress]}>
+        <Text style={[styles.badgeText, styles.badgeTextInProgress]}>
+          In Progress
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.badge, isCanceled ? styles.badgeCanceled : styles.badgeCompleted]}>
       <Text style={[styles.badgeText, isCanceled ? styles.badgeTextCanceled : styles.badgeTextCompleted]}>
@@ -65,7 +80,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (vm.event.viewer_context.is_host) {
       return (
         <View style={styles.statusChip}>
-          <Ionicons name="star" size={16} color="#7C3AED" />
+          <Feather name="star" size={16} color="#7C3AED" />
           <Text style={styles.statusChipTextPurple}>You are hosting this event</Text>
         </View>
       );
@@ -74,7 +89,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (status_ === 'JOINED' || vm.actionState === 'success_joined') {
       return (
         <View style={styles.statusChip}>
-          <Ionicons name="checkmark-circle" size={16} color="#059669" />
+          <Feather name="check-circle" size={16} color="#059669" />
           <Text style={styles.statusChipTextGreen}>You&apos;re attending</Text>
         </View>
       );
@@ -83,7 +98,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (status_ === 'PENDING' || vm.actionState === 'success_requested') {
       return (
         <View style={styles.statusChip}>
-          <Ionicons name="time-outline" size={16} color="#D97706" />
+          <Feather name="clock" size={16} color="#D97706" />
           <Text style={styles.statusChipTextAmber}>Request sent — awaiting approval</Text>
         </View>
       );
@@ -92,7 +107,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (status_ === 'INVITED') {
       return (
         <View style={styles.statusChip}>
-          <Ionicons name="mail-outline" size={16} color="#2563EB" />
+          <Feather name="mail" size={16} color="#2563EB" />
           <Text style={styles.statusChipTextBlue}>You&apos;re invited</Text>
         </View>
       );
@@ -103,8 +118,8 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (vm.constraintViolation) {
       return (
         <View style={[styles.actionButton, styles.actionButtonDisabled]}>
-          <Ionicons name="lock-closed" size={18} color="#9CA3AF" />
-          <Text style={[styles.actionButtonTextDisabled, styles.constraintText]}>
+          <Feather name="lock" size={18} color="#9CA3AF" />
+          <Text style={[styles.actionButtonTextDisabled, styles.actionButtonConstraintText]}>
             {vm.constraintViolation}
           </Text>
         </View>
@@ -115,7 +130,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       if (vm.isQuotaFull) {
         return (
           <View style={[styles.actionButton, styles.actionButtonDisabled]}>
-            <Ionicons name="people" size={18} color="#9CA3AF" />
+            <Feather name="users" size={18} color="#9CA3AF" />
             <Text style={styles.actionButtonTextDisabled}>Event is Full</Text>
           </View>
         );
@@ -131,7 +146,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
             <>
-              <Ionicons name="enter-outline" size={18} color="#FFFFFF" />
+              <Feather name="log-in" size={18} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Join Event</Text>
             </>
           )}
@@ -146,7 +161,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           onPress={vm.openJoinRequestModal}
           activeOpacity={0.8}
         >
-          <Ionicons name="send-outline" size={18} color="#FFFFFF" />
+          <Feather name="send" size={18} color="#FFFFFF" />
           <Text style={styles.actionButtonText}>Request to Join</Text>
         </TouchableOpacity>
       );
@@ -197,7 +212,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerIconBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
+          <Feather name="arrow-left" size={22} color="#111827" />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle} numberOfLines={1}>
@@ -205,8 +220,8 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         </Text>
 
         <TouchableOpacity style={styles.headerIconBtn} onPress={vm.handleToggleFavorite}>
-          <Ionicons
-            name={vm.isFavorited ? 'heart' : 'heart-outline'}
+          <MaterialIcons
+            name={vm.isFavorited ? 'favorite' : 'favorite-border'}
             size={22}
             color={vm.isFavorited ? '#EF4444' : '#111827'}
           />
@@ -257,7 +272,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
           {/* Location */}
           <View style={styles.metaRow}>
-            <Ionicons name="location-outline" size={16} color="#6B7280" />
+            <Feather name="map-pin" size={16} color="#6B7280" />
             <Text style={styles.metaText}>
               {formatEventLocation(event.location.address)}
             </Text>
@@ -265,7 +280,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
           {/* Participants */}
           <View style={styles.metaRow}>
-            <Ionicons name="people-outline" size={16} color="#6B7280" />
+            <Feather name="users" size={16} color="#6B7280" />
             <Text style={styles.metaText}>
               {capacityLabel} participant{event.approved_participant_count !== 1 ? 's' : ''}
               {event.capacity != null ? ' (capacity)' : ''}
@@ -274,7 +289,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
           {/* Favorites */}
           <View style={styles.metaRow}>
-            <Ionicons name="heart-outline" size={16} color="#6B7280" />
+            <Feather name="heart" size={16} color="#6B7280" />
             <Text style={styles.metaText}>{event.favorite_count} saved</Text>
           </View>
         </View>
@@ -297,11 +312,63 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               <Text style={styles.hostUsername}>@{event.host.username}</Text>
             </View>
             <View style={styles.hostRating}>
-              <Ionicons name="star" size={14} color="#F59E0B" />
+              <Feather name="star" size={14} color="#F59E0B" />
               <Text style={styles.hostRatingText}>{ratingLabel}</Text>
             </View>
           </View>
         </View>
+
+        {/* Host Management */}
+        {vm.event.viewer_context.is_host && vm.event.host_context && (
+          <>
+            <View style={styles.divider} />
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Host Management</Text>
+              <View style={styles.hostActions}>
+                <TouchableOpacity
+                  style={[styles.hostActionBtn, styles.hostActionBtnSecondary]}
+                  onPress={() => vm.setShowAttendeesModal(true)}
+                >
+                  <Feather name="users" size={18} color="#111827" />
+                  <Text style={styles.hostActionText}>
+                    Attendees ({vm.event.host_context.approved_participants.length})
+                  </Text>
+                </TouchableOpacity>
+
+                {vm.event.privacy_level === 'PROTECTED' && (
+                  <TouchableOpacity
+                    style={[styles.hostActionBtn, styles.hostActionBtnPrimary]}
+                    onPress={() => vm.setShowRequestsModal(true)}
+                  >
+                    <Feather name="mail" size={18} color="#FFFFFF" />
+                    <Text style={styles.hostActionTextWhite}>
+                      Pending Requests ({vm.event.host_context.pending_join_requests.length})
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {vm.event.status === 'ACTIVE' && (
+                  <TouchableOpacity
+                    style={[styles.hostActionBtn, styles.hostActionBtnDanger]}
+                    onPress={() => {
+                      Alert.alert(
+                        'Cancel Event',
+                        'Are you sure you want to cancel this event? This action cannot be undone.',
+                        [
+                          { text: 'No, Keep It', style: 'cancel' },
+                          { text: 'Yes, Cancel', style: 'destructive', onPress: vm.handleCancelEvent },
+                        ]
+                      );
+                    }}
+                  >
+                    <Feather name="trash-2" size={18} color="#DC2626" />
+                    <Text style={styles.hostActionTextDanger}>Cancel Event</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </>
+        )}
 
         {/* Description */}
         {event.description ? (
@@ -443,7 +510,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <>
-                  <Ionicons name="send-outline" size={18} color="#FFFFFF" />
+                  <Feather name="send" size={18} color="#FFFFFF" />
                   <Text style={styles.actionButtonText}>Send Request</Text>
                 </>
               )}
@@ -459,6 +526,24 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           </View>
         </View>
       </Modal>
+
+      {/* Host Modals */}
+      {vm.event.viewer_context.is_host && vm.event.host_context && (
+        <>
+          <JoinRequestsModal
+            visible={vm.showRequestsModal}
+            requests={vm.event.host_context.pending_join_requests}
+            onClose={() => vm.setShowRequestsModal(false)}
+            onApprove={vm.handleApproveRequest}
+            onReject={vm.handleRejectRequest}
+          />
+          <ParticipantListModal
+            visible={vm.showAttendeesModal}
+            participants={vm.event.host_context.approved_participants}
+            onClose={() => vm.setShowAttendeesModal(false)}
+          />
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -556,6 +641,9 @@ const styles = StyleSheet.create({
   badgeCompleted: {
     backgroundColor: '#F3F4F6',
   },
+  badgeInProgress: {
+    backgroundColor: '#FEF3C7',
+  },
   badgeText: {
     fontSize: 12,
     fontWeight: '700',
@@ -571,6 +659,9 @@ const styles = StyleSheet.create({
   },
   badgeTextCompleted: {
     color: '#374151',
+  },
+  badgeTextInProgress: {
+    color: '#B45309',
   },
 
   /* Section */
@@ -762,7 +853,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#9CA3AF',
   },
-  constraintText: {
+  actionButtonConstraintText: {
     fontSize: 14,
     flex: 1,
     textAlign: 'center',
@@ -918,5 +1009,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#6B7280',
+  },
+  hostActions: {
+    flexDirection: 'column',
+    gap: 12,
+    marginTop: 8,
+  },
+  hostActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+  },
+  hostActionBtnSecondary: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+  },
+  hostActionBtnPrimary: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#2563EB',
+  },
+  hostActionBtnDanger: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
+  },
+  hostActionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  hostActionTextWhite: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  hostActionTextDanger: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#DC2626',
   },
 });

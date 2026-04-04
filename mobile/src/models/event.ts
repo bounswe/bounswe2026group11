@@ -149,6 +149,49 @@ export interface EventDetailViewerContext {
   participation_status: ParticipationStatus;
 }
 
+export interface EventDetailHostContextUser {
+  id: string;
+  username: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  final_score?: number | null;
+  rating_count: number;
+}
+
+export interface EventDetailApprovedParticipant {
+  participation_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  host_rating?: EventDetailEmbeddedRating | null;
+  user: EventDetailHostContextUser;
+}
+
+export interface EventDetailPendingJoinRequest {
+  join_request_id: string;
+  status: string;
+  message?: string | null;
+  created_at: string;
+  updated_at: string;
+  user: EventDetailHostContextUser;
+}
+
+export interface EventDetailInvitation {
+  invitation_id: string;
+  status: string;
+  message?: string | null;
+  expires_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  user: EventDetailHostContextUser;
+}
+
+export interface EventDetailHostContext {
+  approved_participants: EventDetailApprovedParticipant[];
+  pending_join_requests: EventDetailPendingJoinRequest[];
+  invitations: EventDetailInvitation[];
+}
+
 export interface EventDetail {
   id: string;
   title: string;
@@ -175,6 +218,7 @@ export interface EventDetail {
   rating_window: EventDetailRatingWindow;
   viewer_event_rating?: EventDetailEmbeddedRating | null;
   viewer_context: EventDetailViewerContext;
+  host_context?: EventDetailHostContext | null;
 }
 
 export interface JoinEventResponse {
@@ -205,5 +249,20 @@ export interface HomeFiltersDraft {
   startDate: string;
   endDate: string;
   radiusKm: number;
+}
 
+// Image upload types (presigned URL flow)
+
+export interface PresignedUpload {
+  variant: 'ORIGINAL' | 'SMALL';
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+}
+
+export interface ImageUploadInitResponse {
+  base_url: string;
+  version: number;
+  confirm_token: string;
+  uploads: PresignedUpload[];
 }

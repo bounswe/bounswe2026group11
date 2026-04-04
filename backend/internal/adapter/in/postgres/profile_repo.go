@@ -104,8 +104,8 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 	return &up, nil
 }
 
-// GetCreatedEvents returns a summary of events hosted by the given user.
-func (r *ProfileRepository) GetCreatedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error) {
+// GetHostedEvents returns a summary of all events created by the given user.
+func (r *ProfileRepository) GetHostedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT
 			e.id,
@@ -121,14 +121,15 @@ func (r *ProfileRepository) GetCreatedEvents(ctx context.Context, userID uuid.UU
 		ORDER BY e.start_time DESC
 	`, userID)
 	if err != nil {
-		return nil, fmt.Errorf("get created events: %w", err)
+		return nil, fmt.Errorf("get hosted events: %w", err)
 	}
 	defer rows.Close()
 	return scanEventSummaries(rows)
 }
 
-// GetAttendedEvents returns a summary of events the given user has an APPROVED participation in.
-func (r *ProfileRepository) GetAttendedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error) {
+// GetUpcomingEvents returns events the user has an APPROVED participation in
+// that are still ACTIVE or IN_PROGRESS.
+func (r *ProfileRepository) GetUpcomingEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT
 			e.id,
@@ -142,11 +143,69 @@ func (r *ProfileRepository) GetAttendedEvents(ctx context.Context, userID uuid.U
 		JOIN participation p ON p.event_id = e.id
 		LEFT JOIN event_category ec ON ec.id = e.category_id
 		WHERE p.user_id = $1
-		  AND p.status = 'APPROVED'
-		ORDER BY e.start_time DESC
-	`, userID)
+		  AND p.status = $2
+		  AND e.status IN ($3, $4)
+		ORDER BY e.start_time ASC
+	`, userID, domain.ParticipationStatusApproved, domain.EventStatusActive, domain.EventStatusInProgress)
 	if err != nil {
-		return nil, fmt.Errorf("get attended events: %w", err)
+		return nil, fmt.Errorf("get upcoming events: %w", err)
+	}
+	defer rows.Close()
+	return scanEventSummaries(rows)
+}
+
+// GetCompletedEvents returns events the user either completed as an APPROVED
+// participant or left after the event had already started.
+func (r *ProfileRepository) GetCompletedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			e.id,
+			e.title,
+			e.start_time,
+			e.end_time,
+			e.status,
+			ec.name AS category,
+			e.image_url
+		FROM event e
+		JOIN participation p ON p.event_id = e.id
+		LEFT JOIN event_category ec ON ec.id = e.category_id
+		WHERE p.user_id = $1
+		  AND (
+			p.status = $2
+			OR (p.status = $3 AND p.updated_at >= e.start_time)
+		  )
+		  AND e.status = $4
+		ORDER BY e.start_time DESC
+	`, userID, domain.ParticipationStatusApproved, domain.ParticipationStatusLeaved, domain.EventStatusCompleted)
+	if err != nil {
+		return nil, fmt.Errorf("get completed events: %w", err)
+	}
+	defer rows.Close()
+	return scanEventSummaries(rows)
+}
+
+// GetCanceledEvents returns events the user was part of (participation CANCELED)
+// that are CANCELED, covering both host and participant views.
+func (r *ProfileRepository) GetCanceledEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			e.id,
+			e.title,
+			e.start_time,
+			e.end_time,
+			e.status,
+			ec.name AS category,
+			e.image_url
+		FROM event e
+		JOIN participation p ON p.event_id = e.id
+		LEFT JOIN event_category ec ON ec.id = e.category_id
+		WHERE p.user_id = $1
+		  AND p.status = $2
+		  AND e.status = $3
+		ORDER BY e.start_time DESC
+	`, userID, domain.ParticipationStatusCanceled, domain.EventStatusCanceled)
+	if err != nil {
+		return nil, fmt.Errorf("get canceled events: %w", err)
 	}
 	defer rows.Close()
 	return scanEventSummaries(rows)
@@ -161,11 +220,15 @@ func scanEventSummaries(rows interface {
 	for rows.Next() {
 		var (
 			e        domain.EventSummary
+			endTime  pgtype.Timestamptz
 			category pgtype.Text
 			imageURL pgtype.Text
 		)
-		if err := rows.Scan(&e.ID, &e.Title, &e.StartTime, &e.EndTime, &e.Status, &category, &imageURL); err != nil {
+		if err := rows.Scan(&e.ID, &e.Title, &e.StartTime, &endTime, &e.Status, &category, &imageURL); err != nil {
 			return nil, fmt.Errorf("scan event summary: %w", err)
+		}
+		if endTime.Valid {
+			e.EndTime = endTime.Time
 		}
 		e.Category = textPtr(category)
 		e.ImageURL = textPtr(imageURL)

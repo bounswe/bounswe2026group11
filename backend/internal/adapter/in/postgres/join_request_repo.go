@@ -77,12 +77,17 @@ func (r *JoinRequestRepository) CreateJoinRequest(ctx context.Context, params jo
 			return domain.ConflictError(domain.ErrorCodeEventJoinNotAllowed, "Only PROTECTED events accept join requests.")
 		}
 
-		participating, err := repo.participationExists(ctx, params.EventID, params.UserID)
+		participation, err := loadParticipation(ctx, repo.db, params.EventID, params.UserID, false)
 		if err != nil {
 			return err
 		}
-		if participating {
-			return domain.ConflictError(domain.ErrorCodeAlreadyParticipating, "You are already participating in this event.")
+		if participation != nil && !canReactivateLeavedParticipation(participation, event.StartTime) {
+			return mapJoinParticipationConflict(
+				participation,
+				event.StartTime,
+				"You are already participating in this event.",
+				"You cannot request to join again after leaving once the event has started.",
+			)
 		}
 
 		existing, err := repo.loadJoinRequestByEventAndUser(ctx, params.EventID, params.UserID, true)
@@ -108,7 +113,7 @@ func (r *JoinRequestRepository) CreateJoinRequest(ctx context.Context, params jo
 			}
 		}
 
-		created, err = repo.handleExistingJoinRequestForCreate(ctx, existing, params)
+		created, err = repo.handleExistingJoinRequestForCreate(ctx, existing, participation, event.StartTime, params)
 		return err
 	})
 	if err != nil {
@@ -149,18 +154,11 @@ func (r *JoinRequestRepository) ApproveJoinRequest(
 			return domain.ConflictError(domain.ErrorCodeJoinRequestStateInvalid, "Only PENDING join requests can be approved.")
 		}
 
-		participating, err := repo.participationExists(ctx, params.EventID, request.UserID)
-		if err != nil {
-			return err
-		}
-		if participating {
-			return domain.ConflictError(domain.ErrorCodeAlreadyParticipating, "The requester is already participating in this event.")
-		}
 		if event.Capacity != nil && event.ApprovedParticipantCount >= *event.Capacity {
 			return domain.ConflictError(domain.ErrorCodeCapacityExceeded, "This event has reached its maximum capacity.")
 		}
 
-		participation, err := repo.insertApprovedParticipation(ctx, params.EventID, request.UserID)
+		participation, err := repo.insertOrReactivateApprovedParticipation(ctx, event, request.UserID)
 		if err != nil {
 			return err
 		}
@@ -234,12 +232,17 @@ func (r *JoinRequestRepository) RejectJoinRequest(
 func (r *JoinRequestRepository) handleExistingJoinRequestForCreate(
 	ctx context.Context,
 	existing *domain.JoinRequest,
+	participation *domain.Participation,
+	eventStart time.Time,
 	params joinrequestapp.CreateJoinRequestParams,
 ) (*domain.JoinRequest, error) {
 	switch existing.Status {
 	case domain.JoinRequestStatusPending:
 		return nil, domain.ConflictError(domain.ErrorCodeAlreadyRequested, "You already have a pending join request for this event.")
 	case domain.JoinRequestStatusApproved:
+		if canReactivateLeavedParticipation(participation, eventStart) {
+			return r.reactivateJoinRequest(ctx, existing.ID, params.HostUserID, params.Message)
+		}
 		return nil, domain.ConflictError(domain.ErrorCodeAlreadyParticipating, "You are already participating in this event.")
 	case domain.JoinRequestStatusRejected:
 		if time.Now().UTC().Before(existing.UpdatedAt.Add(domain.JoinRequestCooldown)) {
@@ -253,7 +256,7 @@ func (r *JoinRequestRepository) handleExistingJoinRequestForCreate(
 
 func (r *JoinRequestRepository) loadEventState(ctx context.Context, eventID uuid.UUID, forUpdate bool) (*domain.Event, error) {
 	query := `
-		SELECT host_id, privacy_level, capacity, approved_participant_count
+		SELECT host_id, privacy_level, capacity, approved_participant_count, start_time
 		FROM event
 		WHERE id = $1
 	`
@@ -266,9 +269,10 @@ func (r *JoinRequestRepository) loadEventState(ctx context.Context, eventID uuid
 		privacyLevel  string
 		capacity      pgtype.Int4
 		approvedCount int
+		startTime     time.Time
 	)
 
-	err := r.db.QueryRow(ctx, query, eventID).Scan(&hostID, &privacyLevel, &capacity, &approvedCount)
+	err := r.db.QueryRow(ctx, query, eventID).Scan(&hostID, &privacyLevel, &capacity, &approvedCount, &startTime)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -281,6 +285,7 @@ func (r *JoinRequestRepository) loadEventState(ctx context.Context, eventID uuid
 		HostID:                   hostID,
 		PrivacyLevel:             domain.EventPrivacyLevel(privacyLevel),
 		ApprovedParticipantCount: approvedCount,
+		StartTime:                startTime,
 	}
 	if capacity.Valid {
 		value := int(capacity.Int32)
@@ -326,21 +331,6 @@ func (r *JoinRequestRepository) loadJoinRequestByID(
 	return scanJoinRequest(r.db.QueryRow(ctx, query, eventID, joinRequestID))
 }
 
-func (r *JoinRequestRepository) participationExists(ctx context.Context, eventID, userID uuid.UUID) (bool, error) {
-	var exists bool
-	err := r.db.QueryRow(ctx, `
-		SELECT EXISTS (
-			SELECT 1
-			FROM participation
-			WHERE event_id = $1 AND user_id = $2
-		)
-	`, eventID, userID).Scan(&exists)
-	if err != nil {
-		return false, fmt.Errorf("check participation existence: %w", err)
-	}
-	return exists, nil
-}
-
 func (r *JoinRequestRepository) insertJoinRequest(
 	ctx context.Context,
 	params joinrequestapp.CreateJoinRequestParams,
@@ -384,37 +374,59 @@ func (r *JoinRequestRepository) reactivateJoinRequest(
 	return request, nil
 }
 
-func (r *JoinRequestRepository) insertApprovedParticipation(
+func (r *JoinRequestRepository) insertOrReactivateApprovedParticipation(
 	ctx context.Context,
-	eventID, userID uuid.UUID,
+	event *domain.Event,
+	userID uuid.UUID,
 ) (*domain.Participation, error) {
-	var (
-		id        uuid.UUID
-		status    string
-		createdAt time.Time
-		updatedAt time.Time
-	)
-
-	err := r.db.QueryRow(ctx, `
-		INSERT INTO participation (event_id, user_id, status)
-		VALUES ($1, $2, $3)
-		RETURNING id, status, created_at, updated_at
-	`, eventID, userID, domain.ParticipationStatusApproved).Scan(&id, &status, &createdAt, &updatedAt)
+	participation, err := scanParticipation(r.db.QueryRow(ctx, `
+		WITH reactivated AS (
+			UPDATE participation
+			SET status = $3,
+			    created_at = NOW(),
+			    updated_at = NOW()
+			WHERE event_id = $1
+			  AND user_id = $2
+			  AND status = $4
+			  AND updated_at < $5
+			RETURNING id, status, created_at, updated_at
+		),
+		inserted AS (
+			INSERT INTO participation (event_id, user_id, status)
+			SELECT $1, $2, $3
+			WHERE NOT EXISTS (SELECT 1 FROM reactivated)
+			ON CONFLICT ON CONSTRAINT uq_event_user DO NOTHING
+			RETURNING id, status, created_at, updated_at
+		)
+		SELECT id, status, created_at, updated_at
+		FROM reactivated
+		UNION ALL
+		SELECT id, status, created_at, updated_at
+		FROM inserted
+		LIMIT 1
+	`, event.ID, userID, domain.ParticipationStatusApproved, domain.ParticipationStatusLeaved, event.StartTime), event.ID, userID, "approve join request participation")
 	if err != nil {
-		if isConstraintError(err, "uq_event_user") {
-			return nil, domain.ConflictError(domain.ErrorCodeAlreadyParticipating, "The requester is already participating in this event.")
-		}
-		return nil, fmt.Errorf("insert participation: %w", err)
+		return nil, err
 	}
 
-	return &domain.Participation{
-		ID:        id,
-		EventID:   eventID,
-		UserID:    userID,
-		Status:    status,
-		CreatedAt: createdAt,
-		UpdatedAt: updatedAt,
-	}, nil
+	if participation != nil {
+		return participation, nil
+	}
+
+	existing, err := loadParticipation(ctx, r.db, event.ID, userID, true)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return nil, mapJoinParticipationConflict(
+			existing,
+			event.StartTime,
+			"The requester is already participating in this event.",
+			"The requester cannot rejoin this event after leaving once it has started.",
+		)
+	}
+
+	return nil, fmt.Errorf("approve join request participation: no row returned and no existing participation found")
 }
 
 func (r *JoinRequestRepository) updateJoinRequestStatus(

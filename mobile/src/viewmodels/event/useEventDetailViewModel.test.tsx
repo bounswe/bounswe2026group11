@@ -3,6 +3,7 @@
  */
 import { renderHook, act, waitFor } from '@testing-library/react';
 import * as eventService from '@/services/eventService';
+import * as favoriteService from '@/services/favoriteService';
 import { ApiError } from '@/services/api';
 import type {
   EventDetail,
@@ -16,6 +17,7 @@ import {
 } from './useEventDetailViewModel';
 
 jest.mock('@/services/eventService');
+jest.mock('@/services/favoriteService');
 
 const mockUser: UserSummary = {
   id: 'user-uuid-001',
@@ -46,6 +48,11 @@ jest.mock('@/contexts/AuthContext', () => ({
 const mockGetEventDetail = jest.mocked(eventService.getEventDetail);
 const mockJoinEvent = jest.mocked(eventService.joinEvent);
 const mockRequestJoinEvent = jest.mocked(eventService.requestJoinEvent);
+const mockApproveJoinRequest = jest.mocked(eventService.approveJoinRequest);
+const mockRejectJoinRequest = jest.mocked(eventService.rejectJoinRequest);
+const mockCancelEvent = jest.mocked(eventService.cancelEvent);
+const mockAddFavorite = jest.mocked(favoriteService.addFavorite);
+const mockRemoveFavorite = jest.mocked(favoriteService.removeFavorite);
 
 const mockErrorBody = { error: { code: 'server_error', message: 'Unexpected error' } };
 
@@ -102,6 +109,38 @@ const protectedEventFixture: EventDetail = {
     is_host: false,
     is_favorited: false,
     participation_status: 'NONE',
+  },
+};
+
+const hostedEventFixture: EventDetail = {
+  ...publicEventFixture,
+  id: 'event-uuid-003',
+  viewer_context: {
+    is_host: true,
+    is_favorited: false,
+    participation_status: 'NONE',
+  },
+  host_context: {
+    approved_participants: [
+      {
+        participation_id: 'p-1',
+        user: { id: 'u1', username: 'p1', display_name: null, avatar_url: null, rating_count: 5 },
+        status: 'APPROVED',
+        created_at: '2026-03-26T11:00:00+03:00',
+        updated_at: '2026-03-26T11:00:00+03:00',
+      },
+    ],
+    pending_join_requests: [
+      {
+        join_request_id: 'req-1',
+        user: { id: 'u2', username: 'p2', display_name: null, avatar_url: null, rating_count: 2 },
+        message: 'Let me in',
+        status: 'PENDING',
+        created_at: '2026-03-26T12:00:00+03:00',
+        updated_at: '2026-03-26T12:00:00+03:00',
+      },
+    ],
+    invitations: [],
   },
 };
 
@@ -225,6 +264,11 @@ describe('useEventDetailViewModel', () => {
     mockGetEventDetail.mockResolvedValue(publicEventFixture);
     mockJoinEvent.mockResolvedValue(joinResponseFixture);
     mockRequestJoinEvent.mockResolvedValue(requestJoinResponseFixture);
+    mockApproveJoinRequest.mockResolvedValue(undefined);
+    mockRejectJoinRequest.mockResolvedValue(undefined);
+    mockCancelEvent.mockResolvedValue(undefined);
+    mockAddFavorite.mockResolvedValue(undefined);
+    mockRemoveFavorite.mockResolvedValue(undefined);
   });
 
   // ─── Initial loading state ───
@@ -338,7 +382,7 @@ describe('useEventDetailViewModel', () => {
 
   // ─── Favorite toggle ───
   describe('handleToggleFavorite', () => {
-    it('toggles isFavorited from true to false', async () => {
+    it('calls removeFavorite and decrements count when currently favorited', async () => {
       const { result } = renderHook(() =>
         useEventDetailViewModel('event-uuid-001'),
       );
@@ -346,25 +390,53 @@ describe('useEventDetailViewModel', () => {
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
       expect(result.current.isFavorited).toBe(true);
+      expect(result.current.event?.favorite_count).toBe(8);
 
-      act(() => {
-        result.current.handleToggleFavorite();
+      await act(async () => {
+        await result.current.handleToggleFavorite();
       });
 
+      expect(mockRemoveFavorite).toHaveBeenCalledWith('event-uuid-001', 'mock-token');
       expect(result.current.isFavorited).toBe(false);
+      expect(result.current.event?.favorite_count).toBe(7);
     });
 
-    it('toggles isFavorited back on second call', async () => {
+    it('calls addFavorite and increments count when currently not favorited', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(protectedEventFixture);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-002'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.isFavorited).toBe(false);
+
+      await act(async () => {
+        await result.current.handleToggleFavorite();
+      });
+
+      expect(mockAddFavorite).toHaveBeenCalledWith('event-uuid-002', 'mock-token');
+      expect(result.current.isFavorited).toBe(true);
+      expect(result.current.event?.favorite_count).toBe(9);
+    });
+
+    it('rolls back optimistic favorite change when API fails', async () => {
+      mockRemoveFavorite.mockRejectedValueOnce(new Error('network'));
+
       const { result } = renderHook(() =>
         useEventDetailViewModel('event-uuid-001'),
       );
 
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      act(() => { result.current.handleToggleFavorite(); });
-      act(() => { result.current.handleToggleFavorite(); });
+      await act(async () => {
+        await result.current.handleToggleFavorite();
+      });
 
       expect(result.current.isFavorited).toBe(true);
+      expect(result.current.event?.favorite_count).toBe(8);
+      expect(result.current.actionError).toBe('Failed to update favorite. Please try again.');
     });
 
     it('initialises isFavorited from viewer_context', async () => {
@@ -788,6 +860,86 @@ describe('useEventDetailViewModel', () => {
 
       expect(result.current.constraintViolation).toContain('Male participants only');
       expect(result.current.constraintViolation).toContain('18+');
+    });
+  });
+
+  // ─── Host Actions ───
+  describe('Host actions', () => {
+    it('handleApproveRequest calls api and refreshes event detail', async () => {
+      mockGetEventDetail
+        .mockResolvedValueOnce(hostedEventFixture) // initial load
+        .mockResolvedValueOnce(hostedEventFixture); // refresh after approve
+        
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-003'),
+      );
+      
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      
+      await act(async () => {
+        await result.current.handleApproveRequest('req-1');
+      });
+      
+      expect(mockApproveJoinRequest).toHaveBeenCalledWith('event-uuid-003', 'req-1', 'mock-token');
+      expect(mockGetEventDetail).toHaveBeenCalledTimes(2);
+    });
+
+    it('handleRejectRequest calls api and refreshes event detail', async () => {
+      mockGetEventDetail
+        .mockResolvedValueOnce(hostedEventFixture) 
+        .mockResolvedValueOnce(hostedEventFixture); 
+        
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-003'),
+      );
+      
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      
+      await act(async () => {
+        await result.current.handleRejectRequest('req-1');
+      });
+      
+      expect(mockRejectJoinRequest).toHaveBeenCalledWith('event-uuid-003', 'req-1', 'mock-token');
+      expect(mockGetEventDetail).toHaveBeenCalledTimes(2);
+    });
+
+    it('handleCancelEvent calls api and refreshes event detail', async () => {
+      mockGetEventDetail
+        .mockResolvedValueOnce(hostedEventFixture) 
+        .mockResolvedValueOnce({ ...hostedEventFixture, status: 'CANCELED', approved_participant_count: 0 }); 
+        
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-003'),
+      );
+      
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      
+      await act(async () => {
+        await result.current.handleCancelEvent();
+      });
+      
+      expect(mockCancelEvent).toHaveBeenCalledWith('event-uuid-003', 'mock-token');
+      expect(mockGetEventDetail).toHaveBeenCalledTimes(2); 
+      expect(result.current.event?.status).toBe('CANCELED');
+      expect(result.current.event?.approved_participant_count).toBe(0);
+    });
+
+    it('handleCancelEvent sets global actionError if it fails', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(hostedEventFixture);
+      mockCancelEvent.mockRejectedValueOnce(new Error('Cancel failed'));
+      
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-003'),
+      );
+      
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      
+      await act(async () => {
+        await result.current.handleCancelEvent();
+      });
+      
+      expect(result.current.actionError).toBe('Cancel failed');
+      expect(result.current.event?.status).toBe('ACTIVE'); 
     });
   });
 });

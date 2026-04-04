@@ -32,10 +32,14 @@ func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.
 	group.Get("/:id", auth, handler.GetEventDetail)
 	group.Post("/", auth, handler.CreateEvent)
 	group.Post("/:id/join", auth, handler.JoinEvent)
+	group.Patch("/:id/leave", auth, handler.LeaveEvent)
 	group.Post("/:id/join-request", auth, handler.RequestJoin)
 	group.Post("/:id/join-requests/:joinRequestId/approve", auth, handler.ApproveJoinRequest)
 	group.Post("/:id/join-requests/:joinRequestId/reject", auth, handler.RejectJoinRequest)
 	group.Patch("/:id/cancel", auth, handler.CancelEvent)
+	group.Patch("/:id/complete", auth, handler.CompleteEvent)
+	group.Post("/:id/favorite", auth, handler.AddFavorite)
+	group.Delete("/:id/favorite", auth, handler.RemoveFavorite)
 }
 
 // DiscoverEvents handles GET /events.
@@ -194,6 +198,23 @@ func (h *EventHandler) JoinEvent(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(result)
 }
 
+// LeaveEvent handles PATCH /events/:id/leave.
+// Allows the authenticated user to leave an event they previously joined.
+func (h *EventHandler) LeaveEvent(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.LeaveEvent(c.UserContext(), claims.UserID, eventID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
+}
+
 // RequestJoin handles POST /events/:id/join-request.
 // Allows the authenticated user to submit a join request for a PROTECTED event.
 func (h *EventHandler) RequestJoin(c *fiber.Ctx) error {
@@ -274,6 +295,52 @@ func (h *EventHandler) CancelEvent(c *fiber.Ctx) error {
 
 	claims := httpapi.UserClaims(c)
 	if err := h.service.CancelEvent(c.UserContext(), claims.UserID, eventID); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// CompleteEvent handles PATCH /events/:id/complete.
+// Transitions an ACTIVE or IN_PROGRESS event to COMPLETED. Only the host may perform this.
+func (h *EventHandler) CompleteEvent(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	if err := h.service.CompleteEvent(c.UserContext(), claims.UserID, eventID); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// AddFavorite handles POST /events/:id/favorite.
+func (h *EventHandler) AddFavorite(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	if err := h.service.AddFavorite(c.UserContext(), claims.UserID, eventID); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// RemoveFavorite handles DELETE /events/:id/favorite.
+func (h *EventHandler) RemoveFavorite(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	if err := h.service.RemoveFavorite(c.UserContext(), claims.UserID, eventID); err != nil {
 		return httpapi.WriteError(c, err)
 	}
 

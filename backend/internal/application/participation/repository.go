@@ -10,4 +10,5 @@ import (
 // Repository is the application-layer persistence port for participations.
 type Repository interface {
 	CreateParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error)
+	LeaveParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error)
 }

@@ -13,6 +13,8 @@
     "@react-native-community/datetimepicker": "^9.1.0",
     "@react-native-community/slider": "5.1.2",
     "expo": "~55.0.8",
+    "expo-image-manipulator": "~55.0.13",
+    "expo-image-picker": "~55.0.16",
     "expo-linking": "~55.0.8",
     "expo-router": "~55.0.7",
     "expo-splash-screen": "~55.0.12",

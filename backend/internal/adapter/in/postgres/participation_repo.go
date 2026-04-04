@@ -9,7 +9,6 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -25,45 +24,74 @@ func NewParticipationRepository(pool *pgxpool.Pool) *ParticipationRepository {
 }
 
 // CreateParticipation inserts an APPROVED participation row.
-// Returns a ConflictError with code already_participating on duplicate (event_id, user_id).
+// Rejoins before start reactivate the existing row instead of inserting a duplicate.
 func (r *ParticipationRepository) CreateParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
-	var (
-		id        uuid.UUID
-		status    string
-		createdAt time.Time
-		updatedAt time.Time
-	)
-
-	err := r.pool.QueryRow(ctx, `
+	participation, err := scanParticipation(r.pool.QueryRow(ctx, `
 		WITH joinable_event AS (
-			SELECT id
+			SELECT id, start_time
 			FROM event
 			WHERE id = $1
 			  AND host_id <> $2
 			  AND privacy_level = $3
 			  AND (capacity IS NULL OR approved_participant_count < capacity)
+		),
+		reactivated AS (
+			UPDATE participation
+			SET status = $4,
+			    created_at = NOW(),
+			    updated_at = NOW()
+			WHERE event_id = $1
+			  AND user_id = $2
+			  AND status = $5
+			  AND updated_at < (SELECT start_time FROM joinable_event)
+			RETURNING id, status, created_at, updated_at
+		),
+		inserted AS (
+			INSERT INTO participation (event_id, user_id, status)
+			SELECT id, $2, $4
+			FROM joinable_event
+			WHERE NOT EXISTS (SELECT 1 FROM reactivated)
+			ON CONFLICT ON CONSTRAINT uq_event_user DO NOTHING
+			RETURNING id, status, created_at, updated_at
 		)
-		INSERT INTO participation (event_id, user_id, status)
-		SELECT id, $2, $4
-		FROM joinable_event
-		ON CONFLICT ON CONSTRAINT uq_event_user DO NOTHING
-		RETURNING id, status, created_at, updated_at
-	`, eventID, userID, domain.PrivacyPublic, domain.ParticipationStatusApproved).Scan(&id, &status, &createdAt, &updatedAt)
+		SELECT id, status, created_at, updated_at
+		FROM reactivated
+		UNION ALL
+		SELECT id, status, created_at, updated_at
+		FROM inserted
+		LIMIT 1
+	`, eventID, userID, domain.PrivacyPublic, domain.ParticipationStatusApproved, domain.ParticipationStatusLeaved), eventID, userID, "create participation")
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, r.mapCreateParticipationNoRow(ctx, eventID, userID)
-		}
-		return nil, mapParticipationInsertError(err)
+		return nil, err
 	}
 
-	return &domain.Participation{
-		ID:        id,
-		EventID:   eventID,
-		UserID:    userID,
-		Status:    status,
-		CreatedAt: createdAt,
-		UpdatedAt: updatedAt,
-	}, nil
+	if participation == nil {
+		return nil, r.mapCreateParticipationNoRow(ctx, eventID, userID)
+	}
+
+	return participation, nil
+}
+
+// LeaveParticipation transitions an APPROVED participation to LEAVED.
+func (r *ParticipationRepository) LeaveParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
+	participation, err := scanParticipation(r.pool.QueryRow(ctx, `
+		UPDATE participation
+		SET status = $3,
+		    updated_at = NOW()
+		WHERE event_id = $1
+		  AND user_id = $2
+		  AND status = $4
+		RETURNING id, status, created_at, updated_at
+	`, eventID, userID, domain.ParticipationStatusLeaved, domain.ParticipationStatusApproved), eventID, userID, "leave participation")
+	if err != nil {
+		return nil, err
+	}
+
+	if participation == nil {
+		return nil, r.mapLeaveParticipationNoRow(ctx, eventID)
+	}
+
+	return participation, nil
 }
 
 func (r *ParticipationRepository) mapCreateParticipationNoRow(ctx context.Context, eventID, userID uuid.UUID) error {
@@ -85,15 +113,32 @@ func (r *ParticipationRepository) mapCreateParticipationNoRow(ctx context.Contex
 		return domain.ConflictError(domain.ErrorCodeCapacityExceeded, "This event has reached its maximum capacity.")
 	}
 
-	exists, err := r.participationExists(ctx, eventID, userID)
+	participation, err := loadParticipation(ctx, r.pool, eventID, userID, false)
 	if err != nil {
 		return err
 	}
-	if exists {
-		return domain.ConflictError(domain.ErrorCodeAlreadyParticipating, "You are already participating in this event.")
+	if participation != nil {
+		return mapJoinParticipationConflict(
+			participation,
+			event.StartTime,
+			"You are already participating in this event.",
+			"You cannot rejoin an event after leaving once it has started.",
+		)
 	}
 
-	return fmt.Errorf("insert participation: join preconditions changed during insert")
+	return fmt.Errorf("create participation: join preconditions changed during insert")
+}
+
+func (r *ParticipationRepository) mapLeaveParticipationNoRow(ctx context.Context, eventID uuid.UUID) error {
+	event, err := r.loadEventJoinState(ctx, eventID)
+	if err != nil {
+		return err
+	}
+	if event == nil {
+		return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+	}
+
+	return domain.ConflictError(domain.ErrorCodeEventLeaveNotAllowed, "Only approved participants can leave this event.")
 }
 
 func (r *ParticipationRepository) loadEventJoinState(ctx context.Context, eventID uuid.UUID) (*domain.Event, error) {
@@ -102,13 +147,14 @@ func (r *ParticipationRepository) loadEventJoinState(ctx context.Context, eventI
 		privacyLevel  string
 		capacity      pgtype.Int4
 		approvedCount int
+		startTime     time.Time
 	)
 
 	err := r.pool.QueryRow(ctx, `
-		SELECT host_id, privacy_level, capacity, approved_participant_count
+		SELECT host_id, privacy_level, capacity, approved_participant_count, start_time
 		FROM event
 		WHERE id = $1
-	`, eventID).Scan(&hostID, &privacyLevel, &capacity, &approvedCount)
+	`, eventID).Scan(&hostID, &privacyLevel, &capacity, &approvedCount, &startTime)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -121,34 +167,11 @@ func (r *ParticipationRepository) loadEventJoinState(ctx context.Context, eventI
 		HostID:                   hostID,
 		PrivacyLevel:             domain.EventPrivacyLevel(privacyLevel),
 		ApprovedParticipantCount: approvedCount,
+		StartTime:                startTime,
 	}
 	if capacity.Valid {
 		event.Capacity = new(int(capacity.Int32))
 	}
 
 	return event, nil
-}
-
-func (r *ParticipationRepository) participationExists(ctx context.Context, eventID, userID uuid.UUID) (bool, error) {
-	var exists bool
-	err := r.pool.QueryRow(ctx, `
-		SELECT EXISTS (
-			SELECT 1
-			FROM participation
-			WHERE event_id = $1 AND user_id = $2
-		)
-	`, eventID, userID).Scan(&exists)
-	if err != nil {
-		return false, fmt.Errorf("check participation existence: %w", err)
-	}
-	return exists, nil
-}
-
-// mapParticipationInsertError converts a UNIQUE constraint violation on the
-// participation table into a domain ConflictError.
-func mapParticipationInsertError(err error) error {
-	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" && pgErr.ConstraintName == "uq_event_user" {
-		return domain.ConflictError(domain.ErrorCodeAlreadyParticipating, "You are already participating in this event.")
-	}
-	return fmt.Errorf("insert participation: %w", err)
 }

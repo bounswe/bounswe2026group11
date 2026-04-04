@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { router, usePathname, type Href } from 'expo-router';
 
 type TabItem = {
@@ -23,7 +23,12 @@ export default function BottomTabBar() {
   return (
     <View style={styles.container}>
       {TABS.map((tab) => {
-        const active = tab.key === 'explore' ? pathname === '/home' : false;
+        const active =
+          tab.key === 'explore'
+            ? pathname === '/home'
+            : tab.key === 'favorites'
+              ? pathname === '/favorites'
+              : false;
 
         if (tab.primary) {
           const createActive = pathname === '/event/create';
@@ -55,6 +60,8 @@ export default function BottomTabBar() {
             onPress={() => {
               if (tab.key === 'explore') {
                 router.push('/home' as Href);
+              } else if (tab.key === 'favorites') {
+                router.push('/favorites' as Href);
               }
             }}
           >
@@ -67,24 +74,24 @@ export default function BottomTabBar() {
             )}
 
             {tab.key === 'favorites' && (
-              <Ionicons
-                name="heart-outline"
+              <MaterialIcons
+                name={active ? 'favorite' : 'favorite-border'}
                 size={22}
-                color="#9CA3AF"
+                color={active ? '#111827' : '#9CA3AF'}
               />
             )}
 
             {tab.key === 'events' && (
-              <Ionicons
-                name="calendar-outline"
+              <Feather
+                name="calendar"
                 size={22}
                 color="#9CA3AF"
               />
             )}
 
             {tab.key === 'profile' && (
-              <Ionicons
-                name="person-outline"
+              <Feather
+                name="user"
                 size={22}
                 color="#9CA3AF"
               />

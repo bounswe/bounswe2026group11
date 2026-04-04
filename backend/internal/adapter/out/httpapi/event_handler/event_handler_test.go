@@ -24,12 +24,14 @@ type stubEventService struct {
 	callCount                int
 	discoverCallCount        int
 	detailCallCount          int
+	leaveCallCount           int
 	requestJoinCallCount     int
 	approveJoinCallCount     int
 	rejectJoinCallCount      int
 	lastInput                event.CreateEventInput
 	lastDiscoverInput        event.DiscoverEventsInput
 	lastDetailEventID        uuid.UUID
+	lastLeaveEventID         uuid.UUID
 	lastRequestJoinInput     event.RequestJoinInput
 	lastApproveJoinEventID   uuid.UUID
 	lastApproveJoinRequestID uuid.UUID
@@ -122,6 +124,20 @@ func (s *stubEventService) JoinEvent(_ context.Context, _, eventID uuid.UUID) (*
 	}, nil
 }
 
+func (s *stubEventService) LeaveEvent(_ context.Context, _, eventID uuid.UUID) (*event.LeaveEventResult, error) {
+	s.leaveCallCount++
+	s.lastLeaveEventID = eventID
+	if s.err != nil {
+		return nil, s.err
+	}
+	return &event.LeaveEventResult{
+		ParticipationID: uuid.New().String(),
+		EventID:         eventID.String(),
+		Status:          domain.ParticipationStatusLeaved,
+		UpdatedAt:       time.Now().UTC(),
+	}, nil
+}
+
 func (s *stubEventService) RequestJoin(_ context.Context, _, eventID uuid.UUID, input event.RequestJoinInput) (*event.RequestJoinResult, error) {
 	s.requestJoinCallCount++
 	s.lastRequestJoinInput = input
@@ -172,6 +188,22 @@ func (s *stubEventService) RejectJoinRequest(_ context.Context, _, eventID, join
 
 func (s *stubEventService) CancelEvent(_ context.Context, _, eventID uuid.UUID) error {
 	return s.err
+}
+
+func (s *stubEventService) CompleteEvent(_ context.Context, _, _ uuid.UUID) error {
+	return s.err
+}
+
+func (s *stubEventService) AddFavorite(_ context.Context, _, _ uuid.UUID) error {
+	return s.err
+}
+
+func (s *stubEventService) RemoveFavorite(_ context.Context, _, _ uuid.UUID) error {
+	return s.err
+}
+
+func (s *stubEventService) ListFavoriteEvents(_ context.Context, _ uuid.UUID) (*event.FavoriteEventsResult, error) {
+	return &event.FavoriteEventsResult{Items: []event.FavoriteEventItem{}}, s.err
 }
 
 // fakeVerifier implements domain.TokenVerifier for tests in this package.
@@ -764,6 +796,54 @@ func TestJoinEventInvalidIDReturns400(t *testing.T) {
 	}
 }
 
+func TestLeaveEventInvalidIDReturns400(t *testing.T) {
+	// given
+	app := newEventTestApp(&stubEventService{}, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodPatch, "/events/not-a-uuid/leave", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+}
+
+func TestLeaveEventParsesIDBeforeCallingService(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+	eventID := uuid.New()
+
+	req := httptest.NewRequest(fiber.MethodPatch, "/events/"+eventID.String()+"/leave", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if svc.leaveCallCount != 1 {
+		t.Fatalf("expected leave service to be called once, got %d", svc.leaveCallCount)
+	}
+	if svc.lastLeaveEventID != eventID {
+		t.Fatalf("expected parsed event %s, got %s", eventID, svc.lastLeaveEventID)
+	}
+}
+
 func TestRequestJoinInvalidIDReturns400(t *testing.T) {
 	// given
 	app := newEventTestApp(&stubEventService{}, authedVerifier())
@@ -929,5 +1009,23 @@ func TestRejectJoinRequestParsesIDsBeforeCallingService(t *testing.T) {
 	}
 	if svc.lastRejectJoinEventID != eventID || svc.lastRejectJoinRequestID != joinRequestID {
 		t.Fatalf("expected parsed event %s and join request %s, got %s and %s", eventID, joinRequestID, svc.lastRejectJoinEventID, svc.lastRejectJoinRequestID)
+	}
+}
+
+func TestCompleteEventReturns204(t *testing.T) {
+	app := newEventTestApp(&stubEventService{}, authedVerifier())
+	eventID := uuid.New()
+
+	req := httptest.NewRequest(fiber.MethodPatch, "/events/"+eventID.String()+"/complete", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != fiber.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", fiber.StatusNoContent, resp.StatusCode)
 	}
 }

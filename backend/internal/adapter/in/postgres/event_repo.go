@@ -346,6 +346,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 				el.address AS location_address,
 				e.privacy_level,
 				e.approved_participant_count,
+				e.favorite_count,
 				(fav.event_id IS NOT NULL) AS is_favorited,
 				us.final_score AS host_final_score,
 				COALESCE(us.hosted_event_rating_count, 0) AS host_rating_count,
@@ -367,6 +368,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 			location_address,
 			privacy_level,
 			approved_participant_count,
+			favorite_count,
 			is_favorited,
 			host_final_score,
 			host_rating_count,
@@ -395,6 +397,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 			locationAddress          pgtype.Text
 			privacyLevel             string
 			approvedParticipantCount int
+			favoriteCount            int
 			isFavorited              bool
 			hostFinalScore           pgtype.Float8
 			hostRatingCount          int
@@ -411,6 +414,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 			&locationAddress,
 			&privacyLevel,
 			&approvedParticipantCount,
+			&favoriteCount,
 			&isFavorited,
 			&hostFinalScore,
 			&hostRatingCount,
@@ -427,6 +431,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 			StartTime:                startTime,
 			PrivacyLevel:             domain.EventPrivacyLevel(privacyLevel),
 			ApprovedParticipantCount: approvedParticipantCount,
+			FavoriteCount:            favoriteCount,
 			IsFavorited:              isFavorited,
 			HostScore: eventapp.EventHostScoreSummaryRecord{
 				HostedEventRatingCount: hostRatingCount,
@@ -650,17 +655,31 @@ func (r *EventRepository) loadEventDetailCore(
 				) THEN $5
 				WHEN EXISTS (
 					SELECT 1
+					FROM participation p
+					WHERE p.event_id = e.id
+					  AND p.user_id = $2
+					  AND p.status = $6
+				) THEN $7
+				WHEN EXISTS (
+					SELECT 1
+					FROM participation p
+					WHERE p.event_id = e.id
+					  AND p.user_id = $2
+					  AND p.status = $14
+				) THEN $15
+				WHEN EXISTS (
+					SELECT 1
 					FROM join_request jr
 					WHERE jr.event_id = e.id
 					  AND jr.user_id = $2
-					  AND jr.status = $6
-				) THEN $7
+					  AND jr.status = $8
+				) THEN $9
 				WHEN EXISTS (
 					SELECT 1
 					FROM invitation inv
 					WHERE inv.event_id = e.id
 					  AND inv.invited_user_id = $2
-				) THEN $8
+				) THEN $10
 				ELSE $3
 			END AS participation_status
 		FROM event e
@@ -671,21 +690,21 @@ func (r *EventRepository) loadEventDetailCore(
 		LEFT JOIN user_score us ON us.user_id = host.id
 		WHERE e.id = $1
 		  AND (
-			e.privacy_level IN ($9, $10)
+			e.privacy_level IN ($11, $12)
 			OR e.host_id = $2
 			OR EXISTS (
 				SELECT 1
 				FROM participation p
 				WHERE p.event_id = e.id
 				  AND p.user_id = $2
-				  AND p.status = $4
+				  AND p.status IN ($4, $6, $14)
 			)
 			OR EXISTS (
 				SELECT 1
 				FROM invitation inv
 				WHERE inv.event_id = e.id
 				  AND inv.invited_user_id = $2
-				  AND inv.status = $11
+				  AND inv.status = $13
 			)
 		  )
 	`,
@@ -694,12 +713,16 @@ func (r *EventRepository) loadEventDetailCore(
 		string(domain.EventDetailParticipationStatusNone),
 		domain.ParticipationStatusApproved,
 		string(domain.EventDetailParticipationStatusJoined),
+		domain.ParticipationStatusLeaved,
+		string(domain.EventDetailParticipationStatusLeaved),
 		string(domain.JoinRequestStatusPending),
 		string(domain.EventDetailParticipationStatusPending),
 		string(domain.EventDetailParticipationStatusInvited),
 		string(domain.PrivacyPublic),
 		string(domain.PrivacyProtected),
 		string(domain.InvitationStatusAccepted),
+		domain.ParticipationStatusCanceled,
+		string(domain.EventDetailParticipationStatusCanceled),
 	).Scan(
 		&id,
 		&title,
@@ -1073,9 +1096,14 @@ func (r *EventRepository) loadApprovedParticipants(
 			return nil, fmt.Errorf("scan approved participant: %w", err)
 		}
 
+		participationStatus, ok := domain.ParseParticipationStatus(status)
+		if !ok {
+			return nil, fmt.Errorf("scan approved participant: unknown participation status %q", status)
+		}
+
 		participant := eventapp.EventDetailApprovedParticipantRecord{
 			ParticipationID: participationID,
-			Status:          status,
+			Status:          participationStatus,
 			CreatedAt:       createdAt,
 			UpdatedAt:       updatedAt,
 			User: eventapp.EventDetailHostContextUserRecord{
@@ -1430,7 +1458,8 @@ func (r *EventRepository) SetEventImageIfVersion(
 
 var _ imageuploadapp.EventRepository = (*EventRepository)(nil)
 
-// CancelEvent sets the event status to CANCELED and cancels all its participations atomically.
+// CancelEvent sets the event status to CANCELED and transitions active
+// participations to CANCELED atomically while preserving historical LEAVED rows.
 // Returns ErrEventNotCancelable if the event is not in ACTIVE status.
 func (r *EventRepository) CancelEvent(ctx context.Context, eventID uuid.UUID) error {
 	tx, err := r.pool.Begin(ctx)
@@ -1439,11 +1468,25 @@ func (r *EventRepository) CancelEvent(ctx context.Context, eventID uuid.UUID) er
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
+	// Snapshot the current approved participant count (excluding the host's own participation).
+	var approvedCount int
+	if err := tx.QueryRow(ctx, `
+		SELECT approved_participant_count
+		FROM event
+		WHERE id = $1
+	`, eventID).Scan(&approvedCount); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return eventapp.ErrEventNotCancelable
+		}
+		return fmt.Errorf("cancel event: snapshot count: %w", err)
+	}
+
 	tag, err := tx.Exec(ctx, `
 		UPDATE event
-		SET status = 'CANCELED'
+		SET status = 'CANCELED',
+		    canceled_approved_participant_count = $2
 		WHERE id = $1 AND status = 'ACTIVE'
-	`, eventID)
+	`, eventID, approvedCount)
 	if err != nil {
 		return fmt.Errorf("cancel event: %w", err)
 	}
@@ -1455,12 +1498,30 @@ func (r *EventRepository) CancelEvent(ctx context.Context, eventID uuid.UUID) er
 		UPDATE participation
 		SET status = $1, updated_at = NOW()
 		WHERE event_id = $2
-	`, domain.ParticipationStatusCanceled, eventID)
+		  AND status <> $3
+	`, domain.ParticipationStatusCanceled, eventID, domain.ParticipationStatusLeaved)
 	if err != nil {
 		return fmt.Errorf("cancel event participations: %w", err)
 	}
 
 	return tx.Commit(ctx)
+}
+
+// CompleteEvent sets the event status to COMPLETED when it is ACTIVE or IN_PROGRESS.
+// Returns ErrEventNotCompletable when the event is CANCELED, COMPLETED, or any other non-completable status.
+func (r *EventRepository) CompleteEvent(ctx context.Context, eventID uuid.UUID) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE event
+		SET status = 'COMPLETED', updated_at = NOW()
+		WHERE id = $1 AND status IN ('ACTIVE', 'IN_PROGRESS')
+	`, eventID)
+	if err != nil {
+		return fmt.Errorf("complete event: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return eventapp.ErrEventNotCompletable
+	}
+	return nil
 }
 
 // TransitionEventStatuses moves ACTIVE events to IN_PROGRESS when their
@@ -1479,3 +1540,68 @@ func (r *EventRepository) TransitionEventStatuses(ctx context.Context) error {
 	return err
 }
 
+// AddFavorite inserts a row into favorite_event. If the row already exists the
+// operation is silently ignored (idempotent).
+func (r *EventRepository) AddFavorite(ctx context.Context, userID, eventID uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO favorite_event (user_id, event_id)
+		VALUES ($1, $2)
+		ON CONFLICT (user_id, event_id) DO NOTHING
+	`, userID, eventID)
+	if err != nil {
+		return fmt.Errorf("add favorite: %w", err)
+	}
+	return nil
+}
+
+// RemoveFavorite deletes a row from favorite_event. If no row exists the
+// operation is silently ignored (idempotent).
+func (r *EventRepository) RemoveFavorite(ctx context.Context, userID, eventID uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `
+		DELETE FROM favorite_event
+		WHERE user_id = $1 AND event_id = $2
+	`, userID, eventID)
+	if err != nil {
+		return fmt.Errorf("remove favorite: %w", err)
+	}
+	return nil
+}
+
+// ListFavoriteEvents returns all events the user has favorited, ordered by most
+// recently favorited first.
+func (r *EventRepository) ListFavoriteEvents(ctx context.Context, userID uuid.UUID) ([]eventapp.FavoriteEventRecord, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT e.id, e.title, ec.name, e.image_url, e.status,
+		       e.start_time, e.end_time, fav.created_at
+		FROM favorite_event fav
+		JOIN event e ON e.id = fav.event_id
+		LEFT JOIN event_category ec ON ec.id = e.category_id
+		WHERE fav.user_id = $1
+		ORDER BY fav.created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list favorite events: %w", err)
+	}
+	defer rows.Close()
+
+	var records []eventapp.FavoriteEventRecord
+	for rows.Next() {
+		var (
+			r       eventapp.FavoriteEventRecord
+			status  string
+			catName *string
+			endTime pgtype.Timestamptz
+		)
+		if err := rows.Scan(&r.ID, &r.Title, &catName, &r.ImageURL, &status,
+			&r.StartTime, &endTime, &r.FavoritedAt); err != nil {
+			return nil, fmt.Errorf("scan favorite event: %w", err)
+		}
+		r.Status = domain.EventStatus(status)
+		r.CategoryName = catName
+		if endTime.Valid {
+			r.EndTime = &endTime.Time
+		}
+		records = append(records, r)
+	}
+	return records, rows.Err()
+}

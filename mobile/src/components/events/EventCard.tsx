@@ -1,7 +1,8 @@
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { EventSummary } from '@/models/event';
+import { getFavoriteCountForDisplay } from '@/utils/eventFavoriteCount';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
 
@@ -15,7 +16,7 @@ function formatPrivacyLabel(value: EventSummary['privacy_level']) {
 }
 
 export default function EventCard({ event, onPress }: EventCardProps) {
-  const favoriteCount = event.favorite_count ?? 0;
+  const favoriteCount = getFavoriteCountForDisplay(event);
   const ratingLabel =
     event.host_score.final_score != null
       ? event.host_score.final_score.toFixed(1)
@@ -55,11 +56,11 @@ export default function EventCard({ event, onPress }: EventCardProps) {
                   : styles.visibilityBadgePublic,
               ]}
             >
-              <Ionicons
+              <Feather
                 name={
                   event.privacy_level === 'PROTECTED'
-                    ? 'lock-closed-outline'
-                    : 'globe-outline'
+                    ? 'lock'
+                    : 'globe'
                 }
                 size={12}
                 color={
@@ -94,7 +95,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
 
         <View style={styles.metaGroup}>
           <View style={styles.metaRow}>
-            <Ionicons name="location-outline" size={18} color="#6B7280" />
+            <Feather name="map-pin" size={18} color="#6B7280" />
             <Text style={styles.metaText}>
               {formatEventLocation(event.location_address)}
             </Text>
@@ -110,21 +111,17 @@ export default function EventCard({ event, onPress }: EventCardProps) {
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Ionicons name="people-outline" size={18} color="#94A3B8" />
+            <Feather name="users" size={18} color="#94A3B8" />
             <Text style={styles.statText}>{participantLabel}</Text>
           </View>
 
           <View style={styles.statItem}>
-            <Ionicons
-              name={event.is_favorited ? 'heart' : 'heart-outline'}
-              size={18}
-              color="#4B5563"
-            />
+            <Feather name="heart" size={18} color="#4B5563" />
             <Text style={styles.statText}>{favoriteCount}</Text>
           </View>
 
           <View style={styles.statItem}>
-            <Ionicons name="star" size={18} color="#4B5563" />
+            <Feather name="star" size={18} color="#4B5563" />
             <Text style={styles.ratingText}>{ratingLabel}</Text>
           </View>
         </View>

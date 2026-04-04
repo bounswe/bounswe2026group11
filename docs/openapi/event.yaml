@@ -636,6 +636,8 @@ paths:
         - The event must exist and have `privacy_level: PUBLIC`.
         - The authenticated user must not be the event host.
         - A user can only join the same event once; a second attempt returns `409`.
+        - If the user previously left before `start_time`, the backend reactivates the same participation row as `APPROVED`.
+        - If the user left at or after `start_time`, later direct join attempts return `409 already_participating`.
         - Calling this endpoint on a `PROTECTED` event returns `409 event_join_not_allowed`.
       operationId: joinEvent
       security:
@@ -733,6 +735,120 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /events/{id}/leave:
+    patch:
+      tags: [Events]
+      summary: Leave an event
+      description: |
+        Marks the authenticated user's participation as `LEAVED`.
+
+        Rules:
+        - The event must exist.
+        - The authenticated user must currently have an `APPROVED` participation.
+        - The event host cannot leave their own event.
+        - A pending join request does not qualify; only approved participants may leave.
+        - Leaving is allowed before `start_time` and while the event is still active.
+        - Leaving is no longer allowed after the event has ended or once the event is already `CANCELED` or `COMPLETED`.
+        - If the user leaves before `start_time`, the event is excluded from completed/past participation lists.
+        - If the user leaves before `start_time`, they can join again directly on `PUBLIC` events or submit a new join request on `PROTECTED` events.
+        - If the user leaves after `start_time`, completed/past participation lists may still include the event after it finishes.
+        - If the user leaves at or after `start_time`, they cannot join the same event again.
+      operationId: leaveEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event to leave.
+          example: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+      responses:
+        '200':
+          description: Successfully left the event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveEventResponse'
+              examples:
+                left:
+                  value:
+                    participation_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                    event_id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                    status: LEAVED
+                    updated_at: "2026-03-26T11:30:00+03:00"
+        '400':
+          description: Invalid event ID format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                invalid_id:
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        id: must be a valid UUID
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: The event host cannot leave their own event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                host_cannot_leave:
+                  value:
+                    error:
+                      code: host_cannot_leave
+                      message: The event host cannot leave their own event.
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                not_found:
+                  value:
+                    error:
+                      code: event_not_found
+                      message: The requested event does not exist.
+        '409':
+          description: |
+            Conflict. Either the caller is not an approved participant (`event_leave_not_allowed`)
+            or the event can no longer be left in its current timing/state (`event_not_leaveable`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                event_leave_not_allowed:
+                  value:
+                    error:
+                      code: event_leave_not_allowed
+                      message: Only approved participants can leave this event.
+                event_not_leaveable:
+                  value:
+                    error:
+                      code: event_not_leaveable
+                      message: This event can no longer be left.
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /events/{id}/cancel:
     patch:
       tags: [Events]
@@ -787,6 +903,62 @@ paths:
                   code: event_not_cancelable
                   message: Only ACTIVE events can be canceled.
 
+  /events/{id}/complete:
+    patch:
+      tags: [Events]
+      summary: Mark event as completed (host)
+      description: |
+        Transitions an **ACTIVE** or **IN_PROGRESS** event to **COMPLETED**. Only the event host may perform this action.
+
+        Use this to close **open-ended** events (no `end_time`) or to finish a timed event early. The background job may also complete events when `end_time` has passed.
+
+        Rules:
+        - The event must exist.
+        - Only the authenticated host can complete their own event.
+        - If the event is already **CANCELED** or **COMPLETED**, the request returns **409**.
+      operationId: completeEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Event UUID.
+      responses:
+        "204":
+          description: Event marked as completed successfully.
+        "401":
+          description: Missing or invalid access token.
+        "403":
+          description: The caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: event_complete_not_allowed
+                  message: Only the event host can complete this event.
+        "404":
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Event is already CANCELED or COMPLETED.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: event_not_completable
+                  message: The event cannot be completed because it is already CANCELED or COMPLETED.
+
   /events/{id}/join-request:
     post:
       tags: [Events]
@@ -801,6 +973,8 @@ paths:
         - A user can only submit one pending request per event; a second attempt returns `409`.
         - After the host rejects a request, the same user must wait **3 days** before requesting again.
         - When the cooldown expires, the backend reactivates the same `join_request` row as `PENDING`.
+        - If the user previously had an approved participation but left before `start_time`, the backend reactivates the same `join_request` row as `PENDING` so the host can approve them again.
+        - If the user left at or after `start_time`, later request attempts return `409 already_participating`.
         - Calling this endpoint on a `PUBLIC` event returns `409 event_join_not_allowed`.
       operationId: requestJoinEvent
       security:
@@ -927,7 +1101,9 @@ paths:
       description: |
         Allows the authenticated event host to approve a **PENDING** join request for a
         **PROTECTED** event. Approval updates the join request to `APPROVED` and creates an
-        `APPROVED` participation row atomically.
+        `APPROVED` participation row atomically. If the requester had left before
+        `start_time`, approval reactivates the same participation row instead of creating a
+        second one.
       operationId: approveJoinRequest
       security:
         - bearerAuth: []
@@ -1297,6 +1473,7 @@ paths:
                         location_address: Belgrad Forest, Istanbul
                         privacy_level: PUBLIC
                         approved_participant_count: 42
+                        favorite_count: 8
                         is_favorited: true
                         host_score:
                           final_score: 4.18
@@ -1309,6 +1486,7 @@ paths:
                         location_address: Besiktas, Istanbul
                         privacy_level: PROTECTED
                         approved_participant_count: 18
+                        favorite_count: 3
                         is_favorited: false
                         host_score:
                           final_score: null
@@ -1511,6 +1689,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /events/{id}/favorite:
+    post:
+      tags: [Events]
+      summary: Add event to favorites
+      description: Saves the event to the authenticated user's favorites. Idempotent — calling twice has no additional effect.
+      operationId: addFavorite
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Event added to favorites (or already favorited).
+        '401':
+          description: Missing or invalid access token.
+    delete:
+      tags: [Events]
+      summary: Remove event from favorites
+      description: Removes the event from the authenticated user's favorites. Idempotent — calling when not favorited has no effect.
+      operationId: removeFavorite
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Event removed from favorites (or was not favorited).
+        '401':
+          description: Missing or invalid access token.
+
+  /me/favorites:
+    get:
+      tags: [Events]
+      summary: List favorite events
+      description: Returns the authenticated user's favorite events ordered by most recently favorited first.
+      operationId: listFavoriteEvents
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Favorite events listed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteEventsResponse'
+        '401':
+          description: Missing or invalid access token.
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1738,6 +1974,7 @@ components:
         - start_time
         - privacy_level
         - approved_participant_count
+        - favorite_count
         - is_favorited
         - host_score
       properties:
@@ -1781,6 +2018,11 @@ components:
           minimum: 0
           description: Current count of approved participants.
           example: 42
+        favorite_count:
+          type: integer
+          minimum: 0
+          description: Total number of users who have favorited this event.
+          example: 8
         is_favorited:
           type: boolean
           description: Whether the authenticated user has favorited the event.
@@ -2044,10 +2286,11 @@ components:
           type: boolean
         participation_status:
           type: string
-          enum: [JOINED, PENDING, INVITED, NONE]
+          enum: [JOINED, LEAVED, PENDING, INVITED, CANCELED, NONE]
           description: |
             Resolved for the authenticated user with the following precedence:
-            approved participation -> `JOINED`, pending join request -> `PENDING`,
+            approved participation -> `JOINED`, leaved participation -> `LEAVED`,
+            canceled participation -> `CANCELED`, pending join request -> `PENDING`,
             invitation row -> `INVITED`, otherwise `NONE`.
 
     EventHostScoreSummary:
@@ -2382,7 +2625,7 @@ components:
         participation_id:
           type: string
           format: uuid
-          description: UUID of the newly created participation record.
+          description: UUID of the created or reactivated participation record.
           example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
         event_id:
           type: string
@@ -2397,7 +2640,33 @@ components:
         created_at:
           type: string
           format: date-time
+          description: Timestamp of the join or rejoin activation.
           example: "2026-03-26T11:00:00+03:00"
+
+    LeaveEventResponse:
+      type: object
+      additionalProperties: false
+      required: [participation_id, event_id, status, updated_at]
+      properties:
+        participation_id:
+          type: string
+          format: uuid
+          description: UUID of the updated participation record.
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        event_id:
+          type: string
+          format: uuid
+          description: UUID of the event that was left.
+          example: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+        status:
+          type: string
+          enum: [LEAVED]
+          description: Participation status after leaving. Always `LEAVED`.
+          example: LEAVED
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-03-26T11:30:00+03:00"
 
     RequestJoinRequest:
       type: object
@@ -2418,7 +2687,7 @@ components:
         join_request_id:
           type: string
           format: uuid
-          description: UUID of the newly created join request.
+          description: UUID of the created or reactivated join request.
           example: b2c3d4e5-f6a7-8901-bcde-f01234567890
         event_id:
           type: string
@@ -2433,6 +2702,7 @@ components:
         created_at:
           type: string
           format: date-time
+          description: Timestamp of the join request creation or reactivation.
           example: "2026-03-26T12:00:00+03:00"
 
     ApproveJoinRequestResponse:
@@ -2477,5 +2747,49 @@ components:
           type: string
           format: date-time
         cooldown_ends_at:
+          type: string
+          format: date-time
+
+    FavoriteEventsResponse:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FavoriteEventItem'
+
+    FavoriteEventItem:
+      type: object
+      additionalProperties: false
+      required: [id, title, status, start_time, favorited_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        category:
+          type:
+            - string
+            - "null"
+        image_url:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+          description: Event status, for example `ACTIVE`, `IN_PROGRESS`, `CANCELED`, or `COMPLETED`.
+          example: ACTIVE
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type:
+            - string
+            - "null"
+          format: date-time
+        favorited_at:
           type: string
           format: date-time

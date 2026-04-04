@@ -81,6 +81,30 @@ func (r *fakeEventRepo) CancelEvent(_ context.Context, eventID uuid.UUID) error 
 	return nil
 }
 
+func (r *fakeEventRepo) CompleteEvent(_ context.Context, eventID uuid.UUID) error {
+	if r.err != nil {
+		return r.err
+	}
+	e, ok := r.events[eventID]
+	if !ok || (e.Status != domain.EventStatusActive && e.Status != domain.EventStatusInProgress) {
+		return ErrEventNotCompletable
+	}
+	e.Status = domain.EventStatusCompleted
+	return nil
+}
+
+func (r *fakeEventRepo) AddFavorite(_ context.Context, _, _ uuid.UUID) error {
+	return r.err
+}
+
+func (r *fakeEventRepo) RemoveFavorite(_ context.Context, _, _ uuid.UUID) error {
+	return r.err
+}
+
+func (r *fakeEventRepo) ListFavoriteEvents(_ context.Context, _ uuid.UUID) ([]FavoriteEventRecord, error) {
+	return nil, r.err
+}
+
 func (r *fakeEventRepo) ListDiscoverableEvents(_ context.Context, userID uuid.UUID, params DiscoverEventsParams) ([]DiscoverableEventRecord, error) {
 	r.discoverCallCount++
 	r.lastDiscoverUserID = userID
@@ -95,10 +119,13 @@ func (r *fakeEventRepo) ListDiscoverableEvents(_ context.Context, userID uuid.UU
 
 // fakeParticipationService is an in-memory implementation of ParticipationService.
 type fakeParticipationService struct {
-	err         error
-	callCount   int
-	lastEventID uuid.UUID
-	lastUserID  uuid.UUID
+	err              error
+	callCount        int
+	leaveCallCount   int
+	lastEventID      uuid.UUID
+	lastUserID       uuid.UUID
+	lastLeaveEventID uuid.UUID
+	lastLeaveUserID  uuid.UUID
 }
 
 func (s *fakeParticipationService) CreateApprovedParticipation(_ context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
@@ -116,6 +143,25 @@ func (s *fakeParticipationService) CreateApprovedParticipation(_ context.Context
 		UserID:    userID,
 		Status:    domain.ParticipationStatusApproved,
 		CreatedAt: now,
+		UpdatedAt: now,
+	}, nil
+}
+
+func (s *fakeParticipationService) LeaveParticipation(_ context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
+	s.leaveCallCount++
+	s.lastLeaveEventID = eventID
+	s.lastLeaveUserID = userID
+
+	if s.err != nil {
+		return nil, s.err
+	}
+	now := time.Now().UTC()
+	return &domain.Participation{
+		ID:        uuid.New(),
+		EventID:   eventID,
+		UserID:    userID,
+		Status:    domain.ParticipationStatusLeaved,
+		CreatedAt: now.Add(-time.Hour),
 		UpdatedAt: now,
 	}, nil
 }
@@ -1107,6 +1153,78 @@ func protectedEvent(hostID uuid.UUID) *domain.Event {
 	}
 }
 
+func TestCompleteEventHostSuccess(t *testing.T) {
+	hostID := uuid.New()
+	ev := publicEvent(hostID)
+	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+
+	if err := svc.CompleteEvent(context.Background(), hostID, ev.ID); err != nil {
+		t.Fatalf("CompleteEvent() error = %v", err)
+	}
+	if ev.Status != domain.EventStatusCompleted {
+		t.Fatalf("expected status COMPLETED, got %q", ev.Status)
+	}
+}
+
+func TestCompleteEventHostSuccessInProgress(t *testing.T) {
+	hostID := uuid.New()
+	ev := publicEvent(hostID)
+	ev.Status = domain.EventStatusInProgress
+	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+
+	if err := svc.CompleteEvent(context.Background(), hostID, ev.ID); err != nil {
+		t.Fatalf("CompleteEvent() error = %v", err)
+	}
+	if ev.Status != domain.EventStatusCompleted {
+		t.Fatalf("expected status COMPLETED, got %q", ev.Status)
+	}
+}
+
+func TestCompleteEventForbiddenForNonHost(t *testing.T) {
+	hostID := uuid.New()
+	other := uuid.New()
+	ev := publicEvent(hostID)
+	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+
+	err := svc.CompleteEvent(context.Background(), other, ev.ID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Status != 403 || appErr.Code != domain.ErrorCodeEventCompleteNotAllowed {
+		t.Fatalf("expected 403 event_complete_not_allowed, got %v", err)
+	}
+}
+
+func TestCompleteEventConflictWhenTerminal(t *testing.T) {
+	hostID := uuid.New()
+	ev := publicEvent(hostID)
+	ev.Status = domain.EventStatusCompleted
+	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+
+	err := svc.CompleteEvent(context.Background(), hostID, ev.ID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Status != 409 || appErr.Code != domain.ErrorCodeEventNotCompletable {
+		t.Fatalf("expected 409 event_not_completable, got %v", err)
+	}
+}
+
+func leaveableEvent(hostID uuid.UUID) *domain.Event {
+	start := time.Now().UTC().Add(time.Hour)
+	end := start.Add(2 * time.Hour)
+	return &domain.Event{
+		ID:           uuid.New(),
+		HostID:       hostID,
+		PrivacyLevel: domain.PrivacyPublic,
+		Status:       domain.EventStatusActive,
+		StartTime:    start,
+		EndTime:      &end,
+	}
+}
+
 func TestJoinEventSuccessReturnsApproved(t *testing.T) {
 	hostID := uuid.New()
 	joinerID := uuid.New()
@@ -1199,6 +1317,67 @@ func TestJoinEventAllowsWhenUnderCapacity(t *testing.T) {
 	}
 	if result.Status != domain.ParticipationStatusApproved {
 		t.Fatalf("expected status APPROVED, got %q", result.Status)
+	}
+}
+
+func TestLeaveEventSuccessReturnsLeaved(t *testing.T) {
+	hostID := uuid.New()
+	participantID := uuid.New()
+	ev := leaveableEvent(hostID)
+	svc, _, participationService, _ := newTestEventServiceWithEvent(ev)
+
+	result, err := svc.LeaveEvent(context.Background(), participantID, ev.ID)
+
+	if err != nil {
+		t.Fatalf("LeaveEvent() error = %v", err)
+	}
+	if result.Status != domain.ParticipationStatusLeaved {
+		t.Fatalf("expected status %q, got %q", domain.ParticipationStatusLeaved, result.Status)
+	}
+	if participationService.leaveCallCount != 1 {
+		t.Fatalf("expected leave participation service to be called once")
+	}
+	if participationService.lastLeaveEventID != ev.ID || participationService.lastLeaveUserID != participantID {
+		t.Fatalf("expected leave participation service to receive event %s and user %s", ev.ID, participantID)
+	}
+}
+
+func TestLeaveEventRejectsHost(t *testing.T) {
+	hostID := uuid.New()
+	ev := leaveableEvent(hostID)
+	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+
+	_, err := svc.LeaveEvent(context.Background(), hostID, ev.ID)
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeHostCannotLeave {
+		t.Fatalf("expected host_cannot_leave, got %v", err)
+	}
+}
+
+func TestLeaveEventRejectsEndedEvent(t *testing.T) {
+	hostID := uuid.New()
+	participantID := uuid.New()
+	end := time.Now().UTC().Add(-time.Minute)
+	ev := &domain.Event{
+		ID:           uuid.New(),
+		HostID:       hostID,
+		PrivacyLevel: domain.PrivacyPublic,
+		Status:       domain.EventStatusActive,
+		StartTime:    end.Add(-2 * time.Hour),
+		EndTime:      &end,
+	}
+	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+
+	_, err := svc.LeaveEvent(context.Background(), participantID, ev.ID)
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeEventNotLeaveable {
+		t.Fatalf("expected event_not_leaveable, got %v", err)
 	}
 }
 

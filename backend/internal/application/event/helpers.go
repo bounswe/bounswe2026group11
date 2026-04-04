@@ -74,6 +74,7 @@ func toDiscoverableEventItem(record DiscoverableEventRecord) DiscoverableEventIt
 		LocationAddress:          record.LocationAddress,
 		PrivacyLevel:             string(record.PrivacyLevel),
 		ApprovedParticipantCount: record.ApprovedParticipantCount,
+		FavoriteCount:            record.FavoriteCount,
 		IsFavorited:              record.IsFavorited,
 		HostScore:                toEventHostScoreSummary(record.HostScore),
 	}
