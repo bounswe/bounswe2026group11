@@ -1,14 +1,20 @@
 import { useState, useCallback, useEffect } from 'react';
+import { Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { UserProfile } from '@/models/profile';
 import type { ProfileEventSummary } from '@/models/profile';
 import {
+  confirmProfileAvatarUpload,
   getMyCompletedEvents,
   getMyHostedEvents,
   getMyProfile,
+  getProfileAvatarUploadUrl,
   getMyUpcomingEvents,
 } from '@/services/profileService';
 import { ApiError } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { uploadFileToPresignedUrl } from '@/services/eventService';
 
 export interface ProfileEventItem {
   id: string;
@@ -22,7 +28,9 @@ export interface ProfileEventItem {
 export interface ProfileViewModel {
   profile: UserProfile | null;
   isLoading: boolean;
+  isUploadingAvatar: boolean;
   apiError: string | null;
+  imageError: string | null;
   primaryName: string;
   secondaryName: string | null;
   avatarInitial: string;
@@ -30,7 +38,64 @@ export interface ProfileViewModel {
   attendedEvents: ProfileEventItem[];
   hostedCount: number;
   attendedCount: number;
+  pickAvatar: () => Promise<void>;
   refresh: () => Promise<void>;
+}
+
+function decodeFileUriOnce(uri: string): string {
+  if (!uri.startsWith('file://')) {
+    return uri;
+  }
+
+  try {
+    return `file://${decodeURIComponent(uri.slice('file://'.length))}`;
+  } catch {
+    return uri;
+  }
+}
+
+function normalizePickedImageUri(uri: string): string {
+  let normalized = uri;
+
+  for (let i = 0; i < 3; i += 1) {
+    const next = decodeFileUriOnce(normalized);
+    if (next === normalized) break;
+    normalized = next;
+  }
+
+  return normalized;
+}
+
+function getPickedImageUriCandidates(uri: string): string[] {
+  return [...new Set([uri, decodeFileUriOnce(uri), normalizePickedImageUri(uri)])];
+}
+
+async function preparePickedImageUri(uri: string): Promise<string> {
+  let lastError: unknown = null;
+
+  for (const candidateUri of getPickedImageUriCandidates(uri)) {
+    try {
+      const preparedImage = await ImageManipulator.manipulateAsync(
+        candidateUri,
+        [],
+        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG },
+      );
+      return preparedImage.uri;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error('Could not prepare the selected image');
+}
+
+async function selectAvatarImage(): Promise<ImagePicker.ImagePickerResult> {
+  return ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.8,
+  });
 }
 
 function normalizeEndTime(value?: string | null): string | null {
@@ -97,7 +162,9 @@ export function useProfileViewModel(): ProfileViewModel {
   const [hostedEvents, setHostedEvents] = useState<ProfileEventItem[]>([]);
   const [attendedEvents, setAttendedEvents] = useState<ProfileEventItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(
     async (mode: 'initial' | 'refresh') => {
@@ -148,6 +215,90 @@ export function useProfileViewModel(): ProfileViewModel {
     await fetchProfile('refresh');
   }, [fetchProfile]);
 
+  const pickAvatar = useCallback(async () => {
+    if (!token) {
+      setImageError('You must be logged in to update your profile photo.');
+      return;
+    }
+
+    setImageError(null);
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (permission.status !== 'granted') {
+        const message = 'Please allow access to your photo library to add a profile photo.';
+        setImageError(message);
+        Alert.alert('Permission required', message);
+        return;
+      }
+
+      const result = await selectAvatarImage();
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      if (!asset?.uri) {
+        setImageError('We could not read the selected image. Please try a different one.');
+        return;
+      }
+
+      let preparedImageUri: string;
+      try {
+        preparedImageUri = await preparePickedImageUri(asset.uri);
+      } catch {
+        setImageError('We could not process the selected image. Please try a different one.');
+        return;
+      }
+
+      setIsUploadingAvatar(true);
+
+      const original = await ImageManipulator.manipulateAsync(
+        preparedImageUri,
+        [{ resize: { width: 1200 } }],
+        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+      );
+
+      const small = await ImageManipulator.manipulateAsync(
+        preparedImageUri,
+        [{ resize: { width: 400 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+      );
+
+      const uploadInit = await getProfileAvatarUploadUrl(token);
+      const originalUpload = uploadInit.uploads.find((u) => u.variant === 'ORIGINAL');
+      const smallUpload = uploadInit.uploads.find((u) => u.variant === 'SMALL');
+
+      if (!originalUpload || !smallUpload) {
+        throw new Error('Missing upload instructions from server');
+      }
+
+      await Promise.all([
+        uploadFileToPresignedUrl(
+          originalUpload.method,
+          originalUpload.url,
+          originalUpload.headers,
+          original.uri,
+        ),
+        uploadFileToPresignedUrl(
+          smallUpload.method,
+          smallUpload.url,
+          smallUpload.headers,
+          small.uri,
+        ),
+      ]);
+
+      await confirmProfileAvatarUpload(uploadInit.confirm_token, token);
+      await refresh();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setImageError(error.message);
+      } else {
+        setImageError('We could not upload the selected image. Please try again.');
+      }
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  }, [refresh, token]);
+
   const primaryName = profile?.display_name ?? profile?.username ?? '';
   const secondaryName = profile?.display_name ? profile.username : null;
   const avatarInitial = primaryName.trim().charAt(0).toUpperCase() || '?';
@@ -155,7 +306,9 @@ export function useProfileViewModel(): ProfileViewModel {
   return {
     profile,
     isLoading,
+    isUploadingAvatar,
     apiError,
+    imageError,
     primaryName,
     secondaryName,
     avatarInitial,
@@ -163,6 +316,7 @@ export function useProfileViewModel(): ProfileViewModel {
     attendedEvents,
     hostedCount: hostedEvents.length,
     attendedCount: attendedEvents.length,
+    pickAvatar,
     refresh,
   };
 }

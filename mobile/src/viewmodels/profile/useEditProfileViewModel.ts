@@ -1,8 +1,19 @@
 import { useState, useCallback, useEffect } from 'react';
+import { Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { UserProfile, UpdateProfileRequest } from '@/models/profile';
 import { LocationSuggestion } from '@/models/event';
-import { getMyProfile, updateMyProfile } from '@/services/profileService';
-import { searchLocation } from '@/services/eventService';
+import {
+  confirmProfileAvatarUpload,
+  getMyProfile,
+  getProfileAvatarUploadUrl,
+  updateMyProfile,
+} from '@/services/profileService';
+import {
+  searchLocation,
+  uploadFileToPresignedUrl,
+} from '@/services/eventService';
 import { ApiError } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { validatePhoneNumber } from '@/utils/validators';
@@ -41,26 +52,73 @@ export interface EditProfileViewModel {
   errors: EditProfileFormErrors;
   isLoading: boolean;
   isSaving: boolean;
+  isUploadingAvatar: boolean;
   apiError: string | null;
+  imageError: string | null;
   successMessage: string | null;
   canEditGender: boolean;
   canEditBirthDate: boolean;
   locationQuery: string;
   locationSuggestions: LocationSuggestion[];
   isSearchingLocation: boolean;
-  isLocationModalOpen: boolean;
-  pendingLocation: LocationSuggestion | null;
+  selectedImageUri: string | null;
   updateField: <K extends keyof EditProfileFormData>(
     field: K,
     value: EditProfileFormData[K],
   ) => void;
-  openLocationModal: () => void;
-  closeLocationModal: () => void;
+  pickAvatar: () => Promise<void>;
+  removeAvatar: () => void;
   updateLocationQuery: (value: string) => void;
   selectLocationSuggestion: (suggestion: LocationSuggestion) => void;
-  applySelectedLocation: () => void;
-  resetLocationDraft: () => void;
+  clearLocation: () => void;
   handleSave: () => Promise<boolean>;
+}
+
+function decodeFileUriOnce(uri: string): string {
+  if (!uri.startsWith('file://')) {
+    return uri;
+  }
+
+  try {
+    return `file://${decodeURIComponent(uri.slice('file://'.length))}`;
+  } catch {
+    return uri;
+  }
+}
+
+function normalizePickedImageUri(uri: string): string {
+  let normalized = uri;
+
+  for (let i = 0; i < 3; i += 1) {
+    const next = decodeFileUriOnce(normalized);
+    if (next === normalized) break;
+    normalized = next;
+  }
+
+  return normalized;
+}
+
+function getPickedImageUriCandidates(uri: string): string[] {
+  return [...new Set([uri, decodeFileUriOnce(uri), normalizePickedImageUri(uri)])];
+}
+
+async function preparePickedImageUri(uri: string): Promise<string> {
+  let lastError: unknown = null;
+
+  for (const candidateUri of getPickedImageUriCandidates(uri)) {
+    try {
+      const preparedImage = await ImageManipulator.manipulateAsync(
+        candidateUri,
+        [],
+        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG },
+      );
+      return preparedImage.uri;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error('Could not prepare the selected image');
 }
 
 /** Formats typing into `dd.mm.yyyy` with auto-inserted dots. */
@@ -191,16 +249,17 @@ export function useEditProfileViewModel(): EditProfileViewModel {
   const [errors, setErrors] = useState<EditProfileFormErrors>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [canEditGender, setCanEditGender] = useState(true);
   const [canEditBirthDate, setCanEditBirthDate] = useState(true);
   const [locationQuery, setLocationQuery] = useState('');
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
-  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<LocationSuggestion | null>(null);
-  const [pendingLocation, setPendingLocation] = useState<LocationSuggestion | null>(null);
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -219,6 +278,8 @@ export function useEditProfileViewModel(): EditProfileViewModel {
           setCanEditGender(!profile.gender);
           setCanEditBirthDate(!profile.birth_date);
           setSelectedLocation(profileToLocationSuggestion(profile));
+          setLocationQuery(profile.default_location_address ?? '');
+          setSelectedImageUri(profile.avatar_url ?? null);
         }
       } catch (err) {
         if (!cancelled) {
@@ -278,27 +339,56 @@ export function useEditProfileViewModel(): EditProfileViewModel {
     [],
   );
 
-  const openLocationModal = useCallback(() => {
-    setPendingLocation(selectedLocation);
-    setLocationQuery(selectedLocation?.display_name ?? '');
-    setLocationSuggestions([]);
-    setIsSearchingLocation(false);
-    setIsLocationModalOpen(true);
-  }, [selectedLocation]);
+  const pickAvatar = useCallback(async () => {
+    setImageError(null);
 
-  const closeLocationModal = useCallback(() => {
-    setPendingLocation(null);
-    setLocationQuery('');
-    setLocationSuggestions([]);
-    setIsSearchingLocation(false);
-    setIsLocationModalOpen(false);
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        const message = 'Please allow access to your photo library to add a profile photo.';
+        setImageError(message);
+        Alert.alert('Permission required', message);
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      if (!asset?.uri) {
+        setImageError('We could not read the selected image. Please try a different one.');
+        return;
+      }
+
+      try {
+        const preparedImageUri = await preparePickedImageUri(asset.uri);
+        setSelectedImageUri(preparedImageUri);
+      } catch {
+        setImageError('We could not process the selected image. Please try a different one.');
+        return;
+      }
+
+      setSuccessMessage(null);
+    } catch {
+      setImageError('We could not open your photo library. Please try again.');
+    }
+  }, []);
+
+  const removeAvatar = useCallback(() => {
+    setSelectedImageUri(null);
+    setImageError(null);
   }, []);
 
   const updateLocationQuery = useCallback(async (value: string) => {
     setLocationQuery(value);
 
     if (value.trim().length < 2) {
-      setPendingLocation(null);
       setLocationSuggestions([]);
       setIsSearchingLocation(false);
       return;
@@ -314,30 +404,77 @@ export function useEditProfileViewModel(): EditProfileViewModel {
   }, []);
 
   const selectLocationSuggestion = useCallback((suggestion: LocationSuggestion) => {
-    setPendingLocation(suggestion);
+    setSelectedLocation(suggestion);
     setLocationQuery(suggestion.display_name);
-    setLocationSuggestions([]);
-  }, []);
-
-  const applySelectedLocation = useCallback(() => {
-    setSelectedLocation(pendingLocation ?? null);
     setFormData((prev) => ({
       ...prev,
-      defaultLocationAddress: pendingLocation?.display_name ?? '',
-      defaultLocationLat: pendingLocation ? Number(pendingLocation.lat) : null,
-      defaultLocationLon: pendingLocation ? Number(pendingLocation.lon) : null,
+      defaultLocationAddress: suggestion.display_name,
+      defaultLocationLat: Number(suggestion.lat),
+      defaultLocationLon: Number(suggestion.lon),
     }));
-    setLocationSuggestions([]);
-    setLocationQuery('');
-    setIsLocationModalOpen(false);
-  }, [pendingLocation]);
-
-  const resetLocationDraft = useCallback(() => {
-    setPendingLocation(null);
-    setLocationQuery('');
     setLocationSuggestions([]);
     setIsSearchingLocation(false);
   }, []);
+
+  const clearLocation = useCallback(() => {
+    setSelectedLocation(null);
+    setLocationQuery('');
+    setLocationSuggestions([]);
+    setIsSearchingLocation(false);
+    setFormData((prev) => ({
+      ...prev,
+      defaultLocationAddress: '',
+      defaultLocationLat: null,
+      defaultLocationLon: null,
+    }));
+  }, []);
+
+  const uploadProfileAvatar = useCallback(
+    async (imageUri: string, token: string): Promise<void> => {
+      setIsUploadingAvatar(true);
+      try {
+        const original = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        const small = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 400 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        const uploadInit = await getProfileAvatarUploadUrl(token);
+        const originalUpload = uploadInit.uploads.find((u) => u.variant === 'ORIGINAL');
+        const smallUpload = uploadInit.uploads.find((u) => u.variant === 'SMALL');
+
+        if (!originalUpload || !smallUpload) {
+          throw new Error('Missing upload instructions from server');
+        }
+
+        await Promise.all([
+          uploadFileToPresignedUrl(
+            originalUpload.method,
+            originalUpload.url,
+            originalUpload.headers,
+            original.uri,
+          ),
+          uploadFileToPresignedUrl(
+            smallUpload.method,
+            smallUpload.url,
+            smallUpload.headers,
+            small.uri,
+          ),
+        ]);
+
+        await confirmProfileAvatarUpload(uploadInit.confirm_token, token);
+      } finally {
+        setIsUploadingAvatar(false);
+      }
+    },
+    [],
+  );
 
   const handleSave = useCallback(async (): Promise<boolean> => {
     const validationErrors = validateForm(formData);
@@ -354,6 +491,7 @@ export function useEditProfileViewModel(): EditProfileViewModel {
 
     setIsSaving(true);
     setApiError(null);
+    setImageError(null);
     setSuccessMessage(null);
 
     try {
@@ -375,6 +513,11 @@ export function useEditProfileViewModel(): EditProfileViewModel {
       }
 
       await updateMyProfile(request, token);
+
+      if (selectedImageUri?.startsWith('file://')) {
+        await uploadProfileAvatar(selectedImageUri, token);
+      }
+
       setSuccessMessage('Profile updated successfully!');
       return true;
     } catch (err) {
@@ -397,29 +540,29 @@ export function useEditProfileViewModel(): EditProfileViewModel {
     } finally {
       setIsSaving(false);
     }
-  }, [canEditBirthDate, canEditGender, formData, token]);
+  }, [canEditBirthDate, canEditGender, formData, selectedImageUri, token, uploadProfileAvatar]);
 
   return {
     formData,
     errors,
     isLoading,
     isSaving,
+    isUploadingAvatar,
     apiError,
+    imageError,
     successMessage,
     canEditGender,
     canEditBirthDate,
     locationQuery,
     locationSuggestions,
     isSearchingLocation,
-    isLocationModalOpen,
-    pendingLocation,
+    selectedImageUri,
     updateField,
-    openLocationModal,
-    closeLocationModal,
+    pickAvatar,
+    removeAvatar,
     updateLocationQuery,
     selectLocationSuggestion,
-    applySelectedLocation,
-    resetLocationDraft,
+    clearLocation,
     handleSave,
   };
 }

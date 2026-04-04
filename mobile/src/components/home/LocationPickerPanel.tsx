@@ -41,6 +41,9 @@ export default function LocationPickerPanel({
   onSelectSuggestion,
   onApply,
 }: LocationPickerPanelProps) {
+  const actionLabel =
+    query.trim().length === 0 ? 'Use Default Location' : 'Choose Location';
+
   return (
     <Modal
       visible={visible}
@@ -138,9 +141,7 @@ export default function LocationPickerPanel({
             onPress={onApply}
             activeOpacity={0.85}
           >
-            <Text style={styles.applyButtonText}>
-              {selectedLocation ? 'Choose Location' : 'Use Default Location'}
-            </Text>
+            <Text style={styles.applyButtonText}>{actionLabel}</Text>
           </TouchableOpacity>
         </View>
       </View>

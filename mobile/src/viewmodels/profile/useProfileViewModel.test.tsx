@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import * as profileService from '@/services/profileService';
 import { ApiError } from '@/services/api';
 import type {
@@ -22,6 +22,24 @@ const mockGetMyHostedEvents = jest.mocked(profileService.getMyHostedEvents);
 const mockGetMyUpcomingEvents = jest.mocked(profileService.getMyUpcomingEvents);
 const mockGetMyCompletedEvents = jest.mocked(profileService.getMyCompletedEvents);
 const mockUseAuth = jest.mocked(useAuth);
+
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+async function renderProfileViewModel() {
+  const rendered = renderHook(() => useProfileViewModel());
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return rendered;
+}
 
 const attendedUpcomingFixture: ProfileEventSummary = {
   id: 'attended-event-1',
@@ -87,6 +105,15 @@ describe('useProfileViewModel', () => {
   });
 
   it('starts in loading state', () => {
+    const deferredProfile = createDeferred<UserProfile>();
+    const deferredHosted = createDeferred<{ events: ProfileEventSummary[] }>();
+    const deferredUpcoming = createDeferred<{ events: ProfileEventSummary[] }>();
+    const deferredCompleted = createDeferred<{ events: ProfileEventSummary[] }>();
+    mockGetMyProfile.mockReturnValue(deferredProfile.promise);
+    mockGetMyHostedEvents.mockReturnValue(deferredHosted.promise);
+    mockGetMyUpcomingEvents.mockReturnValue(deferredUpcoming.promise);
+    mockGetMyCompletedEvents.mockReturnValue(deferredCompleted.promise);
+
     const { result } = renderHook(() => useProfileViewModel());
     expect(result.current.isLoading).toBe(true);
     expect(result.current.profile).toBeNull();
@@ -94,11 +121,7 @@ describe('useProfileViewModel', () => {
   });
 
   it('fetches and exposes profile data on mount', async () => {
-    const { result } = renderHook(() => useProfileViewModel());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    const { result } = await renderProfileViewModel();
 
     expect(mockGetMyProfile).toHaveBeenCalledWith('test-token');
     expect(mockGetMyHostedEvents).toHaveBeenCalledWith('test-token');
@@ -109,11 +132,7 @@ describe('useProfileViewModel', () => {
   });
 
   it('derives primaryName from display_name when set', async () => {
-    const { result } = renderHook(() => useProfileViewModel());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    const { result } = await renderProfileViewModel();
 
     expect(result.current.primaryName).toBe('John Doe');
     expect(result.current.secondaryName).toBe('john_doe');
@@ -126,11 +145,7 @@ describe('useProfileViewModel', () => {
       display_name: null,
     });
 
-    const { result } = renderHook(() => useProfileViewModel());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    const { result } = await renderProfileViewModel();
 
     expect(result.current.primaryName).toBe('john_doe');
     expect(result.current.secondaryName).toBeNull();
@@ -138,11 +153,7 @@ describe('useProfileViewModel', () => {
   });
 
   it('exposes hosted and attended event lists', async () => {
-    const { result } = renderHook(() => useProfileViewModel());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    const { result } = await renderProfileViewModel();
 
     expect(result.current.hostedEvents).toEqual([
       {
@@ -182,11 +193,7 @@ describe('useProfileViewModel', () => {
       events: [attendedUpcomingFixture, attendedCompletedFixture],
     });
 
-    const { result } = renderHook(() => useProfileViewModel());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    const { result } = await renderProfileViewModel();
 
     expect(result.current.attendedEvents.map((event) => event.id)).toEqual([
       'attended-event-1',
@@ -202,11 +209,7 @@ describe('useProfileViewModel', () => {
       ],
     });
 
-    const { result } = renderHook(() => useProfileViewModel());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    const { result } = await renderProfileViewModel();
 
     expect(result.current.hostedEvents.map((event) => event.id)).toEqual([
       'hosted-event-1',
@@ -228,11 +231,7 @@ describe('useProfileViewModel', () => {
       ],
     });
 
-    const { result } = renderHook(() => useProfileViewModel());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    const { result } = await renderProfileViewModel();
 
     expect(result.current.hostedEvents[0]?.end_time).toBeNull();
   });
@@ -247,11 +246,7 @@ describe('useProfileViewModel', () => {
       }),
     );
 
-    const { result } = renderHook(() => useProfileViewModel());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    const { result } = await renderProfileViewModel();
 
     expect(result.current.apiError).toBe('Something went wrong.');
     expect(result.current.profile).toBeNull();
@@ -260,11 +255,7 @@ describe('useProfileViewModel', () => {
   it('sets generic error on unexpected failure', async () => {
     mockGetMyProfile.mockRejectedValue(new Error('Network failure'));
 
-    const { result } = renderHook(() => useProfileViewModel());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    const { result } = await renderProfileViewModel();
 
     expect(result.current.apiError).toBe(
       'Failed to load profile. Please try again.',
@@ -280,11 +271,7 @@ describe('useProfileViewModel', () => {
       clearAuth: jest.fn(),
     } as any);
 
-    const { result } = renderHook(() => useProfileViewModel());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    const { result } = await renderProfileViewModel();
 
     expect(result.current.apiError).toBe(
       'You must be logged in to view your profile.',
@@ -297,11 +284,7 @@ describe('useProfileViewModel', () => {
   });
 
   it('can refresh profile data', async () => {
-    const { result } = renderHook(() => useProfileViewModel());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    const { result } = await renderProfileViewModel();
 
     const updatedProfile = {
       ...profileFixture,

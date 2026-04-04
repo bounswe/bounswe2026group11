@@ -47,6 +47,16 @@ function profileToSelectedLocation(profile: {
   };
 }
 
+function locationsMatch(
+  left: LocationSuggestion | null,
+  right: LocationSuggestion | null,
+): boolean {
+  if (!left && !right) return true;
+  if (!left || !right) return false;
+
+  return left.lat === right.lat && left.lon === right.lon;
+}
+
 function parseStrictDateToIso(
   value: string,
   boundary: 'start' | 'end',
@@ -275,6 +285,7 @@ export function useHomeViewModel(): HomeViewModel {
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<LocationSuggestion | null>(null);
+  const [defaultProfileLocation, setDefaultProfileLocation] = useState<LocationSuggestion | null>(null);
   const [pendingLocation, setPendingLocation] = useState<LocationSuggestion | null>(null);
 
   const locationSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -309,8 +320,11 @@ export function useHomeViewModel(): HomeViewModel {
 
     try {
       const profile = await getMyProfile(token);
-      setSelectedLocation(profileToSelectedLocation(profile));
+      const profileLocation = profileToSelectedLocation(profile);
+      setDefaultProfileLocation(profileLocation);
+      setSelectedLocation(profileLocation);
     } catch {
+      setDefaultProfileLocation(null);
       setSelectedLocation(null);
     } finally {
       setIsProfileLocationReady(true);
@@ -456,11 +470,15 @@ export function useHomeViewModel(): HomeViewModel {
 
   const openLocationModal = useCallback(() => {
     setPendingLocation(selectedLocation);
-    setLocationQuery(selectedLocation?.display_name ?? '');
+    setLocationQuery(
+      locationsMatch(selectedLocation, defaultProfileLocation)
+        ? ''
+        : selectedLocation?.display_name ?? '',
+    );
     setLocationSuggestions([]);
     setIsSearchingLocation(false);
     setIsLocationModalOpen(true);
-  }, [selectedLocation]);
+  }, [defaultProfileLocation, selectedLocation]);
 
   const closeLocationModal = useCallback(() => {
     setPendingLocation(null);
@@ -509,18 +527,18 @@ export function useHomeViewModel(): HomeViewModel {
   }, []);
 
   const applySelectedLocation = useCallback(() => {
-    setSelectedLocation(pendingLocation ?? null);
+    setSelectedLocation(pendingLocation ?? defaultProfileLocation ?? null);
     setLocationSuggestions([]);
     setLocationQuery('');
     setIsLocationModalOpen(false);
-  }, [pendingLocation]);
+  }, [defaultProfileLocation, pendingLocation]);
 
   const resetLocationDraft = useCallback(() => {
-    setPendingLocation(null);
+    setPendingLocation(defaultProfileLocation);
     setLocationQuery('');
     setLocationSuggestions([]);
     setIsSearchingLocation(false);
-  }, []);
+  }, [defaultProfileLocation]);
 
   const openFilterModal = useCallback(() => {
     setFilterDraft(appliedFilters);
@@ -635,6 +653,7 @@ export function useHomeViewModel(): HomeViewModel {
     try {
       const profile = await getMyProfile(token);
       const profileLocation = profileToSelectedLocation(profile);
+      setDefaultProfileLocation(profileLocation);
       setSelectedLocation(profileLocation);
 
       const combinedCategoryIds =

@@ -825,7 +825,7 @@ describe('useHomeViewModel', () => {
       expect(result.current.locationLabel).toBe('Kadikoy, Istanbul');
     });
 
-    it('resets location draft and keeps location modal open', async () => {
+  it('resets location draft and keeps location modal open', async () => {
       const { result } = renderHook(() => useHomeViewModel());
 
       await waitFor(() => {
@@ -853,7 +853,7 @@ describe('useHomeViewModel', () => {
       expect(result.current.locationQuery).toBe('');
     });
 
-    it('applies default fallback location after resetting a previously selected location', async () => {
+    it('applies system default location when no profile default exists', async () => {
       const { result } = renderHook(() => useHomeViewModel());
 
       await waitFor(() => {
@@ -904,6 +904,86 @@ describe('useHomeViewModel', () => {
 
       expect(result.current.isLocationModalOpen).toBe(false);
       expect(result.current.locationLabel).toBe('Istanbul');
+    });
+
+    it('returns to the user profile default location after resetting a temporary location', async () => {
+      mockGetMyProfile.mockResolvedValueOnce({
+        id: 'user-1',
+        username: 'mock',
+        email: 'mock@example.com',
+        phone_number: null,
+        gender: null,
+        birth_date: null,
+        email_verified: true,
+        status: 'active',
+        default_location_address: 'Kadikoy, Istanbul, Turkiye',
+        default_location_lat: 40.9909,
+        default_location_lon: 29.0293,
+        display_name: null,
+        bio: null,
+        avatar_url: null,
+      });
+
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.locationLabel).toBe('Kadikoy, Istanbul');
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      expect(result.current.locationQuery).toBe('');
+
+      act(() => {
+        result.current.selectLocationSuggestion({
+          display_name: 'Besiktas, Istanbul, Turkiye',
+          lat: '41.0422',
+          lon: '29.0083',
+        });
+      });
+
+      act(() => {
+        result.current.applySelectedLocation();
+      });
+
+      await waitFor(() => {
+        expect(result.current.locationLabel).toBe('Besiktas, Istanbul');
+      });
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      expect(result.current.locationQuery).toBe('Besiktas, Istanbul, Turkiye');
+
+      act(() => {
+        result.current.resetLocationDraft();
+      });
+
+      expect(result.current.pendingLocation?.display_name).toBe(
+        'Kadikoy, Istanbul, Turkiye',
+      );
+      expect(result.current.locationQuery).toBe('');
+
+      act(() => {
+        result.current.applySelectedLocation();
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            lat: 40.9909,
+            lon: 29.0293,
+          }),
+          'mock-token',
+        );
+      });
+
+      expect(result.current.locationLabel).toBe('Kadikoy, Istanbul');
     });
   });
 });

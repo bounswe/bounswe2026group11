@@ -16,6 +16,7 @@ import ProfileEventCard from '@/components/profile/ProfileEventCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLogoutViewModel } from '@/viewmodels/auth/useLogoutViewModel';
 import { useProfileViewModel } from '@/viewmodels/profile/useProfileViewModel';
+import { formatEventLocation } from '@/utils/eventLocation';
 
 type ProfileEventTab = 'hosted' | 'attended';
 
@@ -50,7 +51,9 @@ export default function ProfileView() {
     ? vm.profile.birth_date.split('-').reverse().join('.')
     : 'Birth date not set';
   const phoneLabel = vm.profile?.phone_number || 'Phone not set';
-  const locationLabel = vm.profile?.default_location_address || 'Location not set';
+  const locationLabel = vm.profile?.default_location_address
+    ? formatEventLocation(vm.profile.default_location_address)
+    : 'Location not set';
 
   const renderHeader = () => (
     <View>
@@ -76,21 +79,45 @@ export default function ProfileView() {
         </View>
       ) : null}
 
+      {vm.imageError ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>{vm.imageError}</Text>
+        </View>
+      ) : null}
+
       {vm.profile ? (
         <>
           <View style={styles.summaryCard}>
             <View style={styles.summaryHeader}>
-              {vm.profile.avatar_url ? (
-                <Image
-                  source={{ uri: vm.profile.avatar_url }}
-                  style={styles.avatar}
-                  accessibilityLabel="Profile photo"
-                />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarInitial}>{vm.avatarInitial}</Text>
+              <TouchableOpacity
+                onPress={vm.pickAvatar}
+                activeOpacity={0.9}
+                style={styles.avatarButton}
+                accessibilityRole="button"
+                accessibilityLabel="Change profile photo"
+              >
+                {vm.profile.avatar_url ? (
+                  <Image
+                    source={{ uri: vm.profile.avatar_url }}
+                    style={styles.avatar}
+                    accessibilityLabel="Profile photo"
+                  />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Text style={styles.avatarInitial}>{vm.avatarInitial}</Text>
+                  </View>
+                )}
+
+                <View style={styles.avatarEditBadge}>
+                  <Ionicons name="camera-outline" size={16} color="#FFFFFF" />
                 </View>
-              )}
+
+                {vm.isUploadingAvatar ? (
+                  <View style={styles.avatarUploadOverlay}>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  </View>
+                ) : null}
+              </TouchableOpacity>
 
               <View style={styles.summaryTextBlock}>
                 <Text
@@ -382,6 +409,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  avatarButton: {
+    position: 'relative',
+  },
   avatar: {
     width: 76,
     height: 76,
@@ -400,6 +430,26 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: '700',
     color: '#111827',
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#0F172A',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarUploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 38,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   summaryTextBlock: {
     flex: 1,

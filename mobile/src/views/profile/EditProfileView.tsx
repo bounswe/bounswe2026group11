@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import LocationPickerPanel from '@/components/home/LocationPickerPanel';
 import {
   useEditProfileViewModel,
   GENDER_OPTIONS,
@@ -192,27 +191,48 @@ export default function EditProfileView() {
 
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Default Location</Text>
-              <TouchableOpacity
-                style={styles.locationButton}
-                onPress={vm.openLocationModal}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="Choose default location"
-              >
-                <View style={styles.locationButtonLeft}>
-                  <Ionicons name="location-outline" size={20} color="#6B7280" />
-                  <Text
-                    style={[
-                      styles.locationButtonText,
-                      !vm.formData.defaultLocationAddress && styles.locationPlaceholder,
-                    ]}
-                    numberOfLines={2}
+              <View style={styles.locationInputRow}>
+                <TextInput
+                  style={styles.textInput}
+                  value={vm.locationQuery}
+                  onChangeText={vm.updateLocationQuery}
+                  placeholder="Search for a place..."
+                  placeholderTextColor="#9CA3AF"
+                  accessibilityLabel="Default location"
+                />
+                {vm.formData.defaultLocationLat !== null ? (
+                  <TouchableOpacity
+                    style={styles.clearLocationBtn}
+                    onPress={vm.clearLocation}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear default location"
                   >
-                    {vm.formData.defaultLocationAddress || 'Choose a default location'}
-                  </Text>
+                    <Text style={styles.clearLocationText}>X</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              {vm.isSearchingLocation ? (
+                <ActivityIndicator
+                  size="small"
+                  color="#2563EB"
+                  style={styles.searchSpinner}
+                />
+              ) : null}
+              {vm.locationSuggestions.length > 0 ? (
+                <View style={styles.suggestionsContainer}>
+                  {vm.locationSuggestions.map((suggestion, index) => (
+                    <TouchableOpacity
+                      key={`${suggestion.lat}-${suggestion.lon}-${index}`}
+                      style={styles.suggestionItem}
+                      onPress={() => vm.selectLocationSuggestion(suggestion)}
+                    >
+                      <Text style={styles.suggestionText} numberOfLines={2}>
+                        {suggestion.display_name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-              </TouchableOpacity>
+              ) : null}
             </View>
 
             {/* Gender */}
@@ -321,20 +341,6 @@ export default function EditProfileView() {
           </View>
         )}
       </ScrollView>
-
-      <LocationPickerPanel
-        visible={vm.isLocationModalOpen}
-        query={vm.locationQuery}
-        suggestions={vm.locationSuggestions}
-        isSearching={vm.isSearchingLocation}
-        selectedLocation={vm.pendingLocation}
-        anchorTop={140}
-        onClose={vm.closeLocationModal}
-        onReset={vm.resetLocationDraft}
-        onChangeQuery={vm.updateLocationQuery}
-        onSelectSuggestion={vm.selectLocationSuggestion}
-        onApply={vm.applySelectedLocation}
-      />
     </KeyboardAvoidingView>
   );
 }
@@ -422,6 +428,7 @@ const styles = StyleSheet.create({
     color: '#374151',
   },
   textInput: {
+    flex: 1,
     borderWidth: 1.5,
     borderColor: '#E5E7EB',
     borderRadius: 12,
@@ -431,33 +438,10 @@ const styles = StyleSheet.create({
     color: '#111827',
     backgroundColor: '#FAFAFA',
   },
-  locationButton: {
-    minHeight: 56,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: '#FAFAFA',
+  locationInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  locationButtonLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    paddingRight: 12,
-  },
-  locationButtonText: {
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 20,
-    color: '#111827',
-  },
-  locationPlaceholder: {
-    color: '#9CA3AF',
+    gap: 8,
   },
   textInputError: {
     borderColor: '#DC2626',
@@ -520,6 +504,37 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
+  },
+  clearLocationBtn: {
+    padding: 10,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+  },
+  clearLocationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  searchSpinner: {
+    marginTop: 8,
+  },
+  suggestionsContainer: {
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  suggestionText: {
+    fontSize: 14,
+    color: '#374151',
   },
   saveButton: {
     backgroundColor: '#0F172A',
