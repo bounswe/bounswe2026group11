@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 
 interface SearchSectionProps {
   query: string;
@@ -44,7 +44,7 @@ export default function SearchSection({
         accessibilityRole="button"
         accessibilityLabel="Open filters"
       >
-        <Ionicons name="options-outline" size={22} color="#FFFFFF" />
+        <Feather name="sliders" size={22} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
   );
