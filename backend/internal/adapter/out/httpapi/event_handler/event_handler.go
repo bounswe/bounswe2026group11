@@ -25,11 +25,12 @@ func NewEventHandler(service event.UseCase) *EventHandler {
 
 // RegisterEventRoutes mounts all event endpoints under /events.
 // The auth middleware is provided by the caller so that route protection
-// decisions remain outside the handler.
-func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.Handler) {
+// decisions remain outside the handler. optionalAuth is used for read-only
+// public endpoints so unauthenticated users can browse without a token.
+func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.Handler, optionalAuth fiber.Handler) {
 	group := router.Group("/events")
-	group.Get("/", auth, handler.DiscoverEvents)
-	group.Get("/:id", auth, handler.GetEventDetail)
+	group.Get("/", optionalAuth, handler.DiscoverEvents)
+	group.Get("/:id", optionalAuth, handler.GetEventDetail)
 	group.Post("/", auth, handler.CreateEvent)
 	group.Post("/:id/join", auth, handler.JoinEvent)
 	group.Patch("/:id/leave", auth, handler.LeaveEvent)
@@ -49,8 +50,8 @@ func (h *EventHandler) DiscoverEvents(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, domain.ValidationError(errs))
 	}
 
-	claims := httpapi.UserClaims(c)
-	result, err := h.service.DiscoverEvents(c.UserContext(), claims.UserID, input)
+	userID := callerID(c)
+	result, err := h.service.DiscoverEvents(c.UserContext(), userID, input)
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
@@ -65,13 +66,21 @@ func (h *EventHandler) GetEventDetail(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
-	claims := httpapi.UserClaims(c)
-	result, err := h.service.GetEventDetail(c.UserContext(), claims.UserID, eventID)
+	userID := callerID(c)
+	result, err := h.service.GetEventDetail(c.UserContext(), userID, eventID)
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
 
 	return c.JSON(result)
+}
+
+// callerID returns the authenticated user's ID, or uuid.Nil for anonymous requests.
+func callerID(c *fiber.Ctx) uuid.UUID {
+	if claims := httpapi.UserClaims(c); claims != nil {
+		return claims.UserID
+	}
+	return uuid.Nil
 }
 
 // CreateEvent handles POST /events.

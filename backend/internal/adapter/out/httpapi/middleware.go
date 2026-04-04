@@ -43,6 +43,33 @@ func RequireAuth(verifier domain.TokenVerifier) fiber.Handler {
 	}
 }
 
+// OptionalAuth returns a middleware that parses the Bearer token if present
+// and stores the claims in the request context. If the header is absent the
+// request proceeds unauthenticated (UserClaims will return nil). If a token
+// is present but invalid the request is rejected with 401.
+func OptionalAuth(verifier domain.TokenVerifier) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		header := c.Get(fiber.HeaderAuthorization)
+		token, ok := extractBearer(header)
+		if !ok {
+			return c.Next()
+		}
+
+		claims, err := verifier.VerifyAccessToken(token)
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(ErrorEnvelope{
+				Error: ErrorBody{
+					Code:    "invalid_token",
+					Message: "The access token is invalid or expired.",
+				},
+			})
+		}
+
+		c.Locals(contextKeyUserClaims, claims)
+		return c.Next()
+	}
+}
+
 // UserClaims retrieves the authenticated user's claims from the request context.
 // Returns nil if RequireAuth middleware was not applied to the route.
 func UserClaims(c *fiber.Ctx) *domain.AuthClaims {
