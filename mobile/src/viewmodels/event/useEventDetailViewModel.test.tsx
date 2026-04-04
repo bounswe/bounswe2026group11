@@ -8,6 +8,7 @@ import { ApiError } from '@/services/api';
 import type {
   EventDetail,
   JoinEventResponse,
+  LeaveEventResponse,
   RequestJoinResponse,
 } from '@/models/event';
 import type { UserSummary } from '@/models/auth';
@@ -47,6 +48,7 @@ jest.mock('@/contexts/AuthContext', () => ({
 
 const mockGetEventDetail = jest.mocked(eventService.getEventDetail);
 const mockJoinEvent = jest.mocked(eventService.joinEvent);
+const mockLeaveEvent = jest.mocked(eventService.leaveEvent);
 const mockRequestJoinEvent = jest.mocked(eventService.requestJoinEvent);
 const mockApproveJoinRequest = jest.mocked(eventService.approveJoinRequest);
 const mockRejectJoinRequest = jest.mocked(eventService.rejectJoinRequest);
@@ -164,6 +166,32 @@ const requestJoinResponseFixture: RequestJoinResponse = {
   created_at: '2026-03-26T12:00:00+03:00',
 };
 
+const leaveEventResponseFixture: LeaveEventResponse = {
+  participation_id: 'part-uuid-001',
+  event_id: 'event-uuid-001',
+  status: 'LEAVED',
+  updated_at: '2026-03-28T10:00:00+03:00',
+};
+
+const joinedEventFixture: EventDetail = {
+  ...publicEventFixture,
+  viewer_context: {
+    ...publicEventFixture.viewer_context,
+    participation_status: 'JOINED',
+  },
+};
+
+const joinedInProgressEventFixture: EventDetail = {
+  ...publicEventFixture,
+  status: 'IN_PROGRESS',
+  start_time: '2026-03-25T08:00:00+03:00',
+  end_time: '2099-12-31T23:59:59+03:00',
+  viewer_context: {
+    ...publicEventFixture.viewer_context,
+    participation_status: 'JOINED',
+  },
+};
+
 describe('resolveConstraintViolation', () => {
   it('returns null when event has no gender or age constraints', () => {
     expect(
@@ -263,6 +291,7 @@ describe('useEventDetailViewModel', () => {
     resetMockSessionUser();
     mockGetEventDetail.mockResolvedValue(publicEventFixture);
     mockJoinEvent.mockResolvedValue(joinResponseFixture);
+    mockLeaveEvent.mockResolvedValue(leaveEventResponseFixture);
     mockRequestJoinEvent.mockResolvedValue(requestJoinResponseFixture);
     mockApproveJoinRequest.mockResolvedValue(undefined);
     mockRejectJoinRequest.mockResolvedValue(undefined);
@@ -927,19 +956,229 @@ describe('useEventDetailViewModel', () => {
     it('handleCancelEvent sets global actionError if it fails', async () => {
       mockGetEventDetail.mockResolvedValueOnce(hostedEventFixture);
       mockCancelEvent.mockRejectedValueOnce(new Error('Cancel failed'));
-      
+
       const { result } = renderHook(() =>
         useEventDetailViewModel('event-uuid-003'),
       );
-      
+
       await waitFor(() => expect(result.current.isLoading).toBe(false));
-      
+
       await act(async () => {
         await result.current.handleCancelEvent();
       });
-      
+
       expect(result.current.actionError).toBe('Cancel failed');
-      expect(result.current.event?.status).toBe('ACTIVE'); 
+      expect(result.current.event?.status).toBe('ACTIVE');
+    });
+  });
+
+  // ─── canLeave ───
+  describe('canLeave', () => {
+    it('is true when user is a joined participant on an active event', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(joinedEventFixture);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.canLeave).toBe(true);
+    });
+
+    it('is true when user is a joined participant on an in-progress event with future end_time', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(joinedInProgressEventFixture);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.canLeave).toBe(true);
+    });
+
+    it('is false when the user is the host', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(hostedEventFixture);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-003'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.canLeave).toBe(false);
+    });
+
+    it('is false when user is not a participant', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(publicEventFixture);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.participationStatus).toBe('NONE');
+      expect(result.current.canLeave).toBe(false);
+    });
+
+    it('is false when event is canceled', async () => {
+      const canceledJoined: EventDetail = {
+        ...joinedEventFixture,
+        status: 'CANCELED',
+      };
+      mockGetEventDetail.mockResolvedValueOnce(canceledJoined);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.canLeave).toBe(false);
+    });
+
+    it('is false when event is completed', async () => {
+      const completedJoined: EventDetail = {
+        ...joinedEventFixture,
+        status: 'COMPLETED',
+      };
+      mockGetEventDetail.mockResolvedValueOnce(completedJoined);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.canLeave).toBe(false);
+    });
+
+    it('is false when event end_time has passed', async () => {
+      const pastEndJoined: EventDetail = {
+        ...joinedEventFixture,
+        start_time: '2020-01-01T08:00:00+03:00',
+        end_time: '2020-01-01T12:00:00+03:00',
+      };
+      mockGetEventDetail.mockResolvedValueOnce(pastEndJoined);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.canLeave).toBe(false);
+    });
+  });
+
+  // ─── handleLeaveEvent ───
+  describe('handleLeaveEvent', () => {
+    it('calls leaveEvent API, refreshes detail, and sets success_left for post-start leave', async () => {
+      // Post-start event: start_time in the past, end_time in the future
+      const postStartJoined: EventDetail = {
+        ...joinedEventFixture,
+        status: 'IN_PROGRESS',
+        start_time: '2020-01-01T08:00:00+03:00',
+        end_time: '2099-12-31T23:59:59+03:00',
+      };
+      const leavedEvent: EventDetail = {
+        ...postStartJoined,
+        viewer_context: {
+          ...postStartJoined.viewer_context,
+          participation_status: 'LEAVED',
+        },
+      };
+      mockGetEventDetail
+        .mockResolvedValueOnce(postStartJoined)
+        .mockResolvedValueOnce(leavedEvent);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleLeaveEvent();
+      });
+
+      expect(mockLeaveEvent).toHaveBeenCalledWith('event-uuid-001', 'mock-token');
+      expect(mockGetEventDetail).toHaveBeenCalledTimes(2);
+      expect(result.current.participationStatus).toBe('LEAVED');
+      expect(result.current.actionState).toBe('success_left');
+      expect(result.current.actionError).toBeNull();
+    });
+
+    it('sets actionState to idle for pre-start leave (backend allows rejoin)', async () => {
+      // Pre-start event: start_time in the future
+      const noneAfterLeave: EventDetail = {
+        ...publicEventFixture,
+        viewer_context: {
+          ...publicEventFixture.viewer_context,
+          participation_status: 'NONE',
+        },
+      };
+      mockGetEventDetail
+        .mockResolvedValueOnce(joinedEventFixture)
+        .mockResolvedValueOnce(noneAfterLeave);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.participationStatus).toBe('JOINED');
+
+      await act(async () => {
+        await result.current.handleLeaveEvent();
+      });
+
+      expect(mockLeaveEvent).toHaveBeenCalledWith('event-uuid-001', 'mock-token');
+      // Backend resets status to NONE for pre-start leave
+      expect(result.current.participationStatus).toBe('NONE');
+      expect(result.current.actionState).toBe('idle');
+    });
+
+    it('sets actionError with API message when leave fails', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(joinedEventFixture);
+      mockLeaveEvent.mockRejectedValueOnce(
+        new ApiError(409, {
+          error: { code: 'event_not_leaveable', message: 'This event can no longer be left.' },
+        }),
+      );
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleLeaveEvent();
+      });
+
+      expect(result.current.actionState).toBe('idle');
+      expect(result.current.actionError).toBe('This event can no longer be left.');
+      expect(result.current.participationStatus).toBe('JOINED');
+    });
+
+    it('sets generic actionError on unknown leave failure', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(joinedEventFixture);
+      mockLeaveEvent.mockRejectedValueOnce('something unexpected');
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleLeaveEvent();
+      });
+
+      expect(result.current.actionError).toBe('Failed to leave the event. Please try again.');
     });
   });
 });

@@ -5,6 +5,7 @@ import {
   CreateEventResponse,
   EventDetail,
   JoinEventResponse,
+  LeaveEventResponse,
   LocationSuggestion,
   ListEventsQuery,
   ListCategoriesResponse,
@@ -70,6 +71,13 @@ export async function rejectJoinRequest(
     {},
     token,
   );
+}
+
+export async function leaveEvent(
+  eventId: string,
+  token: string,
+): Promise<LeaveEventResponse> {
+  return apiPatchAuth<LeaveEventResponse>(`/events/${eventId}/leave`, {}, token);
 }
 
 export async function cancelEvent(
