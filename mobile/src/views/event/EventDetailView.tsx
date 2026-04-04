@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
@@ -31,8 +31,8 @@ function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
   const isProtected = level === 'PROTECTED';
   return (
     <View style={[styles.badge, isProtected ? styles.badgeProtected : styles.badgePublic]}>
-      <Ionicons
-        name={isProtected ? 'lock-closed-outline' : 'globe-outline'}
+      <Feather
+        name={isProtected ? 'lock' : 'globe'}
         size={12}
         color={isProtected ? '#92400E' : '#1E40AF'}
       />
@@ -80,7 +80,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (vm.event.viewer_context.is_host) {
       return (
         <View style={styles.statusChip}>
-          <Ionicons name="star" size={16} color="#7C3AED" />
+          <Feather name="star" size={16} color="#7C3AED" />
           <Text style={styles.statusChipTextPurple}>You are hosting this event</Text>
         </View>
       );
@@ -140,7 +140,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (status_ === 'PENDING' || vm.actionState === 'success_requested') {
       return (
         <View style={styles.statusChip}>
-          <Ionicons name="time-outline" size={16} color="#D97706" />
+          <Feather name="clock" size={16} color="#D97706" />
           <Text style={styles.statusChipTextAmber}>Request sent — awaiting approval</Text>
         </View>
       );
@@ -149,7 +149,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (status_ === 'INVITED') {
       return (
         <View style={styles.statusChip}>
-          <Ionicons name="mail-outline" size={16} color="#2563EB" />
+          <Feather name="mail" size={16} color="#2563EB" />
           <Text style={styles.statusChipTextBlue}>You&apos;re invited</Text>
         </View>
       );
@@ -160,7 +160,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (vm.constraintViolation) {
       return (
         <View style={[styles.actionButton, styles.actionButtonDisabled]}>
-          <Ionicons name="lock-closed" size={18} color="#9CA3AF" />
+          <Feather name="lock" size={18} color="#9CA3AF" />
           <Text style={[styles.actionButtonTextDisabled, styles.actionButtonConstraintText]}>
             {vm.constraintViolation}
           </Text>
@@ -172,7 +172,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       if (vm.isQuotaFull) {
         return (
           <View style={[styles.actionButton, styles.actionButtonDisabled]}>
-            <Ionicons name="people" size={18} color="#9CA3AF" />
+            <Feather name="users" size={18} color="#9CA3AF" />
             <Text style={styles.actionButtonTextDisabled}>Event is Full</Text>
           </View>
         );
@@ -188,7 +188,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
             <>
-              <Ionicons name="enter-outline" size={18} color="#FFFFFF" />
+              <Feather name="log-in" size={18} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Join Event</Text>
             </>
           )}
@@ -203,7 +203,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           onPress={vm.openJoinRequestModal}
           activeOpacity={0.8}
         >
-          <Ionicons name="send-outline" size={18} color="#FFFFFF" />
+          <Feather name="send" size={18} color="#FFFFFF" />
           <Text style={styles.actionButtonText}>Request to Join</Text>
         </TouchableOpacity>
       );
@@ -254,7 +254,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerIconBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
+          <Feather name="arrow-left" size={22} color="#111827" />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle} numberOfLines={1}>
@@ -262,8 +262,8 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         </Text>
 
         <TouchableOpacity style={styles.headerIconBtn} onPress={vm.handleToggleFavorite}>
-          <Ionicons
-            name={vm.isFavorited ? 'heart' : 'heart-outline'}
+          <MaterialIcons
+            name={vm.isFavorited ? 'favorite' : 'favorite-border'}
             size={22}
             color={vm.isFavorited ? '#EF4444' : '#111827'}
           />
@@ -314,7 +314,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
           {/* Location */}
           <View style={styles.metaRow}>
-            <Ionicons name="location-outline" size={16} color="#6B7280" />
+            <Feather name="map-pin" size={16} color="#6B7280" />
             <Text style={styles.metaText}>
               {formatEventLocation(event.location.address)}
             </Text>
@@ -322,7 +322,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
           {/* Participants */}
           <View style={styles.metaRow}>
-            <Ionicons name="people-outline" size={16} color="#6B7280" />
+            <Feather name="users" size={16} color="#6B7280" />
             <Text style={styles.metaText}>
               {capacityLabel} participant{event.approved_participant_count !== 1 ? 's' : ''}
               {event.capacity != null ? ' (capacity)' : ''}
@@ -331,7 +331,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
           {/* Favorites */}
           <View style={styles.metaRow}>
-            <Ionicons name="heart-outline" size={16} color="#6B7280" />
+            <Feather name="heart" size={16} color="#6B7280" />
             <Text style={styles.metaText}>{event.favorite_count} saved</Text>
           </View>
         </View>
@@ -354,7 +354,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               <Text style={styles.hostUsername}>@{event.host.username}</Text>
             </View>
             <View style={styles.hostRating}>
-              <Ionicons name="star" size={14} color="#F59E0B" />
+              <Feather name="star" size={14} color="#F59E0B" />
               <Text style={styles.hostRatingText}>{ratingLabel}</Text>
             </View>
           </View>
@@ -371,7 +371,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   style={[styles.hostActionBtn, styles.hostActionBtnSecondary]}
                   onPress={() => vm.setShowAttendeesModal(true)}
                 >
-                  <Ionicons name="people" size={18} color="#111827" />
+                  <Feather name="users" size={18} color="#111827" />
                   <Text style={styles.hostActionText}>
                     Attendees ({vm.event.host_context.approved_participants.length})
                   </Text>
@@ -382,7 +382,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                     style={[styles.hostActionBtn, styles.hostActionBtnPrimary]}
                     onPress={() => vm.setShowRequestsModal(true)}
                   >
-                    <Ionicons name="mail" size={18} color="#FFFFFF" />
+                    <Feather name="mail" size={18} color="#FFFFFF" />
                     <Text style={styles.hostActionTextWhite}>
                       Pending Requests ({vm.event.host_context.pending_join_requests.length})
                     </Text>
@@ -403,7 +403,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                       );
                     }}
                   >
-                    <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                    <Feather name="trash-2" size={18} color="#DC2626" />
                     <Text style={styles.hostActionTextDanger}>Cancel Event</Text>
                   </TouchableOpacity>
                 )}
@@ -552,7 +552,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <>
-                  <Ionicons name="send-outline" size={18} color="#FFFFFF" />
+                  <Feather name="send" size={18} color="#FFFFFF" />
                   <Text style={styles.actionButtonText}>Send Request</Text>
                 </>
               )}

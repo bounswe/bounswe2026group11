@@ -1,6 +1,15 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { ApiError } from '@/services/api';
-import { createEvent, searchLocation } from '@/services/eventService';
+import {
+  createEvent,
+  searchLocation,
+  getEventImageUploadUrl,
+  uploadFileToPresignedUrl,
+  confirmEventImageUpload,
+} from '@/services/eventService';
 import {
   PrivacyLevel,
   LocationSuggestion,
@@ -95,8 +104,11 @@ export interface CreateEventViewModel {
   formData: CreateEventFormData;
   errors: CreateEventFormErrors;
   isLoading: boolean;
+  isUploadingImage: boolean;
   apiError: string | null;
+  imageError: string | null;
   successMessage: string | null;
+  selectedImageUri: string | null;
   locationSuggestions: LocationSuggestion[];
   isSearchingLocation: boolean;
   categoriesExpanded: boolean;
@@ -114,7 +126,63 @@ export interface CreateEventViewModel {
   addGenderConstraint: (gender: 'MALE' | 'FEMALE') => void;
   addConstraint: () => void;
   removeConstraint: (index: number) => void;
+  pickImage: () => Promise<void>;
+  removeImage: () => void;
   handleSubmit: (token: string) => Promise<CreateEventResponse | null>;
+}
+
+export function formatDateForForm(date: Date): string {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear());
+  return `${day}.${month}.${year}`;
+}
+
+function decodeFileUriOnce(uri: string): string {
+  if (!uri.startsWith('file://')) {
+    return uri;
+  }
+
+  try {
+    return `file://${decodeURIComponent(uri.slice('file://'.length))}`;
+  } catch {
+    return uri;
+  }
+}
+
+export function normalizePickedImageUri(uri: string): string {
+  let normalized = uri;
+
+  for (let i = 0; i < 3; i += 1) {
+    const next = decodeFileUriOnce(normalized);
+    if (next === normalized) break;
+    normalized = next;
+  }
+
+  return normalized;
+}
+
+function getPickedImageUriCandidates(uri: string): string[] {
+  return [...new Set([uri, decodeFileUriOnce(uri), normalizePickedImageUri(uri)])];
+}
+
+async function preparePickedImageUri(uri: string): Promise<string> {
+  let lastError: unknown = null;
+
+  for (const candidateUri of getPickedImageUriCandidates(uri)) {
+    try {
+      const preparedImage = await ImageManipulator.manipulateAsync(
+        candidateUri,
+        [],
+        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG },
+      );
+      return preparedImage.uri;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error('Could not prepare the selected image');
 }
 
 export const INITIAL_FORM_DATA: CreateEventFormData = {
@@ -126,7 +194,7 @@ export const INITIAL_FORM_DATA: CreateEventFormData = {
   address: '',
   lat: null,
   lon: null,
-  startDate: '',
+  startDate: formatDateForForm(new Date()),
   startTime: '',
   endDate: '',
   endTime: '',
@@ -215,6 +283,70 @@ export function validateTimeFormat(time: string): string | null {
   return null;
 }
 
+function isCompleteDateInput(date: string): boolean {
+  return date.length === 10;
+}
+
+function isCompleteTimeInput(time: string): boolean {
+  return time.length === 5;
+}
+
+export function validateLiveDateInput(date: string): string | null {
+  if (!date) return null;
+
+  const parts = date.split('.');
+  const dayStr = parts[0] ?? '';
+  const monthStr = parts[1] ?? '';
+
+  if (dayStr.length === 2) {
+    const day = parseInt(dayStr, 10);
+    if (isNaN(day) || day < 1 || day > 31) {
+      return 'Invalid date: day must be 1-31';
+    }
+  }
+
+  if (monthStr.length === 2) {
+    const month = parseInt(monthStr, 10);
+    if (isNaN(month) || month < 1 || month > 12) {
+      return 'Invalid date: month must be 1-12';
+    }
+  }
+
+  if (isCompleteDateInput(date)) {
+    return validateDateFormat(date);
+  }
+
+  return null;
+}
+
+export function validateLiveTimeInput(time: string): string | null {
+  if (!time) return null;
+
+  const parts = time.split(':');
+  const hourStr = parts[0] ?? '';
+  const minuteStr = parts[1] ?? '';
+
+  if (hourStr.length === 2) {
+    const hour = parseInt(hourStr, 10);
+    if (isNaN(hour) || hour < 0 || hour > 23) {
+      return 'Invalid time: hour must be 0-23';
+    }
+  }
+
+  if (minuteStr.length === 2) {
+    const minute = parseInt(minuteStr, 10);
+    if (isNaN(minute) || minute < 0 || minute > 59) {
+      return 'Invalid time: minute must be 0-59';
+    }
+  }
+
+  if (isCompleteTimeInput(time)) {
+    return validateTimeFormat(time);
+  }
+
+  return null;
+}
+
 function parseDateTime(date: string, time: string): string | null {
   if (!date || !time) return null;
   const [dayStr, monthStr, yearStr] = date.split('.');
@@ -230,6 +362,81 @@ export const TITLE_MAX_LENGTH = 60;
 export const DESCRIPTION_MIN_LENGTH = 20;
 export const DESCRIPTION_MAX_LENGTH = 600;
 export const CAPACITY_MIN = 2;
+
+function getDateTimeErrors(
+  formData: CreateEventFormData,
+  requireMissingFields: boolean,
+): Pick<CreateEventFormErrors, 'startDate' | 'startTime' | 'endDate' | 'endTime'> {
+  const errors: Pick<CreateEventFormErrors, 'startDate' | 'startTime' | 'endDate' | 'endTime'> = {
+    startDate: null,
+    startTime: null,
+    endDate: null,
+    endTime: null,
+  };
+
+  if (!formData.startDate) {
+    if (requireMissingFields) errors.startDate = 'Start date is required';
+  } else {
+    errors.startDate = validateLiveDateInput(formData.startDate);
+  }
+
+  if (!formData.startTime) {
+    if (requireMissingFields) errors.startTime = 'Start time is required';
+  } else {
+    errors.startTime = validateLiveTimeInput(formData.startTime);
+  }
+
+  const hasComparableStartDateTime =
+    isCompleteDateInput(formData.startDate) &&
+    isCompleteTimeInput(formData.startTime) &&
+    !errors.startDate &&
+    !errors.startTime;
+
+  if (hasComparableStartDateTime) {
+    const parsedStart = parseDateTime(formData.startDate, formData.startTime);
+    if (!parsedStart) {
+      errors.startDate = 'Invalid start date';
+    } else if (new Date(parsedStart) <= new Date()) {
+      errors.startDate = 'Start date must be in the future';
+    }
+  }
+
+  const hasEndInput = Boolean(formData.endDate || formData.endTime);
+  if (hasEndInput) {
+    if (!formData.endDate) {
+      if (requireMissingFields) errors.endDate = 'End date is required';
+    } else {
+      errors.endDate = validateLiveDateInput(formData.endDate);
+    }
+
+    if (!formData.endTime) {
+      if (requireMissingFields) errors.endTime = 'End time is required';
+    } else {
+      errors.endTime = validateLiveTimeInput(formData.endTime);
+    }
+
+    const hasComparableEndDateTime =
+      isCompleteDateInput(formData.endDate) &&
+      isCompleteTimeInput(formData.endTime) &&
+      !errors.endDate &&
+      !errors.endTime;
+
+    if (hasComparableEndDateTime) {
+      const parsedEnd = parseDateTime(formData.endDate, formData.endTime);
+      const parsedStart = hasComparableStartDateTime
+        ? parseDateTime(formData.startDate, formData.startTime)
+        : null;
+
+      if (!parsedEnd) {
+        errors.endDate = 'Invalid end date';
+      } else if (parsedStart && new Date(parsedEnd) <= new Date(parsedStart)) {
+        errors.endDate = 'End must be after start';
+      }
+    }
+  }
+
+  return errors;
+}
 
 function validateForm(formData: CreateEventFormData): CreateEventFormErrors {
   const errors: CreateEventFormErrors = {};
@@ -260,56 +467,92 @@ function validateForm(formData: CreateEventFormData): CreateEventFormErrors {
     errors.location = 'Please select a location';
   }
 
-  if (!formData.startDate) {
-    errors.startDate = 'Start date is required';
-  } else {
-    const dateErr = validateDateFormat(formData.startDate);
-    if (dateErr) errors.startDate = dateErr;
-  }
-
-  if (!formData.startTime) {
-    errors.startTime = 'Start time is required';
-  } else {
-    const timeErr = validateTimeFormat(formData.startTime);
-    if (timeErr) errors.startTime = timeErr;
-  }
-
-  if (!errors.startDate && !errors.startTime && formData.startDate && formData.startTime) {
-    const parsed = parseDateTime(formData.startDate, formData.startTime);
-    if (!parsed) {
-      errors.startDate = 'Invalid start date';
-    } else if (new Date(parsed) <= new Date()) {
-      errors.startDate = 'Start date must be in the future';
-    }
-  }
-
-  if (formData.endDate || formData.endTime) {
-    if (!formData.endDate) {
-      errors.endDate = 'End date is required';
-    } else {
-      const dateErr = validateDateFormat(formData.endDate);
-      if (dateErr) errors.endDate = dateErr;
-    }
-
-    if (!formData.endTime) {
-      errors.endTime = 'End time is required';
-    } else {
-      const timeErr = validateTimeFormat(formData.endTime);
-      if (timeErr) errors.endTime = timeErr;
-    }
-
-    if (!errors.endDate && !errors.endTime && formData.endDate && formData.endTime) {
-      const parsedEnd = parseDateTime(formData.endDate, formData.endTime);
-      const parsedStart = parseDateTime(formData.startDate, formData.startTime);
-      if (!parsedEnd) {
-        errors.endDate = 'Invalid end date';
-      } else if (parsedStart && new Date(parsedEnd) <= new Date(parsedStart)) {
-        errors.endDate = 'End must be after start';
-      }
-    }
-  }
+  Object.assign(errors, getDateTimeErrors(formData, true));
 
   return errors;
+}
+
+function getImageUploadErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  if (error instanceof Error) {
+    if (error.message === 'Network request failed') {
+      return 'The event was created, but uploading the image failed because the network request did not complete.';
+    }
+
+    if (error.message === 'Missing upload instructions from server') {
+      return 'The server returned incomplete image upload instructions.';
+    }
+
+    if (error.message.startsWith('Unsupported upload method')) {
+      return 'The server returned an unsupported image upload method.';
+    }
+
+    if (error.message.startsWith('Upload failed with status')) {
+      return 'The event was created, but uploading the image to storage failed.';
+    }
+
+    return error.message;
+  }
+
+  return 'The event was created, but the image upload failed.';
+}
+
+function isLocalDateTimeError(
+  field: 'startDate' | 'startTime' | 'endDate' | 'endTime',
+  error: string | null | undefined,
+): boolean {
+  if (error == null) return true;
+
+  const localErrorsByField: Record<
+    'startDate' | 'startTime' | 'endDate' | 'endTime',
+    Set<string>
+  > = {
+    startDate: new Set([
+      'Start date is required',
+      'Invalid date format',
+      'Invalid date',
+      'Invalid date: day must be 1–31',
+      'Invalid date: month must be 1–12',
+      'Invalid date: day must be 1-31',
+      'Invalid date: month must be 1-12',
+      'Start date must be in the future',
+      'Invalid start date',
+    ]),
+    startTime: new Set([
+      'Start time is required',
+      'Invalid time format',
+      'Invalid time',
+      'Invalid time: hour must be 0–23',
+      'Invalid time: minute must be 0–59',
+      'Invalid time: hour must be 0-23',
+      'Invalid time: minute must be 0-59',
+    ]),
+    endDate: new Set([
+      'End date is required',
+      'Invalid date format',
+      'Invalid date',
+      'Invalid date: day must be 1–31',
+      'Invalid date: month must be 1–12',
+      'Invalid date: day must be 1-31',
+      'Invalid date: month must be 1-12',
+      'End must be after start',
+      'Invalid end date',
+    ]),
+    endTime: new Set([
+      'End time is required',
+      'Invalid time format',
+      'Invalid time',
+      'Invalid time: hour must be 0–23',
+      'Invalid time: minute must be 0–59',
+      'Invalid time: hour must be 0-23',
+      'Invalid time: minute must be 0-59',
+    ]),
+  };
+
+  return localErrorsByField[field].has(error);
 }
 
 export function useCreateEventViewModel(): CreateEventViewModel {
@@ -317,10 +560,14 @@ export function useCreateEventViewModel(): CreateEventViewModel {
   const [errors, setErrors] = useState<CreateEventFormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const constraintTypeCounts = useMemo(() => {
@@ -356,6 +603,53 @@ export function useCreateEventViewModel(): CreateEventViewModel {
   const toggleCategoriesExpanded = useCallback(() => {
     setCategoriesExpanded((prev) => !prev);
   }, []);
+
+  useEffect(() => {
+    const nextDateTimeErrors = getDateTimeErrors(formData, hasAttemptedSubmit);
+    setErrors((prev) => {
+      const hasExistingDateTimeError = Boolean(
+        prev.startDate || prev.startTime || prev.endDate || prev.endTime,
+      );
+
+      if (
+        !hasAttemptedSubmit &&
+        Object.values(nextDateTimeErrors).every((value) => value == null) &&
+        !hasExistingDateTimeError
+      ) {
+        return prev;
+      }
+
+      const dateTimeKeys: Array<keyof typeof nextDateTimeErrors> = [
+        'startDate',
+        'startTime',
+        'endDate',
+        'endTime',
+      ];
+      const changed = dateTimeKeys.some((key) => {
+        if (!isLocalDateTimeError(key, prev[key])) {
+          return false;
+        }
+
+        return prev[key] !== nextDateTimeErrors[key];
+      });
+      if (!changed) return prev;
+
+      const nextErrors = { ...prev };
+      dateTimeKeys.forEach((key) => {
+        if (isLocalDateTimeError(key, prev[key])) {
+          nextErrors[key] = nextDateTimeErrors[key];
+        }
+      });
+
+      return nextErrors;
+    });
+  }, [
+    formData.startDate,
+    formData.startTime,
+    formData.endDate,
+    formData.endTime,
+    hasAttemptedSubmit,
+  ]);
 
   const handleLocationSearch = useCallback((query: string) => {
     setFormData((prev) => ({ ...prev, locationQuery: query }));
@@ -537,8 +831,102 @@ export function useCreateEventViewModel(): CreateEventViewModel {
     }));
   }, []);
 
+  const pickImage = useCallback(async () => {
+    setImageError(null);
+
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        const message = 'Please allow access to your photo library to add an event image.';
+        setImageError(message);
+        Alert.alert('Permission required', message);
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      if (!asset?.uri) {
+        setImageError('We could not read the selected image. Please try a different one.');
+        return;
+      }
+
+      try {
+        const preparedImageUri = await preparePickedImageUri(asset.uri);
+        setSelectedImageUri(preparedImageUri);
+      } catch {
+        setImageError('We could not process the selected image. Please try a different one.');
+        return;
+      }
+
+      setSuccessMessage(null);
+    } catch {
+      setImageError('We could not open your photo library. Please try again.');
+    }
+  }, []);
+
+  const removeImage = useCallback(() => {
+    setSelectedImageUri(null);
+    setImageError(null);
+  }, []);
+
+  const uploadEventImage = useCallback(
+    async (eventId: string, imageUri: string, token: string): Promise<void> => {
+      setIsUploadingImage(true);
+      try {
+        // Resize to original (max 1200px wide) as JPEG
+        const original = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        // Resize to small thumbnail (max 400px wide) as JPEG
+        const small = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 400 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        // 1. Get presigned upload URLs
+        const uploadInit = await getEventImageUploadUrl(eventId, token);
+
+        const originalUpload = uploadInit.uploads.find((u) => u.variant === 'ORIGINAL');
+        const smallUpload = uploadInit.uploads.find((u) => u.variant === 'SMALL');
+        if (!originalUpload || !smallUpload) {
+          throw new Error('Missing upload instructions from server');
+        }
+
+        // 2. Upload both variants
+        await Promise.all([
+          uploadFileToPresignedUrl(
+            originalUpload.method,
+            originalUpload.url,
+            originalUpload.headers,
+            original.uri,
+          ),
+          uploadFileToPresignedUrl(smallUpload.method, smallUpload.url, smallUpload.headers, small.uri),
+        ]);
+
+        // 3. Confirm
+        await confirmEventImageUpload(eventId, uploadInit.confirm_token, token);
+      } finally {
+        setIsUploadingImage(false);
+      }
+    },
+    [],
+  );
+
   const handleSubmit = useCallback(
     async (token: string): Promise<CreateEventResponse | null> => {
+      setHasAttemptedSubmit(true);
       const validationErrors = validateForm(formData);
       const hasErrors = Object.values(validationErrors).some((e) => e != null);
       if (hasErrors) {
@@ -548,6 +936,7 @@ export function useCreateEventViewModel(): CreateEventViewModel {
 
       setIsLoading(true);
       setApiError(null);
+      setImageError(null);
 
       try {
         const startTimeISO = parseDateTime(formData.startDate, formData.startTime)!;
@@ -609,6 +998,16 @@ export function useCreateEventViewModel(): CreateEventViewModel {
 
         const result = await createEvent(request, token);
         setSuccessMessage('Event created successfully!');
+
+        // Upload image if one was selected
+        if (selectedImageUri) {
+          try {
+            await uploadEventImage(result.id, selectedImageUri, token);
+          } catch (error) {
+            setImageError(getImageUploadErrorMessage(error));
+          }
+        }
+
         return result;
       } catch (err) {
         if (err instanceof ApiError) {
@@ -636,15 +1035,18 @@ export function useCreateEventViewModel(): CreateEventViewModel {
         setIsLoading(false);
       }
     },
-    [formData],
+    [formData, selectedImageUri, uploadEventImage],
   );
 
   return {
     formData,
     errors,
     isLoading,
+    isUploadingImage,
     apiError,
+    imageError,
     successMessage,
+    selectedImageUri,
     locationSuggestions,
     isSearchingLocation,
     categoriesExpanded,
@@ -659,6 +1061,8 @@ export function useCreateEventViewModel(): CreateEventViewModel {
     addGenderConstraint,
     addConstraint,
     removeConstraint,
+    pickImage,
+    removeImage,
     handleSubmit,
   };
 }
