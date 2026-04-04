@@ -1,6 +1,67 @@
 /** Minimal React Native DOM-friendly stub for Node/Jest tests. */
 const React = require('react');
 
+/**
+ * Props that React Native uses but must not be forwarded to DOM nodes in jsdom
+ * (react-dom warns on unknown attributes).
+ */
+const REACT_NATIVE_ONLY_PROPS = new Set([
+  'activeOpacity',
+  'allowFontScaling',
+  'contentContainerStyle',
+  'cursorColor',
+  'ellipsizeMode',
+  'keyboardDismissMode',
+  'keyboardShouldPersistTaps',
+  'maxFontSizeMultiplier',
+  'minimumFontScale',
+  'numberOfLines',
+  'placeholderTextColor',
+  'rejectResponderTermination',
+  'scrollEventThrottle',
+  'selectable',
+  'selectionColor',
+  'showsHorizontalScrollIndicator',
+  'showsVerticalScrollIndicator',
+  'textAlignVertical',
+  'underlineColorAndroid',
+  'adjustsFontSizeToFit',
+  'clearButtonMode',
+  'clearTextOnFocus',
+  'collapsable',
+  'delayLongPress',
+  'delayPressIn',
+  'delayPressOut',
+  'hitSlop',
+  'horizontal',
+  'nestedScrollEnabled',
+  'overScrollMode',
+  'pressRetentionOffset',
+  'refreshControl',
+  'removeClippedSubviews',
+  'renderToHardwareTextureAndroid',
+  'resizeMethod',
+  'resizeMode',
+  'scrollEnabled',
+  'shouldRasterizeIOS',
+  'snapToAlignment',
+  'snapToInterval',
+  'tvParallaxProperties',
+]);
+
+function stripReactNativeOnlyProps(props) {
+  if (!props || typeof props !== 'object') {
+    return props;
+  }
+  const out = {};
+  for (const key of Object.keys(props)) {
+    if (!REACT_NATIVE_ONLY_PROPS.has(key)) {
+      out[key] = props[key];
+    }
+  }
+  return out;
+}
+
 function mergeStyle(style) {
   if (Array.isArray(style)) {
     return style.reduce((acc, item) => Object.assign(acc, mergeStyle(item)), {});
@@ -20,7 +81,7 @@ function createContainer(tagName) {
         'aria-label': accessibilityLabel,
         'data-testid': testID,
         style: mergeStyle(style),
-        ...props,
+        ...stripReactNativeOnlyProps(props),
       },
       children,
     );
@@ -42,7 +103,7 @@ const Text = React.forwardRef(function MockText(
       'aria-label': accessibilityLabel,
       'data-testid': testID,
       style: mergeStyle(style),
-      ...props,
+      ...stripReactNativeOnlyProps(props),
     },
     children,
   );
@@ -72,7 +133,7 @@ const TouchableOpacity = React.forwardRef(function MockTouchableOpacity(
       style: mergeStyle(style),
       disabled,
       onClick: disabled ? undefined : onPress,
-      ...props,
+      ...stripReactNativeOnlyProps(props),
     },
     children,
   );
@@ -111,7 +172,7 @@ const TextInput = React.forwardRef(function MockTextInput(
           }
         }
       : undefined,
-    ...props,
+    ...stripReactNativeOnlyProps(props),
   };
 
   return multiline
@@ -129,7 +190,7 @@ const Image = React.forwardRef(function MockImage(
     alt: accessibilityLabel ?? '',
     'data-testid': testID,
     style: mergeStyle(style),
-    ...props,
+    ...stripReactNativeOnlyProps(props),
   });
 });
 
@@ -143,7 +204,7 @@ const ActivityIndicator = React.forwardRef(function MockActivityIndicator(
     'aria-label': accessibilityLabel,
     'data-testid': testID,
     style: mergeStyle(style),
-    ...props,
+    ...stripReactNativeOnlyProps(props),
   });
 });
 
