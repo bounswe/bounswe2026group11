@@ -11,6 +11,23 @@ import (
 	"github.com/google/uuid"
 )
 
+type fakeUnitOfWork struct {
+	callCount     int
+	commitCount   int
+	rollbackCount int
+}
+
+func (u *fakeUnitOfWork) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	u.callCount++
+	if err := fn(ctx); err != nil {
+		u.rollbackCount++
+		return err
+	}
+
+	u.commitCount++
+	return nil
+}
+
 type fakeRatingRepo struct {
 	eventContext               *EventRatingContext
 	participantContext         *ParticipantRatingContext
@@ -29,12 +46,6 @@ type fakeRatingRepo struct {
 	upsertParticipantCallCount int
 	deleteEventCallCount       int
 	deleteParticipantCallCount int
-	withTxCallCount            int
-}
-
-func (r *fakeRatingRepo) WithTx(_ context.Context, fn func(repo Repository) error) error {
-	r.withTxCallCount++
-	return fn(r)
 }
 
 func (r *fakeRatingRepo) GetEventRatingContext(_ context.Context, _, _ uuid.UUID) (*EventRatingContext, error) {
@@ -139,7 +150,8 @@ func TestUpsertEventRatingNormalizesBlankMessageAndRefreshesHostScore(t *testing
 			Count:   2,
 		},
 	}
-	service := NewService(repo, Settings{GlobalPrior: 4.0, BayesianM: 5})
+	unitOfWork := &fakeUnitOfWork{}
+	service := NewService(repo, unitOfWork, Settings{GlobalPrior: 4.0, BayesianM: 5})
 	service.now = func() time.Time { return now }
 
 	// when
@@ -165,12 +177,16 @@ func TestUpsertEventRatingNormalizesBlankMessageAndRefreshesHostScore(t *testing
 	if repo.lastUserScore.FinalScore == nil || math.Abs(*repo.lastUserScore.FinalScore-expected) > 0.00001 {
 		t.Fatalf("expected final score %.5f, got %v", expected, repo.lastUserScore.FinalScore)
 	}
+	if unitOfWork.callCount != 1 || unitOfWork.commitCount != 1 {
+		t.Fatalf("expected one committed unit of work, got calls=%d commits=%d", unitOfWork.callCount, unitOfWork.commitCount)
+	}
 }
 
 func TestUpsertEventRatingRejectsInvalidInput(t *testing.T) {
 	// given
 	repo := &fakeRatingRepo{}
-	service := NewService(repo, Settings{GlobalPrior: 4.0, BayesianM: 5})
+	unitOfWork := &fakeUnitOfWork{}
+	service := NewService(repo, unitOfWork, Settings{GlobalPrior: 4.0, BayesianM: 5})
 
 	// when
 	_, err := service.UpsertEventRating(context.Background(), uuid.New(), uuid.New(), UpsertRatingInput{
@@ -180,8 +196,8 @@ func TestUpsertEventRatingRejectsInvalidInput(t *testing.T) {
 
 	// then
 	_ = requireAppErrorCode(t, err, domain.ErrorCodeValidation)
-	if repo.withTxCallCount != 0 {
-		t.Fatalf("expected repository transaction not to start, got %d", repo.withTxCallCount)
+	if unitOfWork.callCount != 0 {
+		t.Fatalf("expected unit of work not to start, got %d", unitOfWork.callCount)
 	}
 }
 
@@ -198,7 +214,7 @@ func TestUpsertEventRatingRejectsCanceledEvent(t *testing.T) {
 			IsApprovedParticipant: true,
 		},
 	}
-	service := NewService(repo, Settings{GlobalPrior: 4.0, BayesianM: 5})
+	service := NewService(repo, &fakeUnitOfWork{}, Settings{GlobalPrior: 4.0, BayesianM: 5})
 	service.now = func() time.Time { return now }
 
 	// when
@@ -226,7 +242,7 @@ func TestUpsertEventRatingRejectsHostSelfBeforeApprovedParticipantCheck(t *testi
 			IsApprovedParticipant: false,
 		},
 	}
-	service := NewService(repo, Settings{GlobalPrior: 4.0, BayesianM: 5})
+	service := NewService(repo, &fakeUnitOfWork{}, Settings{GlobalPrior: 4.0, BayesianM: 5})
 	service.now = func() time.Time { return now }
 
 	// when
@@ -258,7 +274,7 @@ func TestUpsertParticipantRatingRejectsHostSelf(t *testing.T) {
 			IsApprovedParticipant: true,
 		},
 	}
-	service := NewService(repo, Settings{GlobalPrior: 4.0, BayesianM: 5})
+	service := NewService(repo, &fakeUnitOfWork{}, Settings{GlobalPrior: 4.0, BayesianM: 5})
 	service.now = func() time.Time { return now }
 
 	// when
@@ -294,7 +310,7 @@ func TestUpsertParticipantRatingRefreshesWeightedFinalScore(t *testing.T) {
 			Count:   10,
 		},
 	}
-	service := NewService(repo, Settings{GlobalPrior: 4.0, BayesianM: 5})
+	service := NewService(repo, &fakeUnitOfWork{}, Settings{GlobalPrior: 4.0, BayesianM: 5})
 	service.now = func() time.Time { return now }
 
 	// when
@@ -332,7 +348,7 @@ func TestDeleteEventRatingReturnsNotFoundWhenRecordMissing(t *testing.T) {
 		},
 		eventDeleteResult: false,
 	}
-	service := NewService(repo, Settings{GlobalPrior: 4.0, BayesianM: 5})
+	service := NewService(repo, &fakeUnitOfWork{}, Settings{GlobalPrior: 4.0, BayesianM: 5})
 	service.now = func() time.Time { return now }
 
 	// when
@@ -359,7 +375,7 @@ func TestDeleteParticipantRatingUsesStartTimeWhenEndTimeIsNil(t *testing.T) {
 			IsApprovedParticipant: true,
 		},
 	}
-	service := NewService(repo, Settings{GlobalPrior: 4.0, BayesianM: 5})
+	service := NewService(repo, &fakeUnitOfWork{}, Settings{GlobalPrior: 4.0, BayesianM: 5})
 	service.now = func() time.Time { return now }
 
 	// when

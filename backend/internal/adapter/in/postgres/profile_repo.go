@@ -18,11 +18,15 @@ import (
 // ProfileRepository is the Postgres-backed implementation of profile.Repository.
 type ProfileRepository struct {
 	pool *pgxpool.Pool
+	db   execer
 }
 
 // NewProfileRepository returns a repository that executes queries against the given connection pool.
 func NewProfileRepository(pool *pgxpool.Pool) *ProfileRepository {
-	return &ProfileRepository{pool: pool}
+	return &ProfileRepository{
+		pool: pool,
+		db:   contextualRunner{fallback: pool},
+	}
 }
 
 // GetProfile returns the combined app_user + profile data for the given user.
@@ -245,12 +249,6 @@ func scanEventSummaries(rows interface {
 
 // UpdateProfile persists editable profile fields across app_user and profile tables.
 func (r *ProfileRepository) UpdateProfile(ctx context.Context, params profileapp.UpdateProfileParams) error {
-	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
 	// Update app_user fields.
 	var locationExpr string
 	var userArgs []any
@@ -282,7 +280,7 @@ func (r *ProfileRepository) UpdateProfile(ctx context.Context, params profileapp
 
 	setClauses += locationExpr
 
-	if _, err := tx.Exec(ctx,
+	if _, err := r.db.Exec(ctx,
 		fmt.Sprintf(`UPDATE app_user SET %s WHERE id = $1`, setClauses),
 		userArgs...,
 	); err != nil {
@@ -307,15 +305,11 @@ func (r *ProfileRepository) UpdateProfile(ctx context.Context, params profileapp
 		profileArgs = append(profileArgs, *params.AvatarURL)
 	}
 
-	if _, err := tx.Exec(ctx,
+	if _, err := r.db.Exec(ctx,
 		fmt.Sprintf(`UPDATE profile SET %s WHERE user_id = $1`, profileSet),
 		profileArgs...,
 	); err != nil {
 		return fmt.Errorf("update profile: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit transaction: %w", err)
 	}
 	return nil
 }

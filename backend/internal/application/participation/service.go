@@ -30,3 +30,8 @@ func (s *Service) CreateApprovedParticipation(ctx context.Context, eventID, user
 func (s *Service) LeaveParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
 	return s.repo.LeaveParticipation(ctx, eventID, userID)
 }
+
+// CancelEventParticipations marks all non-LEAVED participations for an event as CANCELED.
+func (s *Service) CancelEventParticipations(ctx context.Context, eventID uuid.UUID) error {
+	return s.repo.CancelEventParticipations(ctx, eventID)
+}

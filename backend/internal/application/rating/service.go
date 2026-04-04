@@ -5,25 +5,28 @@ import (
 	"errors"
 	"time"
 
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 )
 
 // Service owns rating-specific application behavior.
 type Service struct {
-	repo     Repository
-	settings Settings
-	now      func() time.Time
+	repo       Repository
+	unitOfWork uow.UnitOfWork
+	settings   Settings
+	now        func() time.Time
 }
 
 var _ UseCase = (*Service)(nil)
 
 // NewService constructs a rating service backed by its own repository.
-func NewService(repo Repository, settings Settings) *Service {
+func NewService(repo Repository, unitOfWork uow.UnitOfWork, settings Settings) *Service {
 	return &Service{
-		repo:     repo,
-		settings: settings,
-		now:      time.Now,
+		repo:       repo,
+		unitOfWork: unitOfWork,
+		settings:   settings,
+		now:        time.Now,
 	}
 }
 
@@ -39,8 +42,8 @@ func (s *Service) UpsertEventRating(
 	}
 
 	var result *domain.EventRating
-	err := s.repo.WithTx(ctx, func(repo Repository) error {
-		ratingContext, err := repo.GetEventRatingContext(ctx, eventID, participantUserID)
+	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		ratingContext, err := s.repo.GetEventRatingContext(ctx, eventID, participantUserID)
 		if err != nil {
 			return s.mapContextError(err)
 		}
@@ -48,7 +51,7 @@ func (s *Service) UpsertEventRating(
 			return err
 		}
 
-		result, err = repo.UpsertEventRating(ctx, UpsertEventRatingParams{
+		result, err = s.repo.UpsertEventRating(ctx, UpsertEventRatingParams{
 			EventID:           eventID,
 			ParticipantUserID: participantUserID,
 			Rating:            input.Rating,
@@ -58,7 +61,7 @@ func (s *Service) UpsertEventRating(
 			return err
 		}
 
-		return s.refreshUserScore(ctx, repo, ratingContext.HostUserID)
+		return s.refreshUserScore(ctx, s.repo, ratingContext.HostUserID)
 	})
 	if err != nil {
 		return nil, err
@@ -69,8 +72,8 @@ func (s *Service) UpsertEventRating(
 
 // DeleteEventRating hard deletes the caller's rating for an event.
 func (s *Service) DeleteEventRating(ctx context.Context, participantUserID, eventID uuid.UUID) error {
-	return s.repo.WithTx(ctx, func(repo Repository) error {
-		ratingContext, err := repo.GetEventRatingContext(ctx, eventID, participantUserID)
+	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		ratingContext, err := s.repo.GetEventRatingContext(ctx, eventID, participantUserID)
 		if err != nil {
 			return s.mapContextError(err)
 		}
@@ -78,7 +81,7 @@ func (s *Service) DeleteEventRating(ctx context.Context, participantUserID, even
 			return err
 		}
 
-		deleted, err := repo.DeleteEventRating(ctx, eventID, participantUserID)
+		deleted, err := s.repo.DeleteEventRating(ctx, eventID, participantUserID)
 		if err != nil {
 			return err
 		}
@@ -86,7 +89,7 @@ func (s *Service) DeleteEventRating(ctx context.Context, participantUserID, even
 			return domain.NotFoundError(domain.ErrorCodeEventRatingNotFound, "The requested event rating does not exist.")
 		}
 
-		return s.refreshUserScore(ctx, repo, ratingContext.HostUserID)
+		return s.refreshUserScore(ctx, s.repo, ratingContext.HostUserID)
 	})
 }
 
@@ -102,8 +105,8 @@ func (s *Service) UpsertParticipantRating(
 	}
 
 	var result *domain.ParticipantRating
-	err := s.repo.WithTx(ctx, func(repo Repository) error {
-		ratingContext, err := repo.GetParticipantRatingContext(ctx, eventID, hostUserID, participantUserID)
+	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		ratingContext, err := s.repo.GetParticipantRatingContext(ctx, eventID, hostUserID, participantUserID)
 		if err != nil {
 			return s.mapContextError(err)
 		}
@@ -111,7 +114,7 @@ func (s *Service) UpsertParticipantRating(
 			return err
 		}
 
-		result, err = repo.UpsertParticipantRating(ctx, UpsertParticipantRatingParams{
+		result, err = s.repo.UpsertParticipantRating(ctx, UpsertParticipantRatingParams{
 			EventID:           eventID,
 			HostUserID:        hostUserID,
 			ParticipantUserID: participantUserID,
@@ -122,7 +125,7 @@ func (s *Service) UpsertParticipantRating(
 			return err
 		}
 
-		return s.refreshUserScore(ctx, repo, participantUserID)
+		return s.refreshUserScore(ctx, s.repo, participantUserID)
 	})
 	if err != nil {
 		return nil, err
@@ -136,8 +139,8 @@ func (s *Service) DeleteParticipantRating(
 	ctx context.Context,
 	hostUserID, eventID, participantUserID uuid.UUID,
 ) error {
-	return s.repo.WithTx(ctx, func(repo Repository) error {
-		ratingContext, err := repo.GetParticipantRatingContext(ctx, eventID, hostUserID, participantUserID)
+	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		ratingContext, err := s.repo.GetParticipantRatingContext(ctx, eventID, hostUserID, participantUserID)
 		if err != nil {
 			return s.mapContextError(err)
 		}
@@ -145,7 +148,7 @@ func (s *Service) DeleteParticipantRating(
 			return err
 		}
 
-		deleted, err := repo.DeleteParticipantRating(ctx, eventID, hostUserID, participantUserID)
+		deleted, err := s.repo.DeleteParticipantRating(ctx, eventID, hostUserID, participantUserID)
 		if err != nil {
 			return err
 		}
@@ -153,7 +156,7 @@ func (s *Service) DeleteParticipantRating(
 			return domain.NotFoundError(domain.ErrorCodeParticipantRatingNotFound, "The requested participant rating does not exist.")
 		}
 
-		return s.refreshUserScore(ctx, repo, participantUserID)
+		return s.refreshUserScore(ctx, s.repo, participantUserID)
 	})
 }
 

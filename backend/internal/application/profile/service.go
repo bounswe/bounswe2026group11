@@ -3,20 +3,25 @@ package profile
 import (
 	"context"
 
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 )
 
 // Service owns profile-specific application behavior.
 type Service struct {
-	repo Repository
+	repo       Repository
+	unitOfWork uow.UnitOfWork
 }
 
 var _ UseCase = (*Service)(nil)
 
 // NewService constructs a profile service backed by its own repository.
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, unitOfWork uow.UnitOfWork) *Service {
+	return &Service{
+		repo:       repo,
+		unitOfWork: unitOfWork,
+	}
 }
 
 // GetMyProfile returns the combined app_user + profile data for the given user.
@@ -112,16 +117,18 @@ func (s *Service) UpdateMyProfile(ctx context.Context, input UpdateProfileInput)
 		return appErr
 	}
 
-	return s.repo.UpdateProfile(ctx, UpdateProfileParams{
-		UserID:                 validated.UserID,
-		PhoneNumber:            validated.PhoneNumber,
-		Gender:                 validated.Gender,
-		BirthDate:              validated.BirthDate,
-		DefaultLocationAddress: validated.DefaultLocationAddress,
-		DefaultLocationLat:     validated.DefaultLocationLat,
-		DefaultLocationLon:     validated.DefaultLocationLon,
-		DisplayName:            validated.DisplayName,
-		Bio:                    validated.Bio,
-		AvatarURL:              validated.AvatarURL,
+	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		return s.repo.UpdateProfile(ctx, UpdateProfileParams{
+			UserID:                 validated.UserID,
+			PhoneNumber:            validated.PhoneNumber,
+			Gender:                 validated.Gender,
+			BirthDate:              validated.BirthDate,
+			DefaultLocationAddress: validated.DefaultLocationAddress,
+			DefaultLocationLat:     validated.DefaultLocationLat,
+			DefaultLocationLon:     validated.DefaultLocationLon,
+			DisplayName:            validated.DisplayName,
+			Bio:                    validated.Bio,
+			AvatarURL:              validated.AvatarURL,
+		})
 	})
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 )
@@ -16,6 +17,7 @@ type Service struct {
 	eventRepo            Repository
 	participationService participation.UseCase
 	joinRequestService   join_request.UseCase
+	unitOfWork           uow.UnitOfWork
 	now                  func() time.Time
 }
 
@@ -27,11 +29,13 @@ func NewService(
 	eventRepo Repository,
 	participationService participation.UseCase,
 	joinRequestService join_request.UseCase,
+	unitOfWork uow.UnitOfWork,
 ) *Service {
 	return &Service{
 		eventRepo:            eventRepo,
 		participationService: participationService,
 		joinRequestService:   joinRequestService,
+		unitOfWork:           unitOfWork,
 		now:                  time.Now,
 	}
 }
@@ -46,7 +50,12 @@ func (s *Service) CreateEvent(ctx context.Context, hostID uuid.UUID, input Creat
 
 	params := toCreateEventParams(hostID, input)
 
-	created, err := s.eventRepo.CreateEvent(ctx, params)
+	var created *domain.Event
+	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		var err error
+		created, err = s.eventRepo.CreateEvent(ctx, params)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -312,26 +321,32 @@ func (s *Service) RejectJoinRequest(
 
 // CancelEvent transitions an ACTIVE event to CANCELED. Only the event host may cancel.
 func (s *Service) CancelEvent(ctx context.Context, userID, eventID uuid.UUID) error {
-	event, err := s.eventRepo.GetEventByID(ctx, eventID)
-	if err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		event, err := s.eventRepo.GetEventByID(ctx, eventID)
+		if err != nil {
+			if errors.Is(err, domain.ErrNotFound) {
+				return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+			}
+			return err
 		}
-		return err
-	}
 
-	if event.HostID != userID {
-		return domain.ForbiddenError(domain.ErrorCodeEventCancelNotAllowed, "Only the event host can cancel this event.")
-	}
-
-	if err := s.eventRepo.CancelEvent(ctx, eventID); err != nil {
-		if errors.Is(err, ErrEventNotCancelable) {
-			return domain.ConflictError(domain.ErrorCodeEventNotCancelable, "Only ACTIVE events can be canceled.")
+		if event.HostID != userID {
+			return domain.ForbiddenError(domain.ErrorCodeEventCancelNotAllowed, "Only the event host can cancel this event.")
 		}
-		return err
-	}
 
-	return nil
+		if err := s.eventRepo.CancelEvent(ctx, eventID, event.ApprovedParticipantCount); err != nil {
+			if errors.Is(err, ErrEventNotCancelable) {
+				return domain.ConflictError(domain.ErrorCodeEventNotCancelable, "Only ACTIVE events can be canceled.")
+			}
+			return err
+		}
+
+		if err := s.participationService.CancelEventParticipations(ctx, eventID); err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 // CompleteEvent transitions an ACTIVE or IN_PROGRESS event to COMPLETED. Only the host may call this.

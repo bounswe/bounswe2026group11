@@ -10,6 +10,12 @@ import (
 	"github.com/google/uuid"
 )
 
+type fakeUnitOfWork struct{}
+
+func (u *fakeUnitOfWork) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return fn(ctx)
+}
+
 type fakeJoinRequestRepo struct {
 	err               error
 	callCount         int
@@ -110,7 +116,7 @@ func (r *fakeJoinRequestRepo) RejectJoinRequest(_ context.Context, params Reject
 func TestCreatePendingJoinRequestDelegatesToRepo(t *testing.T) {
 	// given
 	repo := &fakeJoinRequestRepo{}
-	service := NewService(repo)
+	service := NewService(repo, &fakeUnitOfWork{})
 	eventID := uuid.New()
 	userID := uuid.New()
 	hostUserID := uuid.New()
@@ -143,7 +149,7 @@ func TestCreatePendingJoinRequestPropagatesRepoError(t *testing.T) {
 	// given
 	expectedErr := errors.New("boom")
 	repo := &fakeJoinRequestRepo{err: expectedErr}
-	service := NewService(repo)
+	service := NewService(repo, &fakeUnitOfWork{})
 
 	// when
 	_, err := service.CreatePendingJoinRequest(context.Background(), uuid.New(), uuid.New(), uuid.New(), CreatePendingJoinRequestInput{})
@@ -157,7 +163,7 @@ func TestCreatePendingJoinRequestPropagatesRepoError(t *testing.T) {
 func TestApproveJoinRequestDelegatesToRepo(t *testing.T) {
 	// given
 	repo := &fakeJoinRequestRepo{}
-	service := NewService(repo)
+	service := NewService(repo, &fakeUnitOfWork{})
 	eventID := uuid.New()
 	joinRequestID := uuid.New()
 	hostUserID := uuid.New()
@@ -183,7 +189,7 @@ func TestApproveJoinRequestDelegatesToRepo(t *testing.T) {
 func TestRejectJoinRequestDelegatesToRepo(t *testing.T) {
 	// given
 	repo := &fakeJoinRequestRepo{}
-	service := NewService(repo)
+	service := NewService(repo, &fakeUnitOfWork{})
 	eventID := uuid.New()
 	joinRequestID := uuid.New()
 	hostUserID := uuid.New()

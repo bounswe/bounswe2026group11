@@ -4,20 +4,25 @@ import (
 	"context"
 	"errors"
 
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 )
 
 // Service owns favorite-location application behavior.
 type Service struct {
-	repo Repository
+	repo       Repository
+	unitOfWork uow.UnitOfWork
 }
 
 var _ UseCase = (*Service)(nil)
 
 // NewService constructs a favorite-location service backed by its repository.
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, unitOfWork uow.UnitOfWork) *Service {
+	return &Service{
+		repo:       repo,
+		unitOfWork: unitOfWork,
+	}
 }
 
 // ListMyFavoriteLocations returns the authenticated user's favorite locations.
@@ -47,12 +52,17 @@ func (s *Service) CreateMyFavoriteLocation(ctx context.Context, input CreateFavo
 		return nil, appErr
 	}
 
-	location, err := s.repo.Create(ctx, CreateFavoriteLocationParams{
-		UserID:  input.UserID,
-		Name:    validated.Name,
-		Address: validated.Address,
-		Lat:     validated.Lat,
-		Lon:     validated.Lon,
+	var location *domain.FavoriteLocation
+	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		var err error
+		location, err = s.repo.Create(ctx, CreateFavoriteLocationParams{
+			UserID:  input.UserID,
+			Name:    validated.Name,
+			Address: validated.Address,
+			Lat:     validated.Lat,
+			Lon:     validated.Lon,
+		})
+		return err
 	})
 	if err != nil {
 		if errors.Is(err, ErrFavoriteLocationLimitExceeded) {
