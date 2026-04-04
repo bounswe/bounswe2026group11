@@ -9,7 +9,6 @@ import (
 
 // Repository is the application-layer persistence port for rating flows.
 type Repository interface {
-	WithTx(ctx context.Context, fn func(repo Repository) error) error
 	GetEventRatingContext(ctx context.Context, eventID, participantUserID uuid.UUID) (*EventRatingContext, error)
 	UpsertEventRating(ctx context.Context, params UpsertEventRatingParams) (*domain.EventRating, error)
 	DeleteEventRating(ctx context.Context, eventID, participantUserID uuid.UUID) (bool, error)

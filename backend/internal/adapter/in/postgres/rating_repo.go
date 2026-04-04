@@ -17,43 +17,14 @@ import (
 type RatingRepository struct {
 	pool *pgxpool.Pool
 	db   execer
-	tx   pgx.Tx
 }
 
 // NewRatingRepository returns a repository that executes queries against the given connection pool.
 func NewRatingRepository(pool *pgxpool.Pool) *RatingRepository {
 	return &RatingRepository{
 		pool: pool,
-		db:   pool,
+		db:   contextualRunner{fallback: pool},
 	}
-}
-
-func (r *RatingRepository) WithTx(ctx context.Context, fn func(repo ratingapp.Repository) error) error {
-	if r.tx != nil {
-		return fn(r)
-	}
-
-	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
-	}
-
-	txRepo := &RatingRepository{
-		pool: r.pool,
-		db:   tx,
-		tx:   tx,
-	}
-
-	if err := fn(txRepo); err != nil {
-		_ = tx.Rollback(ctx)
-		return err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit transaction: %w", err)
-	}
-
-	return nil
 }
 
 func (r *RatingRepository) GetEventRatingContext(

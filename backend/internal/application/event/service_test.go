@@ -11,6 +11,26 @@ import (
 	"github.com/google/uuid"
 )
 
+type fakeTxContextKey struct{}
+
+type fakeUnitOfWork struct {
+	callCount     int
+	commitCount   int
+	rollbackCount int
+}
+
+func (u *fakeUnitOfWork) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	u.callCount++
+	txCtx := context.WithValue(ctx, fakeTxContextKey{}, true)
+	if err := fn(txCtx); err != nil {
+		u.rollbackCount++
+		return err
+	}
+
+	u.commitCount++
+	return nil
+}
+
 // fakeEventRepo is an in-memory implementation of Repository.
 type fakeEventRepo struct {
 	err                error
@@ -24,6 +44,8 @@ type fakeEventRepo struct {
 	lastDiscoverParams DiscoverEventsParams
 	lastDetailUserID   uuid.UUID
 	lastDetailEventID  uuid.UUID
+	lastCancelCtx      context.Context
+	lastCancelCount    int
 }
 
 func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams) (*domain.Event, error) {
@@ -69,7 +91,9 @@ func (r *fakeEventRepo) TransitionEventStatuses(_ context.Context) error {
 	return r.err
 }
 
-func (r *fakeEventRepo) CancelEvent(_ context.Context, eventID uuid.UUID) error {
+func (r *fakeEventRepo) CancelEvent(ctx context.Context, eventID uuid.UUID, canceledApprovedParticipantCount int) error {
+	r.lastCancelCtx = ctx
+	r.lastCancelCount = canceledApprovedParticipantCount
 	if r.err != nil {
 		return r.err
 	}
@@ -119,13 +143,16 @@ func (r *fakeEventRepo) ListDiscoverableEvents(_ context.Context, userID uuid.UU
 
 // fakeParticipationService is an in-memory implementation of ParticipationService.
 type fakeParticipationService struct {
-	err              error
-	callCount        int
-	leaveCallCount   int
-	lastEventID      uuid.UUID
-	lastUserID       uuid.UUID
-	lastLeaveEventID uuid.UUID
-	lastLeaveUserID  uuid.UUID
+	err               error
+	callCount         int
+	leaveCallCount    int
+	cancelCallCount   int
+	lastEventID       uuid.UUID
+	lastUserID        uuid.UUID
+	lastLeaveEventID  uuid.UUID
+	lastLeaveUserID   uuid.UUID
+	lastCancelEventID uuid.UUID
+	lastCancelCtx     context.Context
 }
 
 func (s *fakeParticipationService) CreateApprovedParticipation(_ context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
@@ -164,6 +191,13 @@ func (s *fakeParticipationService) LeaveParticipation(_ context.Context, eventID
 		CreatedAt: now.Add(-time.Hour),
 		UpdatedAt: now,
 	}, nil
+}
+
+func (s *fakeParticipationService) CancelEventParticipations(ctx context.Context, eventID uuid.UUID) error {
+	s.cancelCallCount++
+	s.lastCancelEventID = eventID
+	s.lastCancelCtx = ctx
+	return s.err
 }
 
 // fakeJoinRequestService is an in-memory implementation of JoinRequestService.
@@ -275,7 +309,7 @@ func newTestEventService() (*Service, *fakeEventRepo, *fakeParticipationService,
 	eventRepo := &fakeEventRepo{}
 	participationService := &fakeParticipationService{}
 	joinRequestService := &fakeJoinRequestService{}
-	return NewService(eventRepo, participationService, joinRequestService), eventRepo, participationService, joinRequestService
+	return NewService(eventRepo, participationService, joinRequestService, &fakeUnitOfWork{}), eventRepo, participationService, joinRequestService
 }
 
 func validInput() CreateEventInput {
@@ -1121,7 +1155,7 @@ func newTestEventServiceWithEvent(e *domain.Event) (*Service, *fakeEventRepo, *f
 	eventRepo := &fakeEventRepo{events: map[uuid.UUID]*domain.Event{e.ID: e}}
 	participationService := &fakeParticipationService{}
 	joinRequestService := &fakeJoinRequestService{}
-	return NewService(eventRepo, participationService, joinRequestService), eventRepo, participationService, joinRequestService
+	return NewService(eventRepo, participationService, joinRequestService, &fakeUnitOfWork{}), eventRepo, participationService, joinRequestService
 }
 
 func publicEvent(hostID uuid.UUID) *domain.Event {
@@ -1150,6 +1184,50 @@ func protectedEvent(hostID uuid.UUID) *domain.Event {
 		HostID:       hostID,
 		PrivacyLevel: domain.PrivacyProtected,
 		Status:       domain.EventStatusActive,
+	}
+}
+
+func TestCancelEventRunsEventAndParticipationUpdatesInsideOneUnitOfWork(t *testing.T) {
+	hostID := uuid.New()
+	ev := publicEventWithCapacity(hostID, 10, 3)
+	svc, eventRepo, participationService, _ := newTestEventServiceWithEvent(ev)
+
+	if err := svc.CancelEvent(context.Background(), hostID, ev.ID); err != nil {
+		t.Fatalf("CancelEvent() error = %v", err)
+	}
+
+	uow := svc.unitOfWork.(*fakeUnitOfWork)
+	if uow.callCount != 1 || uow.commitCount != 1 {
+		t.Fatalf("expected one committed unit of work, got calls=%d commits=%d", uow.callCount, uow.commitCount)
+	}
+	if eventRepo.lastCancelCount != 3 {
+		t.Fatalf("expected canceled snapshot count 3, got %d", eventRepo.lastCancelCount)
+	}
+	if eventRepo.lastCancelCtx != participationService.lastCancelCtx {
+		t.Fatal("expected event and participation operations to share the same transaction context")
+	}
+	if eventRepo.lastCancelCtx.Value(fakeTxContextKey{}) != true {
+		t.Fatal("expected cancel flow to run inside transactional context")
+	}
+	if participationService.cancelCallCount != 1 || participationService.lastCancelEventID != ev.ID {
+		t.Fatalf("expected participation cancellation for event %s, got calls=%d event=%s", ev.ID, participationService.cancelCallCount, participationService.lastCancelEventID)
+	}
+}
+
+func TestCancelEventRollsBackUnitOfWorkWhenParticipationCancelFails(t *testing.T) {
+	hostID := uuid.New()
+	ev := publicEvent(hostID)
+	svc, _, participationService, _ := newTestEventServiceWithEvent(ev)
+	participationService.err = errors.New("db write failed")
+
+	err := svc.CancelEvent(context.Background(), hostID, ev.ID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	uow := svc.unitOfWork.(*fakeUnitOfWork)
+	if uow.rollbackCount != 1 || uow.commitCount != 0 {
+		t.Fatalf("expected rollback without commit, got rollbacks=%d commits=%d", uow.rollbackCount, uow.commitCount)
 	}
 }
 

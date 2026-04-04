@@ -2730,6 +2730,83 @@ func TestCancelEventSuccessPath(t *testing.T) {
 	}
 }
 
+func TestCancelEventPreservesApprovedSnapshotAndSkipsLeavedParticipations(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	activeParticipant := common.GivenUser(t, harness.AuthRepo)
+	leavedParticipant := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	if _, err := harness.Service.JoinEvent(context.Background(), activeParticipant.ID, ref.ID); err != nil {
+		t.Fatalf("JoinEvent(active) error = %v", err)
+	}
+	if _, err := harness.Service.JoinEvent(context.Background(), leavedParticipant.ID, ref.ID); err != nil {
+		t.Fatalf("JoinEvent(leaved) error = %v", err)
+	}
+	if _, err := harness.Service.LeaveEvent(context.Background(), leavedParticipant.ID, ref.ID); err != nil {
+		t.Fatalf("LeaveEvent() error = %v", err)
+	}
+
+	if err := harness.Service.CancelEvent(context.Background(), host.ID, ref.ID); err != nil {
+		t.Fatalf("CancelEvent() error = %v", err)
+	}
+
+	var (
+		statusHost    string
+		statusActive  string
+		statusLeaved  string
+		approvedCount int
+		snapshotCount int
+	)
+	pool := common.RequirePool(t)
+	if err := pool.QueryRow(context.Background(), `
+		SELECT status
+		FROM participation
+		WHERE event_id = $1 AND user_id = $2
+	`, ref.ID, host.ID).Scan(&statusHost); err != nil {
+		t.Fatalf("load host participation error = %v", err)
+	}
+	if err := pool.QueryRow(context.Background(), `
+		SELECT status
+		FROM participation
+		WHERE event_id = $1 AND user_id = $2
+	`, ref.ID, activeParticipant.ID).Scan(&statusActive); err != nil {
+		t.Fatalf("load active participation error = %v", err)
+	}
+	if err := pool.QueryRow(context.Background(), `
+		SELECT status
+		FROM participation
+		WHERE event_id = $1 AND user_id = $2
+	`, ref.ID, leavedParticipant.ID).Scan(&statusLeaved); err != nil {
+		t.Fatalf("load leaved participation error = %v", err)
+	}
+	if err := pool.QueryRow(context.Background(), `
+		SELECT approved_participant_count, canceled_approved_participant_count
+		FROM event
+		WHERE id = $1
+	`, ref.ID).Scan(&approvedCount, &snapshotCount); err != nil {
+		t.Fatalf("load event snapshot error = %v", err)
+	}
+
+	if statusHost != string(domain.ParticipationStatusCanceled) {
+		t.Fatalf("expected host participation status %q, got %q", domain.ParticipationStatusCanceled, statusHost)
+	}
+	if statusActive != string(domain.ParticipationStatusCanceled) {
+		t.Fatalf("expected active participation status %q, got %q", domain.ParticipationStatusCanceled, statusActive)
+	}
+	if statusLeaved != string(domain.ParticipationStatusLeaved) {
+		t.Fatalf("expected leaved participation status %q, got %q", domain.ParticipationStatusLeaved, statusLeaved)
+	}
+	if approvedCount != 0 {
+		t.Fatalf("expected visible approved count 0 after cancel, got %d", approvedCount)
+	}
+	if snapshotCount != 1 {
+		t.Fatalf("expected canceled approved snapshot count 1, got %d", snapshotCount)
+	}
+}
+
 func TestCancelEventForbiddenForNonHost(t *testing.T) {
 	t.Parallel()
 

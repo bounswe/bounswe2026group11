@@ -16,67 +16,27 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// execer abstracts pgxpool.Pool and pgx.Tx so repository methods work
-// transparently inside or outside a transaction.
-type execer interface {
-	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
-	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-}
-
 // AuthRepository is the Postgres-backed implementation of auth.Repository.
 type AuthRepository struct {
 	pool *pgxpool.Pool
-	db   execer // points to pool normally, or to an active pgx.Tx inside WithTx
-	tx   pgx.Tx // non-nil only when operating inside a transaction
+	db   execer
 }
 
 // NewAuthRepository returns a repository that executes queries against the given connection pool.
 func NewAuthRepository(pool *pgxpool.Pool) *AuthRepository {
 	return &AuthRepository{
 		pool: pool,
-		db:   pool,
+		db:   contextualRunner{fallback: pool},
 	}
 }
 
 // NewAuthRepositoryWithTx returns a repository bound to an existing transaction.
-// Repository methods run against tx and nested WithTx calls reuse it.
+// Repository methods use tx as the default runner when no ambient transaction exists.
 func NewAuthRepositoryWithTx(pool *pgxpool.Pool, tx pgx.Tx) *AuthRepository {
 	return &AuthRepository{
 		pool: pool,
-		db:   tx,
-		tx:   tx,
+		db:   contextualRunner{fallback: tx},
 	}
-}
-
-// WithTx executes fn inside a database transaction. If the repository is
-// already inside a transaction (nested call), it reuses the existing one.
-func (r *AuthRepository) WithTx(ctx context.Context, fn func(repo authapp.Repository) error) error {
-	// Already inside a transaction — reuse it to avoid nesting.
-	if r.tx != nil {
-		return fn(r)
-	}
-
-	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
-	}
-
-	txRepo := &AuthRepository{
-		pool: r.pool,
-		db:   tx,
-		tx:   tx,
-	}
-
-	if err := fn(txRepo); err != nil {
-		_ = tx.Rollback(ctx)
-		return err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit transaction: %w", err)
-	}
-	return nil
 }
 
 func (r *AuthRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {

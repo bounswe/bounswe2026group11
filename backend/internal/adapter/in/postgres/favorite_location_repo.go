@@ -16,16 +16,20 @@ import (
 // FavoriteLocationRepository is the Postgres-backed implementation of favorite_location.Repository.
 type FavoriteLocationRepository struct {
 	pool *pgxpool.Pool
+	db   execer
 }
 
 // NewFavoriteLocationRepository returns a repository that executes queries against the given connection pool.
 func NewFavoriteLocationRepository(pool *pgxpool.Pool) *FavoriteLocationRepository {
-	return &FavoriteLocationRepository{pool: pool}
+	return &FavoriteLocationRepository{
+		pool: pool,
+		db:   contextualRunner{fallback: pool},
+	}
 }
 
 // ListByUserID returns all favorite locations owned by the given user ordered alphabetically by name.
 func (r *FavoriteLocationRepository) ListByUserID(ctx context.Context, userID uuid.UUID) ([]domain.FavoriteLocation, error) {
-	rows, err := r.pool.Query(ctx, `
+	rows, err := r.db.Query(ctx, `
 		SELECT
 			id,
 			user_id,
@@ -64,18 +68,12 @@ func (r *FavoriteLocationRepository) ListByUserID(ctx context.Context, userID uu
 
 // Create inserts a new favorite location while atomically enforcing the per-user maximum.
 func (r *FavoriteLocationRepository) Create(ctx context.Context, params favoritelocationapp.CreateFavoriteLocationParams) (*domain.FavoriteLocation, error) {
-	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("begin favorite location transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	if err := r.lockUserRow(ctx, tx, params.UserID); err != nil {
+	if err := r.lockUserRow(ctx, r.db, params.UserID); err != nil {
 		return nil, err
 	}
 
 	var count int
-	if err := tx.QueryRow(ctx, `
+	if err := r.db.QueryRow(ctx, `
 		SELECT COUNT(*)
 		FROM favorite_location
 		WHERE user_id = $1
@@ -86,7 +84,7 @@ func (r *FavoriteLocationRepository) Create(ctx context.Context, params favorite
 		return nil, favoritelocationapp.ErrFavoriteLocationLimitExceeded
 	}
 
-	location, err := scanFavoriteLocation(tx.QueryRow(ctx, `
+	location, err := scanFavoriteLocation(r.db.QueryRow(ctx, `
 		INSERT INTO favorite_location (
 			user_id,
 			name,
@@ -113,16 +111,12 @@ func (r *FavoriteLocationRepository) Create(ctx context.Context, params favorite
 		return nil, fmt.Errorf("insert favorite location: %w", err)
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit favorite location transaction: %w", err)
-	}
-
 	return location, nil
 }
 
 // GetByIDForUser returns a single favorite location owned by the given user.
 func (r *FavoriteLocationRepository) GetByIDForUser(ctx context.Context, userID, favoriteLocationID uuid.UUID) (*domain.FavoriteLocation, error) {
-	location, err := scanFavoriteLocation(r.pool.QueryRow(ctx, `
+	location, err := scanFavoriteLocation(r.db.QueryRow(ctx, `
 		SELECT
 			id,
 			user_id,
@@ -148,7 +142,7 @@ func (r *FavoriteLocationRepository) GetByIDForUser(ctx context.Context, userID,
 
 // Update replaces the persisted fields of a user-owned favorite location.
 func (r *FavoriteLocationRepository) Update(ctx context.Context, params favoritelocationapp.UpdateFavoriteLocationParams) (*domain.FavoriteLocation, error) {
-	location, err := scanFavoriteLocation(r.pool.QueryRow(ctx, `
+	location, err := scanFavoriteLocation(r.db.QueryRow(ctx, `
 		UPDATE favorite_location
 		SET name = $3,
 		    address = $4,
@@ -178,7 +172,7 @@ func (r *FavoriteLocationRepository) Update(ctx context.Context, params favorite
 
 // Delete removes a favorite location owned by the given user.
 func (r *FavoriteLocationRepository) Delete(ctx context.Context, userID, favoriteLocationID uuid.UUID) error {
-	tag, err := r.pool.Exec(ctx, `
+	tag, err := r.db.Exec(ctx, `
 		DELETE FROM favorite_location
 		WHERE id = $1
 		  AND user_id = $2
@@ -193,9 +187,9 @@ func (r *FavoriteLocationRepository) Delete(ctx context.Context, userID, favorit
 	return nil
 }
 
-func (r *FavoriteLocationRepository) lockUserRow(ctx context.Context, tx pgx.Tx, userID uuid.UUID) error {
+func (r *FavoriteLocationRepository) lockUserRow(ctx context.Context, db execer, userID uuid.UUID) error {
 	var lockedUserID uuid.UUID
-	if err := tx.QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		SELECT id
 		FROM app_user
 		WHERE id = $1

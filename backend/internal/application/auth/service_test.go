@@ -11,6 +11,23 @@ import (
 	"github.com/google/uuid"
 )
 
+type fakeUnitOfWork struct {
+	callCount     int
+	commitCount   int
+	rollbackCount int
+}
+
+func (u *fakeUnitOfWork) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	u.callCount++
+	if err := fn(ctx); err != nil {
+		u.rollbackCount++
+		return err
+	}
+
+	u.commitCount++
+	return nil
+}
+
 func TestRequestRegistrationOTPStoresHashedChallenge(t *testing.T) {
 	// given
 	svc, repo, mailer, _, now := newTestService()
@@ -243,6 +260,9 @@ func TestVerifyPasswordResetOTPReturnsResetGrantAndConsumesOTP(t *testing.T) {
 	}
 	if grant.ExpiresInSeconds != int64((10*time.Minute)/time.Second) {
 		t.Fatalf("expected 600 seconds, got %d", grant.ExpiresInSeconds)
+	}
+	if uow := svc.unitOfWork.(*fakeUnitOfWork); uow.callCount != 1 || uow.commitCount != 1 {
+		t.Fatalf("expected one committed unit of work, got calls=%d commits=%d", uow.callCount, uow.commitCount)
 	}
 }
 
@@ -903,9 +923,11 @@ func newTestService() (*Service, *fakeRepo, *fakeMailer, *fakeRefreshTokenManage
 	repo := newFakeRepo()
 	mailer := &fakeMailer{}
 	refreshManager := &fakeRefreshTokenManager{}
+	unitOfWork := &fakeUnitOfWork{}
 	now := time.Date(2026, time.March, 21, 10, 0, 0, 0, time.UTC)
 	service := NewService(
 		repo,
+		unitOfWork,
 		fakeHasher{},
 		fakeHasher{},
 		fakeTokenIssuer{},
@@ -950,10 +972,6 @@ func newFakeRepo() *fakeRepo {
 		refreshByID:     make(map[uuid.UUID]*domain.RefreshToken),
 		refreshByFamily: make(map[uuid.UUID][]uuid.UUID),
 	}
-}
-
-func (r *fakeRepo) WithTx(_ context.Context, fn func(repo Repository) error) error {
-	return fn(r)
 }
 
 func (r *fakeRepo) GetUserByEmail(_ context.Context, email string) (*domain.User, error) {
