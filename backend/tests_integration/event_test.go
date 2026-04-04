@@ -2705,6 +2705,75 @@ func TestTransitionEventStatuses_StartedToInProgress(t *testing.T) {
 	}
 }
 
+func TestTransitionEventStatuses_StaleEventAutoCompletes(t *testing.T) {
+	t.Parallel()
+
+	// given — ACTIVE event started >30d ago, not updated in >7d
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	eventID := common.GivenStaleEvent(t, host.ID)
+
+	// when
+	if err := harness.EventRepo.TransitionEventStatuses(context.Background()); err != nil {
+		t.Fatalf("TransitionEventStatuses() error = %v", err)
+	}
+
+	// then
+	event, err := harness.EventRepo.GetEventByID(context.Background(), eventID)
+	if err != nil {
+		t.Fatalf("GetEventByID() error = %v", err)
+	}
+	if event.Status != domain.EventStatusCompleted {
+		t.Fatalf("expected status %q, got %q", domain.EventStatusCompleted, event.Status)
+	}
+}
+
+func TestTransitionEventStatuses_VeryOldEventAutoCompletes(t *testing.T) {
+	t.Parallel()
+
+	// given — ACTIVE event started >60d ago (unconditional)
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	eventID := common.GivenVeryOldEvent(t, host.ID)
+
+	// when
+	if err := harness.EventRepo.TransitionEventStatuses(context.Background()); err != nil {
+		t.Fatalf("TransitionEventStatuses() error = %v", err)
+	}
+
+	// then
+	event, err := harness.EventRepo.GetEventByID(context.Background(), eventID)
+	if err != nil {
+		t.Fatalf("GetEventByID() error = %v", err)
+	}
+	if event.Status != domain.EventStatusCompleted {
+		t.Fatalf("expected status %q, got %q", domain.EventStatusCompleted, event.Status)
+	}
+}
+
+func TestTransitionEventStatuses_RecentlyUpdatedOldEventStaysActive(t *testing.T) {
+	t.Parallel()
+
+	// given — ACTIVE event started >30d ago but updated within 7d — should NOT be auto-completed
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	eventID := common.GivenRecentlyUpdatedOldEvent(t, host.ID)
+
+	// when
+	if err := harness.EventRepo.TransitionEventStatuses(context.Background()); err != nil {
+		t.Fatalf("TransitionEventStatuses() error = %v", err)
+	}
+
+	// then — should have transitioned to IN_PROGRESS (start_time passed) but not COMPLETED
+	event, err := harness.EventRepo.GetEventByID(context.Background(), eventID)
+	if err != nil {
+		t.Fatalf("GetEventByID() error = %v", err)
+	}
+	if event.Status == domain.EventStatusCompleted {
+		t.Fatalf("expected event to stay active/in-progress, got COMPLETED")
+	}
+}
+
 func TestCancelEventSuccessPath(t *testing.T) {
 	t.Parallel()
 
