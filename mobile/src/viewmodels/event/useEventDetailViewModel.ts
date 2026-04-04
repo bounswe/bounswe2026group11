@@ -195,10 +195,14 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     setActionState('leaving');
 
     try {
+      const leftBeforeStart = new Date() < new Date(event.start_time);
       await leaveEvent(event.id, token);
-      setActionState('success_left');
       setParticipationStatus('LEAVED');
       await fetchEvent(true);
+      // Pre-start leave: backend resets participation, so go back to idle
+      // to let the join/request button render based on refreshed status.
+      // Post-start leave: show the "You left" chip.
+      setActionState(leftBeforeStart ? 'idle' : 'success_left');
     } catch (err: unknown) {
       setActionState('idle');
       if (err && typeof err === 'object' && 'message' in err) {

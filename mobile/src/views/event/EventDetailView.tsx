@@ -87,12 +87,17 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     }
 
     if (status_ === 'LEAVED' || vm.actionState === 'success_left') {
-      return (
-        <View style={styles.statusChip}>
-          <Ionicons name="log-out-outline" size={16} color="#6B7280" />
-          <Text style={styles.statusChipTextGray}>You left this event</Text>
-        </View>
-      );
+      // Pre-start leave: backend allows rejoin, so fall through to join/request buttons
+      const eventNotStarted = new Date() < new Date(vm.event.start_time);
+      if (!eventNotStarted) {
+        return (
+          <View style={styles.statusChip}>
+            <Ionicons name="log-out-outline" size={16} color="#6B7280" />
+            <Text style={styles.statusChipTextGray}>You left this event</Text>
+          </View>
+        );
+      }
+      // fall through to show join/request-to-join buttons below
     }
 
     if (status_ === 'JOINED' || vm.actionState === 'success_joined') {
