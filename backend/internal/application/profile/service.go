@@ -45,6 +45,15 @@ func (s *Service) GetMyProfile(ctx context.Context, userID uuid.UUID) (*GetProfi
 		DisplayName:            p.DisplayName,
 		Bio:                    p.Bio,
 		AvatarURL:              p.AvatarURL,
+		FinalScore: p.FinalScore,
+		HostScore: &HostScore{
+			Score:       p.HostScore.Score,
+			RatingCount: p.HostScore.RatingCount,
+		},
+		ParticipantScore: &ParticipantScore{
+			Score:       p.ParticipantScore.Score,
+			RatingCount: p.ParticipantScore.RatingCount,
+		},
 	}
 
 	if p.BirthDate != nil {
@@ -103,6 +112,7 @@ func toEventSummaries(events []domain.EventSummary) []EventSummary {
 			StartTime:         e.StartTime.Format("2006-01-02T15:04:05Z07:00"),
 			EndTime:           e.EndTime.Format("2006-01-02T15:04:05Z07:00"),
 			Status:            e.Status,
+			PrivacyLevel:      e.PrivacyLevel,
 			Category:          e.Category,
 			ImageURL:          e.ImageURL,
 			ParticipantsCount: e.ApprovedParticipantCount,

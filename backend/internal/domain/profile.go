@@ -24,10 +24,23 @@ type EventSummary struct {
 	StartTime                time.Time
 	EndTime                  time.Time
 	Status                   string
+	PrivacyLevel             string
 	Category                 *string
 	ImageURL                 *string
 	ApprovedParticipantCount int
 	LocationAddress          *string
+}
+
+// HostScore holds the cached rating summary for a user acting as an event host.
+type HostScore struct {
+	Score                  *float64
+	RatingCount            int
+}
+
+// ParticipantScore holds the cached rating summary for a user acting as a participant.
+type ParticipantScore struct {
+	Score       *float64
+	RatingCount int
 }
 
 // UserProfile is the combined projection of app_user and profile returned by
@@ -49,4 +62,8 @@ type UserProfile struct {
 	DisplayName *string
 	Bio         *string
 	AvatarURL   *string
+	// score fields
+	FinalScore       *float64
+	HostScore        HostScore
+	ParticipantScore ParticipantScore
 }
