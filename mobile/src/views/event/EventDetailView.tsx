@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
-import { formatEventDateLabel } from '@/utils/eventDate';
+import { formatEventDateLabel, getAutoCompletionDaysLeft } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { EventDetail } from '@/models/event';
 import JoinRequestsModal from '@/components/events/JoinRequestsModal';
@@ -293,6 +293,20 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <StatusBadge status={event.status} />
           </View>
         </View>
+
+        {/* Auto-completion warning for in-progress events without an end date */}
+        {(() => {
+          const daysLeft = getAutoCompletionDaysLeft(event.status, event.start_time, event.end_time);
+          if (daysLeft == null) return null;
+          return (
+            <View style={styles.warningBanner}>
+              <Feather name="alert-triangle" size={16} color="#D97706" />
+              <Text style={styles.warningBannerText}>
+                This event will be automatically completed in {daysLeft} day{daysLeft !== 1 ? 's' : ''} due to inactivity.
+              </Text>
+            </View>
+          );
+        })()}
 
         {/* Core info */}
         <View style={styles.section}>
@@ -992,6 +1006,25 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     fontSize: 15,
     fontWeight: '600',
+  },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    borderRadius: 10,
+    padding: 12,
+    marginHorizontal: 20,
+    marginTop: 12,
+  },
+  warningBannerText: {
+    flex: 1,
+    color: '#92400E',
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
   },
   errorBanner: {
     backgroundColor: '#FEF2F2',
