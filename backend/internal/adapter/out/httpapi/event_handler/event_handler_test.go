@@ -219,7 +219,7 @@ func (f *fakeVerifier) VerifyAccessToken(_ string) (*domain.AuthClaims, error) {
 func newEventTestApp(service event.UseCase, verifier domain.TokenVerifier) *fiber.App {
 	app := fiber.New()
 	handler := NewEventHandler(service)
-	RegisterEventRoutes(app, handler, httpapi.RequireAuth(verifier))
+	RegisterEventRoutes(app, handler, httpapi.RequireAuth(verifier), httpapi.OptionalAuth(verifier))
 	return app
 }
 
@@ -577,12 +577,35 @@ func TestGetEventDetailInvalidIDReturns400(t *testing.T) {
 	}
 }
 
-func TestGetEventDetailWithoutAuthReturns401(t *testing.T) {
+func TestGetEventDetailWithoutAuthReturns200(t *testing.T) {
+	// GET /events/:id is now publicly accessible; no token → anonymous request succeeds.
+	// given
+	app := newEventTestApp(&stubEventService{}, authedVerifier())
+	eventID := uuid.New()
+
+	req := httptest.NewRequest(fiber.MethodGet, "/events/"+eventID.String(), nil)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestGetEventDetailWithInvalidTokenReturns401(t *testing.T) {
+	// A present-but-invalid token must still be rejected.
 	// given
 	app := newEventTestApp(&stubEventService{}, &fakeVerifier{err: fiber.ErrUnauthorized})
 	eventID := uuid.New()
 
 	req := httptest.NewRequest(fiber.MethodGet, "/events/"+eventID.String(), nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer bad.token")
 
 	// when
 	resp, err := app.Test(req)

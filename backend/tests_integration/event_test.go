@@ -3370,3 +3370,90 @@ func TestAddAndRemoveFavorite(t *testing.T) {
 		t.Fatalf("expected 0 favorites after remove, got %d", len(favs))
 	}
 }
+
+func TestGetEventDetailAnonymousCanReadPublicEvent(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	// when: anonymous caller (uuid.Nil)
+	result, err := harness.Service.GetEventDetail(context.Background(), uuid.Nil, ref.ID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() anonymous error = %v", err)
+	}
+	if result.ID != ref.ID.String() {
+		t.Fatalf("expected event id %s, got %s", ref.ID, result.ID)
+	}
+	if result.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusNone) {
+		t.Fatalf("expected participation_status NONE, got %q", result.ViewerContext.ParticipationStatus)
+	}
+	if result.ViewerContext.IsFavorited {
+		t.Fatal("anonymous viewer should never see is_favorited=true")
+	}
+}
+
+func TestGetEventDetailAnonymousCannotReadPrivateEvent(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	categoryID := common.GivenEventCategory(t)
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Private Event",
+		Description:  "a private event",
+		CategoryID:   categoryID,
+		Lat:          41.0,
+		Lon:          29.0,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPrivate,
+	})
+
+	// when: anonymous caller (uuid.Nil)
+	_, err := harness.Service.GetEventDetail(context.Background(), uuid.Nil, eventID)
+
+	// then: 404 because PRIVATE events are invisible to anonymous users
+	if err == nil {
+		t.Fatal("expected error for private event with anonymous caller")
+	}
+	appErr, ok := err.(*domain.AppError)
+	if !ok {
+		t.Fatalf("expected *domain.AppError, got %T: %v", err, err)
+	}
+	if appErr.Status != 404 {
+		t.Fatalf("expected 404, got %d", appErr.Status)
+	}
+}
+
+func TestDiscoverEventsAnonymousSeesOnlyPublicAndProtected(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	common.GivenPublicEvent(t, harness.Service, host.ID)
+	common.GivenProtectedEvent(t, harness.Service, host.ID)
+
+	// when: anonymous caller with uuid.Nil
+	radiusMeters := 50_000
+	result, err := harness.Service.DiscoverEvents(context.Background(), uuid.Nil, eventapp.DiscoverEventsInput{
+		Lat:          common.Float64Ptr(41.0),
+		Lon:          common.Float64Ptr(29.0),
+		RadiusMeters: &radiusMeters,
+	})
+
+	// then: no error and at least the two fixtures are returned
+	if err != nil {
+		t.Fatalf("DiscoverEvents() anonymous error = %v", err)
+	}
+	if len(result.Items) < 2 {
+		t.Fatalf("expected at least 2 events, got %d", len(result.Items))
+	}
+}

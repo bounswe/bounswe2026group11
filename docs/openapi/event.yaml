@@ -27,12 +27,14 @@ paths:
       tags: [Events]
       summary: Get event detail
       description: |
-        Returns the full event-detail payload for the authenticated user.
+        Returns the full event-detail payload for the caller. Authentication is optional —
+        both unauthenticated and authenticated requests are accepted.
 
         Visibility rules:
-        - `PUBLIC` and `PROTECTED` events are readable by any authenticated user.
+        - `PUBLIC` and `PROTECTED` events are readable by any caller, authenticated or not.
         - `PRIVATE` events are readable only by the host, users with an `APPROVED`
-          participation, or users with an `ACCEPTED` invitation.
+          participation, or users with an `ACCEPTED` invitation. Anonymous callers cannot
+          read `PRIVATE` events.
         - When a `PRIVATE` event is not readable by the caller, the API responds with
           `404 event_not_found` to avoid leaking the event's existence.
 
@@ -42,13 +44,14 @@ paths:
         - `host_score` returns the host's cached aggregate rating summary used by discovery cards.
         - `rating_window` describes the event-specific 7-day mutation window computed from `COALESCE(end_time, start_time)`.
         - `viewer_event_rating` returns the authenticated participant's current rating for the event, if one exists.
-        - `viewer_context` is always present and resolves the caller's favorite and
-          participation state.
+        - `viewer_context` is always present. For unauthenticated callers, `participation_status`
+          is `NONE` and `is_favorited` is `false`.
         - `host_context` is included only when the authenticated user is the event host; approved participants may include a `host_rating`.
         - `host_context.*.user` includes the managed user's cached `final_score` and total `rating_count`.
       operationId: getEventDetail
       security:
         - bearerAuth: []
+        - {}
       parameters:
         - name: id
           in: path
@@ -1320,15 +1323,17 @@ paths:
       tags: [Events]
       summary: Discover nearby events
       description: |
-        Returns a cursor-paginated list of nearby discoverable events for the authenticated user.
+        Returns a cursor-paginated list of nearby discoverable events. Authentication is optional —
+        both unauthenticated and authenticated requests are accepted.
 
         Discovery rules:
         - Only events with `status: ACTIVE` are returned.
-        - Only events with `privacy_level: PUBLIC` or `PROTECTED` are returned.
+        - Only events with `privacy_level: PUBLIC` or `PROTECTED` are returned. `PRIVATE` events
+          are never included in discovery results regardless of authentication state.
         - The caller must provide `lat` and `lon`; the server filters within a radius around that origin.
         - Text search (`q`) and structured filters can be combined in the same request.
-        - `is_favorited` is resolved for the authenticated user.
-        - For `ROUTE` events, radius filtering matches when any stored route point falls within the requested radius.
+        - `is_favorited` is resolved for the authenticated caller; unauthenticated callers always
+          receive `is_favorited: false`.
 
         Sorting defaults:
         - If `q` is omitted and `sort_by` is omitted, sorting defaults to `START_TIME`.
@@ -1342,6 +1347,7 @@ paths:
       operationId: discoverEvents
       security:
         - bearerAuth: []
+        - {}
       parameters:
         - name: lat
           in: query

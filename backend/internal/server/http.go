@@ -37,8 +37,9 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 
 	// Event routes
 	auth := httpapi.RequireAuth(container.TokenVerifier)
+	optionalAuth := httpapi.OptionalAuth(container.TokenVerifier)
 	eventHandler := event_handler.NewEventHandler(container.EventService)
-	event_handler.RegisterEventRoutes(app, eventHandler, auth)
+	event_handler.RegisterEventRoutes(app, eventHandler, auth, optionalAuth)
 
 	// Rating routes
 	ratingHandler := rating_handler.NewRatingHandler(container.RatingService)
