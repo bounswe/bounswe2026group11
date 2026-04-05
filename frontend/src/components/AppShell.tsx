@@ -11,7 +11,6 @@ const PUBLIC_NAV = [
 const AUTH_NAV = [
   { to: '/discover', label: 'Discover' },
   { to: '/my-events', label: 'My Events' },
-  { to: '/invitations', label: 'Invitations' },
   { to: '/favorites', label: 'Favorites' },
   { to: '/profile', label: 'Profile' },
 ];
