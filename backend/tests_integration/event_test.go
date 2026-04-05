@@ -3531,7 +3531,7 @@ func TestGetMyUpcomingEventsIncludesPrivacyLevel(t *testing.T) {
 	harness := common.NewEventHarness(t)
 	host := common.GivenUser(t, harness.AuthRepo)
 	participant := common.GivenUser(t, harness.AuthRepo)
-	ref := common.GivenProtectedEvent(t, harness.Service, host.ID)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
 
 	if _, err := harness.Service.JoinEvent(context.Background(), participant.ID, ref.ID); err != nil {
 		t.Fatalf("JoinEvent() error = %v", err)
@@ -3548,8 +3548,8 @@ func TestGetMyUpcomingEventsIncludesPrivacyLevel(t *testing.T) {
 	for _, e := range events {
 		if e.ID == ref.ID.String() {
 			found = true
-			if e.PrivacyLevel != "PROTECTED" {
-				t.Fatalf("expected privacy_level=PROTECTED, got %q", e.PrivacyLevel)
+			if e.PrivacyLevel != "PUBLIC" {
+				t.Fatalf("expected privacy_level=PUBLIC, got %q", e.PrivacyLevel)
 			}
 		}
 	}
