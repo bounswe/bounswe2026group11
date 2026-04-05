@@ -77,6 +77,7 @@ function EventList({ events, emptyMessage }: { events: EventSummary[]; emptyMess
 const TABS: { key: MyEventsTab; label: string }[] = [
   { key: 'organized', label: 'Organized' },
   { key: 'upcoming', label: 'Upcoming' },
+  { key: 'active', label: 'Active' },
   { key: 'past', label: 'Past' },
   { key: 'canceled', label: 'Canceled' },
 ];
@@ -88,6 +89,7 @@ export default function MyEventsPage() {
   const counts: Record<MyEventsTab, number> = {
     organized: vm.organized.length,
     upcoming: vm.upcoming.length,
+    active: vm.active.length,
     past: vm.past.length,
     canceled: vm.canceled.length,
   };
@@ -145,6 +147,12 @@ export default function MyEventsPage() {
             <EventList
               events={vm.upcoming}
               emptyMessage="No upcoming events. Discover events to join!"
+            />
+          )}
+          {vm.activeTab === 'active' && (
+            <EventList
+              events={vm.active}
+              emptyMessage="No active events right now."
             />
           )}
           {vm.activeTab === 'past' && (
