@@ -3,11 +3,12 @@ import { profileService } from '@/services/profileService';
 import type { EventSummary } from '@/models/profile';
 import { ApiError } from '@/services/api';
 
-export type MyEventsTab = 'organized' | 'upcoming' | 'past' | 'canceled';
+export type MyEventsTab = 'organized' | 'upcoming' | 'active' | 'past' | 'canceled';
 
 export function useMyEventsViewModel(token: string | null) {
   const [organized, setOrganized] = useState<EventSummary[]>([]);
   const [upcoming, setUpcoming] = useState<EventSummary[]>([]);
+  const [active, setActive] = useState<EventSummary[]>([]);
   const [past, setPast] = useState<EventSummary[]>([]);
   const [canceled, setCanceled] = useState<EventSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,7 +21,7 @@ export function useMyEventsViewModel(token: string | null) {
     setError(null);
 
     try {
-      const [hosted, up, completed, canceled_] = await Promise.all([
+      const [hosted, upAndActive, completed, canceled_] = await Promise.all([
         profileService.getHostedEvents(token),
         profileService.getUpcomingEvents(token),
         profileService.getCompletedEvents(token),
@@ -28,7 +29,8 @@ export function useMyEventsViewModel(token: string | null) {
       ]);
 
       setOrganized(hosted);
-      setUpcoming(up);
+      setUpcoming(upAndActive.filter((e) => e.status === 'ACTIVE'));
+      setActive(upAndActive.filter((e) => e.status === 'IN_PROGRESS'));
       setPast(completed);
       setCanceled(canceled_);
     } catch (err) {
@@ -49,6 +51,7 @@ export function useMyEventsViewModel(token: string | null) {
   return {
     organized,
     upcoming,
+    active,
     past,
     canceled,
     isLoading,
