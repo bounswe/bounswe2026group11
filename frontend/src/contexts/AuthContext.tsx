@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { setTokenRefreshManager } from '@/services/api';
 
 const STORAGE_KEY_TOKEN = 'sem_access_token';
 const STORAGE_KEY_REFRESH = 'sem_refresh_token';
@@ -53,6 +54,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setRefreshToken(null);
     setUsername(null);
   }, []);
+
+  useEffect(() => {
+    setTokenRefreshManager({
+      getRefreshToken: () => localStorage.getItem(STORAGE_KEY_REFRESH),
+      onRefreshSuccess: (accessToken, newRefreshToken, newUsername) => {
+        setSession(accessToken, newRefreshToken, newUsername);
+      },
+      onRefreshFailure: clearAuth,
+    });
+
+    return () => {
+      setTokenRefreshManager(null);
+    };
+  }, [setSession, clearAuth]);
 
   return (
     <AuthContext.Provider
