@@ -1,4 +1,4 @@
-import type { EventSummary } from '@/models/event';
+import type { EventSummary, HostScore } from '@/models/event';
 
 export interface ProfileEventSummary {
   id: string;
@@ -6,6 +6,7 @@ export interface ProfileEventSummary {
   start_time: string;
   end_time: string;
   status: string;
+  privacy_level?: 'PUBLIC' | 'PROTECTED' | 'PRIVATE' | null;
   category?: string | null;
   image_url?: string | null;
 }
@@ -29,6 +30,7 @@ export interface UserProfile {
   display_name: string | null;
   bio: string | null;
   avatar_url: string | null;
+  host_score?: HostScore | null;
   created_events?: EventSummary[];
   attended_events?: EventSummary[];
 }

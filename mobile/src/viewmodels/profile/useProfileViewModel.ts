@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { UserProfile } from '@/models/profile';
 import type { ProfileEventSummary } from '@/models/profile';
+import type { PrivacyLevel } from '@/models/event';
 import {
   confirmProfileAvatarUpload,
   getMyCompletedEvents,
@@ -23,6 +24,8 @@ export interface ProfileEventItem {
   end_time?: string | null;
   image_url?: string | null;
   category_label: string;
+  status: string;
+  privacy_level: PrivacyLevel | null;
 }
 
 export interface ProfileViewModel {
@@ -34,6 +37,7 @@ export interface ProfileViewModel {
   primaryName: string;
   secondaryName: string | null;
   avatarInitial: string;
+  ratingLabel: string;
   hostedEvents: ProfileEventItem[];
   attendedEvents: ProfileEventItem[];
   hostedCount: number;
@@ -118,6 +122,8 @@ function mapHostedEvent(event: ProfileEventSummary): ProfileEventItem {
     end_time: normalizeEndTime(event.end_time),
     image_url: event.image_url ?? null,
     category_label: event.category ?? 'Event',
+    status: event.status,
+    privacy_level: event.privacy_level ?? null,
   };
 }
 
@@ -129,6 +135,8 @@ function mapProfileEvent(event: ProfileEventSummary): ProfileEventItem {
     end_time: normalizeEndTime(event.end_time),
     image_url: event.image_url ?? null,
     category_label: event.category ?? 'Event',
+    status: event.status,
+    privacy_level: event.privacy_level ?? null,
   };
 }
 
@@ -165,11 +173,15 @@ export function useProfileViewModel(): ProfileViewModel {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [ratingLabel, setRatingLabel] = useState('New');
 
   const fetchProfile = useCallback(
     async (mode: 'initial' | 'refresh') => {
       if (!token) {
         setProfile(null);
+        setHostedEvents([]);
+        setAttendedEvents([]);
+        setRatingLabel('New');
         setApiError('You must be logged in to view your profile.');
         setIsLoading(false);
         return;
@@ -187,14 +199,21 @@ export function useProfileViewModel(): ProfileViewModel {
         ]);
         setProfile(profileResult);
         const mappedHostedEvents = hostedResult.events.map(mapHostedEvent);
+        const mergedAttendedEvents = excludeHostedEvents(
+          mergeEventsById(upcomingResult.events, completedResult.events),
+          mappedHostedEvents,
+        );
         setHostedEvents(mappedHostedEvents);
-        setAttendedEvents(
-          excludeHostedEvents(
-            mergeEventsById(upcomingResult.events, completedResult.events),
-            mappedHostedEvents,
-          ),
+        setAttendedEvents(mergedAttendedEvents);
+        setRatingLabel(
+          profileResult.host_score?.final_score != null
+            ? profileResult.host_score.final_score.toFixed(1)
+            : 'New',
         );
       } catch (err) {
+        setHostedEvents([]);
+        setAttendedEvents([]);
+        setRatingLabel('New');
         if (err instanceof ApiError) {
           setApiError(err.message);
         } else {
@@ -312,6 +331,7 @@ export function useProfileViewModel(): ProfileViewModel {
     primaryName,
     secondaryName,
     avatarInitial,
+    ratingLabel,
     hostedEvents,
     attendedEvents,
     hostedCount: hostedEvents.length,

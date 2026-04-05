@@ -86,6 +86,10 @@ const profileFixture: UserProfile = {
   display_name: 'John Doe',
   bio: 'Software developer based in Istanbul.',
   avatar_url: 'https://example.com/avatars/john.jpg',
+  host_score: {
+    final_score: 4.7,
+    hosted_event_rating_count: 12,
+  },
 };
 
 describe('useProfileViewModel', () => {
@@ -99,9 +103,15 @@ describe('useProfileViewModel', () => {
       clearAuth: jest.fn(),
     } as any);
     mockGetMyProfile.mockResolvedValue(profileFixture);
-    mockGetMyHostedEvents.mockResolvedValue({ events: [hostedEventFixture] });
-    mockGetMyUpcomingEvents.mockResolvedValue({ events: [attendedUpcomingFixture] });
-    mockGetMyCompletedEvents.mockResolvedValue({ events: [attendedCompletedFixture] });
+    mockGetMyHostedEvents.mockResolvedValue({
+      events: [{ ...hostedEventFixture, privacy_level: 'PUBLIC' }],
+    });
+    mockGetMyUpcomingEvents.mockResolvedValue({
+      events: [{ ...attendedUpcomingFixture, privacy_level: 'PROTECTED' }],
+    });
+    mockGetMyCompletedEvents.mockResolvedValue({
+      events: [{ ...attendedCompletedFixture, privacy_level: 'PUBLIC' }],
+    });
   });
 
   it('starts in loading state', () => {
@@ -137,12 +147,14 @@ describe('useProfileViewModel', () => {
     expect(result.current.primaryName).toBe('John Doe');
     expect(result.current.secondaryName).toBe('john_doe');
     expect(result.current.avatarInitial).toBe('J');
+    expect(result.current.ratingLabel).toBe('4.7');
   });
 
   it('derives primaryName from username when display_name is null', async () => {
     mockGetMyProfile.mockResolvedValue({
       ...profileFixture,
       display_name: null,
+      host_score: null,
     });
 
     const { result } = await renderProfileViewModel();
@@ -163,6 +175,8 @@ describe('useProfileViewModel', () => {
         end_time: '2026-04-12T10:00:00Z',
         image_url: 'https://example.com/events/hosted.jpg',
         category_label: 'Outdoors',
+        status: 'PUBLISHED',
+        privacy_level: 'PUBLIC',
       },
     ]);
     expect(result.current.attendedEvents).toEqual([
@@ -173,6 +187,8 @@ describe('useProfileViewModel', () => {
         end_time: '2026-04-15T21:00:00Z',
         image_url: 'https://example.com/events/attended.jpg',
         category_label: 'Social',
+        status: 'PUBLISHED',
+        privacy_level: 'PROTECTED',
       },
       {
         id: 'attended-event-2',
@@ -181,6 +197,8 @@ describe('useProfileViewModel', () => {
         end_time: '2026-03-20T12:00:00Z',
         image_url: 'https://example.com/events/completed.jpg',
         category_label: 'Culture',
+        status: 'COMPLETED',
+        privacy_level: 'PUBLIC',
       },
     ]);
     expect(result.current.hostedCount).toBe(1);

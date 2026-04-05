@@ -14,8 +14,21 @@ interface ProfileEventCardProps {
   imageUrl?: string | null;
   categoryLabel: string;
   startTime: string;
-  endTime?: string | null;
+  status: string;
+  privacyLevel: 'PUBLIC' | 'PROTECTED' | 'PRIVATE' | null;
   onPress: () => void;
+}
+
+function formatPrivacyLabel(value: NonNullable<ProfileEventCardProps['privacyLevel']>) {
+  return value.charAt(0) + value.slice(1).toLowerCase();
+}
+
+function formatStatusLabel(value: string) {
+  return value
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 export default function ProfileEventCard({
@@ -23,7 +36,8 @@ export default function ProfileEventCard({
   imageUrl,
   categoryLabel,
   startTime,
-  endTime,
+  status,
+  privacyLevel,
   onPress,
 }: ProfileEventCardProps) {
   return (
@@ -42,8 +56,59 @@ export default function ProfileEventCard({
         )}
 
         <View style={styles.imageOverlay}>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryBadgeText}>{categoryLabel}</Text>
+          <View style={styles.imageTopRow}>
+            {privacyLevel ? (
+              <View
+                style={[
+                  styles.visibilityBadge,
+                  privacyLevel === 'PROTECTED'
+                    ? styles.visibilityBadgeProtected
+                    : privacyLevel === 'PRIVATE'
+                      ? styles.visibilityBadgePrivate
+                      : styles.visibilityBadgePublic,
+                ]}
+              >
+                <Feather
+                  name={
+                    privacyLevel === 'PROTECTED'
+                      ? 'lock'
+                      : privacyLevel === 'PRIVATE'
+                        ? 'slash'
+                        : 'globe'
+                  }
+                  size={12}
+                  color={
+                    privacyLevel === 'PROTECTED'
+                      ? '#92400E'
+                      : privacyLevel === 'PRIVATE'
+                        ? '#7C2D12'
+                        : '#1E40AF'
+                  }
+                />
+                <Text
+                  style={[
+                    styles.visibilityBadgeText,
+                    privacyLevel === 'PROTECTED'
+                      ? styles.visibilityBadgeTextProtected
+                      : privacyLevel === 'PRIVATE'
+                        ? styles.visibilityBadgeTextPrivate
+                        : styles.visibilityBadgeTextPublic,
+                  ]}
+                >
+                  {formatPrivacyLabel(privacyLevel)}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.imageBottomRow}>
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>{categoryLabel}</Text>
+            </View>
+
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusBadgeText}>{formatStatusLabel(status)}</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -56,7 +121,7 @@ export default function ProfileEventCard({
         <View style={styles.metaRow}>
           <Feather name="clock" size={16} color="#6B7280" />
           <Text style={styles.metaText}>
-            {formatEventDateLabel(startTime, endTime)}
+            {formatEventDateLabel(startTime)}
           </Text>
         </View>
       </View>
@@ -94,7 +159,18 @@ const styles = StyleSheet.create({
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
     padding: 14,
+    justifyContent: 'space-between',
+  },
+  imageTopRow: {
+    flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  imageBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
   },
   categoryBadge: {
     alignSelf: 'flex-start',
@@ -106,6 +182,47 @@ const styles = StyleSheet.create({
   categoryBadgeText: {
     color: '#FFFFFF',
     fontSize: 13,
+    fontWeight: '700',
+  },
+  visibilityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  visibilityBadgePublic: {
+    backgroundColor: '#DBEAFE',
+  },
+  visibilityBadgeProtected: {
+    backgroundColor: '#FEF3C7',
+  },
+  visibilityBadgePrivate: {
+    backgroundColor: '#FDE68A',
+  },
+  visibilityBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  visibilityBadgeTextPublic: {
+    color: '#1E40AF',
+  },
+  visibilityBadgeTextProtected: {
+    color: '#92400E',
+  },
+  visibilityBadgeTextPrivate: {
+    color: '#7C2D12',
+  },
+  statusBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  statusBadgeText: {
+    color: '#111827',
+    fontSize: 12,
     fontWeight: '700',
   },
   content: {

@@ -126,24 +126,19 @@ export default function ProfileView() {
                   accessibilityLabel="Display name"
                 >
                   {vm.primaryName}
-                  {vm.secondaryName ? (
-                    <Text style={styles.inlineUsername}>
-                      {' '}
-                      ({vm.secondaryName})
-                    </Text>
-                  ) : null}
                 </Text>
-                {vm.profile.bio ? (
-                  <Text style={styles.bioText} numberOfLines={2}>
-                    {vm.profile.bio}
-                  </Text>
-                ) : vm.secondaryName ? (
+                {vm.secondaryName ? (
                   <Text
                     style={styles.secondaryName}
                     numberOfLines={1}
                     accessibilityLabel="Username"
                   >
                     @{vm.secondaryName}
+                  </Text>
+                ) : null}
+                {vm.profile.bio ? (
+                  <Text style={styles.bioText} numberOfLines={2}>
+                    {vm.profile.bio}
                   </Text>
                 ) : null}
               </View>
@@ -188,6 +183,11 @@ export default function ProfileView() {
 
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
+                <Text style={styles.statValue}>{vm.ratingLabel}</Text>
+                <Text style={styles.statLabel}>Rating</Text>
+              </View>
+
+              <View style={styles.statItem}>
                 <Text style={styles.statValue}>{vm.hostedCount}</Text>
                 <Text style={styles.statLabel}>Hosted</Text>
               </View>
@@ -195,11 +195,6 @@ export default function ProfileView() {
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{vm.attendedCount}</Text>
                 <Text style={styles.statLabel}>Attended</Text>
-              </View>
-
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{vm.hostedCount + vm.attendedCount}</Text>
-                <Text style={styles.statLabel}>Total</Text>
               </View>
             </View>
           </View>
@@ -307,7 +302,8 @@ export default function ProfileView() {
                 imageUrl={item.image_url}
                 categoryLabel={item.category_label}
                 startTime={item.start_time}
-                endTime={item.end_time}
+                status={item.status}
+                privacyLevel={item.privacy_level}
                 onPress={() => router.push(`/event/${item.id}` as Href)}
               />
             )}
@@ -460,22 +456,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
   },
-  inlineUsername: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#94A3B8',
-  },
   secondaryName: {
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '600',
     color: '#64748B',
-    marginTop: 4,
+    marginTop: 2,
   },
   bioText: {
     fontSize: 14,
     lineHeight: 20,
     color: '#64748B',
-    marginTop: 4,
+    marginTop: 8,
   },
   summaryInfoSection: {
     gap: 10,
