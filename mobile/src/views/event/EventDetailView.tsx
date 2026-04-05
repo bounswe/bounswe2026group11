@@ -294,6 +294,25 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           </View>
         </View>
 
+        {/* Auto-completion warning for in-progress events without an end date */}
+        {event.status === 'IN_PROGRESS' && !event.end_time && (() => {
+          const daysSinceStart = Math.floor(
+            (Date.now() - new Date(event.start_time).getTime()) / (1000 * 60 * 60 * 24)
+          );
+          if (daysSinceStart >= 53 && daysSinceStart < 60) {
+            const daysLeft = 60 - daysSinceStart;
+            return (
+              <View style={styles.warningBanner}>
+                <Feather name="alert-triangle" size={16} color="#D97706" />
+                <Text style={styles.warningBannerText}>
+                  This event will be automatically completed in {daysLeft} day{daysLeft !== 1 ? 's' : ''} due to inactivity.
+                </Text>
+              </View>
+            );
+          }
+          return null;
+        })()}
+
         {/* Core info */}
         <View style={styles.section}>
           {event.category && (
@@ -992,6 +1011,25 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     fontSize: 15,
     fontWeight: '600',
+  },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    borderRadius: 10,
+    padding: 12,
+    marginHorizontal: 20,
+    marginTop: 12,
+  },
+  warningBannerText: {
+    flex: 1,
+    color: '#92400E',
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
   },
   errorBanner: {
     backgroundColor: '#FEF2F2',
