@@ -118,9 +118,12 @@ func (r *ProfileRepository) GetHostedEvents(ctx context.Context, userID uuid.UUI
 			e.end_time,
 			e.status,
 			ec.name AS category,
-			e.image_url
+			e.image_url,
+			e.approved_participant_count,
+			el.address
 		FROM event e
 		LEFT JOIN event_category ec ON ec.id = e.category_id
+		LEFT JOIN event_location el ON el.event_id = e.id
 		WHERE e.host_id = $1
 		ORDER BY e.start_time DESC
 	`, userID)
@@ -142,10 +145,13 @@ func (r *ProfileRepository) GetUpcomingEvents(ctx context.Context, userID uuid.U
 			e.end_time,
 			e.status,
 			ec.name AS category,
-			e.image_url
+			e.image_url,
+			e.approved_participant_count,
+			el.address
 		FROM event e
 		JOIN participation p ON p.event_id = e.id
 		LEFT JOIN event_category ec ON ec.id = e.category_id
+		LEFT JOIN event_location el ON el.event_id = e.id
 		WHERE p.user_id = $1
 		  AND p.status = $2
 		  AND e.status IN ($3, $4)
@@ -169,10 +175,13 @@ func (r *ProfileRepository) GetCompletedEvents(ctx context.Context, userID uuid.
 			e.end_time,
 			e.status,
 			ec.name AS category,
-			e.image_url
+			e.image_url,
+			e.approved_participant_count,
+			el.address
 		FROM event e
 		JOIN participation p ON p.event_id = e.id
 		LEFT JOIN event_category ec ON ec.id = e.category_id
+		LEFT JOIN event_location el ON el.event_id = e.id
 		WHERE p.user_id = $1
 		  AND (
 			p.status = $2
@@ -199,10 +208,13 @@ func (r *ProfileRepository) GetCanceledEvents(ctx context.Context, userID uuid.U
 			e.end_time,
 			e.status,
 			ec.name AS category,
-			e.image_url
+			e.image_url,
+			e.approved_participant_count,
+			el.address
 		FROM event e
 		JOIN participation p ON p.event_id = e.id
 		LEFT JOIN event_category ec ON ec.id = e.category_id
+		LEFT JOIN event_location el ON el.event_id = e.id
 		WHERE p.user_id = $1
 		  AND p.status = $2
 		  AND e.status = $3
@@ -223,12 +235,14 @@ func scanEventSummaries(rows interface {
 	var events []domain.EventSummary
 	for rows.Next() {
 		var (
-			e        domain.EventSummary
-			endTime  pgtype.Timestamptz
-			category pgtype.Text
-			imageURL pgtype.Text
+			e               domain.EventSummary
+			endTime         pgtype.Timestamptz
+			category        pgtype.Text
+			imageURL        pgtype.Text
+			locationAddress pgtype.Text
 		)
-		if err := rows.Scan(&e.ID, &e.Title, &e.StartTime, &endTime, &e.Status, &category, &imageURL); err != nil {
+		if err := rows.Scan(&e.ID, &e.Title, &e.StartTime, &endTime, &e.Status, &category, &imageURL,
+			&e.ApprovedParticipantCount, &locationAddress); err != nil {
 			return nil, fmt.Errorf("scan event summary: %w", err)
 		}
 		if endTime.Valid {
@@ -236,6 +250,7 @@ func scanEventSummaries(rows interface {
 		}
 		e.Category = textPtr(category)
 		e.ImageURL = textPtr(imageURL)
+		e.LocationAddress = textPtr(locationAddress)
 		events = append(events, e)
 	}
 	if err := rows.Err(); err != nil {
