@@ -11,6 +11,8 @@ import {
   JoinRequestResponse,
   ApproveJoinRequestResponse,
   RejectJoinRequestResponse,
+  FavoriteEventsResponse,
+  FavoriteEventItem,
 } from '@/models/event';
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
@@ -102,6 +104,11 @@ export function cancelEvent(
   token: string,
 ): Promise<void> {
   return apiPatchAuth<void>(`/events/${eventId}/cancel`, {}, token);
+}
+
+export async function getFavoriteEvents(token: string): Promise<FavoriteEventItem[]> {
+  const res = await apiGetAuth<FavoriteEventsResponse>('/me/favorites', token);
+  return res.items ?? [];
 }
 
 export async function searchLocation(
