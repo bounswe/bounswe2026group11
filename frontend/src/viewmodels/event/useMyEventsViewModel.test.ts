@@ -14,7 +14,7 @@ vi.mock('@/services/profileService', () => ({
 
 import { profileService } from '@/services/profileService';
 
-const mockService = profileService as {
+const mockService = profileService as unknown as {
   getHostedEvents: ReturnType<typeof vi.fn>;
   getUpcomingEvents: ReturnType<typeof vi.fn>;
   getCompletedEvents: ReturnType<typeof vi.fn>;
