@@ -20,3 +20,14 @@ export interface FavoriteLocation {
   lat: number;
   lon: number;
 }
+
+export interface FavoriteLocationsResponse {
+  items: FavoriteLocation[];
+}
+
+export interface CreateFavoriteLocationRequest {
+  name: string;
+  address: string;
+  lat: number;
+  lon: number;
+}

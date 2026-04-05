@@ -22,9 +22,11 @@ import { formatEventLocation } from '@/utils/eventLocation';
 function LocationCard({
   location,
   onRemove,
+  isRemoving,
 }: {
   location: FavoriteLocation;
-  onRemove: (id: string) => void;
+  onRemove: (id: string) => Promise<void>;
+  isRemoving: boolean;
 }) {
   const handleRemove = () => {
     Alert.alert(
@@ -54,10 +56,15 @@ function LocationCard({
       </View>
       <TouchableOpacity
         onPress={handleRemove}
-        style={styles.removeButton}
+        style={[styles.removeButton, isRemoving && styles.removeButtonDisabled]}
+        disabled={isRemoving}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Feather name="trash-2" size={18} color="#EF4444" />
+        {isRemoving ? (
+          <ActivityIndicator size="small" color="#EF4444" />
+        ) : (
+          <Feather name="trash-2" size={18} color="#EF4444" />
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -71,6 +78,7 @@ function AddLocationModal({
   isSearching,
   selectedSuggestion,
   error,
+  isSubmitting,
   onClose,
   onChangeName,
   onChangeQuery,
@@ -84,11 +92,12 @@ function AddLocationModal({
   isSearching: boolean;
   selectedSuggestion: LocationSuggestion | null;
   error: string | null;
+  isSubmitting: boolean;
   onClose: () => void;
   onChangeName: (value: string) => void;
   onChangeQuery: (value: string) => void;
   onSelectSuggestion: (suggestion: LocationSuggestion) => void;
-  onSubmit: () => void;
+  onSubmit: () => Promise<void>;
 }) {
   return (
     <Modal
@@ -179,8 +188,19 @@ function AddLocationModal({
           <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.saveButton} onPress={onSubmit}>
-            <Text style={styles.saveButtonText}>Save Location</Text>
+          <TouchableOpacity
+            style={[
+              styles.saveButton,
+              isSubmitting && styles.saveButtonDisabled,
+            ]}
+            onPress={onSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save Location</Text>
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -190,6 +210,15 @@ function AddLocationModal({
 
 export default function FavoriteLocationsTab() {
   const vm = useFavoriteLocationsViewModel();
+
+  if (vm.isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#000000" />
+        <Text style={styles.loadingText}>Loading favorite locations...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -218,7 +247,13 @@ export default function FavoriteLocationsTab() {
         </TouchableOpacity>
       </View>
 
-      {!vm.canAddMore ? (
+      {vm.apiError && vm.locations.length > 0 ? (
+        <View style={styles.topErrorBanner}>
+          <Text style={styles.errorText}>{vm.apiError}</Text>
+        </View>
+      ) : null}
+
+      {vm.locations.length >= 3 ? (
         <View style={styles.limitBanner}>
           <Ionicons name="information-circle" size={18} color="#D97706" />
           <Text style={styles.limitText}>
@@ -231,18 +266,39 @@ export default function FavoriteLocationsTab() {
         data={vm.locations}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <LocationCard location={item} onRemove={vm.removeLocation} />
+          <LocationCard
+            location={item}
+            onRemove={vm.removeLocation}
+            isRemoving={vm.removingLocationId === item.id}
+          />
         )}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        onRefresh={vm.refresh}
+        refreshing={vm.isRefreshing}
         ListEmptyComponent={
-          <View style={styles.emptyCenter}>
-            <Ionicons name="location-outline" size={40} color="#D1D5DB" />
-            <Text style={styles.emptyTitle}>No favorite locations</Text>
-            <Text style={styles.emptySubtitle}>
-              Add up to 3 locations for quick access.
-            </Text>
-          </View>
+          vm.apiError ? (
+            <View style={styles.emptyCenter}>
+              <Ionicons name="alert-circle-outline" size={40} color="#D1D5DB" />
+              <Text style={styles.emptyTitle}>Unable to load favorite locations</Text>
+              <Text style={styles.emptySubtitle}>{vm.apiError}</Text>
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={vm.refresh}
+                accessibilityLabel="Retry favorite locations"
+              >
+                <Text style={styles.retryButtonText}>Try again</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.emptyCenter}>
+              <Ionicons name="location-outline" size={40} color="#D1D5DB" />
+              <Text style={styles.emptyTitle}>No favorite locations</Text>
+              <Text style={styles.emptySubtitle}>
+                Add up to 3 locations for quick access.
+              </Text>
+            </View>
+          )
         }
       />
 
@@ -254,6 +310,7 @@ export default function FavoriteLocationsTab() {
         isSearching={vm.isSearchingSuggestions}
         selectedSuggestion={vm.selectedSuggestion}
         error={vm.addError}
+        isSubmitting={vm.isSubmittingAdd}
         onClose={vm.closeAddModal}
         onChangeName={vm.setAddName}
         onChangeQuery={vm.setAddLocationQuery}
@@ -267,6 +324,16 @@ export default function FavoriteLocationsTab() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  center: {
+    paddingVertical: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#6B7280',
+    fontSize: 15,
   },
   headerRow: {
     flexDirection: 'row',
@@ -357,6 +424,9 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     padding: 6,
+  },
+  removeButtonDisabled: {
+    opacity: 0.6,
   },
   emptyCenter: {
     paddingVertical: 48,
@@ -478,9 +548,29 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 14,
   },
+  topErrorBanner: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
   errorText: {
     color: '#DC2626',
     fontSize: 14,
+  },
+  retryButton: {
+    marginTop: 16,
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
   modalFooter: {
     flexDirection: 'row',
@@ -513,6 +603,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     backgroundColor: '#0F172A',
+  },
+  saveButtonDisabled: {
+    opacity: 0.7,
   },
   saveButtonText: {
     fontSize: 16,
