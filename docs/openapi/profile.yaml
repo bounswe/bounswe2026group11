@@ -52,7 +52,79 @@ paths:
         "401":
           description: Missing or invalid access token.
 
-  /me/avatar/upload-url:
+  /api/me/events/hosted:
+    get:
+      summary: Get the current user's hosted events
+      description: Returns all events created (hosted) by the authenticated user, ordered by start time descending.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Hosted events retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventSummaryList"
+        "401":
+          description: Missing or invalid access token.
+
+  /api/me/events/upcoming:
+    get:
+      summary: Get the current user's upcoming events
+      description: Returns events where the user has an APPROVED participation and the event is ACTIVE or IN_PROGRESS, ordered by start time ascending.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Upcoming events retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventSummaryList"
+        "401":
+          description: Missing or invalid access token.
+
+  /api/me/events/completed:
+    get:
+      summary: Get the current user's completed events
+      description: Returns COMPLETED events where the user had an APPROVED participation, or left the event after it had already started.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Completed events retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventSummaryList"
+        "401":
+          description: Missing or invalid access token.
+
+  /api/me/events/canceled:
+    get:
+      summary: Get the current user's canceled events
+      description: Returns CANCELED events where the user had a CANCELED participation (covers both host and participant views).
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Canceled events retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventSummaryList"
+        "401":
+          description: Missing or invalid access token.
+
+  /api/me/avatar/upload-url:
     post:
       summary: Create direct-upload URLs for the current user's avatar
       description: |
@@ -87,7 +159,7 @@ paths:
         "401":
           description: Missing or invalid access token.
 
-  /me/avatar/confirm:
+  /api/me/avatar/confirm:
     post:
       summary: Confirm an uploaded avatar image
       description: >
@@ -214,16 +286,91 @@ components:
             - "null"
           description: URL of the user's avatar image.
           example: "https://example.com/avatars/john.jpg"
-        created_events:
+        final_score:
+          type:
+            - number
+            - "null"
+          format: double
+          description: Combined weighted score across host and participant ratings. Null if the user has no ratings yet.
+          example: 4.2
+        host_score:
+          $ref: "#/components/schemas/ScoreSummary"
+        participant_score:
+          $ref: "#/components/schemas/ScoreSummary"
+
+    ScoreSummary:
+      type: object
+      description: Rating summary for a user in a specific role (host or participant).
+      properties:
+        score:
+          type:
+            - number
+            - "null"
+          format: double
+          description: Average rating score. Null if no ratings have been submitted yet.
+          example: 4.5
+        rating_count:
+          type: integer
+          minimum: 0
+          description: Total number of ratings received in this role.
+          example: 8
+
+    EventSummaryList:
+      type: object
+      properties:
+        events:
           type: array
-          description: Events created (hosted) by this user, ordered by start time descending.
           items:
             $ref: "#/components/schemas/EventSummary"
-        attended_events:
-          type: array
-          description: Events the user has an approved participation in, ordered by start time descending.
-          items:
-            $ref: "#/components/schemas/EventSummary"
+
+    EventSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        title:
+          type: string
+          example: "Morning Yoga in the Park"
+        start_time:
+          type: string
+          format: date-time
+          example: "2026-04-15T08:00:00+03:00"
+        end_time:
+          type: string
+          format: date-time
+          example: "2026-04-15T09:30:00+03:00"
+        status:
+          type: string
+          enum: [ACTIVE, IN_PROGRESS, COMPLETED, CANCELED]
+          example: "ACTIVE"
+        privacy_level:
+          type: string
+          enum: [PUBLIC, PROTECTED, PRIVATE]
+          description: Visibility level of the event.
+          example: "PUBLIC"
+        category:
+          type:
+            - string
+            - "null"
+          example: "Sports"
+        image_url:
+          type:
+            - string
+            - "null"
+          example: "https://example.com/images/yoga.jpg"
+        participants_count:
+          type: integer
+          minimum: 0
+          description: Current count of approved participants.
+          example: 24
+        location_address:
+          type:
+            - string
+            - "null"
+          description: Event location address text.
+          example: "Maçka Democracy Park, Istanbul"
 
     UpdateProfileRequest:
       type: object
@@ -364,49 +511,6 @@ components:
         confirm_token:
           type: string
           description: Opaque signed token returned by the corresponding upload-url endpoint.
-
-    EventSummary:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          example: "550e8400-e29b-41d4-a716-446655440000"
-        title:
-          type: string
-          example: "Morning Yoga in the Park"
-        start_time:
-          type: string
-          format: date-time
-          example: "2026-04-15T08:00:00+03:00"
-        end_time:
-          type: string
-          format: date-time
-          example: "2026-04-15T09:30:00+03:00"
-        status:
-          type: string
-          example: "ACTIVE"
-        category:
-          type:
-            - string
-            - "null"
-          example: "Sports"
-        image_url:
-          type:
-            - string
-            - "null"
-          example: "https://example.com/images/yoga.jpg"
-        participants_count:
-          type: integer
-          minimum: 0
-          description: Current count of approved participants.
-          example: 24
-        location_address:
-          type:
-            - string
-            - "null"
-          description: Event location address text.
-          example: "Maçka Democracy Park, Istanbul"
 
     ErrorEnvelope:
       type: object
