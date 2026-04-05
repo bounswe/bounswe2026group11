@@ -51,6 +51,10 @@ export interface AuthSessionResponse {
   user: UserSummary;
 }
 
+export interface RefreshRequest {
+  refresh_token: string;
+}
+
 export interface LogoutRequest {
   refresh_token: string;
 }
