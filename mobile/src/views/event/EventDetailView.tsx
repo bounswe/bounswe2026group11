@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
-import { formatEventDateLabel } from '@/utils/eventDate';
+import { formatEventDateLabel, getAutoCompletionDaysLeft } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { EventDetail } from '@/models/event';
 import JoinRequestsModal from '@/components/events/JoinRequestsModal';
@@ -295,22 +295,17 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         </View>
 
         {/* Auto-completion warning for in-progress events without an end date */}
-        {event.status === 'IN_PROGRESS' && !event.end_time && (() => {
-          const daysSinceStart = Math.floor(
-            (Date.now() - new Date(event.start_time).getTime()) / (1000 * 60 * 60 * 24)
+        {(() => {
+          const daysLeft = getAutoCompletionDaysLeft(event.status, event.start_time, event.end_time);
+          if (daysLeft == null) return null;
+          return (
+            <View style={styles.warningBanner}>
+              <Feather name="alert-triangle" size={16} color="#D97706" />
+              <Text style={styles.warningBannerText}>
+                This event will be automatically completed in {daysLeft} day{daysLeft !== 1 ? 's' : ''} due to inactivity.
+              </Text>
+            </View>
           );
-          if (daysSinceStart >= 53 && daysSinceStart < 60) {
-            const daysLeft = 60 - daysSinceStart;
-            return (
-              <View style={styles.warningBanner}>
-                <Feather name="alert-triangle" size={16} color="#D97706" />
-                <Text style={styles.warningBannerText}>
-                  This event will be automatically completed in {daysLeft} day{daysLeft !== 1 ? 's' : ''} due to inactivity.
-                </Text>
-              </View>
-            );
-          }
-          return null;
         })()}
 
         {/* Core info */}

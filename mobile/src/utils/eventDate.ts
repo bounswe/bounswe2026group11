@@ -53,3 +53,30 @@ export function formatEventDateLabel(
 
   return `${startDatePart} • ${startTimePart} - ${endDatePart} • ${endTimePart}`;
 }
+
+/**
+ * Returns the number of days remaining before an in-progress event without an
+ * end date is auto-completed (at the 60-day mark), or `null` when no warning
+ * should be displayed.
+ *
+ * A warning is shown between day 53 and day 59 (inclusive) since the event
+ * started.
+ */
+export function getAutoCompletionDaysLeft(
+  status: string,
+  startTime: string,
+  endTime?: string | null,
+  now: Date = new Date(),
+): number | null {
+  if (status !== 'IN_PROGRESS' || endTime) return null;
+
+  const daysSinceStart = Math.floor(
+    (now.getTime() - new Date(startTime).getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  if (daysSinceStart >= 53 && daysSinceStart < 60) {
+    return 60 - daysSinceStart;
+  }
+
+  return null;
+}
