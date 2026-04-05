@@ -3457,3 +3457,103 @@ func TestDiscoverEventsAnonymousSeesOnlyPublicAndProtected(t *testing.T) {
 		t.Fatalf("expected at least 2 events, got %d", len(result.Items))
 	}
 }
+
+func TestGetMyProfileReturnsScoreFields(t *testing.T) {
+	t.Parallel()
+
+	// given: a brand-new user with no ratings yet
+	harness := common.NewEventHarness(t)
+	user := common.GivenUser(t, harness.AuthRepo)
+
+	// when
+	result, err := harness.ProfileService.GetMyProfile(context.Background(), user.ID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetMyProfile() error = %v", err)
+	}
+	if result.HostScore == nil {
+		t.Fatal("expected host_score to be present")
+	}
+	if result.HostScore.Score != nil {
+		t.Fatalf("expected host_score.score to be nil for new user, got %v", result.HostScore.Score)
+	}
+	if result.HostScore.RatingCount != 0 {
+		t.Fatalf("expected host_score.rating_count=0, got %d", result.HostScore.RatingCount)
+	}
+	if result.ParticipantScore == nil {
+		t.Fatal("expected participant_score to be present")
+	}
+	if result.ParticipantScore.Score != nil {
+		t.Fatalf("expected participant_score.score to be nil for new user, got %v", result.ParticipantScore.Score)
+	}
+	if result.ParticipantScore.RatingCount != 0 {
+		t.Fatalf("expected participant_score.rating_count=0, got %d", result.ParticipantScore.RatingCount)
+	}
+	if result.FinalScore != nil {
+		t.Fatalf("expected final_score to be nil for new user, got %v", result.FinalScore)
+	}
+}
+
+func TestGetMyHostedEventsIncludesPrivacyLevel(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	// when
+	events, err := harness.ProfileService.GetMyHostedEvents(context.Background(), host.ID)
+	if err != nil {
+		t.Fatalf("GetMyHostedEvents() error = %v", err)
+	}
+
+	// then: the created event must carry its privacy_level
+	var found bool
+	for _, e := range events {
+		if e.ID == ref.ID.String() {
+			found = true
+			if e.PrivacyLevel != "PUBLIC" {
+				t.Fatalf("expected privacy_level=PUBLIC, got %q", e.PrivacyLevel)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("event %s not found in hosted events", ref.ID)
+	}
+}
+
+func TestGetMyUpcomingEventsIncludesPrivacyLevel(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	participant := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenProtectedEvent(t, harness.Service, host.ID)
+
+	if _, err := harness.Service.JoinEvent(context.Background(), participant.ID, ref.ID); err != nil {
+		t.Fatalf("JoinEvent() error = %v", err)
+	}
+
+	// when
+	events, err := harness.ProfileService.GetMyUpcomingEvents(context.Background(), participant.ID)
+	if err != nil {
+		t.Fatalf("GetMyUpcomingEvents() error = %v", err)
+	}
+
+	// then
+	var found bool
+	for _, e := range events {
+		if e.ID == ref.ID.String() {
+			found = true
+			if e.PrivacyLevel != "PROTECTED" {
+				t.Fatalf("expected privacy_level=PROTECTED, got %q", e.PrivacyLevel)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("event %s not found in upcoming events", ref.ID)
+	}
+}
