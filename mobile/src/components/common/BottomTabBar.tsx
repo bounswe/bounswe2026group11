@@ -28,6 +28,8 @@ export default function BottomTabBar() {
             ? pathname === '/home'
             : tab.key === 'favorites'
               ? pathname === '/favorites'
+              : tab.key === 'events'
+                ? pathname === '/events'
               : false;
 
         if (tab.primary) {
@@ -62,6 +64,8 @@ export default function BottomTabBar() {
                 router.push('/home' as Href);
               } else if (tab.key === 'favorites') {
                 router.push('/favorites' as Href);
+              } else if (tab.key === 'events') {
+                router.push('/events' as Href);
               }
             }}
           >
@@ -85,7 +89,7 @@ export default function BottomTabBar() {
               <Feather
                 name="calendar"
                 size={22}
-                color="#9CA3AF"
+                color={active ? '#111827' : '#9CA3AF'}
               />
             )}
 

@@ -98,13 +98,15 @@ func toEventSummaries(events []domain.EventSummary) []EventSummary {
 	result := make([]EventSummary, len(events))
 	for i, e := range events {
 		result[i] = EventSummary{
-			ID:        e.ID.String(),
-			Title:     e.Title,
-			StartTime: e.StartTime.Format("2006-01-02T15:04:05Z07:00"),
-			EndTime:   e.EndTime.Format("2006-01-02T15:04:05Z07:00"),
-			Status:    e.Status,
-			Category:  e.Category,
-			ImageURL:  e.ImageURL,
+			ID:                e.ID.String(),
+			Title:             e.Title,
+			StartTime:         e.StartTime.Format("2006-01-02T15:04:05Z07:00"),
+			EndTime:           e.EndTime.Format("2006-01-02T15:04:05Z07:00"),
+			Status:            e.Status,
+			Category:          e.Category,
+			ImageURL:          e.ImageURL,
+			ParticipantsCount: e.ApprovedParticipantCount,
+			LocationAddress:   e.LocationAddress,
 		}
 	}
 	return result

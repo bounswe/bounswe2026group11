@@ -4,13 +4,15 @@ import "github.com/google/uuid"
 
 // EventSummary is a lightweight event representation used in profile responses.
 type EventSummary struct {
-	ID        string  `json:"id"`
-	Title     string  `json:"title"`
-	StartTime string  `json:"start_time"`
-	EndTime   string  `json:"end_time"`
-	Status    string  `json:"status"`
-	Category  *string `json:"category"`
-	ImageURL  *string `json:"image_url"`
+	ID                string  `json:"id"`
+	Title             string  `json:"title"`
+	StartTime         string  `json:"start_time"`
+	EndTime           string  `json:"end_time"`
+	Status            string  `json:"status"`
+	Category          *string `json:"category"`
+	ImageURL          *string `json:"image_url"`
+	ParticipantsCount int     `json:"participants_count"`
+	LocationAddress   *string `json:"location_address"`
 }
 
 // GetProfileResult is the output of the GetMyProfile use case.
