@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import LandingPage from './views/auth/LandingPage';
 import LoginView from './views/auth/LoginView';
@@ -16,7 +16,7 @@ import ProfilePage from './views/profile/ProfilePage';
 import NotFoundView from './views/fallback/NotFoundView';
 
 export default function App() {
-  const { isLoading } = useAuth();
+  const { isLoading, token } = useAuth();
 
   if (isLoading) {
     return null;
@@ -25,7 +25,7 @@ export default function App() {
   return (
     <Routes>
       {/* Landing page */}
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={token ? <Navigate to="/discover" replace /> : <LandingPage />} />
 
       {/* App shell wraps all main pages (public + protected) */}
       <Route element={<AppShell />}>
