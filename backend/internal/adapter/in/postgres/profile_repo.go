@@ -46,25 +46,36 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 			ST_X(u.default_location_point::geometry) AS lon,
 			p.display_name,
 			p.bio,
-			p.avatar_url
+			p.avatar_url,
+			us.final_score,
+			us.hosted_event_score,
+			COALESCE(us.hosted_event_rating_count, 0),
+			us.participant_score,
+			COALESCE(us.participant_rating_count, 0)
 		FROM app_user u
 		LEFT JOIN profile p ON p.user_id = u.id
+		LEFT JOIN user_score us ON us.user_id = u.id
 		WHERE u.id = $1
 	`, userID)
 
 	var (
-		up                domain.UserProfile
-		phoneNumber       pgtype.Text
-		gender            pgtype.Text
-		birthDate         pgtype.Date
-		emailVerifiedAt   pgtype.Timestamptz
-		status            pgtype.Text
-		defaultLocAddress pgtype.Text
-		lat               pgtype.Float8
-		lon               pgtype.Float8
-		displayName       pgtype.Text
-		bio               pgtype.Text
-		avatarURL         pgtype.Text
+		up                     domain.UserProfile
+		phoneNumber            pgtype.Text
+		gender                 pgtype.Text
+		birthDate              pgtype.Date
+		emailVerifiedAt        pgtype.Timestamptz
+		status                 pgtype.Text
+		defaultLocAddress      pgtype.Text
+		lat                    pgtype.Float8
+		lon                    pgtype.Float8
+		displayName            pgtype.Text
+		bio                    pgtype.Text
+		avatarURL              pgtype.Text
+		finalScore             pgtype.Float8
+		hostedEventScore       pgtype.Float8
+		hostedEventRatingCount int
+		participantScore       pgtype.Float8
+		participantRatingCount int
 	)
 
 	if err := row.Scan(
@@ -82,6 +93,11 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 		&displayName,
 		&bio,
 		&avatarURL,
+		&finalScore,
+		&hostedEventScore,
+		&hostedEventRatingCount,
+		&participantScore,
+		&participantRatingCount,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrNotFound
@@ -104,6 +120,17 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 	up.DisplayName = textPtr(displayName)
 	up.Bio = textPtr(bio)
 	up.AvatarURL = textPtr(avatarURL)
+	if finalScore.Valid {
+		up.FinalScore = &finalScore.Float64
+	}
+	up.HostScore.RatingCount = hostedEventRatingCount
+	if hostedEventScore.Valid {
+		up.HostScore.Score = &hostedEventScore.Float64
+	}
+	up.ParticipantScore.RatingCount = participantRatingCount
+	if participantScore.Valid {
+		up.ParticipantScore.Score = &participantScore.Float64
+	}
 
 	return &up, nil
 }
@@ -117,6 +144,7 @@ func (r *ProfileRepository) GetHostedEvents(ctx context.Context, userID uuid.UUI
 			e.start_time,
 			e.end_time,
 			e.status,
+			e.privacy_level,
 			ec.name AS category,
 			e.image_url,
 			e.approved_participant_count,
@@ -144,6 +172,7 @@ func (r *ProfileRepository) GetUpcomingEvents(ctx context.Context, userID uuid.U
 			e.start_time,
 			e.end_time,
 			e.status,
+			e.privacy_level,
 			ec.name AS category,
 			e.image_url,
 			e.approved_participant_count,
@@ -174,6 +203,7 @@ func (r *ProfileRepository) GetCompletedEvents(ctx context.Context, userID uuid.
 			e.start_time,
 			e.end_time,
 			e.status,
+			e.privacy_level,
 			ec.name AS category,
 			e.image_url,
 			e.approved_participant_count,
@@ -207,6 +237,7 @@ func (r *ProfileRepository) GetCanceledEvents(ctx context.Context, userID uuid.U
 			e.start_time,
 			e.end_time,
 			e.status,
+			e.privacy_level,
 			ec.name AS category,
 			e.image_url,
 			e.approved_participant_count,
@@ -241,8 +272,8 @@ func scanEventSummaries(rows interface {
 			imageURL        pgtype.Text
 			locationAddress pgtype.Text
 		)
-		if err := rows.Scan(&e.ID, &e.Title, &e.StartTime, &endTime, &e.Status, &category, &imageURL,
-			&e.ApprovedParticipantCount, &locationAddress); err != nil {
+		if err := rows.Scan(&e.ID, &e.Title, &e.StartTime, &endTime, &e.Status, &e.PrivacyLevel,
+			&category, &imageURL, &e.ApprovedParticipantCount, &locationAddress); err != nil {
 			return nil, fmt.Errorf("scan event summary: %w", err)
 		}
 		if endTime.Valid {
