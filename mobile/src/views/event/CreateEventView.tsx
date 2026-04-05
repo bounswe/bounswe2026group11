@@ -11,11 +11,10 @@ import {
   Platform,
   Image,
 } from 'react-native';
-import { router, type Href } from 'expo-router';
+import { router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLogoutViewModel } from '@/viewmodels/auth/useLogoutViewModel';
 import {
   useCreateEventViewModel,
   CATEGORIES,
@@ -30,14 +29,7 @@ import {
 
 export default function CreateEventView() {
   const vm = useCreateEventViewModel();
-  const { token, refreshToken, clearAuth } = useAuth();
-  const { isLoggingOut, logoutError, handleLogout } = useLogoutViewModel(
-    refreshToken,
-    () => {
-      clearAuth();
-      router.replace('/' as Href);
-    },
-  );
+  const { token } = useAuth();
 
   const handleCreate = async () => {
     await vm.handleSubmit(token ?? '');
@@ -217,27 +209,8 @@ export default function CreateEventView() {
             <MaterialIcons name="arrow-back" size={28} color="#111827" />
           </TouchableOpacity>
           <Text style={[styles.title, styles.headerTitle]}>Create Event</Text>
-          <TouchableOpacity
-            onPress={handleLogout}
-            disabled={isLoggingOut || vm.isLoading}
-            style={styles.logoutButton}
-            accessibilityRole="button"
-            accessibilityLabel="Log out"
-          >
-            {isLoggingOut ? (
-              <ActivityIndicator size="small" color="#2563EB" />
-            ) : (
-              <Text style={styles.logoutText}>Logout</Text>
-            )}
-          </TouchableOpacity>
+          <View style={styles.headerSpacer} />
         </View>
-
-        {/* Error Banner */}
-        {logoutError && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{logoutError}</Text>
-          </View>
-        )}
 
         {vm.apiError && (
           <View style={styles.errorBanner}>
@@ -914,10 +887,10 @@ export default function CreateEventView() {
         <TouchableOpacity
           style={[
             styles.submitButton,
-            (vm.isLoading || isLoggingOut) && styles.buttonDisabled,
+            vm.isLoading && styles.buttonDisabled,
           ]}
           onPress={handleCreate}
-          disabled={vm.isLoading || isLoggingOut}
+          disabled={vm.isLoading}
           activeOpacity={0.8}
         >
           {vm.isLoading ? (
@@ -950,21 +923,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
   },
+  headerSpacer: {
+    width: 72,
+  },
   backButton: {
     marginRight: 12,
     padding: 4,
-  },
-  logoutButton: {
-    minWidth: 72,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    paddingVertical: 4,
-    paddingLeft: 8,
-  },
-  logoutText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#2563EB',
   },
   backArrow: {
     fontSize: 24,

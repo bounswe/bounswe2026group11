@@ -9,7 +9,6 @@ import {
   type CreateEventViewModel,
 } from '@/viewmodels/event/useCreateEventViewModel';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLogoutViewModel } from '@/viewmodels/auth/useLogoutViewModel';
 import { useCreateEventViewModel } from '@/viewmodels/event/useCreateEventViewModel';
 
 jest.mock('expo-router', () => ({
@@ -52,10 +51,6 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 
-jest.mock('@/viewmodels/auth/useLogoutViewModel', () => ({
-  useLogoutViewModel: jest.fn(),
-}));
-
 jest.mock('@/viewmodels/event/useCreateEventViewModel', () => {
   const actual = jest.requireActual('@/viewmodels/event/useCreateEventViewModel');
   return {
@@ -65,7 +60,6 @@ jest.mock('@/viewmodels/event/useCreateEventViewModel', () => {
 });
 
 const mockUseAuth = jest.mocked(useAuth);
-const mockUseLogoutViewModel = jest.mocked(useLogoutViewModel);
 const mockUseCreateEventViewModel = jest.mocked(useCreateEventViewModel);
 
 function buildViewModel(
@@ -129,8 +123,6 @@ describe('CreateEventView', () => {
     jest.clearAllMocks();
     mockUseAuth.mockReturnValue({
       token: 'token',
-      refreshToken: 'refresh',
-      clearAuth: jest.fn(),
       login: jest.fn(),
       register: jest.fn(),
       forgotPassword: jest.fn(),
@@ -138,11 +130,6 @@ describe('CreateEventView', () => {
       isAuthenticated: true,
       user: null,
     } as any);
-    mockUseLogoutViewModel.mockReturnValue({
-      isLoggingOut: false,
-      logoutError: null,
-      handleLogout: jest.fn(),
-    });
   });
 
   it('renders picker-based date and time controls with image upload messaging', () => {

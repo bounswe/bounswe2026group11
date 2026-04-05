@@ -7,6 +7,7 @@ import {
   LocationSuggestion,
 } from '@/models/event';
 import { listCategories, listEvents, searchLocation } from '@/services/eventService';
+import { getMyProfile } from '@/services/profileService';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -25,6 +26,36 @@ const DEFAULT_FILTERS: HomeFiltersDraft = {
   endDate: '',
   radiusKm: 10,
 };
+
+function profileToSelectedLocation(profile: {
+  default_location_address: string | null;
+  default_location_lat: number | null;
+  default_location_lon: number | null;
+}): LocationSuggestion | null {
+  if (
+    !profile.default_location_address ||
+    profile.default_location_lat == null ||
+    profile.default_location_lon == null
+  ) {
+    return null;
+  }
+
+  return {
+    display_name: profile.default_location_address,
+    lat: String(profile.default_location_lat),
+    lon: String(profile.default_location_lon),
+  };
+}
+
+function locationsMatch(
+  left: LocationSuggestion | null,
+  right: LocationSuggestion | null,
+): boolean {
+  if (!left && !right) return true;
+  if (!left || !right) return false;
+
+  return left.lat === right.lat && left.lon === right.lon;
+}
 
 function parseStrictDateToIso(
   value: string,
@@ -254,6 +285,7 @@ export function useHomeViewModel(): HomeViewModel {
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<LocationSuggestion | null>(null);
+  const [defaultProfileLocation, setDefaultProfileLocation] = useState<LocationSuggestion | null>(null);
   const [pendingLocation, setPendingLocation] = useState<LocationSuggestion | null>(null);
 
   const locationSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -277,6 +309,27 @@ export function useHomeViewModel(): HomeViewModel {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isProfileLocationReady, setIsProfileLocationReady] = useState(false);
+
+  const loadProfileLocation = useCallback(async () => {
+    if (!token) {
+      setSelectedLocation(null);
+      setIsProfileLocationReady(true);
+      return;
+    }
+
+    try {
+      const profile = await getMyProfile(token);
+      const profileLocation = profileToSelectedLocation(profile);
+      setDefaultProfileLocation(profileLocation);
+      setSelectedLocation(profileLocation);
+    } catch {
+      setDefaultProfileLocation(null);
+      setSelectedLocation(null);
+    } finally {
+      setIsProfileLocationReady(true);
+    }
+  }, [token]);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -367,12 +420,19 @@ export function useHomeViewModel(): HomeViewModel {
   }, [loadCategories]);
 
   useEffect(() => {
+    setIsProfileLocationReady(false);
+    void loadProfileLocation();
+  }, [loadProfileLocation]);
+
+  useEffect(() => {
+    if (!isProfileLocationReady) return;
+
     const timeout = setTimeout(() => {
       void loadEvents('initial');
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [loadEvents]);
+  }, [isProfileLocationReady, loadEvents]);
 
   const updateSearchText = useCallback((value: string) => {
     setSearchText(value);
@@ -410,11 +470,15 @@ export function useHomeViewModel(): HomeViewModel {
 
   const openLocationModal = useCallback(() => {
     setPendingLocation(selectedLocation);
-    setLocationQuery(selectedLocation?.display_name ?? '');
+    setLocationQuery(
+      locationsMatch(selectedLocation, defaultProfileLocation)
+        ? ''
+        : selectedLocation?.display_name ?? '',
+    );
     setLocationSuggestions([]);
     setIsSearchingLocation(false);
     setIsLocationModalOpen(true);
-  }, [selectedLocation]);
+  }, [defaultProfileLocation, selectedLocation]);
 
   const closeLocationModal = useCallback(() => {
     setPendingLocation(null);
@@ -463,18 +527,18 @@ export function useHomeViewModel(): HomeViewModel {
   }, []);
 
   const applySelectedLocation = useCallback(() => {
-    setSelectedLocation(pendingLocation ?? null);
+    setSelectedLocation(pendingLocation ?? defaultProfileLocation ?? null);
     setLocationSuggestions([]);
     setLocationQuery('');
     setIsLocationModalOpen(false);
-  }, [pendingLocation]);
+  }, [defaultProfileLocation, pendingLocation]);
 
   const resetLocationDraft = useCallback(() => {
-    setPendingLocation(null);
+    setPendingLocation(defaultProfileLocation);
     setLocationQuery('');
     setLocationSuggestions([]);
     setIsSearchingLocation(false);
-  }, []);
+  }, [defaultProfileLocation]);
 
   const openFilterModal = useCallback(() => {
     setFilterDraft(appliedFilters);
@@ -587,6 +651,11 @@ export function useHomeViewModel(): HomeViewModel {
     if (!token) return;
 
     try {
+      const profile = await getMyProfile(token);
+      const profileLocation = profileToSelectedLocation(profile);
+      setDefaultProfileLocation(profileLocation);
+      setSelectedLocation(profileLocation);
+
       const combinedCategoryIds =
         selectedCategoryId != null
           ? Array.from(
@@ -596,8 +665,8 @@ export function useHomeViewModel(): HomeViewModel {
 
       const response = await listEvents(
         {
-          lat: selectedLocation ? Number(selectedLocation.lat) : DEFAULT_LOCATION.lat,
-          lon: selectedLocation ? Number(selectedLocation.lon) : DEFAULT_LOCATION.lon,
+          lat: profileLocation ? Number(profileLocation.lat) : DEFAULT_LOCATION.lat,
+          lon: profileLocation ? Number(profileLocation.lon) : DEFAULT_LOCATION.lon,
           radius_meters: appliedFilters.radiusKm * 1000,
           q: appliedSearchText || undefined,
           category_ids:
@@ -619,7 +688,7 @@ export function useHomeViewModel(): HomeViewModel {
     } catch {
       // Silent — don't overwrite existing data on failure
     }
-  }, [token, appliedSearchText, selectedCategoryId, appliedFilters, selectedLocation]);
+  }, [token, appliedSearchText, selectedCategoryId, appliedFilters]);
 
     return {
     locationLabel: selectedLocation

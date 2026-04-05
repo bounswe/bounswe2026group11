@@ -30,7 +30,10 @@ export default function BottomTabBar() {
               ? pathname === '/favorites'
               : tab.key === 'events'
                 ? pathname === '/events'
-              : false;
+                : tab.key === 'profile'
+                  ? pathname === '/profile'
+                  : false;
+
 
         if (tab.primary) {
           const createActive = pathname === '/event/create';
@@ -66,6 +69,8 @@ export default function BottomTabBar() {
                 router.push('/favorites' as Href);
               } else if (tab.key === 'events') {
                 router.push('/events' as Href);
+              } else if (tab.key === 'profile') {
+                router.push('/profile' as Href);
               }
             }}
           >
@@ -97,7 +102,7 @@ export default function BottomTabBar() {
               <Feather
                 name="user"
                 size={22}
-                color="#9CA3AF"
+                color={active ? '#111827' : '#9CA3AF'}
               />
             )}
 
