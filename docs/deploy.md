@@ -1,13 +1,13 @@
 # Deployment (dev droplet, Docker Hub)
 
-This document matches the **remote dev** stack: pre-built images on Docker Hub (`:latest`), [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml), and **secrets in GitHub** — not a hand-maintained `deploy/.env` on the server long term.
+This document matches the **remote dev** stack: pre-built images on Docker Hub (a rolling `:latest` tag plus an immutable deploy tag such as a commit SHA), [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml), and **secrets in GitHub** — not a hand-maintained `deploy/.env` on the server long term.
 
 ## Compose files in the repo
 
 | File | Purpose |
 |------|---------|
 | [`deploy/docker-compose.local.yml`](../deploy/docker-compose.local.yml) | **Local:** `build:` from `../backend` and `../frontend`. Postgres is published to **127.0.0.1:5433** on the host (→ container `5432`) for development (psql, GUI clients). |
-| [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml) | **Dev droplet:** `image:` from Docker Hub `latest`; no source build on the server. Postgres is published to **127.0.0.1:5432** on the host (→ container `5432`) for inspection, ad-hoc queries, and SSH tunneling during testing. |
+| [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml) | **Dev droplet:** `image:` from Docker Hub using `${IMAGE_TAG:-latest}`; no source build on the server. Postgres is published to **127.0.0.1:5432** on the host (→ container `5432`) for inspection, ad-hoc queries, and SSH tunneling during testing. |
 
 For local development, run from the **repository root** so Compose’s default project directory is `deploy/` and `deploy/.env` is loaded: `docker compose -f deploy/docker-compose.local.yml up --build`. For the dev server, mirror the repo under e.g. `/opt/sem/` (`deploy/` including `deploy/.env`, `nginx/`, `certs/`) and run `docker compose -f deploy/docker-compose.dev.yml ...` from that root — paths in the compose file resolve from `deploy/`, so `../nginx/nginx.dev.conf` resolves correctly.
 
@@ -138,11 +138,12 @@ These names still matter at runtime:
 | `SPACES_CDN_BASE_URL` | Backend public image URLs returned to clients |
 | `SPACES_S3_REGION` | Backend Spaces SDK configuration + Spaces admin script |
 | `DOCKERHUB_NAMESPACE` | `deploy/docker-compose.dev.yml` image names (set in `deploy/.env` or the shell/CI environment) |
+| `IMAGE_TAG` | Exact backend/frontend image tag used by `deploy/docker-compose.dev.yml` (defaults to `latest` when not set) |
 
 `DOCKERHUB_NAMESPACE` is your Docker Hub user or organization; images are expected as:
 
-- `${DOCKERHUB_NAMESPACE}/sem-backend-dev:latest`
-- `${DOCKERHUB_NAMESPACE}/sem-frontend-dev:latest`
+- `${DOCKERHUB_NAMESPACE}/sem-backend-dev:${IMAGE_TAG:-latest}`
+- `${DOCKERHUB_NAMESPACE}/sem-frontend-dev:${IMAGE_TAG:-latest}`
 
 ## GitHub Secrets → server `deploy/.env`
 
@@ -162,6 +163,7 @@ Example mapping (name secrets however you prefer; align with your workflow):
 | `SPACES_CDN_BASE_URL` | `SPACES_CDN_BASE_URL=...` |
 | `SPACES_S3_REGION` | `SPACES_S3_REGION=...` |
 | `DOCKERHUB_NAMESPACE` | `DOCKERHUB_NAMESPACE=...` |
+| `IMAGE_TAG` | `IMAGE_TAG=...` |
 
 In **GitHub Actions**, pass secrets into a remote step (e.g. `appleboy/ssh-action` with `script`, or inline `ssh` with env vars exported from `${{ secrets.* }}`). On the **server**, the resulting file is plain key=value lines, for example:
 
@@ -177,6 +179,7 @@ SPACES_BUCKET=...
 SPACES_CDN_BASE_URL=...
 SPACES_S3_REGION=...
 DOCKERHUB_NAMESPACE=...
+IMAGE_TAG=...
 ```
 
 Use `printf`, `envsubst` on a small template in the repo, or your action’s `script` to write `deploy/.env`; escape values that contain `$` or newlines. **Never commit** real `deploy/.env` files.
@@ -196,8 +199,8 @@ Store `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (or access token) as GitHub sec
 From `/opt/sem/` (or your chosen root that mirrors `deploy/` + `nginx/`):
 
 ```bash
-docker compose -f deploy/docker-compose.dev.yml pull
-docker compose -f deploy/docker-compose.dev.yml up -d
+docker compose -f deploy/docker-compose.dev.yml pull backend frontend
+docker compose -f deploy/docker-compose.dev.yml up -d --no-deps backend frontend
 ```
 
 ## Spaces bucket setup
@@ -219,15 +222,15 @@ Recommended CORS configuration:
 
 For the end-to-end client flow, examples, and troubleshooting notes, see [docs/image-upload.md](./image-upload.md).
 
-## CI/CD (out of scope for initial repo setup)
+## CI/CD
 
-When you add workflows:
+The **development droplet** is updated by **GitHub Actions CD on merges/pushes to `main`** and can also be started manually via **`workflow_dispatch`** from the GitHub Actions UI, not by pushes to the `dev` branch. Typical pipeline:
 
-- **`dev` branch:** build and push `sem-backend-dev:latest` and `sem-frontend-dev:latest` to Docker Hub; then SSH to the dev droplet, write `deploy/.env` from **Environment `dev`** secrets, `docker login` if needed, `compose pull` + `up -d`.
-- **`main` / prod:** same pattern later against a **prod** droplet and **Environment `prod`** secrets.
+1. Build and push `sem-backend-dev` and `sem-frontend-dev` images to Docker Hub (for example tags such as **`latest`** plus an immutable tag per commit).
+2. SSH to the dev droplet, write `/opt/sem/deploy/.env` from **GitHub Actions secrets** (optionally scoped with a **GitHub Environment** named `dev` if you use environment protection rules), `docker login` if images are private, pull only the application images, verify Postgres health without unnecessarily restarting it, then update the app services against [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml).
 
-Image tag strategy for this repo: **`latest`** for both stacks unless you introduce semver later.
+Image tag strategy for this repo: **`latest`** (rolling) plus a **commit-SHA** (or similar) tag for traceability, unless you introduce semver later.
 
 ## Future: production compose
 
-When the production droplet exists, add a **third** compose file under `deploy/` (e.g. `deploy/docker-compose.prod.yml`) alongside the same nginx/Postgres patterns, pointing at the same or separate Docker Hub repositories, and wire a workflow that runs on **`main`** merges to deploy to prod. Until then, only [`deploy/docker-compose.local.yml`](../deploy/docker-compose.local.yml) (local) and [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml) (dev server) are defined in this repository.
+When the production droplet exists, add a **third** compose file under `deploy/` (e.g. `deploy/docker-compose.prod.yml`) alongside the same nginx/Postgres patterns, pointing at the same or separate Docker Hub repositories, and add a **separate** workflow from the dev droplet pipeline—for example **release tags**, a **dedicated branch**, **manual `workflow_dispatch`**, or **Environment `prod`** with approvals—so production deploys are explicit and not confused with the shared dev server. Until then, only [`deploy/docker-compose.local.yml`](../deploy/docker-compose.local.yml) (local) and [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml) (dev server) are defined in this repository.

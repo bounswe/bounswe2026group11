@@ -21,7 +21,7 @@ services:
       - app
 
   backend:
-    image: ${DOCKERHUB_NAMESPACE}/sem-backend-dev:latest
+    image: ${DOCKERHUB_NAMESPACE}/sem-backend-dev:${IMAGE_TAG:-latest}
     pull_policy: always
     depends_on:
       postgres:
@@ -46,7 +46,7 @@ services:
       - app
 
   frontend:
-    image: ${DOCKERHUB_NAMESPACE}/sem-frontend-dev:latest
+    image: ${DOCKERHUB_NAMESPACE}/sem-frontend-dev:${IMAGE_TAG:-latest}
     pull_policy: always
     networks:
       - app

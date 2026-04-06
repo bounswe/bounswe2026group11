@@ -1,0 +1,218 @@
+name: Deploy to Dev
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "deploy/**"
+      - "nginx/**"
+      - ".github/workflows/deploy-dev.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-backend:
+    name: Build and Push Backend Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_NAMESPACE }}/sem-backend-dev:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_NAMESPACE }}/sem-backend-dev:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-frontend:
+    name: Build and Push Frontend Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_NAMESPACE }}/sem-frontend-dev:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_NAMESPACE }}/sem-frontend-dev:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Dev Server
+    needs:
+      - build-backend
+      - build-frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DOCKERHUB_NAMESPACE: ${{ secrets.DOCKERHUB_NAMESPACE }}
+      IMAGE_TAG: ${{ github.sha }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      RESEND_CLIENT_API_KEY: ${{ secrets.RESEND_CLIENT_API_KEY }}
+      SPACES_ACCESS_KEY: ${{ secrets.SPACES_ACCESS_KEY }}
+      SPACES_SECRET_KEY: ${{ secrets.SPACES_SECRET_KEY }}
+      SPACES_ENDPOINT: ${{ secrets.SPACES_ENDPOINT }}
+      SPACES_BUCKET: ${{ secrets.SPACES_BUCKET }}
+      SPACES_CDN_BASE_URL: ${{ secrets.SPACES_CDN_BASE_URL }}
+      SPACES_S3_REGION: ${{ secrets.SPACES_S3_REGION }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare remote directories and environment file
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DOCKERHUB_NAMESPACE: ${{ env.DOCKERHUB_NAMESPACE }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          DB_PASSWORD: ${{ env.DB_PASSWORD }}
+          JWT_SECRET: ${{ env.JWT_SECRET }}
+          RESEND_CLIENT_API_KEY: ${{ env.RESEND_CLIENT_API_KEY }}
+          SPACES_ACCESS_KEY: ${{ env.SPACES_ACCESS_KEY }}
+          SPACES_SECRET_KEY: ${{ env.SPACES_SECRET_KEY }}
+          SPACES_ENDPOINT: ${{ env.SPACES_ENDPOINT }}
+          SPACES_BUCKET: ${{ env.SPACES_BUCKET }}
+          SPACES_CDN_BASE_URL: ${{ env.SPACES_CDN_BASE_URL }}
+          SPACES_S3_REGION: ${{ env.SPACES_S3_REGION }}
+        with:
+          host: ${{ secrets.SSH_DEV_IP_ADDRESS }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DOCKERHUB_NAMESPACE,IMAGE_TAG,DB_PASSWORD,JWT_SECRET,RESEND_CLIENT_API_KEY,SPACES_ACCESS_KEY,SPACES_SECRET_KEY,SPACES_ENDPOINT,SPACES_BUCKET,SPACES_CDN_BASE_URL,SPACES_S3_REGION
+          script: |
+            set -eu
+
+            sudo mkdir -p /opt/sem/deploy /opt/sem/nginx
+            sudo chown -R "$(id -un)":"$(id -gn)" /opt/sem
+
+            install -m 600 /dev/null /opt/sem/deploy/.env
+            cat > /opt/sem/deploy/.env <<EOF
+            DOCKERHUB_NAMESPACE=$DOCKERHUB_NAMESPACE
+            IMAGE_TAG=$IMAGE_TAG
+            DB_PASSWORD=$DB_PASSWORD
+            JWT_SECRET=$JWT_SECRET
+            RESEND_CLIENT_API_KEY=$RESEND_CLIENT_API_KEY
+            SPACES_ACCESS_KEY=$SPACES_ACCESS_KEY
+            SPACES_SECRET_KEY=$SPACES_SECRET_KEY
+            SPACES_ENDPOINT=$SPACES_ENDPOINT
+            SPACES_BUCKET=$SPACES_BUCKET
+            SPACES_CDN_BASE_URL=$SPACES_CDN_BASE_URL
+            SPACES_S3_REGION=$SPACES_S3_REGION
+            EOF
+
+      - name: Upload Docker Compose definition
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_DEV_IP_ADDRESS }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: deploy/docker-compose.dev.yml
+          target: /opt/sem/deploy
+          strip_components: 1
+
+      - name: Upload Nginx configuration
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_DEV_IP_ADDRESS }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: nginx/nginx.dev.conf
+          target: /opt/sem/nginx
+          strip_components: 1
+
+      - name: Pull images and restart services
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DOCKERHUB_USERNAME: ${{ env.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ env.DOCKERHUB_TOKEN }}
+        with:
+          host: ${{ secrets.SSH_DEV_IP_ADDRESS }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+          script: |
+            set -eu
+
+            cd /opt/sem
+            compose_cmd="docker compose -f deploy/docker-compose.dev.yml"
+
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            $compose_cmd config -q
+
+            postgres_id="$($compose_cmd ps -q postgres || true)"
+            if [ -n "$postgres_id" ] && [ "$(docker inspect --format '{{.State.Running}}' "$postgres_id")" = "true" ]; then
+              echo "postgres is already running; skipping pull and restart"
+            else
+              $compose_cmd up -d postgres
+              postgres_id="$($compose_cmd ps -q postgres)"
+              if [ -z "$postgres_id" ]; then
+                echo "postgres container could not be resolved" >&2
+                exit 1
+              fi
+            fi
+
+            for attempt in $(seq 1 30); do
+              health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$postgres_id")"
+              if [ "$health" = "healthy" ]; then
+                break
+              fi
+              if [ "$health" = "unhealthy" ]; then
+                docker logs "$postgres_id"
+                exit 1
+              fi
+              sleep 2
+            done
+
+            health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$postgres_id")"
+            if [ "$health" != "healthy" ]; then
+              echo "postgres did not become healthy in time" >&2
+              docker logs "$postgres_id"
+              exit 1
+            fi
+
+            $compose_cmd pull backend frontend
+            $compose_cmd up -d --no-deps backend frontend
+
+            nginx_id="$($compose_cmd ps -q nginx || true)"
+            if [ -n "$nginx_id" ] && [ "$(docker inspect --format '{{.State.Running}}' "$nginx_id")" = "true" ]; then
+              docker exec "$nginx_id" nginx -s reload
+            else
+              $compose_cmd up -d nginx
+            fi
+
+            docker image prune -af --filter "until=72h" || true
+            $compose_cmd ps

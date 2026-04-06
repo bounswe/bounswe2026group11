@@ -53,6 +53,10 @@ Shared-only exceptions (e.g. a root `README` or repo-wide policy) should stay sm
 3. Commits and style match this doc.
 4. **Branch is up to date with `dev`** — sync before the PR (`git pull` or `git rebase` onto `dev`).
 
+## Deployment (shared dev server)
+
+Merges to **`main`** trigger CD that deploys to the **development droplet** (the remote stack described in [`docs/deploy.md`](./deploy.md)). That is independent of the **`dev` branch**, which is for integration PRs. Do not assume that pushing to `dev` updates the server; the path to the live dev environment is **`main`**.
+
 ## Merge
 
 - Merge only after at least **one** approved review.
