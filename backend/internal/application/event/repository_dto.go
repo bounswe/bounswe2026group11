@@ -62,6 +62,7 @@ type DiscoverableEventRecord struct {
 	CategoryName             string
 	ImageURL                 *string
 	StartTime                time.Time
+	Status                   domain.EventStatus
 	LocationAddress          *string
 	PrivacyLevel             domain.EventPrivacyLevel
 	ApprovedParticipantCount int

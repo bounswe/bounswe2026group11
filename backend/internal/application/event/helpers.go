@@ -71,6 +71,7 @@ func toDiscoverableEventItem(record DiscoverableEventRecord) DiscoverableEventIt
 		CategoryName:             record.CategoryName,
 		ImageURL:                 record.ImageURL,
 		StartTime:                record.StartTime,
+		Status:                   string(record.Status),
 		LocationAddress:          record.LocationAddress,
 		PrivacyLevel:             string(record.PrivacyLevel),
 		ApprovedParticipantCount: record.ApprovedParticipantCount,
