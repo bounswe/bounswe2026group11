@@ -4,15 +4,21 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - "mobile/**"
+      - ".github/workflows/mobile-apk.yml"
+  pull_request:
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile-apk.yml"
   release:
     types:
       - published
   workflow_dispatch:
 
 concurrency:
-  group: mobile-apk-${{ github.workflow }}-${{ github.event.release.tag_name || github.ref }}
+  group: mobile-apk-${{ github.workflow }}-${{ github.event.pull_request.number || github.event.release.tag_name || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -21,6 +27,9 @@ permissions:
 defaults:
   run:
     working-directory: mobile
+
+env:
+  EXPO_PUBLIC_API_BASE_URL: https://www.socialeventmapper.com/api
 
 jobs:
   build-apk:
