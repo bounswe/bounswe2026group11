@@ -986,4 +986,118 @@ describe('useHomeViewModel', () => {
       expect(result.current.locationLabel).toBe('Kadikoy, Istanbul');
     });
   });
+
+  describe('IN_PROGRESS event filtering', () => {
+    it('excludes IN_PROGRESS events from the initial load', async () => {
+      mockListEvents.mockResolvedValueOnce({
+        items: [
+          {
+            id: 'active-1',
+            title: 'Active Event',
+            category_name: 'Sports',
+            image_url: null,
+            start_time: '2099-01-01T10:00:00+03:00',
+            location_address: 'Stadium',
+            privacy_level: 'PUBLIC',
+            approved_participant_count: 10,
+            is_favorited: false,
+            host_score: { final_score: null, hosted_event_rating_count: 0 },
+            status: 'ACTIVE',
+          },
+          {
+            id: 'in-progress-1',
+            title: 'In Progress Event',
+            category_name: 'Sports',
+            image_url: null,
+            start_time: '2020-01-01T10:00:00+03:00',
+            location_address: 'Park',
+            privacy_level: 'PUBLIC',
+            approved_participant_count: 5,
+            is_favorited: false,
+            host_score: { final_score: null, hosted_event_rating_count: 0 },
+            status: 'IN_PROGRESS',
+          },
+        ],
+        page_info: { next_cursor: null, has_next: false },
+      });
+
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.events).toHaveLength(1);
+      expect(result.current.events[0].id).toBe('active-1');
+    });
+
+    it('excludes IN_PROGRESS events when loading more', async () => {
+      mockListEvents
+        .mockResolvedValueOnce(page1Fixture)
+        .mockResolvedValueOnce({
+          items: [
+            {
+              id: 'in-progress-2',
+              title: 'In Progress Event 2',
+              category_name: 'Music',
+              image_url: null,
+              start_time: '2020-06-01T12:00:00+03:00',
+              location_address: 'Club',
+              privacy_level: 'PUBLIC',
+              approved_participant_count: 20,
+              is_favorited: false,
+              host_score: { final_score: null, hosted_event_rating_count: 0 },
+              status: 'IN_PROGRESS',
+            },
+          ],
+          page_info: { next_cursor: null, has_next: false },
+        });
+
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        result.current.loadMoreEvents();
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoadingMore).toBe(false);
+      });
+
+      const ids = result.current.events.map((e) => e.id);
+      expect(ids).not.toContain('in-progress-2');
+    });
+
+    it('keeps events without a status field', async () => {
+      mockListEvents.mockResolvedValueOnce({
+        items: [
+          {
+            id: 'no-status',
+            title: 'Legacy Event',
+            category_name: 'Art',
+            image_url: null,
+            start_time: '2099-05-01T14:00:00+03:00',
+            location_address: 'Gallery',
+            privacy_level: 'PUBLIC',
+            approved_participant_count: 3,
+            is_favorited: false,
+            host_score: { final_score: null, hosted_event_rating_count: 0 },
+          },
+        ],
+        page_info: { next_cursor: null, has_next: false },
+      });
+
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.events).toHaveLength(1);
+      expect(result.current.events[0].id).toBe('no-status');
+    });
+  });
 });
