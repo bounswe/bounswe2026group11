@@ -22,6 +22,10 @@ export function getMyCompletedEvents(token: string): Promise<ProfileEventsRespon
   return apiGetAuth<ProfileEventsResponse>('/me/events/completed', token);
 }
 
+export function getMyCanceledEvents(token: string): Promise<ProfileEventsResponse> {
+  return apiGetAuth<ProfileEventsResponse>('/me/events/canceled', token);
+}
+
 export function getProfileAvatarUploadUrl(
   token: string,
 ): Promise<ImageUploadInitResponse> {
