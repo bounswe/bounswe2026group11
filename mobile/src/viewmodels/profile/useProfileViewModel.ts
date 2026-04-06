@@ -40,7 +40,9 @@ export interface ProfileViewModel {
   primaryName: string;
   secondaryName: string | null;
   avatarInitial: string;
-  ratingLabel: string;
+  overallRatingLabel: string;
+  hostRatingLabel: string;
+  participantRatingLabel: string;
   hostedEvents: ProfileEventItem[];
   attendedEvents: ProfileEventItem[];
   hostedCount: number;
@@ -165,7 +167,9 @@ export function useProfileViewModel(): ProfileViewModel {
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageUploadSuccessMessage, setImageUploadSuccessMessage] = useState<string | null>(null);
   const imageUploadSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [ratingLabel, setRatingLabel] = useState('New');
+  const [overallRatingLabel, setOverallRatingLabel] = useState('New');
+  const [hostRatingLabel, setHostRatingLabel] = useState('New');
+  const [participantRatingLabel, setParticipantRatingLabel] = useState('New');
 
   const fetchProfile = useCallback(
     async (mode: 'initial' | 'refresh') => {
@@ -173,7 +177,9 @@ export function useProfileViewModel(): ProfileViewModel {
         setProfile(null);
         setHostedEvents([]);
         setAttendedEvents([]);
-        setRatingLabel('New');
+        setOverallRatingLabel('New');
+        setHostRatingLabel('New');
+        setParticipantRatingLabel('New');
         setApiError('You must be logged in to view your profile.');
         setIsLoading(false);
         return;
@@ -211,15 +217,27 @@ export function useProfileViewModel(): ProfileViewModel {
         ).filter((event) => shouldShowProfileEvent(event.status));
         setHostedEvents(visibleHostedEvents);
         setAttendedEvents(mergedAttendedEvents);
-        setRatingLabel(
-          profileResult.host_score?.final_score != null
-            ? profileResult.host_score.final_score.toFixed(1)
+        setOverallRatingLabel(
+          profileResult.final_score != null
+            ? profileResult.final_score.toFixed(1)
+            : 'New',
+        );
+        setHostRatingLabel(
+          profileResult.host_score?.score != null
+            ? profileResult.host_score.score.toFixed(1)
+            : 'New',
+        );
+        setParticipantRatingLabel(
+          profileResult.participant_score?.score != null
+            ? profileResult.participant_score.score.toFixed(1)
             : 'New',
         );
       } catch (err) {
         setHostedEvents([]);
         setAttendedEvents([]);
-        setRatingLabel('New');
+        setOverallRatingLabel('New');
+        setHostRatingLabel('New');
+        setParticipantRatingLabel('New');
         if (err instanceof ApiError) {
           setApiError(err.message);
         } else {
@@ -356,7 +374,9 @@ export function useProfileViewModel(): ProfileViewModel {
     primaryName,
     secondaryName,
     avatarInitial,
-    ratingLabel,
+    overallRatingLabel,
+    hostRatingLabel,
+    participantRatingLabel,
     hostedEvents,
     attendedEvents,
     hostedCount: hostedEvents.length,

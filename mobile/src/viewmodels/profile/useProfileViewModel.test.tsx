@@ -97,9 +97,14 @@ const profileFixture: UserProfile = {
   display_name: 'John Doe',
   bio: 'Software developer based in Istanbul.',
   avatar_url: 'https://example.com/avatars/john.jpg',
+  final_score: 4.2,
   host_score: {
-    final_score: 4.7,
-    hosted_event_rating_count: 12,
+    score: 4.7,
+    rating_count: 12,
+  },
+  participant_score: {
+    score: 3.8,
+    rating_count: 9,
   },
 };
 
@@ -164,13 +169,16 @@ describe('useProfileViewModel', () => {
     expect(result.current.primaryName).toBe('John Doe');
     expect(result.current.secondaryName).toBe('john_doe');
     expect(result.current.avatarInitial).toBe('J');
-    expect(result.current.ratingLabel).toBe('4.7');
+    expect(result.current.overallRatingLabel).toBe('4.2');
+    expect(result.current.hostRatingLabel).toBe('4.7');
+    expect(result.current.participantRatingLabel).toBe('3.8');
   });
 
   it('derives primaryName from username when display_name is null', async () => {
     mockGetMyProfile.mockResolvedValue({
       ...profileFixture,
       display_name: null,
+      final_score: null,
       host_score: null,
     });
 
@@ -230,6 +238,19 @@ describe('useProfileViewModel', () => {
     ]);
     expect(result.current.hostedCount).toBe(1);
     expect(result.current.attendedCount).toBe(3);
+  });
+
+  it('falls back to New when final_score is missing', async () => {
+    mockGetMyProfile.mockResolvedValue({
+      ...profileFixture,
+      final_score: null,
+    });
+
+    const { result } = await renderProfileViewModel();
+
+    expect(result.current.overallRatingLabel).toBe('New');
+    expect(result.current.hostRatingLabel).toBe('4.7');
+    expect(result.current.participantRatingLabel).toBe('3.8');
   });
 
   it('deduplicates attended events returned by multiple endpoints', async () => {
