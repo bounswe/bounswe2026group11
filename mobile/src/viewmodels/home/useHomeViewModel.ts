@@ -13,6 +13,10 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const PAGE_SIZE = 2;
 
+function excludeInProgressEvents(items: EventSummary[]): EventSummary[] {
+  return items.filter((e) => e.status !== 'IN_PROGRESS');
+}
+
 const DEFAULT_LOCATION = {
   lat: 41.0082,
   lon: 28.9784,
@@ -399,10 +403,11 @@ export function useHomeViewModel(): HomeViewModel {
         setHasMore(response.page_info.has_next);
         setNextCursor(response.page_info.next_cursor);
 
+        const filtered = excludeInProgressEvents(response.items);
         if (mode === 'loadMore') {
-          setEvents((prev) => [...prev, ...response.items]);
+          setEvents((prev) => [...prev, ...filtered]);
         } else {
-          setEvents(response.items);
+          setEvents(filtered);
         }
       } catch {
         setApiError('Failed to load events. Please try again.');
@@ -684,7 +689,7 @@ export function useHomeViewModel(): HomeViewModel {
 
       setHasMore(response.page_info.has_next);
       setNextCursor(response.page_info.next_cursor);
-      setEvents(response.items);
+      setEvents(excludeInProgressEvents(response.items));
     } catch {
       // Silent — don't overwrite existing data on failure
     }
