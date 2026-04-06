@@ -58,7 +58,7 @@ export default function FavoriteEventsTab() {
         ListFooterComponent={
           vm.isLoadingMore ? (
             <View style={styles.footerLoader}>
-              <ActivityIndicator size="small" color="#2563EB" />
+              <ActivityIndicator size="small" color="#111827" />
             </View>
           ) : null
         }

@@ -215,7 +215,7 @@ export default function EditProfileView() {
               {vm.isSearchingLocation ? (
                 <ActivityIndicator
                   size="small"
-                  color="#2563EB"
+                  color="#111827"
                   style={styles.searchSpinner}
                 />
               ) : null}

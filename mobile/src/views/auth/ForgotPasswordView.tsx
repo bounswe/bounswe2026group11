@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
   stepDotActive: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#111827',
   },
   successBanner: {
     backgroundColor: '#ECFDF5',
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   button: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#111827',
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     fontSize: 15,
-    color: '#2563EB',
+    color: '#111827',
     fontWeight: '600',
   },
 });
