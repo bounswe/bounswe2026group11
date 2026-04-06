@@ -8,6 +8,10 @@ import {
   View,
 } from 'react-native';
 import { formatEventDateLabel } from '@/utils/eventDate';
+import {
+  formatEventStatusLabel,
+  getEventStatusBadgeColors,
+} from '@/utils/eventStatus';
 
 interface ProfileEventCardProps {
   title: string;
@@ -23,14 +27,6 @@ function formatPrivacyLabel(value: NonNullable<ProfileEventCardProps['privacyLev
   return value.charAt(0) + value.slice(1).toLowerCase();
 }
 
-function formatStatusLabel(value: string) {
-  return value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
 export default function ProfileEventCard({
   title,
   imageUrl,
@@ -40,6 +36,8 @@ export default function ProfileEventCard({
   privacyLevel,
   onPress,
 }: ProfileEventCardProps) {
+  const statusColors = getEventStatusBadgeColors(status);
+
   return (
     <TouchableOpacity
       activeOpacity={0.92}
@@ -106,8 +104,20 @@ export default function ProfileEventCard({
               <Text style={styles.categoryBadgeText}>{categoryLabel}</Text>
             </View>
 
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusBadgeText}>{formatStatusLabel(status)}</Text>
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: statusColors.backgroundColor },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  { color: statusColors.textColor },
+                ]}
+              >
+                {formatEventStatusLabel(status)}
+              </Text>
             </View>
           </View>
         </View>
@@ -215,13 +225,11 @@ const styles = StyleSheet.create({
     color: '#7C2D12',
   },
   statusBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
   },
   statusBadgeText: {
-    color: '#111827',
     fontSize: 12,
     fontWeight: '700',
   },

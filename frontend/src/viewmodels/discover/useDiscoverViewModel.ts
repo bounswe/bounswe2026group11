@@ -25,7 +25,6 @@ export interface DiscoverFilters {
   privacy: PrivacyFilter;
   startFrom: string;
   startTo: string;
-  tagNames: string;
 }
 
 const INITIAL_FILTERS: DiscoverFilters = {
@@ -36,7 +35,6 @@ const INITIAL_FILTERS: DiscoverFilters = {
   privacy: 'ALL',
   startFrom: '',
   startTo: '',
-  tagNames: '',
 };
 
 export const RADIUS_OPTIONS = [
@@ -115,11 +113,10 @@ export function useDiscoverViewModel(token: string | null) {
       if (filters.privacy !== 'ALL') params.privacy_levels = filters.privacy;
       if (filters.startFrom) params.start_from = new Date(filters.startFrom).toISOString();
       if (filters.startTo) params.start_to = new Date(filters.startTo).toISOString();
-      if (filters.tagNames.trim()) params.tag_names = filters.tagNames.trim();
       if (cursor) params.cursor = cursor;
       return params;
     },
-    [userLocation, filters.sortBy, filters.categoryId, filters.radiusMeters, filters.privacy, filters.startFrom, filters.startTo, filters.tagNames, debouncedQ],
+    [userLocation, filters.sortBy, filters.categoryId, filters.radiusMeters, filters.privacy, filters.startFrom, filters.startTo, debouncedQ],
   );
 
   const fetchEvents = useCallback(async () => {

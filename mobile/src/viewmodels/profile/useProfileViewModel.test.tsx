@@ -21,6 +21,7 @@ const mockGetMyProfile = jest.mocked(profileService.getMyProfile);
 const mockGetMyHostedEvents = jest.mocked(profileService.getMyHostedEvents);
 const mockGetMyUpcomingEvents = jest.mocked(profileService.getMyUpcomingEvents);
 const mockGetMyCompletedEvents = jest.mocked(profileService.getMyCompletedEvents);
+const mockGetMyCanceledEvents = jest.mocked(profileService.getMyCanceledEvents);
 const mockUseAuth = jest.mocked(useAuth);
 
 function createDeferred<T>() {
@@ -47,7 +48,7 @@ const attendedUpcomingFixture: ProfileEventSummary = {
   image_url: 'https://example.com/events/attended.jpg',
   start_time: '2026-04-15T18:30:00Z',
   end_time: '2026-04-15T21:00:00Z',
-  status: 'PUBLISHED',
+  status: 'IN_PROGRESS',
   category: 'Social',
 };
 
@@ -61,13 +62,23 @@ const attendedCompletedFixture: ProfileEventSummary = {
   category: 'Culture',
 };
 
+const attendedCanceledFixture: ProfileEventSummary = {
+  id: 'attended-event-3',
+  title: 'Open Air Cinema',
+  image_url: 'https://example.com/events/canceled.jpg',
+  start_time: '2026-03-18T19:00:00Z',
+  end_time: '2026-03-18T22:00:00Z',
+  status: 'CANCELED',
+  category: 'Entertainment',
+};
+
 const hostedEventFixture: ProfileEventSummary = {
   id: 'hosted-event-1',
   title: 'Sunrise Hike',
   image_url: 'https://example.com/events/hosted.jpg',
   start_time: '2026-04-12T08:00:00Z',
   end_time: '2026-04-12T10:00:00Z',
-  status: 'PUBLISHED',
+  status: 'IN_PROGRESS',
   category: 'Outdoors',
 };
 
@@ -112,6 +123,9 @@ describe('useProfileViewModel', () => {
     mockGetMyCompletedEvents.mockResolvedValue({
       events: [{ ...attendedCompletedFixture, privacy_level: 'PUBLIC' }],
     });
+    mockGetMyCanceledEvents.mockResolvedValue({
+      events: [{ ...attendedCanceledFixture, privacy_level: 'PUBLIC' }],
+    });
   });
 
   it('starts in loading state', () => {
@@ -119,10 +133,12 @@ describe('useProfileViewModel', () => {
     const deferredHosted = createDeferred<{ events: ProfileEventSummary[] }>();
     const deferredUpcoming = createDeferred<{ events: ProfileEventSummary[] }>();
     const deferredCompleted = createDeferred<{ events: ProfileEventSummary[] }>();
+    const deferredCanceled = createDeferred<{ events: ProfileEventSummary[] }>();
     mockGetMyProfile.mockReturnValue(deferredProfile.promise);
     mockGetMyHostedEvents.mockReturnValue(deferredHosted.promise);
     mockGetMyUpcomingEvents.mockReturnValue(deferredUpcoming.promise);
     mockGetMyCompletedEvents.mockReturnValue(deferredCompleted.promise);
+    mockGetMyCanceledEvents.mockReturnValue(deferredCanceled.promise);
 
     const { result } = renderHook(() => useProfileViewModel());
     expect(result.current.isLoading).toBe(true);
@@ -137,6 +153,7 @@ describe('useProfileViewModel', () => {
     expect(mockGetMyHostedEvents).toHaveBeenCalledWith('test-token');
     expect(mockGetMyUpcomingEvents).toHaveBeenCalledWith('test-token');
     expect(mockGetMyCompletedEvents).toHaveBeenCalledWith('test-token');
+    expect(mockGetMyCanceledEvents).toHaveBeenCalledWith('test-token');
     expect(result.current.profile).toEqual(profileFixture);
     expect(result.current.apiError).toBeNull();
   });
@@ -175,7 +192,7 @@ describe('useProfileViewModel', () => {
         end_time: '2026-04-12T10:00:00Z',
         image_url: 'https://example.com/events/hosted.jpg',
         category_label: 'Outdoors',
-        status: 'PUBLISHED',
+        status: 'IN_PROGRESS',
         privacy_level: 'PUBLIC',
       },
     ]);
@@ -187,7 +204,7 @@ describe('useProfileViewModel', () => {
         end_time: '2026-04-15T21:00:00Z',
         image_url: 'https://example.com/events/attended.jpg',
         category_label: 'Social',
-        status: 'PUBLISHED',
+        status: 'IN_PROGRESS',
         privacy_level: 'PROTECTED',
       },
       {
@@ -200,9 +217,19 @@ describe('useProfileViewModel', () => {
         status: 'COMPLETED',
         privacy_level: 'PUBLIC',
       },
+      {
+        id: 'attended-event-3',
+        title: 'Open Air Cinema',
+        start_time: '2026-03-18T19:00:00Z',
+        end_time: '2026-03-18T22:00:00Z',
+        image_url: 'https://example.com/events/canceled.jpg',
+        category_label: 'Entertainment',
+        status: 'CANCELED',
+        privacy_level: 'PUBLIC',
+      },
     ]);
     expect(result.current.hostedCount).toBe(1);
-    expect(result.current.attendedCount).toBe(2);
+    expect(result.current.attendedCount).toBe(3);
   });
 
   it('deduplicates attended events returned by multiple endpoints', async () => {
@@ -216,6 +243,7 @@ describe('useProfileViewModel', () => {
     expect(result.current.attendedEvents.map((event) => event.id)).toEqual([
       'attended-event-1',
       'attended-event-2',
+      'attended-event-3',
     ]);
   });
 
@@ -235,6 +263,33 @@ describe('useProfileViewModel', () => {
     expect(result.current.attendedEvents.map((event) => event.id)).toEqual([
       'attended-event-1',
       'attended-event-2',
+      'attended-event-3',
+    ]);
+  });
+
+  it('filters ACTIVE events out of the hosted and attended tabs', async () => {
+    mockGetMyHostedEvents.mockResolvedValue({
+      events: [
+        { ...hostedEventFixture, status: 'ACTIVE' },
+        { ...hostedEventFixture, id: 'hosted-event-2', status: 'CANCELED' },
+      ],
+    });
+    mockGetMyUpcomingEvents.mockResolvedValue({
+      events: [
+        { ...attendedUpcomingFixture, id: 'attended-event-active', status: 'ACTIVE' },
+        attendedUpcomingFixture,
+      ],
+    });
+
+    const { result } = await renderProfileViewModel();
+
+    expect(result.current.hostedEvents.map((event) => event.status)).toEqual([
+      'CANCELED',
+    ]);
+    expect(result.current.attendedEvents.map((event) => event.status)).toEqual([
+      'IN_PROGRESS',
+      'COMPLETED',
+      'CANCELED',
     ]);
   });
 
@@ -299,6 +354,7 @@ describe('useProfileViewModel', () => {
     expect(mockGetMyHostedEvents).not.toHaveBeenCalled();
     expect(mockGetMyUpcomingEvents).not.toHaveBeenCalled();
     expect(mockGetMyCompletedEvents).not.toHaveBeenCalled();
+    expect(mockGetMyCanceledEvents).not.toHaveBeenCalled();
   });
 
   it('can refresh profile data', async () => {
@@ -312,6 +368,7 @@ describe('useProfileViewModel', () => {
     mockGetMyHostedEvents.mockResolvedValue({ events: [hostedEventFixture] });
     mockGetMyUpcomingEvents.mockResolvedValue({ events: [attendedUpcomingFixture] });
     mockGetMyCompletedEvents.mockResolvedValue({ events: [attendedCompletedFixture] });
+    mockGetMyCanceledEvents.mockResolvedValue({ events: [attendedCanceledFixture] });
 
     await act(async () => {
       await result.current.refresh();
