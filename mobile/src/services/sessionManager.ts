@@ -11,6 +11,7 @@ type SessionListener = (session: StoredAuthSession | null) => void;
 let currentSession: StoredAuthSession | null = null;
 let hydratePromise: Promise<StoredAuthSession | null> | null = null;
 let refreshPromise: Promise<StoredAuthSession> | null = null;
+let sessionVersion = 0;
 const listeners = new Set<SessionListener>();
 
 function notifyListeners() {
@@ -83,6 +84,7 @@ export function subscribeToSession(listener: SessionListener): () => void {
 
 export async function setSession(session: StoredAuthSession): Promise<void> {
   await writeStoredSession(session);
+  sessionVersion += 1;
   currentSession = session;
   notifyListeners();
 }
@@ -96,6 +98,7 @@ export async function setSessionFromAuthResponse(
 export async function clearSession(): Promise<void> {
   refreshPromise = null;
   await clearStoredSession();
+  sessionVersion += 1;
   currentSession = null;
   notifyListeners();
 }
@@ -107,11 +110,20 @@ export async function refreshSession(): Promise<StoredAuthSession> {
       if (!session?.refresh_token) {
         throw new Error('No refresh token available');
       }
+      const refreshVersion = sessionVersion;
 
       try {
         const refreshed = await refreshSessionRequest(session.refresh_token);
         const nextSession = mapAuthSession(refreshed);
+        if (
+          currentSession === null ||
+          sessionVersion !== refreshVersion ||
+          currentSession.refresh_token !== session.refresh_token
+        ) {
+          throw new Error('Session changed during refresh');
+        }
         await writeStoredSession(nextSession);
+        sessionVersion += 1;
         currentSession = nextSession;
         notifyListeners();
         return nextSession;
