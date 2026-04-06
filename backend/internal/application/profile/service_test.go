@@ -19,13 +19,13 @@ func (u *fakeUnitOfWork) RunInTx(ctx context.Context, fn func(ctx context.Contex
 }
 
 type fakeProfileRepo struct {
-	profile       *domain.UserProfile
-	profileErr    error
-	hostedEvents  []domain.EventSummary
-	upcomingEvents []domain.EventSummary
+	profile         *domain.UserProfile
+	profileErr      error
+	hostedEvents    []domain.EventSummary
+	upcomingEvents  []domain.EventSummary
 	completedEvents []domain.EventSummary
 	canceledEvents  []domain.EventSummary
-	eventsErr      error
+	eventsErr       error
 }
 
 func (r *fakeProfileRepo) GetProfile(_ context.Context, _ uuid.UUID) (*domain.UserProfile, error) {
@@ -62,10 +62,10 @@ func TestGetMyProfileMapsHostScore(t *testing.T) {
 	score := 4.5
 	repo := &fakeProfileRepo{
 		profile: &domain.UserProfile{
-			ID:       uuid.New(),
-			Username: "testuser",
-			Email:    "test@example.com",
-			Status:   domain.UserStatusActive,
+			ID:         uuid.New(),
+			Username:   "testuser",
+			Email:      "test@example.com",
+			Status:     domain.UserStatusActive,
 			FinalScore: &score,
 			HostScore: domain.HostScore{
 				Score:       &score,

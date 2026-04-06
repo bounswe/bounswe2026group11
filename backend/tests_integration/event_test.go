@@ -3332,42 +3332,72 @@ func TestAddAndRemoveFavorite(t *testing.T) {
 	harness := common.NewEventHarness(t)
 	user := common.GivenUser(t, harness.AuthRepo)
 	host := common.GivenUser(t, harness.AuthRepo)
-	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+	categoryID := common.GivenEventCategory(t)
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+	lat := 41.0082
+	lon := 28.9784
+	locationAddress := "Kadikoy, Istanbul"
+
+	result, err := harness.Service.CreateEvent(context.Background(), host.ID, eventapp.CreateEventInput{
+		Title:        "Favorite Event Metadata",
+		Description:  common.StringPtr("A favorited event with metadata"),
+		CategoryID:   &categoryID,
+		LocationType: domain.LocationPoint,
+		Address:      common.StringPtr(locationAddress),
+		Lat:          &lat,
+		Lon:          &lon,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyProtected,
+	})
+	if err != nil {
+		t.Fatalf("CreateEvent() error = %v", err)
+	}
+
+	eventID, err := uuid.Parse(result.ID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() error = %v", err)
+	}
 
 	// when: add favorite
-	err := harness.EventRepo.AddFavorite(context.Background(), user.ID, ref.ID)
+	err = harness.EventRepo.AddFavorite(context.Background(), user.ID, eventID)
 	if err != nil {
 		t.Fatalf("AddFavorite() error = %v", err)
 	}
 
-	// then: appears in favorites list
-	favs, err := harness.EventRepo.ListFavoriteEvents(context.Background(), user.ID)
+	// then: appears in favorites list with the required event metadata
+	favs, err := harness.Service.ListFavoriteEvents(context.Background(), user.ID)
 	if err != nil {
 		t.Fatalf("ListFavoriteEvents() error = %v", err)
 	}
-	if len(favs) != 1 || favs[0].ID != ref.ID {
-		t.Fatalf("expected 1 favorite with ID %s, got %d items", ref.ID, len(favs))
+	if len(favs.Items) != 1 || favs.Items[0].ID != eventID.String() {
+		t.Fatalf("expected 1 favorite with ID %s, got %d items", eventID, len(favs.Items))
+	}
+	if favs.Items[0].PrivacyLevel != string(domain.PrivacyProtected) {
+		t.Fatalf("expected privacy_level %q, got %q", domain.PrivacyProtected, favs.Items[0].PrivacyLevel)
+	}
+	if favs.Items[0].LocationAddress == nil || *favs.Items[0].LocationAddress != locationAddress {
+		t.Fatalf("expected location_address %q, got %v", locationAddress, favs.Items[0].LocationAddress)
 	}
 
 	// when: add again (idempotent)
-	err = harness.EventRepo.AddFavorite(context.Background(), user.ID, ref.ID)
+	err = harness.EventRepo.AddFavorite(context.Background(), user.ID, eventID)
 	if err != nil {
 		t.Fatalf("AddFavorite() duplicate error = %v", err)
 	}
 
 	// when: remove favorite
-	err = harness.EventRepo.RemoveFavorite(context.Background(), user.ID, ref.ID)
+	err = harness.EventRepo.RemoveFavorite(context.Background(), user.ID, eventID)
 	if err != nil {
 		t.Fatalf("RemoveFavorite() error = %v", err)
 	}
 
 	// then: no longer in favorites
-	favs, err = harness.EventRepo.ListFavoriteEvents(context.Background(), user.ID)
+	favs, err = harness.Service.ListFavoriteEvents(context.Background(), user.ID)
 	if err != nil {
 		t.Fatalf("ListFavoriteEvents() after remove error = %v", err)
 	}
-	if len(favs) != 0 {
-		t.Fatalf("expected 0 favorites after remove, got %d", len(favs))
+	if len(favs.Items) != 0 {
+		t.Fatalf("expected 0 favorites after remove, got %d", len(favs.Items))
 	}
 }
 
