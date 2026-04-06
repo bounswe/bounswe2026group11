@@ -68,11 +68,27 @@ Useful local details:
 The shared development server is deployed by GitHub Actions workflow [`deploy-dev.yml`](.github/workflows/deploy-dev.yml).
 
 - **Automatic trigger:** pushes/merges to `main`
+- **Release trigger:** publishing a GitHub release also deploys to the same dev server for now
 - **Manual trigger:** `workflow_dispatch` from the GitHub Actions UI
 - **Image strategy:** backend and frontend images are pushed to Docker Hub with both `latest` and an immutable commit-SHA tag; the server deploys the exact `IMAGE_TAG` written into `deploy/.env`
-- **Safe update behavior:** the workflow pulls and recreates only the application services by default, waits for Postgres health before updating the backend, and avoids unnecessary Postgres restarts; if nginx is already running, it reloads the config instead of recreating the container
+- **Safe update behavior:** the workflow pulls and recreates only the application services by default, waits for Postgres health before updating the backend, avoids unnecessary Postgres restarts, reloads nginx config when possible, and runs backend/frontend plus ingress smoke checks after deploy
 
-This is intentionally separate from the `dev` branch workflow. PRs still target `dev` for integration, but the shared dev droplet is updated from `main`.
+This is intentionally separate from the `dev` branch workflow. PRs still target `dev` for integration, but the shared dev droplet is updated from `main`. Until a separate production server exists, release-based deployments also target this same dev environment.
+
+## Releases and APKs
+
+GitHub Releases are currently used as milestone/pre-release checkpoints rather than production deployments.
+
+- Publishing a release keeps the current temporary behavior: deploy to the shared dev server.
+- [`mobile-apk.yml`](.github/workflows/mobile-apk.yml) builds an Android release APK when `mobile/**` changes are pushed to `main`, on manual dispatch, and when a GitHub release is published.
+- On matching pushes to `main`, the APK is stored as a workflow artifact.
+- On GitHub releases, the APK is also attached to the release as a downloadable asset.
+
+Current milestone convention:
+
+- **Release name:** `0.1.0-alpha`
+- **Tag:** `mvp-milestone`
+- **Type:** pre-release
 
 ### Backend only (Go)
 

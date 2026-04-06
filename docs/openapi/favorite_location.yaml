@@ -5,6 +5,9 @@ info:
   description: >
     Authenticated endpoints for managing the current user's saved favorite locations.
 
+servers:
+  - url: /api
+
 paths:
   /me/favorite-locations:
     get:

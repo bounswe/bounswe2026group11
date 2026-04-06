@@ -106,7 +106,7 @@ On the droplet, create a `certs/` directory next to `deploy/` and `nginx/` with 
 
 Mirror the repo (compose under `deploy/`, nginx at repo root). Example: `/opt/sem/`:
 
-```
+```text
 /opt/sem/
 ├── deploy/
 │   ├── docker-compose.local.yml  # optional on server; dev uses docker-compose.dev.yml
@@ -119,6 +119,19 @@ Mirror the repo (compose under `deploy/`, nginx at repo root). Example: `/opt/se
 ```
 
 Do not rely on editing `deploy/.env` by hand in production; the deploy pipeline should **write `deploy/.env` from GitHub** each time so credentials stay in one place.
+
+## First deploy ops checklist
+
+Before the first successful remote deploy, make sure the droplet already satisfies these prerequisites:
+
+- DNS for `socialeventmapper.com` and `www.socialeventmapper.com` points to the dev droplet.
+- Ports `80` and `443` are reachable on the droplet.
+- TLS certificate files exist at `/opt/sem/certs/cert.pem` and `/opt/sem/certs/key.pem`.
+- The `server_name` entries in [`nginx/nginx.dev.conf`](../nginx/nginx.dev.conf) match the domain you actually use.
+- The compose + nginx layout on the server matches the documented `/opt/sem/{deploy,nginx,certs}` structure.
+- Docker Engine and `docker compose` are installed on the droplet and available to `SSH_USERNAME`.
+
+These checks matter because the deploy workflow now performs HTTPS smoke tests through nginx after each deployment. If the domain/certificate layout is not ready, the deployment should fail instead of reporting a false-green result.
 
 ## Environment variables (app contract)
 
@@ -224,10 +237,10 @@ For the end-to-end client flow, examples, and troubleshooting notes, see [docs/i
 
 ## CI/CD
 
-The **development droplet** is updated by **GitHub Actions CD on merges/pushes to `main`** and can also be started manually via **`workflow_dispatch`** from the GitHub Actions UI, not by pushes to the `dev` branch. Typical pipeline:
+The **development droplet** is updated by **GitHub Actions CD on merges/pushes to `main`**, can be started manually via **`workflow_dispatch`**, and is also updated when a GitHub release is published. Until a separate production server exists, release-driven deploys target this same dev environment. Typical pipeline:
 
 1. Build and push `sem-backend-dev` and `sem-frontend-dev` images to Docker Hub (for example tags such as **`latest`** plus an immutable tag per commit).
-2. SSH to the dev droplet, write `/opt/sem/deploy/.env` from **GitHub Actions secrets** (optionally scoped with a **GitHub Environment** named `dev` if you use environment protection rules), `docker login` if images are private, pull only the application images, verify Postgres health without unnecessarily restarting it, then update the app services against [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml).
+2. SSH to the dev droplet, write `/opt/sem/deploy/.env` from **GitHub Actions secrets** (optionally scoped with a **GitHub Environment** named `dev` if you use environment protection rules), `docker login` if images are private, pull only the application images, verify Postgres health without unnecessarily restarting it, update the app services against [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml), and finally run backend/frontend plus ingress smoke checks.
 
 Image tag strategy for this repo: **`latest`** (rolling) plus a **commit-SHA** (or similar) tag for traceability, unless you introduce semver later.
 

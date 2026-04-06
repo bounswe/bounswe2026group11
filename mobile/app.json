@@ -9,6 +9,10 @@
     "plugins": [
       "expo-router"
     ],
+    "android": {
+      "package": "com.bounswe2026group11.socialeventmapper",
+      "versionCode": 1
+    },
     "experiments": {
       "typedRoutes": true
     }

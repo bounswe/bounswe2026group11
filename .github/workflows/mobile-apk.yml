@@ -1,0 +1,119 @@
+name: Mobile APK
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "mobile/**"
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-apk-${{ github.workflow }}-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: mobile
+
+jobs:
+  build-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Android project
+        env:
+          CI: true
+          EXPO_NO_DOCTOR: 1
+        run: npx expo prebuild --platform android --non-interactive --clean
+
+      # Expo/RN templates may ship Gradle 9.x; AGP + RN Gradle plugin can hit JvmVendorSpec errors on 9.x.
+      # AGP in this stack requires Gradle >= 8.13; use 8.13.x (not 9.x) to satisfy both.
+      - name: Pin Gradle wrapper to 8.13
+        run: |
+          set -eu
+          props="android/gradle/wrapper/gradle-wrapper.properties"
+          test -f "$props"
+          sed -i 's|gradle-[0-9.]*-bin.zip|gradle-8.13-bin.zip|g' "$props"
+          grep -n "distributionUrl" "$props" || true
+
+      - name: Point Gradle at Android SDK (CI)
+        run: |
+          set -eu
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [ -z "$sdk" ]; then
+            echo "ANDROID_HOME / ANDROID_SDK_ROOT is not set after setup-android" >&2
+            exit 1
+          fi
+          printf 'sdk.dir=%s\n' "$sdk" > android/local.properties
+
+      - name: Create Android signing keystore
+        run: |
+          set -eu
+          keytool -genkeypair \
+            -v \
+            -storetype PKCS12 \
+            -keystore android/app/debug.keystore \
+            -alias androiddebugkey \
+            -storepass android \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Build release APK
+        run: cd android && ./gradlew assembleRelease
+
+      - name: Prepare APK artifact
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || '' }}
+        run: |
+          set -eu
+          suffix="$GITHUB_SHA"
+          if [ -n "$RELEASE_TAG" ]; then
+            suffix="$RELEASE_TAG"
+          fi
+          mkdir -p "$GITHUB_WORKSPACE/dist/mobile"
+          cp android/app/build/outputs/apk/release/app-release.apk \
+            "$GITHUB_WORKSPACE/dist/mobile/social-event-mapper-$suffix.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-apk-${{ github.event.release.tag_name || github.sha }}
+          path: dist/mobile/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Attach APK to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/mobile/*.apk
+          fail_on_unmatched_files: true
