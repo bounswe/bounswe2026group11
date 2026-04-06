@@ -33,8 +33,8 @@ type EventSummary struct {
 
 // HostScore holds the cached rating summary for a user acting as an event host.
 type HostScore struct {
-	Score                  *float64
-	RatingCount            int
+	Score       *float64
+	RatingCount int
 }
 
 // ParticipantScore holds the cached rating summary for a user acting as a participant.

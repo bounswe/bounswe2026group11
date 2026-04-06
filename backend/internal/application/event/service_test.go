@@ -37,6 +37,7 @@ type fakeEventRepo struct {
 	discoverErr        error
 	detailErr          error
 	events             map[uuid.UUID]*domain.Event
+	favoriteRecords    []FavoriteEventRecord
 	discoverRecords    []DiscoverableEventRecord
 	detailRecord       *EventDetailRecord
 	discoverCallCount  int
@@ -126,7 +127,10 @@ func (r *fakeEventRepo) RemoveFavorite(_ context.Context, _, _ uuid.UUID) error 
 }
 
 func (r *fakeEventRepo) ListFavoriteEvents(_ context.Context, _ uuid.UUID) ([]FavoriteEventRecord, error) {
-	return nil, r.err
+	if r.err != nil {
+		return nil, r.err
+	}
+	return r.favoriteRecords, nil
 }
 
 func (r *fakeEventRepo) ListDiscoverableEvents(_ context.Context, userID uuid.UUID, params DiscoverEventsParams) ([]DiscoverableEventRecord, error) {
@@ -969,6 +973,55 @@ func TestDiscoverEventsAppliesDefaultsAndMapsResults(t *testing.T) {
 	}
 	if result.PageInfo.NextCursor != nil {
 		t.Fatalf("expected nil next_cursor, got %v", result.PageInfo.NextCursor)
+	}
+}
+
+func TestListFavoriteEventsMapsPrivacyLevelAndLocationAddress(t *testing.T) {
+	// given
+	svc, eventRepo, _, _ := newTestEventService()
+	category := "Music"
+	imageURL := "https://example.com/favorite.jpg"
+	locationAddress := "Kadikoy, Istanbul"
+	startTime := time.Date(2030, time.January, 2, 18, 0, 0, 0, time.UTC)
+	endTime := time.Date(2030, time.January, 2, 21, 0, 0, 0, time.UTC)
+	favoritedAt := time.Date(2030, time.January, 1, 12, 0, 0, 0, time.UTC)
+	eventID := uuid.New()
+
+	eventRepo.favoriteRecords = []FavoriteEventRecord{
+		{
+			ID:              eventID,
+			Title:           "Sunset Concert",
+			CategoryName:    &category,
+			ImageURL:        &imageURL,
+			Status:          domain.EventStatusActive,
+			PrivacyLevel:    domain.PrivacyProtected,
+			LocationAddress: &locationAddress,
+			StartTime:       startTime,
+			EndTime:         &endTime,
+			FavoritedAt:     favoritedAt,
+		},
+	}
+
+	// when
+	result, err := svc.ListFavoriteEvents(context.Background(), uuid.New())
+
+	// then
+	if err != nil {
+		t.Fatalf("ListFavoriteEvents() error = %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(result.Items))
+	}
+
+	item := result.Items[0]
+	if item.ID != eventID.String() {
+		t.Fatalf("expected id %s, got %s", eventID, item.ID)
+	}
+	if item.PrivacyLevel != string(domain.PrivacyProtected) {
+		t.Fatalf("expected privacy_level %q, got %q", domain.PrivacyProtected, item.PrivacyLevel)
+	}
+	if item.LocationAddress == nil || *item.LocationAddress != locationAddress {
+		t.Fatalf("expected location_address %q, got %v", locationAddress, item.LocationAddress)
 	}
 }
 

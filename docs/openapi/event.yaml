@@ -2775,7 +2775,7 @@ components:
     FavoriteEventItem:
       type: object
       additionalProperties: false
-      required: [id, title, status, start_time, favorited_at]
+      required: [id, title, status, privacy_level, location_address, start_time, favorited_at]
       properties:
         id:
           type: string
@@ -2794,6 +2794,17 @@ components:
           type: string
           description: Event status, for example `ACTIVE`, `IN_PROGRESS`, `CANCELED`, or `COMPLETED`.
           example: ACTIVE
+        privacy_level:
+          type: string
+          enum: [PUBLIC, PROTECTED, PRIVATE]
+          description: Current stored event visibility level.
+          example: PUBLIC
+        location_address:
+          type:
+            - string
+            - "null"
+          description: Optional human-readable location address stored for the event.
+          example: Kadikoy, Istanbul
         start_time:
           type: string
           format: date-time

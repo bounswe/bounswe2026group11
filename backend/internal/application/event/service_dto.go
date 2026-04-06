@@ -239,14 +239,16 @@ type EventDetailInvitation struct {
 
 // FavoriteEventItem is the compact event summary returned by the favorites list.
 type FavoriteEventItem struct {
-	ID          string     `json:"id"`
-	Title       string     `json:"title"`
-	Category    *string    `json:"category"`
-	ImageURL    *string    `json:"image_url"`
-	Status      string     `json:"status"`
-	StartTime   time.Time  `json:"start_time"`
-	EndTime     *time.Time `json:"end_time"`
-	FavoritedAt time.Time  `json:"favorited_at"`
+	ID              string     `json:"id"`
+	Title           string     `json:"title"`
+	Category        *string    `json:"category"`
+	ImageURL        *string    `json:"image_url"`
+	Status          string     `json:"status"`
+	PrivacyLevel    string     `json:"privacy_level"`
+	LocationAddress *string    `json:"location_address"`
+	StartTime       time.Time  `json:"start_time"`
+	EndTime         *time.Time `json:"end_time"`
+	FavoritedAt     time.Time  `json:"favorited_at"`
 }
 
 // FavoriteEventsResult wraps a list of favorite event items.

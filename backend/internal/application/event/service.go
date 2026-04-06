@@ -393,14 +393,16 @@ func (s *Service) ListFavoriteEvents(ctx context.Context, userID uuid.UUID) (*Fa
 	items := make([]FavoriteEventItem, len(records))
 	for i, r := range records {
 		items[i] = FavoriteEventItem{
-			ID:          r.ID.String(),
-			Title:       r.Title,
-			Category:    r.CategoryName,
-			ImageURL:    r.ImageURL,
-			Status:      string(r.Status),
-			StartTime:   r.StartTime,
-			EndTime:     r.EndTime,
-			FavoritedAt: r.FavoritedAt,
+			ID:              r.ID.String(),
+			Title:           r.Title,
+			Category:        r.CategoryName,
+			ImageURL:        r.ImageURL,
+			Status:          string(r.Status),
+			PrivacyLevel:    string(r.PrivacyLevel),
+			LocationAddress: r.LocationAddress,
+			StartTime:       r.StartTime,
+			EndTime:         r.EndTime,
+			FavoritedAt:     r.FavoritedAt,
 		}
 	}
 
