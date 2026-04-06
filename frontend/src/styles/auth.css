@@ -257,3 +257,35 @@
     transform: rotate(360deg);
   }
 }
+
+/* Responsive */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 28px 20px;
+    margin: 12px;
+    border-radius: 10px;
+  }
+
+  .auth-title {
+    font-size: 22px;
+  }
+
+  .auth-subtitle {
+    font-size: 14px;
+  }
+
+  .field-input {
+    padding: 10px 12px;
+    font-size: 15px;
+  }
+
+  .btn-primary {
+    padding: 12px;
+    font-size: 15px;
+  }
+
+  .btn-outline {
+    padding: 12px;
+    font-size: 15px;
+  }
+}

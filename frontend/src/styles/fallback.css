@@ -140,6 +140,40 @@
   }
 }
 
+@media (max-width: 600px) {
+  .fallback-page {
+    padding: 1.5rem 1rem;
+  }
+
+  .fallback-content {
+    padding: 2rem 1.5rem;
+    border-radius: 16px;
+  }
+
+  .fallback-icon {
+    font-size: 3rem;
+  }
+
+  .fallback-title {
+    font-size: 1.35rem;
+  }
+
+  .fallback-desc {
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .fallback-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .fallback-btn-primary,
+  .fallback-btn-secondary {
+    width: 100%;
+  }
+}
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
