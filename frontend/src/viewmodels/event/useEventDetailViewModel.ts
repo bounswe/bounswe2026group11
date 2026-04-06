@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   getEventDetail,
+  getEventImageUploadUrl,
+  confirmEventImageUpload,
   joinEvent,
   requestJoinEvent,
   approveJoinRequest,
@@ -11,6 +13,7 @@ import {
 } from '@/services/eventService';
 import type { EventDetailResponse } from '@/models/event';
 import { ApiError } from '@/services/api';
+import { prepareAvatarBlobs } from '@/utils/imageResize';
 
 export type DetailStatus = 'loading' | 'ready' | 'not-found' | 'forbidden' | 'error';
 
@@ -27,6 +30,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     participantUserId: string;
     message: string;
   } | null>(null);
+  const [coverImageUploading, setCoverImageUploading] = useState(false);
+  const [coverImageError, setCoverImageError] = useState<string | null>(null);
 
   const refreshEventDetail = useCallback(async () => {
     if (!eventId) {
@@ -278,6 +283,38 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   const dismissCancelError = useCallback(() => setCancelError(null), []);
   const dismissViewerRatingError = useCallback(() => setViewerRatingError(null), []);
   const dismissParticipantRatingError = useCallback(() => setParticipantRatingError(null), []);
+  const dismissCoverImageError = useCallback(() => setCoverImageError(null), []);
+
+  const handleCoverImageUpload = useCallback(async (file: File) => {
+    if (!eventId || !token) return;
+    setCoverImageUploading(true);
+    setCoverImageError(null);
+    try {
+      const { original, small } = await prepareAvatarBlobs(file);
+      const uploadInit = await getEventImageUploadUrl(eventId, token);
+      for (const instruction of uploadInit.uploads) {
+        const blob = instruction.variant === 'ORIGINAL' ? original : small;
+        const res = await fetch(instruction.url, {
+          method: instruction.method,
+          headers: instruction.headers,
+          body: blob,
+        });
+        if (!res.ok) {
+          throw new Error(`Image upload failed (${instruction.variant}).`);
+        }
+      }
+      await confirmEventImageUpload(eventId, { confirm_token: uploadInit.confirm_token }, token);
+      await refreshEventDetail();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setCoverImageError(err.message);
+      } else {
+        setCoverImageError(err instanceof Error ? err.message : 'Failed to update cover image.');
+      }
+    } finally {
+      setCoverImageUploading(false);
+    }
+  }, [eventId, token, refreshEventDetail]);
 
   return {
     event,
@@ -306,5 +343,9 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     dismissParticipantRatingError,
     dismissModerateError,
     dismissCancelError,
+    coverImageUploading,
+    coverImageError,
+    handleCoverImageUpload,
+    dismissCoverImageError,
   };
 }

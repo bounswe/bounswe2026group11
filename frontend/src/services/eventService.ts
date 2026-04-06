@@ -1,4 +1,5 @@
 import { apiDeleteAuth, apiPostAuth, apiPatchAuth, apiGet, apiGetAuth, apiPutAuth } from './api';
+import type { ImageUploadConfirmRequest, ImageUploadInitResponse } from '@/models/profile';
 import {
   CreateEventRequest,
   CreateEventResponse,
@@ -63,6 +64,21 @@ export function getEventDetail(
     return apiGetAuth<EventDetailResponse>(`/events/${eventId}`, token);
   }
   return apiGet<EventDetailResponse>(`/events/${eventId}`);
+}
+
+export function getEventImageUploadUrl(
+  eventId: string,
+  token: string,
+): Promise<ImageUploadInitResponse> {
+  return apiPostAuth<ImageUploadInitResponse>(`/events/${eventId}/image/upload-url`, {}, token);
+}
+
+export function confirmEventImageUpload(
+  eventId: string,
+  body: ImageUploadConfirmRequest,
+  token: string,
+): Promise<void> {
+  return apiPostAuth<void>(`/events/${eventId}/image/confirm`, body, token);
 }
 
 export function joinEvent(

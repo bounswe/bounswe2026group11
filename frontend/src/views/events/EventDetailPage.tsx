@@ -79,6 +79,26 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`ed-status-badge ${cls}`}>{presentation.label}</span>;
 }
 
+function PencilCoverIcon() {
+  return (
+    <svg
+      className="ed-hero-cover-edit-icon"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      aria-hidden
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  );
+}
+
 function PrivacyBadge({ level }: { level: string }) {
   const label = level === 'PUBLIC' ? 'Public' : level === 'PROTECTED' ? 'Protected' : 'Private';
   return (
@@ -710,6 +730,10 @@ function EventContent({
   onCancel,
   onDismissCancelError,
   isAuthenticated,
+  coverImageUploading,
+  coverImageError,
+  onCoverImageFileSelected,
+  onDismissCoverImageError,
 }: {
   event: EventDetailResponse;
   joinLoading: boolean;
@@ -735,8 +759,13 @@ function EventContent({
   onCancel: () => void;
   onDismissCancelError: () => void;
   isAuthenticated: boolean;
+  coverImageUploading: boolean;
+  coverImageError: string | null;
+  onCoverImageFileSelected: (file: File) => void;
+  onDismissCoverImageError: () => void;
 }) {
   const navigate = useNavigate();
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [activeParticipantEditorId, setActiveParticipantEditorId] = useState<string | null>(null);
   const hostCanRateParticipants = (
@@ -744,6 +773,8 @@ function EventContent({
     && event.status === 'COMPLETED'
     && event.rating_window.is_active
   );
+
+  const showCoverImageEdit = isAuthenticated && event.viewer_context.is_host;
 
   return (
     <div className="ed-page">
@@ -759,10 +790,41 @@ function EventContent({
           imgClassName="ed-hero-image"
           variant="hero"
         />
+        {showCoverImageEdit && (
+          <>
+            <input
+              ref={coverFileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="ed-hero-cover-input"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onCoverImageFileSelected(file);
+                e.target.value = '';
+              }}
+            />
+            <button
+              type="button"
+              className="ed-hero-cover-edit"
+              aria-label="Change cover image"
+              disabled={coverImageUploading}
+              onClick={() => coverFileInputRef.current?.click()}
+            >
+              {coverImageUploading ? <span className="spinner" /> : <PencilCoverIcon />}
+            </button>
+          </>
+        )}
         <div className="ed-hero-badges">
           <PrivacyBadge level={event.privacy_level} />
         </div>
       </div>
+
+      {showCoverImageEdit && coverImageError && (
+        <div className="ed-cover-upload-error">
+          <span>{coverImageError}</span>
+          <button type="button" className="ed-join-error-dismiss" onClick={onDismissCoverImageError}>&times;</button>
+        </div>
+      )}
 
       {/* Title & category */}
       <div className="ed-header">
@@ -1158,6 +1220,10 @@ export default function EventDetailPage() {
     <EventContent
       event={vm.event}
       isAuthenticated={Boolean(token)}
+      coverImageUploading={vm.coverImageUploading}
+      coverImageError={vm.coverImageError}
+      onCoverImageFileSelected={vm.handleCoverImageUpload}
+      onDismissCoverImageError={vm.dismissCoverImageError}
       joinLoading={vm.joinLoading}
       joinError={vm.joinError}
       viewerRatingLoading={vm.viewerRatingLoading}

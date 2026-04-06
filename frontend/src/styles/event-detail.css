@@ -40,12 +40,74 @@
   object-fit: cover;
 }
 
+.ed-hero-cover-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ed-hero-cover-edit {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(17, 24, 39, 0.55);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.ed-hero-cover-edit:hover:not(:disabled) {
+  background: rgba(17, 24, 39, 0.72);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.ed-hero-cover-edit:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.ed-hero-cover-edit .spinner {
+  width: 18px;
+  height: 18px;
+}
+
+.ed-hero-cover-edit-icon {
+  display: block;
+}
+
 .ed-hero-badges {
   position: absolute;
   top: 14px;
   right: 14px;
+  z-index: 3;
   display: flex;
   gap: 8px;
+}
+
+.ed-cover-upload-error {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 14px;
+  margin: -8px 0 20px 0;
 }
 
 /* Status badges */

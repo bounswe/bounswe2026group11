@@ -110,6 +110,10 @@ function makeReadyViewModel(event: EventDetailResponse) {
     dismissParticipantRatingError: vi.fn(),
     dismissModerateError: vi.fn(),
     dismissCancelError: vi.fn(),
+    coverImageUploading: false,
+    coverImageError: null,
+    handleCoverImageUpload: vi.fn(),
+    dismissCoverImageError: vi.fn(),
   };
 }
 
