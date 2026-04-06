@@ -1554,9 +1554,10 @@ func (r *EventRepository) RemoveFavorite(ctx context.Context, userID, eventID uu
 func (r *EventRepository) ListFavoriteEvents(ctx context.Context, userID uuid.UUID) ([]eventapp.FavoriteEventRecord, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT e.id, e.title, ec.name, e.image_url, e.status,
-		       e.start_time, e.end_time, fav.created_at
+		       e.privacy_level, el.address, e.start_time, e.end_time, fav.created_at
 		FROM favorite_event fav
 		JOIN event e ON e.id = fav.event_id
+		JOIN event_location el ON el.event_id = e.id
 		LEFT JOIN event_category ec ON ec.id = e.category_id
 		WHERE fav.user_id = $1
 		ORDER BY fav.created_at DESC
@@ -1569,17 +1570,23 @@ func (r *EventRepository) ListFavoriteEvents(ctx context.Context, userID uuid.UU
 	var records []eventapp.FavoriteEventRecord
 	for rows.Next() {
 		var (
-			r       eventapp.FavoriteEventRecord
-			status  string
-			catName *string
-			endTime pgtype.Timestamptz
+			r               eventapp.FavoriteEventRecord
+			status          string
+			privacyLevel    string
+			catName         *string
+			locationAddress pgtype.Text
+			endTime         pgtype.Timestamptz
 		)
 		if err := rows.Scan(&r.ID, &r.Title, &catName, &r.ImageURL, &status,
-			&r.StartTime, &endTime, &r.FavoritedAt); err != nil {
+			&privacyLevel, &locationAddress, &r.StartTime, &endTime, &r.FavoritedAt); err != nil {
 			return nil, fmt.Errorf("scan favorite event: %w", err)
 		}
 		r.Status = domain.EventStatus(status)
+		r.PrivacyLevel = domain.EventPrivacyLevel(privacyLevel)
 		r.CategoryName = catName
+		if locationAddress.Valid {
+			r.LocationAddress = &locationAddress.String
+		}
 		if endTime.Valid {
 			r.EndTime = &endTime.Time
 		}

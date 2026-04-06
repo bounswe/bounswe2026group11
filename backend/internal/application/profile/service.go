@@ -45,7 +45,7 @@ func (s *Service) GetMyProfile(ctx context.Context, userID uuid.UUID) (*GetProfi
 		DisplayName:            p.DisplayName,
 		Bio:                    p.Bio,
 		AvatarURL:              p.AvatarURL,
-		FinalScore: p.FinalScore,
+		FinalScore:             p.FinalScore,
 		HostScore: &HostScore{
 			Score:       p.HostScore.Score,
 			RatingCount: p.HostScore.RatingCount,

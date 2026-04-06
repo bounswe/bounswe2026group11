@@ -85,14 +85,16 @@ type DiscoverEventsCursor struct {
 
 // FavoriteEventRecord is the repository-level projection for favorite event listings.
 type FavoriteEventRecord struct {
-	ID           uuid.UUID
-	Title        string
-	CategoryName *string
-	ImageURL     *string
-	Status       domain.EventStatus
-	StartTime    time.Time
-	EndTime      *time.Time
-	FavoritedAt  time.Time
+	ID              uuid.UUID
+	Title           string
+	CategoryName    *string
+	ImageURL        *string
+	Status          domain.EventStatus
+	PrivacyLevel    domain.EventPrivacyLevel
+	LocationAddress *string
+	StartTime       time.Time
+	EndTime         *time.Time
+	FavoritedAt     time.Time
 }
 
 // EventDetailRecord is the repository-level projection used for event detail responses.
