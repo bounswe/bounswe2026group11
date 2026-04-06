@@ -4,43 +4,14 @@ import { Feather } from '@expo/vector-icons';
 import { MyEventBadge, MyEventSummary } from '@/models/event';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
+import {
+  formatEventStatusLabel,
+  getEventStatusBadgeColors,
+} from '@/utils/eventStatus';
 
 interface MyEventCardProps {
   event: MyEventSummary;
   onPress?: (eventId: string) => void;
-}
-
-function formatStatusLabel(status: MyEventSummary['status']) {
-  if (status === 'IN_PROGRESS') return 'In Progress';
-  return status.charAt(0) + status.slice(1).toLowerCase();
-}
-
-function getStatusStyle(status: MyEventSummary['status']) {
-  if (status === 'ACTIVE') {
-    return {
-      container: styles.statusBadgeActive,
-      text: styles.statusTextActive,
-    };
-  }
-
-  if (status === 'IN_PROGRESS') {
-    return {
-      container: styles.statusBadgeInProgress,
-      text: styles.statusTextInProgress,
-    };
-  }
-
-  if (status === 'COMPLETED') {
-    return {
-      container: styles.statusBadgeCompleted,
-      text: styles.statusTextCompleted,
-    };
-  }
-
-  return {
-    container: styles.statusBadgeCanceled,
-    text: styles.statusTextCanceled,
-  };
 }
 
 function getBadgeStyle(type: MyEventBadge['type']) {
@@ -81,7 +52,7 @@ function getLocationLabel(address?: string | null) {
 }
 
 export default function MyEventCard({ event, onPress }: MyEventCardProps) {
-  const statusStyle = getStatusStyle(event.status);
+  const statusColors = getEventStatusBadgeColors(event.status);
 
   return (
     <TouchableOpacity
@@ -105,9 +76,19 @@ export default function MyEventCard({ event, onPress }: MyEventCardProps) {
 
       <View style={styles.content}>
         <View style={styles.topRow}>
-          <View style={[styles.statusBadge, statusStyle.container]}>
-            <Text style={[styles.statusBadgeText, statusStyle.text]}>
-              {formatStatusLabel(event.status)}
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: statusColors.backgroundColor },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusBadgeText,
+                { color: statusColors.textColor },
+              ]}
+            >
+              {formatEventStatusLabel(event.status)}
             </Text>
           </View>
 
@@ -208,33 +189,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
   },
-  statusBadgeActive: {
-    backgroundColor: '#DCFCE7',
-  },
-  statusBadgeInProgress: {
-    backgroundColor: '#DBEAFE',
-  },
-  statusBadgeCompleted: {
-    backgroundColor: '#E2E8F0',
-  },
-  statusBadgeCanceled: {
-    backgroundColor: '#FEE2E2',
-  },
   statusBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-  },
-  statusTextActive: {
-    color: '#166534',
-  },
-  statusTextInProgress: {
-    color: '#1D4ED8',
-  },
-  statusTextCompleted: {
-    color: '#334155',
-  },
-  statusTextCanceled: {
-    color: '#B91C1C',
   },
   attendeePill: {
     flexDirection: 'row',

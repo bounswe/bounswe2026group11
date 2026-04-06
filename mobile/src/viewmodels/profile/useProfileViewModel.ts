@@ -7,6 +7,7 @@ import type { ProfileEventSummary } from '@/models/profile';
 import type { PrivacyLevel } from '@/models/event';
 import {
   confirmProfileAvatarUpload,
+  getMyCanceledEvents,
   getMyCompletedEvents,
   getMyHostedEvents,
   getMyProfile,
@@ -16,6 +17,7 @@ import {
 import { ApiError } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadFileToPresignedUrl } from '@/services/eventService';
+import { shouldShowProfileEvent } from '@/utils/eventStatus';
 
 export interface ProfileEventItem {
   id: string;
@@ -114,19 +116,6 @@ function normalizeEndTime(value?: string | null): string | null {
   return trimmed;
 }
 
-function mapHostedEvent(event: ProfileEventSummary): ProfileEventItem {
-  return {
-    id: event.id,
-    title: event.title,
-    start_time: event.start_time,
-    end_time: normalizeEndTime(event.end_time),
-    image_url: event.image_url ?? null,
-    category_label: event.category ?? 'Event',
-    status: event.status,
-    privacy_level: event.privacy_level ?? null,
-  };
-}
-
 function mapProfileEvent(event: ProfileEventSummary): ProfileEventItem {
   return {
     id: event.id,
@@ -191,19 +180,33 @@ export function useProfileViewModel(): ProfileViewModel {
       setApiError(null);
 
       try {
-        const [profileResult, hostedResult, upcomingResult, completedResult] = await Promise.all([
+        const [
+          profileResult,
+          hostedResult,
+          upcomingResult,
+          completedResult,
+          canceledResult,
+        ] = await Promise.all([
           getMyProfile(token),
           getMyHostedEvents(token),
           getMyUpcomingEvents(token),
           getMyCompletedEvents(token),
+          getMyCanceledEvents(token),
         ]);
         setProfile(profileResult);
-        const mappedHostedEvents = hostedResult.events.map(mapHostedEvent);
-        const mergedAttendedEvents = excludeHostedEvents(
-          mergeEventsById(upcomingResult.events, completedResult.events),
-          mappedHostedEvents,
+        const allHostedEvents = hostedResult.events.map(mapProfileEvent);
+        const visibleHostedEvents = allHostedEvents.filter((event) =>
+          shouldShowProfileEvent(event.status),
         );
-        setHostedEvents(mappedHostedEvents);
+        const mergedAttendedEvents = excludeHostedEvents(
+          mergeEventsById(
+            upcomingResult.events,
+            completedResult.events,
+            canceledResult.events,
+          ),
+          allHostedEvents,
+        ).filter((event) => shouldShowProfileEvent(event.status));
+        setHostedEvents(visibleHostedEvents);
         setAttendedEvents(mergedAttendedEvents);
         setRatingLabel(
           profileResult.host_score?.final_score != null
