@@ -1039,6 +1039,28 @@
   padding: 10px 28px;
 }
 
+/* Join — sign-in hint (anonymous viewers) */
+.ed-join-auth-hint {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.45;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.ed-join-auth-link {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ed-join-auth-link:hover {
+  text-decoration: underline;
+}
+
 /* Join action */
 .ed-join-btn {
   width: 100%;
@@ -1050,6 +1072,11 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+.ed-join-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .ed-join-btn-protected {

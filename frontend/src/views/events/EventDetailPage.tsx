@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import type { EventDetailApprovedParticipant, EventDetailResponse } from '@/models/event';
@@ -95,6 +95,7 @@ function JoinActionSection({
   onJoin,
   onRequestJoin,
   onDismissError,
+  isAuthenticated,
 }: {
   event: EventDetailResponse;
   joinLoading: boolean;
@@ -102,6 +103,7 @@ function JoinActionSection({
   onJoin: () => void;
   onRequestJoin: (message?: string) => void;
   onDismissError: () => void;
+  isAuthenticated: boolean;
 }) {
   const [requestMessage, setRequestMessage] = useState('');
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -188,27 +190,42 @@ function JoinActionSection({
           This event has reached its maximum capacity.
         </div>
       ) : event.privacy_level === 'PUBLIC' ? (
-        /* PUBLIC — direct join */
-        <button
-          type="button"
-          className="btn-primary ed-join-btn"
-          onClick={onJoin}
-          disabled={joinLoading}
-        >
-          {joinLoading ? <span className="spinner" /> : 'Join Event'}
-        </button>
+        <>
+          {!isAuthenticated && (
+            <p className="ed-join-auth-hint">
+              Katılmak için lütfen giriş yapın.{' '}
+              <Link to="/login" className="ed-join-auth-link">Giriş yap</Link>
+            </p>
+          )}
+          <button
+            type="button"
+            className="btn-primary ed-join-btn"
+            onClick={onJoin}
+            disabled={!isAuthenticated || joinLoading}
+          >
+            {joinLoading ? <span className="spinner" /> : 'Join Event'}
+          </button>
+        </>
       ) : event.privacy_level === 'PROTECTED' ? (
         /* PROTECTED — request to join */
         <div className="ed-request-join">
           {!showRequestForm ? (
-            <button
-              type="button"
-              className="btn-primary ed-join-btn ed-join-btn-protected"
-              onClick={() => setShowRequestForm(true)}
-              disabled={joinLoading}
-            >
-              Request to Join
-            </button>
+            <>
+              {!isAuthenticated && (
+                <p className="ed-join-auth-hint">
+                  Katılmak için lütfen giriş yapın.{' '}
+                  <Link to="/login" className="ed-join-auth-link">Giriş yap</Link>
+                </p>
+              )}
+              <button
+                type="button"
+                className="btn-primary ed-join-btn ed-join-btn-protected"
+                onClick={() => setShowRequestForm(true)}
+                disabled={!isAuthenticated || joinLoading}
+              >
+                Request to Join
+              </button>
+            </>
           ) : (
             <div className="ed-request-form">
               <textarea
@@ -692,6 +709,7 @@ function EventContent({
   cancelError,
   onCancel,
   onDismissCancelError,
+  isAuthenticated,
 }: {
   event: EventDetailResponse;
   joinLoading: boolean;
@@ -716,6 +734,7 @@ function EventContent({
   cancelError: string | null;
   onCancel: () => void;
   onDismissCancelError: () => void;
+  isAuthenticated: boolean;
 }) {
   const navigate = useNavigate();
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -788,6 +807,7 @@ function EventContent({
         onJoin={onJoin}
         onRequestJoin={onRequestJoin}
         onDismissError={onDismissError}
+        isAuthenticated={isAuthenticated}
       />
 
       <ParticipantRatingSection
@@ -1137,6 +1157,7 @@ export default function EventDetailPage() {
   return (
     <EventContent
       event={vm.event}
+      isAuthenticated={Boolean(token)}
       joinLoading={vm.joinLoading}
       joinError={vm.joinError}
       viewerRatingLoading={vm.viewerRatingLoading}
