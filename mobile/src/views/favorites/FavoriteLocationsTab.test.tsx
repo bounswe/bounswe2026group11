@@ -9,14 +9,42 @@ import { useFavoriteLocationsViewModel } from '@/viewmodels/favorites/useFavorit
 
 jest.mock('react-native', () => {
   const ReactLocal = require('react');
+  const reactNativeOnlyProps = new Set([
+    'accessibilityLabel',
+    'activeOpacity',
+    'contentContainerStyle',
+    'hitSlop',
+    'keyboardShouldPersistTaps',
+    'numberOfLines',
+    'placeholderTextColor',
+  ]);
+
+  const stripReactNativeOnlyProps = (props: Record<string, unknown>) => {
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(props)) {
+      if (!reactNativeOnlyProps.has(key)) {
+        out[key] = props[key];
+      }
+    }
+    return out;
+  };
+
   const createDiv =
     (displayName: string) =>
       ({ children, ...props }: { children?: React.ReactNode }) =>
-        ReactLocal.createElement('div', { ...props, 'data-testid': displayName }, children);
+        ReactLocal.createElement(
+          'div',
+          { ...stripReactNativeOnlyProps(props), 'data-testid': displayName },
+          children,
+        );
   const createSpan =
     (displayName: string) =>
       ({ children, ...props }: { children?: React.ReactNode }) =>
-        ReactLocal.createElement('span', { ...props, 'data-testid': displayName }, children);
+        ReactLocal.createElement(
+          'span',
+          { ...stripReactNativeOnlyProps(props), 'data-testid': displayName },
+          children,
+        );
 
   return {
     ActivityIndicator: createDiv('ActivityIndicator'),
@@ -33,7 +61,7 @@ jest.mock('react-native', () => {
       onChangeText?: (value: string) => void;
     }) =>
       ReactLocal.createElement('input', {
-        ...props,
+        ...stripReactNativeOnlyProps(props),
         value,
         onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
           onChangeText?.(event.target.value),
@@ -51,7 +79,7 @@ jest.mock('react-native', () => {
       ReactLocal.createElement(
         'button',
         {
-          ...props,
+          ...stripReactNativeOnlyProps(props),
           type: 'button',
           disabled,
           onClick: onPress,

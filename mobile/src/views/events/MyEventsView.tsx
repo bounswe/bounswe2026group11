@@ -32,7 +32,7 @@ function StatePanel({
   return (
     <View style={styles.statePanel}>
       <View style={styles.stateIcon}>
-        <Feather name={icon} size={24} color="#2563EB" />
+        <Feather name={icon} size={24} color="#111827" />
       </View>
       <Text style={styles.stateTitle}>{title}</Text>
       <Text style={styles.stateSubtitle}>{subtitle}</Text>
@@ -99,7 +99,7 @@ export default function MyEventsView() {
         <View style={styles.content}>
           {vm.isLoading ? (
             <View style={styles.loadingPanel}>
-              <ActivityIndicator size="large" color="#2563EB" />
+              <ActivityIndicator size="large" color="#111827" />
               <Text style={styles.loadingText}>Loading your events...</Text>
             </View>
           ) : vm.errorMessage ? (
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   tabCountActive: {
-    color: '#2563EB',
+    color: '#111827',
   },
   content: {
     flex: 1,
