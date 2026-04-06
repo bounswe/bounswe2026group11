@@ -115,7 +115,7 @@ CREATE TABLE event (
     description TEXT,
     image_url TEXT,
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_time TIMESTAMP WITH TIME ZONE,
     privacy_level TEXT NOT NULL,
     status TEXT,
     capacity INT,
@@ -127,6 +127,7 @@ CREATE TABLE event (
     location_type TEXT,
     image_version INT NOT NULL DEFAULT 0,
     version_no INT NOT NULL DEFAULT 0,
+    canceled_approved_participant_count INT,
     tag_text TEXT,
     search_vector tsvector,
 
@@ -135,7 +136,8 @@ CREATE TABLE event (
 
     CONSTRAINT fk_event_host FOREIGN KEY (host_id) REFERENCES app_user(id),
     CONSTRAINT fk_event_category FOREIGN KEY (category_id) REFERENCES event_category(id),
-    CONSTRAINT chk_event_time CHECK (start_time < end_time),
+    CONSTRAINT uq_event_host_title UNIQUE (host_id, title),
+    CONSTRAINT chk_event_time CHECK (end_time IS NULL OR start_time < end_time),
     CONSTRAINT chk_event_counts CHECK (
         approved_participant_count >= 0 AND
         pending_participant_count >= 0 AND
@@ -146,6 +148,10 @@ CREATE TABLE event (
 CREATE INDEX idx_event_host_id ON event(host_id);
 CREATE INDEX idx_event_category_id ON event(category_id);
 CREATE INDEX idx_event_start_time ON event(start_time);
+CREATE INDEX idx_event_discovery_start_time_active_visible
+    ON event (start_time, id)
+    WHERE status = 'ACTIVE'
+      AND privacy_level IN ('PUBLIC', 'PROTECTED');
 CREATE INDEX idx_event_search ON event USING GIN(search_vector);
 
 -- =========================
@@ -217,6 +223,7 @@ CREATE INDEX idx_event_tag_event_id ON event_tag(event_id);
 CREATE TABLE event_constraint (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_id UUID NOT NULL,
+    constraint_type TEXT NOT NULL,
     constraint_info TEXT,
 
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -240,7 +247,8 @@ CREATE TABLE participation (
 
     CONSTRAINT fk_participation_event FOREIGN KEY (event_id) REFERENCES event(id) ON DELETE CASCADE,
     CONSTRAINT fk_participation_user FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE,
-    CONSTRAINT uq_event_user UNIQUE (event_id, user_id)
+    CONSTRAINT uq_event_user UNIQUE (event_id, user_id),
+    CONSTRAINT chk_participation_status CHECK (status IN ('APPROVED', 'PENDING', 'CANCELED', 'LEAVED'))
 );
 
 CREATE INDEX idx_participation_event_id ON participation(event_id);
