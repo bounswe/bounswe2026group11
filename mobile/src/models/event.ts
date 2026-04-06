@@ -68,6 +68,7 @@ export interface EventSummary {
   host_score: HostScore;
   capacity?: number;
   favorite_count?: number;
+  status?: string;
 }
 
 export type MyEventStatus =

@@ -17,6 +17,10 @@ import { router } from 'expo-router';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import { formatEventDateLabel, getAutoCompletionDaysLeft } from '@/utils/eventDate';
+import {
+  formatEventStatusLabel,
+  getEventStatusBadgeColors,
+} from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { EventDetail } from '@/models/event';
 import JoinRequestsModal from '@/components/events/JoinRequestsModal';
@@ -45,23 +49,22 @@ function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
 
 function StatusBadge({ status }: { status: string }) {
   if (status === 'ACTIVE') return null;
-  const isCanceled = status === 'CANCELED';
-  const isInProgress = status === 'IN_PROGRESS';
-  
-  if (isInProgress) {
-    return (
-      <View style={[styles.badge, styles.badgeInProgress]}>
-        <Text style={[styles.badgeText, styles.badgeTextInProgress]}>
-          In Progress
-        </Text>
-      </View>
-    );
-  }
+  const statusColors = getEventStatusBadgeColors(status);
 
   return (
-    <View style={[styles.badge, isCanceled ? styles.badgeCanceled : styles.badgeCompleted]}>
-      <Text style={[styles.badgeText, isCanceled ? styles.badgeTextCanceled : styles.badgeTextCompleted]}>
-        {isCanceled ? 'Canceled' : 'Completed'}
+    <View
+      style={[
+        styles.badge,
+        { backgroundColor: statusColors.backgroundColor },
+      ]}
+    >
+      <Text
+        style={[
+          styles.badgeText,
+          { color: statusColors.textColor },
+        ]}
+      >
+        {formatEventStatusLabel(status)}
       </Text>
     </View>
   );
@@ -149,7 +152,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (status_ === 'INVITED') {
       return (
         <View style={styles.statusChip}>
-          <Feather name="mail" size={16} color="#2563EB" />
+          <Feather name="mail" size={16} color="#111827" />
           <Text style={styles.statusChipTextBlue}>You&apos;re invited</Text>
         </View>
       );
@@ -215,7 +218,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
   if (vm.isLoading) {
     return (
       <SafeAreaView style={styles.centeredScreen}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#111827" />
       </SafeAreaView>
     );
   }
@@ -691,15 +694,6 @@ const styles = StyleSheet.create({
   badgeProtected: {
     backgroundColor: '#FEF3C7',
   },
-  badgeCanceled: {
-    backgroundColor: '#FEE2E2',
-  },
-  badgeCompleted: {
-    backgroundColor: '#F3F4F6',
-  },
-  badgeInProgress: {
-    backgroundColor: '#FEF3C7',
-  },
   badgeText: {
     fontSize: 12,
     fontWeight: '700',
@@ -709,15 +703,6 @@ const styles = StyleSheet.create({
   },
   badgeTextProtected: {
     color: '#92400E',
-  },
-  badgeTextCanceled: {
-    color: '#991B1B',
-  },
-  badgeTextCompleted: {
-    color: '#374151',
-  },
-  badgeTextInProgress: {
-    color: '#B45309',
   },
 
   /* Section */
@@ -742,7 +727,7 @@ const styles = StyleSheet.create({
   /* Category chip */
   categoryChip: {
     alignSelf: 'flex-start',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 999,
@@ -751,7 +736,7 @@ const styles = StyleSheet.create({
   categoryChipText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#2563EB',
+    color: '#FFFFFF',
   },
 
   /* Event title */
@@ -884,7 +869,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#111827',
     borderRadius: 14,
     paddingVertical: 15,
   },
@@ -988,7 +973,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   retryButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#111827',
     paddingHorizontal: 28,
     paddingVertical: 12,
     borderRadius: 10,
@@ -1003,7 +988,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   backLinkText: {
-    color: '#2563EB',
+    color: '#111827',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -1126,8 +1111,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   hostActionBtnPrimary: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#2563EB',
+    backgroundColor: '#111827',
+    borderColor: '#111827',
   },
   hostActionBtnDanger: {
     backgroundColor: '#FEF2F2',

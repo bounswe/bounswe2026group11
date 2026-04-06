@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
   showMoreText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2563EB',
+    color: '#111827',
   },
   row: {
     flexDirection: 'row',

@@ -10,12 +10,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import {
   useRegisterViewModel,
   Gender,
   RegisterStep,
 } from '@/viewmodels/auth/useRegisterViewModel';
+import { useAuth } from '@/contexts/AuthContext';
 
 const GENDER_OPTIONS: { label: string; value: Gender }[] = [
   { label: 'Male', value: 'male' },
@@ -33,6 +34,7 @@ const STEP_SUBTITLES: Record<RegisterStep, string> = {
 
 export default function RegisterView() {
   const vm = useRegisterViewModel();
+  const { setSession } = useAuth();
 
   const handleNext = async () => {
     if (vm.step === 'details') {
@@ -40,7 +42,12 @@ export default function RegisterView() {
     } else {
       const session = await vm.handleVerifyOtp();
       if (session) {
-        router.replace('/');
+        await setSession(
+          session.access_token,
+          session.refresh_token,
+          session.user,
+        );
+        router.replace('/home' as Href);
       }
     }
   };
@@ -303,7 +310,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
   stepDotActive: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#111827',
   },
   errorBanner: {
     backgroundColor: '#FEF2F2',
@@ -363,8 +370,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   genderOptionSelected: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: '#111827',
+    borderColor: '#111827',
   },
   genderOptionText: {
     fontSize: 14,
@@ -374,7 +381,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   button: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#111827',
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
@@ -408,7 +415,7 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     fontSize: 15,
-    color: '#2563EB',
+    color: '#111827',
     fontWeight: '600',
   },
 });
