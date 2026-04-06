@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "mobile/**"
+      - ".github/workflows/mobile-apk.yml"
   release:
     types:
       - published
@@ -21,6 +22,9 @@ permissions:
 defaults:
   run:
     working-directory: mobile
+
+env:
+  EXPO_PUBLIC_API_BASE_URL: https://www.socialeventmapper.com/api
 
 jobs:
   build-apk:
@@ -75,17 +79,22 @@ jobs:
       - name: Create Android signing keystore
         run: |
           set -eu
-          keytool -genkeypair \
-            -v \
-            -storetype PKCS12 \
-            -keystore android/app/debug.keystore \
-            -alias androiddebugkey \
-            -storepass android \
-            -keypass android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+          ks="android/app/debug.keystore"
+          if [ -f "$ks" ]; then
+            echo "Keystore already exists at $ks — skipping generation"
+          else
+            keytool -genkeypair \
+              -v \
+              -storetype PKCS12 \
+              -keystore "$ks" \
+              -alias androiddebugkey \
+              -storepass android \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
 
       - name: Build release APK
         run: cd android && ./gradlew assembleRelease
