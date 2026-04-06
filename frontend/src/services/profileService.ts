@@ -1,5 +1,11 @@
-import { apiGetAuth, apiPatchAuth } from './api';
-import { UserProfile, EventSummary, UpdateProfileRequest } from '../models/profile';
+import { apiGetAuth, apiPatchAuth, apiPostAuth } from './api';
+import {
+  UserProfile,
+  EventSummary,
+  UpdateProfileRequest,
+  ImageUploadInitResponse,
+  ImageUploadConfirmRequest,
+} from '../models/profile';
 
 interface EventListResponse {
   events: EventSummary[];
@@ -35,5 +41,13 @@ export const profileService = {
   async getCanceledEvents(token: string): Promise<EventSummary[]> {
     const res = await apiGetAuth<EventListResponse>('/me/events/canceled', token);
     return res.events ?? [];
+  },
+
+  async getAvatarUploadUrl(token: string): Promise<ImageUploadInitResponse> {
+    return apiPostAuth<ImageUploadInitResponse>('/me/avatar/upload-url', {}, token);
+  },
+
+  async confirmAvatarUpload(body: ImageUploadConfirmRequest, token: string): Promise<void> {
+    return apiPostAuth<void>('/me/avatar/confirm', body, token);
   },
 };

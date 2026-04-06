@@ -1,21 +1,23 @@
 import { useState, useCallback, useEffect } from 'react';
 import { UserProfile, UpdateProfileRequest } from '../../models/profile';
 import { profileService } from '../../services/profileService';
+import { prepareAvatarBlobs } from '../../utils/imageResize';
 
 export function useProfileViewModel(token: string | null) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  
+
   // UI states
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   // Form Draft states
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     if (!token) return;
@@ -24,27 +26,32 @@ export function useProfileViewModel(token: string | null) {
     try {
       const data = await profileService.getMyProfile(token);
       setProfile(data);
-      // Pre-fill form values with current profile data
       setDisplayName(data.display_name || '');
       setBio(data.bio || '');
-      setAvatarUrl(data.avatar_url || '');
-    } catch (err: any) {
-      setError(err.message || 'Failed to load profile');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load profile');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
 
+  const handleFileChange = useCallback((file: File | null) => {
+    setAvatarFile(file);
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    setAvatarPreview(file ? URL.createObjectURL(file) : null);
+  }, [avatarPreview]);
+
   const handleEditToggle = () => {
     if (isEditing) {
-      // Cancel edit mode: reset draft values back to active profile values
       setDisplayName(profile?.display_name || '');
       setBio(profile?.bio || '');
-      setAvatarUrl(profile?.avatar_url || '');
+      setAvatarFile(null);
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+      setAvatarPreview(null);
       setError(null);
       setSuccess(null);
     }
@@ -56,37 +63,46 @@ export function useProfileViewModel(token: string | null) {
     setError(null);
     setSuccess(null);
     setIsSaving(true);
-    
-    // Minimal frontend validation for URL safety
-    if (avatarUrl.trim() && !/^https?:\/\/.+/.test(avatarUrl.trim())) {
-      setError("Please enter a valid URL starting with 'http://' or 'https://'");
-      setIsSaving(false);
-      return;
-    }
 
     try {
-      if (!token) throw new Error("Authentication token is missing.");
+      if (!token) throw new Error('Authentication token is missing.');
+
+      if (avatarFile) {
+        const { original, small } = await prepareAvatarBlobs(avatarFile);
+        const uploadInit = await profileService.getAvatarUploadUrl(token);
+
+        for (const instruction of uploadInit.uploads) {
+          const blob = instruction.variant === 'ORIGINAL' ? original : small;
+          const res = await fetch(instruction.url, {
+            method: instruction.method,
+            headers: instruction.headers,
+            body: blob,
+          });
+          if (!res.ok) throw new Error(`Image upload failed (${instruction.variant})`);
+        }
+
+        await profileService.confirmAvatarUpload(
+          { confirm_token: uploadInit.confirm_token },
+          token,
+        );
+      }
 
       const updatePayload: UpdateProfileRequest = {
         display_name: displayName.trim() || null,
         bio: bio.trim() || null,
-        avatar_url: avatarUrl.trim() || null,
       };
 
       await profileService.updateMyProfile(updatePayload, token);
-      
-      // Re-fetch profile to ensure data consistency with DB
       await fetchProfile();
-      
-      // Close editing mode on success
+
+      setAvatarFile(null);
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+      setAvatarPreview(null);
       setIsEditing(false);
-      setSuccess("Profile updated successfully!");
-      
-      // Auto-hide success message after 5 seconds
+      setSuccess('Profile updated successfully!');
       setTimeout(() => setSuccess(null), 5000);
-      
-    } catch (err: any) {
-      setError(err.message || 'Failed to update profile');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update profile');
     } finally {
       setIsSaving(false);
     }
@@ -103,8 +119,8 @@ export function useProfileViewModel(token: string | null) {
     setDisplayName,
     bio,
     setBio,
-    avatarUrl,
-    setAvatarUrl,
+    avatarPreview,
+    handleFileChange,
     handleEditToggle,
     handleSave,
   };

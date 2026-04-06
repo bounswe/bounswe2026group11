@@ -1,6 +1,10 @@
 import '@/styles/profile.css';
+import { useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfileViewModel } from '../../viewmodels/profile/useProfileViewModel';
+
+const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp';
+const MAX_SIZE_MB = 10;
 
 export default function ProfilePage() {
   const { token } = useAuth();
@@ -15,11 +19,24 @@ export default function ProfilePage() {
     setDisplayName,
     bio,
     setBio,
-    avatarUrl,
-    setAvatarUrl,
+    avatarPreview,
+    handleFileChange,
     handleEditToggle,
     handleSave,
   } = useProfileViewModel(token);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) return handleFileChange(null);
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      alert(`File must be smaller than ${MAX_SIZE_MB} MB.`);
+      e.target.value = '';
+      return;
+    }
+    handleFileChange(file);
+  };
 
   if (isLoading) {
     return (
@@ -36,6 +53,8 @@ export default function ProfilePage() {
       </div>
     );
   }
+
+  const displayAvatar = avatarPreview ?? profile.avatar_url;
 
   return (
     <div className="profile-container">
@@ -62,13 +81,13 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Avatar Preview Section used in both Read Only and Edit modes */}
+      {/* Avatar */}
       <div className="avatar-preview">
-        {avatarUrl || profile.avatar_url ? (
+        {displayAvatar ? (
           <img
-            src={isEditing ? avatarUrl : profile.avatar_url!}
+            src={displayAvatar}
             alt="Profile Avatar"
-            onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/120?text=Invalid+Image'; }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         ) : (
           <div className="avatar-placeholder">
@@ -78,13 +97,11 @@ export default function ProfilePage() {
       </div>
 
       {!isEditing ? (
-        // READ-ONLY STATE
         <div className="profile-info">
           <div className="info-group">
             <label>Username</label>
             <p>@{profile.username}</p>
           </div>
-
           <div className="info-group">
             <label>Email</label>
             <p>
@@ -94,30 +111,50 @@ export default function ProfilePage() {
               </span>
             </p>
           </div>
-
           <div className="info-group">
             <label>Display Name</label>
             {profile.display_name ? <p>{profile.display_name}</p> : <p className="empty-state">No display name set</p>}
           </div>
-
           <div className="info-group">
             <label>Bio</label>
             {profile.bio ? <p>{profile.bio}</p> : <p className="empty-state">No bio provided</p>}
           </div>
         </div>
       ) : (
-        // EDIT MODE STATE
         <div className="profile-form">
           <form onSubmit={handleSave}>
             <div className="form-group">
-              <label>Avatar Image URL</label>
+              <label>Profile Photo</label>
               <input
-                type="text"
-                placeholder="https://example.com/avatar.jpg"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_TYPES}
+                onChange={onFileChange}
                 disabled={isSaving}
+                style={{ display: 'none' }}
               />
+              <button
+                type="button"
+                className="cancel-btn"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isSaving}
+              >
+                {avatarPreview ? 'Change Photo' : 'Upload Photo'}
+              </button>
+              {avatarPreview && (
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  style={{ marginLeft: '0.5rem' }}
+                  onClick={() => { handleFileChange(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                  disabled={isSaving}
+                >
+                  Remove
+                </button>
+              )}
+              <p style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '0.4rem' }}>
+                JPG, PNG or WebP · Max {MAX_SIZE_MB} MB
+              </p>
             </div>
 
             <div className="form-group">
@@ -155,7 +192,11 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 className="save-btn"
-                disabled={isSaving || (displayName === profile.display_name && bio === profile.bio && avatarUrl === profile.avatar_url)}
+                disabled={isSaving || (
+                  !avatarPreview &&
+                  displayName === (profile.display_name ?? '') &&
+                  bio === (profile.bio ?? '')
+                )}
               >
                 {isSaving ? 'Saving...' : 'Save Profile'}
               </button>
