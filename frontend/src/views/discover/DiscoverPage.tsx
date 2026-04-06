@@ -7,6 +7,7 @@ import {
   type PrivacyFilter,
 } from '@/viewmodels/discover/useDiscoverViewModel';
 import type { DiscoverEventItem, DiscoverSortBy } from '@/models/event';
+import { EventCoverImage } from '@/components/EventCoverImage';
 import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import '@/styles/discover.css';
 
@@ -45,13 +46,12 @@ function EventCard({ event }: { event: DiscoverEventItem }) {
   return (
     <Link to={`/events/${event.id}`} className="dc-card">
       <div className="dc-card-image-wrapper">
-        {event.image_url ? (
-          <img src={event.image_url} alt={event.title} className="dc-card-image" />
-        ) : (
-          <div className="dc-card-image-placeholder">
-            <span>{event.category_name.charAt(0)}</span>
-          </div>
-        )}
+        <EventCoverImage
+          src={event.image_url}
+          alt={event.title}
+          imgClassName="dc-card-image"
+          variant="card"
+        />
         {lifecycle && (
           <span
             className={`dc-lifecycle-badge ${

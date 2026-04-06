@@ -387,22 +387,6 @@
   object-fit: cover;
 }
 
-.dc-card-image-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-}
-
-.dc-card-image-placeholder span {
-  font-size: 40px;
-  font-weight: 700;
-  color: #2563eb;
-  opacity: 0.5;
-}
-
 .dc-lifecycle-badge {
   position: absolute;
   bottom: 8px;

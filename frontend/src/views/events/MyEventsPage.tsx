@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyEventsViewModel, type MyEventsTab } from '@/viewmodels/event/useMyEventsViewModel';
 import type { EventSummary } from '@/models/profile';
+import { EventCoverImage } from '@/components/EventCoverImage';
 import { getEventStatusPresentation } from '@/utils/eventStatus';
 import '@/styles/my-events.css';
 
@@ -39,13 +40,12 @@ function EventCard({ event }: { event: EventSummary }) {
   return (
     <Link to={`/events/${event.id}`} className="me-card">
       <div className="me-card-image-wrapper">
-        {event.image_url ? (
-          <img src={event.image_url} alt={event.title} className="me-card-image" />
-        ) : (
-          <div className="me-card-image-placeholder">
-            <span>{event.category?.charAt(0) ?? 'E'}</span>
-          </div>
-        )}
+        <EventCoverImage
+          src={event.image_url}
+          alt={event.title}
+          imgClassName="me-card-image"
+          variant="card"
+        />
       </div>
       <div className="me-card-body">
         <div className="me-card-top">

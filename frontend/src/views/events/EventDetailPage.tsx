@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import type { EventDetailApprovedParticipant, EventDetailResponse } from '@/models/event';
+import { EventCoverImage } from '@/components/EventCoverImage';
+import { UserAvatar } from '@/components/UserAvatar';
 import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/utils/eventStatus';
 import NotFoundView from '../fallback/NotFoundView';
 import AccessDeniedView from '../fallback/AccessDeniedView';
@@ -526,13 +528,13 @@ function HostParticipantRatingItem({
 
   return (
     <li className="ed-mgmt-item ed-mgmt-item-participant">
-      <div className="ed-mgmt-avatar">
-        {participant.user.avatar_url ? (
-          <img src={participant.user.avatar_url} alt={participant.user.username} className="ed-avatar-img" />
-        ) : (
-          <span>{participant.user.username.charAt(0).toUpperCase()}</span>
-        )}
-      </div>
+      <UserAvatar
+        username={participant.user.username}
+        displayName={participant.user.display_name}
+        avatarUrl={participant.user.avatar_url}
+        size="sm"
+        variant="muted"
+      />
 
       <div className="ed-mgmt-user-info">
         <div className="ed-mgmt-user-topline">
@@ -732,13 +734,12 @@ function EventContent({
 
       {/* Hero image */}
       <div className="ed-hero">
-        {event.image_url ? (
-          <img src={event.image_url} alt={event.title} className="ed-hero-image" />
-        ) : (
-          <div className="ed-hero-placeholder">
-            <span>{event.category?.name?.charAt(0) ?? 'E'}</span>
-          </div>
-        )}
+        <EventCoverImage
+          src={event.image_url}
+          alt={event.title}
+          imgClassName="ed-hero-image"
+          variant="hero"
+        />
         <div className="ed-hero-badges">
           <PrivacyBadge level={event.privacy_level} />
         </div>
@@ -848,13 +849,13 @@ function EventContent({
         <div className="ed-section">
           <h2 className="ed-section-title">Host</h2>
           <div className="ed-host">
-            <div className="ed-host-avatar">
-              {event.host.avatar_url ? (
-                <img src={event.host.avatar_url} alt={event.host.username} className="ed-avatar-img" />
-              ) : (
-                <span>{event.host.username.charAt(0).toUpperCase()}</span>
-              )}
-            </div>
+            <UserAvatar
+              username={event.host.username}
+              displayName={event.host.display_name}
+              avatarUrl={event.host.avatar_url}
+              size="md"
+              variant="accent"
+            />
             <div className="ed-host-info">
               <p className="ed-host-name">{event.host.display_name ?? event.host.username}</p>
               <p className="ed-host-username">@{event.host.username}</p>
@@ -1002,13 +1003,13 @@ function EventContent({
                 <ul className="ed-mgmt-list">
                   {event.host_context.pending_join_requests.map((r) => (
                     <li key={r.join_request_id} className="ed-mgmt-item ed-mgmt-item-pending">
-                      <div className="ed-mgmt-avatar">
-                        {r.user.avatar_url ? (
-                          <img src={r.user.avatar_url} alt={r.user.username} className="ed-avatar-img" />
-                        ) : (
-                          <span>{r.user.username.charAt(0).toUpperCase()}</span>
-                        )}
-                      </div>
+                      <UserAvatar
+                        username={r.user.username}
+                        displayName={r.user.display_name}
+                        avatarUrl={r.user.avatar_url}
+                        size="sm"
+                        variant="muted"
+                      />
                       <div className="ed-mgmt-user-info">
                         <span className="ed-mgmt-name">{r.user.display_name ?? r.user.username}</span>
                         <span className="ed-mgmt-username">@{r.user.username}</span>
@@ -1050,13 +1051,13 @@ function EventContent({
                 <ul className="ed-mgmt-list">
                   {event.host_context.invitations.map((inv) => (
                     <li key={inv.invitation_id} className="ed-mgmt-item">
-                      <div className="ed-mgmt-avatar">
-                        {inv.user.avatar_url ? (
-                          <img src={inv.user.avatar_url} alt={inv.user.username} className="ed-avatar-img" />
-                        ) : (
-                          <span>{inv.user.username.charAt(0).toUpperCase()}</span>
-                        )}
-                      </div>
+                      <UserAvatar
+                        username={inv.user.username}
+                        displayName={inv.user.display_name}
+                        avatarUrl={inv.user.avatar_url}
+                        size="sm"
+                        variant="muted"
+                      />
                       <div className="ed-mgmt-user-info">
                         <span className="ed-mgmt-name">{inv.user.display_name ?? inv.user.username}</span>
                         <span className="ed-mgmt-username">@{inv.user.username}</span>
