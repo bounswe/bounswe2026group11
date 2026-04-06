@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { UserProfile, UpdateProfileRequest } from '../../models/profile';
 import { profileService } from '../../services/profileService';
 import { prepareAvatarBlobs } from '../../utils/imageResize';
 
 export function useProfileViewModel(token: string | null) {
+  const { setProfileSummary } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   // UI states
@@ -29,12 +31,16 @@ export function useProfileViewModel(token: string | null) {
       setProfile(data);
       setDisplayName(data.display_name || '');
       setBio(data.bio || '');
+      setProfileSummary({
+        avatarUrl: data.avatar_url ?? null,
+        displayName: data.display_name ?? null,
+      });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load profile');
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, setProfileSummary]);
 
   useEffect(() => {
     fetchProfile();
@@ -75,6 +81,8 @@ export function useProfileViewModel(token: string | null) {
     try {
       if (!token) throw new Error('Authentication token is missing.');
 
+      const hadAvatarUpload = !!avatarFile;
+
       if (avatarFile) {
         const { original, small } = await prepareAvatarBlobs(avatarFile);
         const uploadInit = await profileService.getAvatarUploadUrl(token);
@@ -108,7 +116,7 @@ export function useProfileViewModel(token: string | null) {
       setAvatarPreview(null);
       setIsEditing(false);
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
-      const message = avatarFile
+      const message = hadAvatarUpload
         ? 'Profile photo updated successfully!'
         : 'Profile updated successfully!';
       setSuccess(message);

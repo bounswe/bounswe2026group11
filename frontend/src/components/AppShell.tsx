@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { UserAvatar } from '@/components/UserAvatar';
 import { logout } from '@/services/authService';
 import '@/styles/shell.css';
 
@@ -16,7 +17,7 @@ const AUTH_NAV = [
 ];
 
 export default function AppShell() {
-  const { token, username, refreshToken, clearAuth } = useAuth();
+  const { token, username, avatarUrl, displayName, refreshToken, clearAuth } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -84,7 +85,13 @@ export default function AppShell() {
                     onClick={() => setUserMenuOpen((prev) => !prev)}
                   >
                     <span className="shell-avatar">
-                      {username ? username[0].toUpperCase() : '?'}
+                      <UserAvatar
+                        username={username ?? '?'}
+                        displayName={displayName}
+                        avatarUrl={avatarUrl}
+                        size="sm"
+                        variant="accent"
+                      />
                     </span>
                     <span className="shell-username">{username}</span>
                   </button>
