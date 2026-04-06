@@ -7,6 +7,7 @@ import {
   type PrivacyFilter,
 } from '@/viewmodels/discover/useDiscoverViewModel';
 import type { DiscoverEventItem, DiscoverSortBy } from '@/models/event';
+import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import '@/styles/discover.css';
 
 const SORT_OPTIONS: { label: string; value: DiscoverSortBy }[] = [
@@ -39,6 +40,8 @@ function formatTime(iso: string): string {
 }
 
 function EventCard({ event }: { event: DiscoverEventItem }) {
+  const lifecycle = getEventLifecyclePresentation(event.status);
+
   return (
     <Link to={`/events/${event.id}`} className="dc-card">
       <div className="dc-card-image-wrapper">
@@ -48,6 +51,15 @@ function EventCard({ event }: { event: DiscoverEventItem }) {
           <div className="dc-card-image-placeholder">
             <span>{event.category_name.charAt(0)}</span>
           </div>
+        )}
+        {lifecycle && (
+          <span
+            className={`dc-lifecycle-badge ${
+              lifecycle.variant === 'upcoming' ? 'dc-lifecycle-upcoming' : 'dc-lifecycle-in-progress'
+            }`}
+          >
+            {lifecycle.label}
+          </span>
         )}
         <span className={`dc-privacy-badge dc-privacy-${event.privacy_level.toLowerCase()}`}>
           {event.privacy_level === 'PUBLIC' ? 'Public' : 'Protected'}

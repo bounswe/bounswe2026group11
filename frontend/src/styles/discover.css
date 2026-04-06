@@ -403,6 +403,34 @@
   opacity: 0.5;
 }
 
+.dc-lifecycle-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  z-index: 1;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  line-height: 1.2;
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dc-lifecycle-upcoming {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.dc-lifecycle-in-progress {
+  background-color: #fef9c3;
+  color: #a16207;
+}
+
 .dc-privacy-badge {
   position: absolute;
   top: 10px;

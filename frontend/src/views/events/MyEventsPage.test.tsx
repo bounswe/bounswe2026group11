@@ -17,7 +17,7 @@ vi.mock('@/viewmodels/event/useMyEventsViewModel', () => ({
     canceled: [],
     isLoading: false,
     error: null,
-    activeTab: 'organized',
+    activeTab: 'active',
     setActiveTab: vi.fn(),
     retry: vi.fn(),
   }),
@@ -28,17 +28,20 @@ afterEach(() => {
 });
 
 describe('MyEventsPage tabs', () => {
-  it('renders all five tabs including Active', () => {
+  it('renders tabs in the updated order with Hosted label', () => {
     render(
       <MemoryRouter>
         <MyEventsPage />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('button', { name: /organized/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /upcoming/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /active/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /past/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /canceled/i })).toBeDefined();
+    const tabs = screen.getAllByRole('button');
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      'Active0',
+      'Upcoming0',
+      'Hosted0',
+      'Past0',
+      'Canceled0',
+    ]);
   });
 });

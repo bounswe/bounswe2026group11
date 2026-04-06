@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
-import type { EventDetailResponse } from '@/models/event';
+import type { EventDetailApprovedParticipant, EventDetailResponse } from '@/models/event';
+import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/utils/eventStatus';
 import NotFoundView from '../fallback/NotFoundView';
 import AccessDeniedView from '../fallback/AccessDeniedView';
 import '@/styles/event-detail.css';
+
+const FEEDBACK_MIN_LENGTH = 10;
+const FEEDBACK_MAX_LENGTH = 100;
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -30,11 +34,47 @@ function formatShortDate(iso: string): string {
   });
 }
 
+function getDisplayName(user: { display_name: string | null; username: string }): string {
+  return user.display_name ?? user.username;
+}
+
+function getFeedbackValidationMessage(message: string): string | null {
+  const trimmed = message.trim();
+
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  if (trimmed.length < FEEDBACK_MIN_LENGTH) {
+    return `Feedback must be at least ${FEEDBACK_MIN_LENGTH} characters.`;
+  }
+
+  if (trimmed.length > FEEDBACK_MAX_LENGTH) {
+    return `Feedback must be ${FEEDBACK_MAX_LENGTH} characters or fewer.`;
+  }
+
+  return null;
+}
+
+function renderStars(rating: number): string {
+  return `${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}`;
+}
+
 function StatusBadge({ status }: { status: string }) {
-  const cls = status === 'ACTIVE' ? 'ed-status-active'
-    : status === 'CANCELED' ? 'ed-status-canceled'
-    : 'ed-status-completed';
-  return <span className={`ed-status-badge ${cls}`}>{status}</span>;
+  const lifecycle = getEventLifecyclePresentation(status);
+  if (lifecycle) {
+    const cls = lifecycle.variant === 'upcoming' ? 'ed-status-upcoming' : 'ed-status-in-progress';
+    return <span className={`ed-status-badge ${cls}`}>{lifecycle.label}</span>;
+  }
+
+  const presentation = getEventStatusPresentation(status);
+  const cls = presentation.tone === 'active'
+    ? 'ed-status-active'
+    : presentation.tone === 'canceled'
+      ? 'ed-status-canceled'
+      : 'ed-status-completed';
+
+  return <span className={`ed-status-badge ${cls}`}>{presentation.label}</span>;
 }
 
 function PrivacyBadge({ level }: { level: string }) {
@@ -70,10 +110,17 @@ function JoinActionSection({
 
   // Already participating states
   if (ctx.participation_status === 'JOINED') {
+    const joinedBannerClass = event.status === 'COMPLETED'
+      ? 'ed-participation-attended'
+      : 'ed-participation-joined';
+    const joinedBannerText = event.status === 'COMPLETED'
+      ? 'You attended this event'
+      : 'You are participating in this event';
+
     return (
       <div className="ed-section">
-        <div className="ed-participation-banner ed-participation-joined">
-          You are participating in this event
+        <div className={`ed-participation-banner ${joinedBannerClass}`}>
+          {joinedBannerText}
         </div>
       </div>
     );
@@ -198,6 +245,387 @@ function JoinActionSection({
   );
 }
 
+function StarRatingInput({
+  value,
+  onChange,
+  disabled,
+  size = 'md',
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  disabled?: boolean;
+  size?: 'md' | 'lg';
+}) {
+  const [hoveredValue, setHoveredValue] = useState<number | null>(null);
+  const activeValue = hoveredValue ?? value;
+
+  return (
+    <div className={`ed-star-input ed-star-input-${size}`} role="radiogroup" aria-label="Select a star rating">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          role="radio"
+          aria-checked={value === star}
+          aria-label={`${star} star${star === 1 ? '' : 's'}`}
+          className={`ed-star-btn ${activeValue >= star ? 'is-active' : ''}`}
+          onClick={() => onChange(star)}
+          onMouseEnter={() => setHoveredValue(star)}
+          onMouseLeave={() => setHoveredValue(null)}
+          onFocus={() => setHoveredValue(star)}
+          onBlur={() => setHoveredValue(null)}
+          disabled={disabled}
+        >
+          <span aria-hidden="true">★</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ParticipantRatingSection({
+  event,
+  loading,
+  error,
+  onSubmit,
+  onDismissError,
+}: {
+  event: EventDetailResponse;
+  loading: boolean;
+  error: string | null;
+  onSubmit: (rating: number, message?: string) => void;
+  onDismissError: () => void;
+}) {
+  const existingRating = event.viewer_event_rating;
+  const [rating, setRating] = useState(existingRating?.rating ?? 0);
+  const [message, setMessage] = useState(existingRating?.message ?? '');
+  const [isEditing, setIsEditing] = useState(existingRating == null);
+  const ratingStampRef = useRef<string | null>(
+    existingRating ? `${existingRating.id}:${existingRating.updated_at}` : null,
+  );
+
+  useEffect(() => {
+    setRating(existingRating?.rating ?? 0);
+    setMessage(existingRating?.message ?? '');
+
+    const nextStamp = existingRating ? `${existingRating.id}:${existingRating.updated_at}` : null;
+    const previousStamp = ratingStampRef.current;
+
+    if (!nextStamp) {
+      setIsEditing(true);
+    } else if (previousStamp !== null && nextStamp !== previousStamp && !loading && !error) {
+      setIsEditing(false);
+    } else if (previousStamp === null && !loading && !error) {
+      setIsEditing(false);
+    }
+
+    ratingStampRef.current = nextStamp;
+  }, [existingRating?.id, existingRating?.rating, existingRating?.message, existingRating?.updated_at, loading, error]);
+
+  const feedbackError = getFeedbackValidationMessage(message);
+  const trimmedLength = message.trim().length;
+  const isEligibleParticipant = (
+    !event.viewer_context.is_host
+    && event.viewer_context.participation_status === 'JOINED'
+    && event.status === 'COMPLETED'
+    && event.rating_window.is_active
+  );
+
+  if (!isEligibleParticipant) {
+    return null;
+  }
+
+  return (
+    <div className="ed-section ed-participant-rating-section">
+      <div className="ed-rating-card ed-rating-card-participant">
+        <div className="ed-rating-card-header">
+          <div>
+            <span className="ed-rating-kicker">Post-event feedback</span>
+            <h2 className="ed-rating-title">
+              {existingRating ? 'Update your rating for the host' : 'How was this event?'}
+            </h2>
+          </div>
+          <span className="ed-rating-deadline">
+            Open until {formatShortDate(event.rating_window.closes_at)}
+          </span>
+        </div>
+
+        <p className="ed-rating-copy">
+          Rate the experience from 1 to 5 stars. You can optionally leave a short message for the host.
+        </p>
+
+        {existingRating && !isEditing ? (
+          <div className="ed-rating-readonly">
+            <div className="ed-rating-star-row">
+              <span className="ed-rating-summary is-selected">
+                {existingRating.rating}/5 · {renderStars(existingRating.rating)}
+              </span>
+            </div>
+
+            {existingRating.message && (
+              <p className="ed-rating-readonly-message">"{existingRating.message}"</p>
+            )}
+
+            <div className="ed-rating-actions">
+              <p className="ed-rating-existing-note">
+                Last updated {formatShortDate(existingRating.updated_at)}
+              </p>
+              <button
+                type="button"
+                className="ed-rate-participant-btn ed-rating-edit-btn"
+                onClick={() => {
+                  onDismissError();
+                  setIsEditing(true);
+                }}
+              >
+                Edit Rating
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="ed-rating-star-row">
+              <StarRatingInput value={rating} onChange={setRating} disabled={loading} size="lg" />
+              <span className={`ed-rating-summary ${rating > 0 ? 'is-selected' : ''}`}>
+                {rating > 0 ? `${rating}/5 · ${renderStars(rating)}` : 'Select a star rating'}
+              </span>
+            </div>
+
+            <label className="ed-rating-field-label" htmlFor="event-rating-message">
+              Message
+            </label>
+            <textarea
+              id="event-rating-message"
+              className={`field-input ed-rating-textarea ${feedbackError ? 'has-error' : ''}`}
+              placeholder="Share what stood out, how the event felt, or anything the host should know."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={4}
+              maxLength={FEEDBACK_MAX_LENGTH}
+            />
+
+            <div className="ed-rating-meta">
+              <span className={`ed-rating-char-count ${feedbackError ? 'is-error' : ''}`}>
+                {trimmedLength}/{FEEDBACK_MAX_LENGTH}
+              </span>
+              <span className="ed-rating-helper">
+                Optional. If you write one, keep it between {FEEDBACK_MIN_LENGTH} and {FEEDBACK_MAX_LENGTH} characters.
+              </span>
+            </div>
+
+            {feedbackError && <p className="ed-rating-validation">{feedbackError}</p>}
+
+            {error && (
+              <div className="ed-join-error">
+                <span>{error}</span>
+                <button type="button" className="ed-join-error-dismiss" onClick={onDismissError}>&times;</button>
+              </div>
+            )}
+
+            {existingRating && (
+              <p className="ed-rating-existing-note">
+                Last updated {formatShortDate(existingRating.updated_at)}. Submitting again overwrites the existing rating.
+              </p>
+            )}
+
+            <div className="ed-rating-actions">
+              <button
+                type="button"
+                className="btn-primary ed-rating-submit-btn"
+                disabled={loading || rating === 0 || Boolean(feedbackError)}
+                onClick={() => onSubmit(rating, message)}
+              >
+                {loading ? <span className="spinner" /> : existingRating ? 'Update Rating' : 'Submit Rating'}
+              </button>
+              {existingRating && (
+                <button
+                  type="button"
+                  className="ed-inline-rating-cancel ed-rating-cancel-btn"
+                  onClick={() => {
+                    onDismissError();
+                    setRating(existingRating.rating);
+                    setMessage(existingRating.message ?? '');
+                    setIsEditing(false);
+                  }}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function HostParticipantRatingItem({
+  participant,
+  canEdit,
+  isEditorOpen,
+  loading,
+  error,
+  onToggleEditor,
+  onCloseEditor,
+  onSubmit,
+  onDismissError,
+}: {
+  participant: EventDetailApprovedParticipant;
+  canEdit: boolean;
+  isEditorOpen: boolean;
+  loading: boolean;
+  error: string | null;
+  onToggleEditor: () => void;
+  onCloseEditor: () => void;
+  onSubmit: (participantUserId: string, rating: number, message?: string) => void;
+  onDismissError: () => void;
+}) {
+  const existingRating = participant.host_rating;
+  const [rating, setRating] = useState(existingRating?.rating ?? 0);
+  const [message, setMessage] = useState(existingRating?.message ?? '');
+  const ratingStampRef = useRef<string | null>(
+    existingRating ? `${existingRating.id}:${existingRating.updated_at}` : null,
+  );
+
+  useEffect(() => {
+    setRating(existingRating?.rating ?? 0);
+    setMessage(existingRating?.message ?? '');
+  }, [existingRating?.id, existingRating?.rating, existingRating?.message]);
+
+  useEffect(() => {
+    const nextStamp = existingRating ? `${existingRating.id}:${existingRating.updated_at}` : null;
+    const previousStamp = ratingStampRef.current;
+
+    if (
+      isEditorOpen
+      && nextStamp
+      && previousStamp !== null
+      && nextStamp !== previousStamp
+      && !loading
+      && !error
+    ) {
+      onCloseEditor();
+    }
+
+    if (
+      isEditorOpen
+      && nextStamp
+      && previousStamp === null
+      && !loading
+      && !error
+    ) {
+      onCloseEditor();
+    }
+
+    ratingStampRef.current = nextStamp;
+  }, [existingRating?.id, existingRating?.updated_at, isEditorOpen, loading, error, onCloseEditor]);
+
+  const feedbackError = getFeedbackValidationMessage(message);
+  const trimmedLength = message.trim().length;
+
+  return (
+    <li className="ed-mgmt-item ed-mgmt-item-participant">
+      <div className="ed-mgmt-avatar">
+        {participant.user.avatar_url ? (
+          <img src={participant.user.avatar_url} alt={participant.user.username} className="ed-avatar-img" />
+        ) : (
+          <span>{participant.user.username.charAt(0).toUpperCase()}</span>
+        )}
+      </div>
+
+      <div className="ed-mgmt-user-info">
+        <div className="ed-mgmt-user-topline">
+          <span className="ed-mgmt-name">{getDisplayName(participant.user)}</span>
+          {participant.user.final_score != null && (
+            <span className="ed-mgmt-user-score">{'★'} {participant.user.final_score.toFixed(1)} ({participant.user.rating_count})</span>
+          )}
+        </div>
+        <span className="ed-mgmt-username">@{participant.user.username}</span>
+
+        <div className="ed-participant-rating-summary">
+          {existingRating ? (
+            <>
+              <span className="ed-participant-rating-badge">{renderStars(existingRating.rating)} {existingRating.rating}/5</span>
+              {existingRating.message && (
+                <span className="ed-participant-rating-message">"{existingRating.message}"</span>
+              )}
+            </>
+          ) : (
+            <span className="ed-participant-rating-empty">No host rating yet</span>
+          )}
+        </div>
+      </div>
+
+      {canEdit && (
+        <button
+          type="button"
+          className="ed-rate-participant-btn"
+          onClick={onToggleEditor}
+          disabled={loading}
+        >
+          {isEditorOpen ? 'Close' : existingRating ? 'Edit Rating' : 'Rate'}
+        </button>
+      )}
+
+      {isEditorOpen && (
+        <div className="ed-inline-rating-editor">
+          <div className="ed-inline-rating-header">
+            <strong>Rate {getDisplayName(participant.user)}</strong>
+            <span>1 to 5 stars</span>
+          </div>
+
+          <StarRatingInput value={rating} onChange={setRating} disabled={loading} />
+
+          <textarea
+            className={`field-input ed-rating-textarea ed-rating-textarea-inline ${feedbackError ? 'has-error' : ''}`}
+            placeholder="Optional note about reliability, communication, or overall experience."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={3}
+            maxLength={FEEDBACK_MAX_LENGTH}
+          />
+
+          <div className="ed-rating-meta">
+            <span className={`ed-rating-char-count ${feedbackError ? 'is-error' : ''}`}>
+              {trimmedLength}/{FEEDBACK_MAX_LENGTH}
+            </span>
+            <span className="ed-rating-helper">Optional, but must be at least {FEEDBACK_MIN_LENGTH} characters if provided.</span>
+          </div>
+
+          {feedbackError && <p className="ed-rating-validation">{feedbackError}</p>}
+
+          {error && (
+            <div className="ed-join-error">
+              <span>{error}</span>
+              <button type="button" className="ed-join-error-dismiss" onClick={onDismissError}>&times;</button>
+            </div>
+          )}
+
+          <div className="ed-inline-rating-actions">
+            <button
+              type="button"
+              className="btn-primary ed-inline-rating-submit"
+              disabled={loading || rating === 0 || Boolean(feedbackError)}
+              onClick={() => onSubmit(participant.user.id, rating, message)}
+            >
+              {loading ? <span className="spinner" /> : existingRating ? 'Save Changes' : 'Submit Rating'}
+            </button>
+            <button
+              type="button"
+              className="ed-inline-rating-cancel"
+              onClick={onToggleEditor}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </li>
+  );
+}
+
 function CancelConfirmModal({
   onConfirm,
   onClose,
@@ -242,9 +670,17 @@ function EventContent({
   event,
   joinLoading,
   joinError,
+  viewerRatingLoading,
+  viewerRatingError,
+  participantRatingLoadingId,
+  participantRatingError,
   onJoin,
   onRequestJoin,
+  onViewerRatingSubmit,
+  onParticipantRatingSubmit,
   onDismissError,
+  onDismissViewerRatingError,
+  onDismissParticipantRatingError,
   moderatingId,
   moderateError,
   onApprove,
@@ -258,9 +694,17 @@ function EventContent({
   event: EventDetailResponse;
   joinLoading: boolean;
   joinError: string | null;
+  viewerRatingLoading: boolean;
+  viewerRatingError: string | null;
+  participantRatingLoadingId: string | null;
+  participantRatingError: { participantUserId: string; message: string } | null;
   onJoin: () => void;
   onRequestJoin: (message?: string) => void;
+  onViewerRatingSubmit: (rating: number, message?: string) => void;
+  onParticipantRatingSubmit: (participantUserId: string, rating: number, message?: string) => void;
   onDismissError: () => void;
+  onDismissViewerRatingError: () => void;
+  onDismissParticipantRatingError: () => void;
   moderatingId: string | null;
   moderateError: string | null;
   onApprove: (joinRequestId: string) => void;
@@ -273,6 +717,12 @@ function EventContent({
 }) {
   const navigate = useNavigate();
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [activeParticipantEditorId, setActiveParticipantEditorId] = useState<string | null>(null);
+  const hostCanRateParticipants = (
+    event.viewer_context.is_host
+    && event.status === 'COMPLETED'
+    && event.rating_window.is_active
+  );
 
   return (
     <div className="ed-page">
@@ -290,14 +740,16 @@ function EventContent({
           </div>
         )}
         <div className="ed-hero-badges">
-          <StatusBadge status={event.status} />
           <PrivacyBadge level={event.privacy_level} />
         </div>
       </div>
 
       {/* Title & category */}
       <div className="ed-header">
-        <h1 className="ed-title">{event.title}</h1>
+        <div className="ed-title-row">
+          <h1 className="ed-title">{event.title}</h1>
+          <StatusBadge status={event.status} />
+        </div>
         {event.category && (
           <span className="ed-category">{event.category.name}</span>
         )}
@@ -335,6 +787,14 @@ function EventContent({
         onJoin={onJoin}
         onRequestJoin={onRequestJoin}
         onDismissError={onDismissError}
+      />
+
+      <ParticipantRatingSection
+        event={event}
+        loading={viewerRatingLoading}
+        error={viewerRatingError}
+        onSubmit={onViewerRatingSubmit}
+        onDismissError={onDismissViewerRatingError}
       />
 
       {/* Info sections */}
@@ -494,27 +954,34 @@ function EventContent({
               <h3 className="ed-mgmt-title">
                 Approved Participants ({event.host_context.approved_participants.length})
               </h3>
+              {hostCanRateParticipants && (
+                <div className="ed-rating-banner">
+                  Participant rating window is open until {formatShortDate(event.rating_window.closes_at)}
+                </div>
+              )}
               {event.host_context.approved_participants.length === 0 ? (
                 <p className="ed-mgmt-empty">No participants yet</p>
               ) : (
                 <ul className="ed-mgmt-list">
                   {event.host_context.approved_participants.map((p) => (
-                    <li key={p.participation_id} className="ed-mgmt-item">
-                      <div className="ed-mgmt-avatar">
-                        {p.user.avatar_url ? (
-                          <img src={p.user.avatar_url} alt={p.user.username} className="ed-avatar-img" />
-                        ) : (
-                          <span>{p.user.username.charAt(0).toUpperCase()}</span>
-                        )}
-                      </div>
-                      <div className="ed-mgmt-user-info">
-                        <span className="ed-mgmt-name">{p.user.display_name ?? p.user.username}</span>
-                        <span className="ed-mgmt-username">@{p.user.username}</span>
-                      </div>
-                      {p.user.final_score != null && (
-                        <span className="ed-mgmt-score">{'★'} {p.user.final_score.toFixed(1)}</span>
-                      )}
-                    </li>
+                    <HostParticipantRatingItem
+                      key={p.participation_id}
+                      participant={p}
+                      canEdit={hostCanRateParticipants}
+                      isEditorOpen={activeParticipantEditorId === p.user.id}
+                      loading={participantRatingLoadingId === p.user.id}
+                      error={participantRatingError?.participantUserId === p.user.id ? participantRatingError.message : null}
+                      onToggleEditor={() => {
+                        onDismissParticipantRatingError();
+                        setActiveParticipantEditorId((currentId) => currentId === p.user.id ? null : p.user.id);
+                      }}
+                      onCloseEditor={() => {
+                        onDismissParticipantRatingError();
+                        setActiveParticipantEditorId(null);
+                      }}
+                      onSubmit={onParticipantRatingSubmit}
+                      onDismissError={onDismissParticipantRatingError}
+                    />
                   ))}
                 </ul>
               )}
@@ -604,15 +1071,6 @@ function EventContent({
             )}
           </div>
         )}
-
-        {/* Rating window info */}
-        {event.rating_window.is_active && (
-          <div className="ed-section">
-            <div className="ed-rating-banner">
-              Rating window is open until {formatShortDate(event.rating_window.closes_at)}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Cancel confirmation modal */}
@@ -680,9 +1138,17 @@ export default function EventDetailPage() {
       event={vm.event}
       joinLoading={vm.joinLoading}
       joinError={vm.joinError}
+      viewerRatingLoading={vm.viewerRatingLoading}
+      viewerRatingError={vm.viewerRatingError}
+      participantRatingLoadingId={vm.participantRatingLoadingId}
+      participantRatingError={vm.participantRatingError}
       onJoin={vm.handleJoin}
       onRequestJoin={vm.handleRequestJoin}
+      onViewerRatingSubmit={vm.handleViewerRatingSubmit}
+      onParticipantRatingSubmit={vm.handleParticipantRatingSubmit}
       onDismissError={vm.dismissJoinError}
+      onDismissViewerRatingError={vm.dismissViewerRatingError}
+      onDismissParticipantRatingError={vm.dismissParticipantRatingError}
       moderatingId={vm.moderatingId}
       moderateError={vm.moderateError}
       onApprove={vm.handleApprove}

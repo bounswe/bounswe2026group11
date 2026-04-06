@@ -1,4 +1,4 @@
-import { apiPostAuth, apiPatchAuth, apiGet, apiGetAuth } from './api';
+import { apiDeleteAuth, apiPostAuth, apiPatchAuth, apiGet, apiGetAuth, apiPutAuth } from './api';
 import {
   CreateEventRequest,
   CreateEventResponse,
@@ -13,6 +13,8 @@ import {
   RejectJoinRequestResponse,
   FavoriteEventsResponse,
   FavoriteEventItem,
+  RatingWriteRequest,
+  RatingResponse,
 } from '@/models/event';
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
@@ -104,6 +106,42 @@ export function cancelEvent(
   token: string,
 ): Promise<void> {
   return apiPatchAuth<void>(`/events/${eventId}/cancel`, {}, token);
+}
+
+export function upsertEventRating(
+  eventId: string,
+  request: RatingWriteRequest,
+  token: string,
+): Promise<RatingResponse> {
+  return apiPutAuth<RatingResponse>(`/events/${eventId}/rating`, request, token);
+}
+
+export function deleteEventRating(
+  eventId: string,
+  token: string,
+): Promise<void> {
+  return apiDeleteAuth<void>(`/events/${eventId}/rating`, token);
+}
+
+export function upsertParticipantRating(
+  eventId: string,
+  participantUserId: string,
+  request: RatingWriteRequest,
+  token: string,
+): Promise<RatingResponse> {
+  return apiPutAuth<RatingResponse>(
+    `/events/${eventId}/participants/${participantUserId}/rating`,
+    request,
+    token,
+  );
+}
+
+export function deleteParticipantRating(
+  eventId: string,
+  participantUserId: string,
+  token: string,
+): Promise<void> {
+  return apiDeleteAuth<void>(`/events/${eventId}/participants/${participantUserId}/rating`, token);
 }
 
 export async function getFavoriteEvents(token: string): Promise<FavoriteEventItem[]> {

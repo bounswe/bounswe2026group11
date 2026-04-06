@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFavoritesViewModel } from '@/viewmodels/favorites/useFavoritesViewModel';
 import type { FavoriteEventItem } from '@/models/event';
+import { getEventStatusPresentation } from '@/utils/eventStatus';
 import '@/styles/my-events.css';
 
 function formatDate(iso: string): string {
@@ -24,10 +25,14 @@ function formatTime(iso: string): string {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const cls = status === 'ACTIVE' ? 'me-status-active'
-    : status === 'CANCELED' ? 'me-status-canceled'
-    : 'me-status-completed';
-  return <span className={`me-status-badge ${cls}`}>{status}</span>;
+  const presentation = getEventStatusPresentation(status);
+  const cls = presentation.tone === 'active'
+    ? 'me-status-active'
+    : presentation.tone === 'canceled'
+      ? 'me-status-canceled'
+      : 'me-status-completed';
+
+  return <span className={`me-status-badge ${cls}`}>{presentation.label}</span>;
 }
 
 function FavoriteCard({ item }: { item: FavoriteEventItem }) {

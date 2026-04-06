@@ -1,5 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getEventDetail, joinEvent, requestJoinEvent, approveJoinRequest, rejectJoinRequest, cancelEvent } from '@/services/eventService';
+import {
+  getEventDetail,
+  joinEvent,
+  requestJoinEvent,
+  approveJoinRequest,
+  rejectJoinRequest,
+  cancelEvent,
+  upsertEventRating,
+  upsertParticipantRating,
+} from '@/services/eventService';
 import type { EventDetailResponse } from '@/models/event';
 import { ApiError } from '@/services/api';
 
@@ -11,6 +20,23 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [viewerRatingLoading, setViewerRatingLoading] = useState(false);
+  const [viewerRatingError, setViewerRatingError] = useState<string | null>(null);
+  const [participantRatingLoadingId, setParticipantRatingLoadingId] = useState<string | null>(null);
+  const [participantRatingError, setParticipantRatingError] = useState<{
+    participantUserId: string;
+    message: string;
+  } | null>(null);
+
+  const refreshEventDetail = useCallback(async () => {
+    if (!eventId || !token) {
+      return null;
+    }
+
+    const data = await getEventDetail(eventId, token);
+    setEvent(data);
+    return data;
+  }, [eventId, token]);
 
   const fetchDetail = useCallback(async () => {
     if (!eventId || !token) {
@@ -23,8 +49,10 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     setErrorMessage(null);
 
     try {
-      const data = await getEventDetail(eventId, token);
-      setEvent(data);
+      const data = await refreshEventDetail();
+      if (!data) {
+        throw new Error('Event detail is unavailable.');
+      }
       setStatus('ready');
     } catch (err) {
       if (err instanceof ApiError) {
@@ -41,22 +69,20 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         setErrorMessage('Failed to load event. Please try again.');
       }
     }
-  }, [eventId, token]);
+  }, [eventId, token, refreshEventDetail]);
 
   useEffect(() => {
     fetchDetail();
   }, [fetchDetail]);
 
   const handleJoin = useCallback(async () => {
-    if (!eventId || !token || !event) return;
+    if (!eventId || !token) return;
     setJoinLoading(true);
     setJoinError(null);
 
     try {
       await joinEvent(eventId, token);
-      // Re-fetch to get updated participant count and viewer context
-      const updated = await getEventDetail(eventId, token);
-      setEvent(updated);
+      await refreshEventDetail();
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
@@ -72,18 +98,16 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } finally {
       setJoinLoading(false);
     }
-  }, [eventId, token, event]);
+  }, [eventId, token, refreshEventDetail]);
 
   const handleRequestJoin = useCallback(async (message?: string) => {
-    if (!eventId || !token || !event) return;
+    if (!eventId || !token) return;
     setJoinLoading(true);
     setJoinError(null);
 
     try {
       await requestJoinEvent(eventId, token, message);
-      // Re-fetch to get updated viewer context
-      const updated = await getEventDetail(eventId, token);
-      setEvent(updated);
+      await refreshEventDetail();
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
@@ -100,7 +124,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } finally {
       setJoinLoading(false);
     }
-  }, [eventId, token, event]);
+  }, [eventId, token, refreshEventDetail]);
 
   const [moderatingId, setModeratingId] = useState<string | null>(null);
   const [moderateError, setModerateError] = useState<string | null>(null);
@@ -112,8 +136,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
 
     try {
       await approveJoinRequest(eventId, joinRequestId, token);
-      const updated = await getEventDetail(eventId, token);
-      setEvent(updated);
+      await refreshEventDetail();
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
@@ -129,7 +152,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } finally {
       setModeratingId(null);
     }
-  }, [eventId, token]);
+  }, [eventId, token, refreshEventDetail]);
 
   const handleReject = useCallback(async (joinRequestId: string) => {
     if (!eventId || !token) return;
@@ -138,8 +161,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
 
     try {
       await rejectJoinRequest(eventId, joinRequestId, token);
-      const updated = await getEventDetail(eventId, token);
-      setEvent(updated);
+      await refreshEventDetail();
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
@@ -153,7 +175,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } finally {
       setModeratingId(null);
     }
-  }, [eventId, token]);
+  }, [eventId, token, refreshEventDetail]);
 
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -165,8 +187,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
 
     try {
       await cancelEvent(eventId, token);
-      const updated = await getEventDetail(eventId, token);
-      setEvent(updated);
+      await refreshEventDetail();
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
@@ -180,11 +201,83 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } finally {
       setCancelLoading(false);
     }
-  }, [eventId, token]);
+  }, [eventId, token, refreshEventDetail]);
+
+  const mapRatingError = useCallback((err: ApiError, fallback: string) => {
+    const errorMap: Record<string, string> = {
+      rating_not_allowed: 'You are not allowed to submit a rating for this event.',
+      rating_window_closed: 'The 7-day rating window has already closed.',
+      host_cannot_rate_self: 'Hosts cannot rate themselves.',
+      validation_error: err.details?.message ?? fallback,
+    };
+
+    if (err.code === 'validation_error') {
+      const ratingMessage = err.details?.rating;
+      const feedbackMessage = err.details?.message;
+      return feedbackMessage ?? ratingMessage ?? err.message;
+    }
+
+    return errorMap[err.code] ?? err.message ?? fallback;
+  }, []);
+
+  const handleViewerRatingSubmit = useCallback(async (rating: number, message?: string) => {
+    if (!eventId || !token) return;
+    setViewerRatingLoading(true);
+    setViewerRatingError(null);
+
+    try {
+      await upsertEventRating(eventId, { rating, message: message?.trim() || null }, token);
+      await refreshEventDetail();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setViewerRatingError(mapRatingError(err, 'Failed to save your rating. Please try again.'));
+      } else {
+        setViewerRatingError('Failed to save your rating. Please try again.');
+      }
+    } finally {
+      setViewerRatingLoading(false);
+    }
+  }, [eventId, token, refreshEventDetail, mapRatingError]);
+
+  const handleParticipantRatingSubmit = useCallback(async (
+    participantUserId: string,
+    rating: number,
+    message?: string,
+  ) => {
+    if (!eventId || !token) return;
+    setParticipantRatingLoadingId(participantUserId);
+    setParticipantRatingError(null);
+
+    try {
+      await upsertParticipantRating(
+        eventId,
+        participantUserId,
+        { rating, message: message?.trim() || null },
+        token,
+      );
+      await refreshEventDetail();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setParticipantRatingError({
+          participantUserId,
+          message: mapRatingError(err, 'Failed to save the participant rating. Please try again.'),
+        });
+      } else {
+        setParticipantRatingError({
+          participantUserId,
+          message: 'Failed to save the participant rating. Please try again.',
+        });
+      }
+    } finally {
+      setParticipantRatingLoadingId(null);
+    }
+  }, [eventId, token, refreshEventDetail, mapRatingError]);
 
   const dismissJoinError = useCallback(() => setJoinError(null), []);
   const dismissModerateError = useCallback(() => setModerateError(null), []);
   const dismissCancelError = useCallback(() => setCancelError(null), []);
+  const dismissViewerRatingError = useCallback(() => setViewerRatingError(null), []);
+  const dismissParticipantRatingError = useCallback(() => setParticipantRatingError(null), []);
 
   return {
     event,
@@ -192,6 +285,10 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     errorMessage,
     joinLoading,
     joinError,
+    viewerRatingLoading,
+    viewerRatingError,
+    participantRatingLoadingId,
+    participantRatingError,
     moderatingId,
     moderateError,
     cancelLoading,
@@ -199,10 +296,14 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     retry: fetchDetail,
     handleJoin,
     handleRequestJoin,
+    handleViewerRatingSubmit,
+    handleParticipantRatingSubmit,
     handleApprove,
     handleReject,
     handleCancel,
     dismissJoinError,
+    dismissViewerRatingError,
+    dismissParticipantRatingError,
     dismissModerateError,
     dismissCancelError,
   };
