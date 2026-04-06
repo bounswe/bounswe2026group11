@@ -108,6 +108,7 @@ export interface CreateEventViewModel {
   apiError: string | null;
   imageError: string | null;
   successMessage: string | null;
+  imageUploadSuccessMessage: string | null;
   selectedImageUri: string | null;
   locationSuggestions: LocationSuggestion[];
   isSearchingLocation: boolean;
@@ -562,6 +563,7 @@ export function useCreateEventViewModel(): CreateEventViewModel {
   const [apiError, setApiError] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [imageUploadSuccessMessage, setImageUploadSuccessMessage] = useState<string | null>(null);
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
@@ -569,6 +571,22 @@ export function useCreateEventViewModel(): CreateEventViewModel {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const imageUploadSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearImageUploadSuccessMessage = useCallback(() => {
+    if (imageUploadSuccessTimerRef.current) {
+      clearTimeout(imageUploadSuccessTimerRef.current);
+      imageUploadSuccessTimerRef.current = null;
+    }
+    setImageUploadSuccessMessage(null);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (imageUploadSuccessTimerRef.current) clearTimeout(imageUploadSuccessTimerRef.current);
+    },
+    [],
+  );
 
   const constraintTypeCounts = useMemo(() => {
     const counts: Record<ConstraintType, number> = { gender: 0, age: 0, capacity: 0, other: 0 };
@@ -596,8 +614,9 @@ export function useCreateEventViewModel(): CreateEventViewModel {
       });
       setApiError(null);
       setSuccessMessage(null);
+      clearImageUploadSuccessMessage();
     },
-    [],
+    [clearImageUploadSuccessMessage],
   );
 
   const toggleCategoriesExpanded = useCallback(() => {
@@ -937,6 +956,8 @@ export function useCreateEventViewModel(): CreateEventViewModel {
       setIsLoading(true);
       setApiError(null);
       setImageError(null);
+      setSuccessMessage(null);
+      clearImageUploadSuccessMessage();
 
       try {
         const startTimeISO = parseDateTime(formData.startDate, formData.startTime)!;
@@ -1003,6 +1024,12 @@ export function useCreateEventViewModel(): CreateEventViewModel {
         if (selectedImageUri) {
           try {
             await uploadEventImage(result.id, selectedImageUri, token);
+            if (imageUploadSuccessTimerRef.current) clearTimeout(imageUploadSuccessTimerRef.current);
+            setImageUploadSuccessMessage('Cover image uploaded successfully.');
+            imageUploadSuccessTimerRef.current = setTimeout(() => {
+              setImageUploadSuccessMessage(null);
+              imageUploadSuccessTimerRef.current = null;
+            }, 5000);
           } catch (error) {
             setImageError(getImageUploadErrorMessage(error));
           }
@@ -1035,7 +1062,7 @@ export function useCreateEventViewModel(): CreateEventViewModel {
         setIsLoading(false);
       }
     },
-    [formData, selectedImageUri, uploadEventImage],
+    [formData, selectedImageUri, uploadEventImage, clearImageUploadSuccessMessage],
   );
 
   return {
@@ -1046,6 +1073,7 @@ export function useCreateEventViewModel(): CreateEventViewModel {
     apiError,
     imageError,
     successMessage,
+    imageUploadSuccessMessage,
     selectedImageUri,
     locationSuggestions,
     isSearchingLocation,

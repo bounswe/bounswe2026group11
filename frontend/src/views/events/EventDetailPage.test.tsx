@@ -112,8 +112,10 @@ function makeReadyViewModel(event: EventDetailResponse) {
     dismissCancelError: vi.fn(),
     coverImageUploading: false,
     coverImageError: null,
+    coverImageSuccessMessage: null,
     handleCoverImageUpload: vi.fn(),
     dismissCoverImageError: vi.fn(),
+    dismissCoverImageSuccess: vi.fn(),
   };
 }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getEventDetail,
   getEventImageUploadUrl,
@@ -32,6 +32,15 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   } | null>(null);
   const [coverImageUploading, setCoverImageUploading] = useState(false);
   const [coverImageError, setCoverImageError] = useState<string | null>(null);
+  const [coverImageSuccessMessage, setCoverImageSuccessMessage] = useState<string | null>(null);
+  const coverImageSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (coverImageSuccessTimerRef.current) clearTimeout(coverImageSuccessTimerRef.current);
+    },
+    [],
+  );
 
   const refreshEventDetail = useCallback(async () => {
     if (!eventId) {
@@ -285,10 +294,19 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   const dismissParticipantRatingError = useCallback(() => setParticipantRatingError(null), []);
   const dismissCoverImageError = useCallback(() => setCoverImageError(null), []);
 
+  const dismissCoverImageSuccess = useCallback(() => {
+    if (coverImageSuccessTimerRef.current) {
+      clearTimeout(coverImageSuccessTimerRef.current);
+      coverImageSuccessTimerRef.current = null;
+    }
+    setCoverImageSuccessMessage(null);
+  }, []);
+
   const handleCoverImageUpload = useCallback(async (file: File) => {
     if (!eventId || !token) return;
     setCoverImageUploading(true);
     setCoverImageError(null);
+    dismissCoverImageSuccess();
     try {
       const { original, small } = await prepareAvatarBlobs(file);
       const uploadInit = await getEventImageUploadUrl(eventId, token);
@@ -305,6 +323,12 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
       }
       await confirmEventImageUpload(eventId, { confirm_token: uploadInit.confirm_token }, token);
       await refreshEventDetail();
+      if (coverImageSuccessTimerRef.current) clearTimeout(coverImageSuccessTimerRef.current);
+      setCoverImageSuccessMessage('Cover image updated successfully.');
+      coverImageSuccessTimerRef.current = setTimeout(() => {
+        setCoverImageSuccessMessage(null);
+        coverImageSuccessTimerRef.current = null;
+      }, 5000);
     } catch (err) {
       if (err instanceof ApiError) {
         setCoverImageError(err.message);
@@ -314,7 +338,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } finally {
       setCoverImageUploading(false);
     }
-  }, [eventId, token, refreshEventDetail]);
+  }, [eventId, token, refreshEventDetail, dismissCoverImageSuccess]);
 
   return {
     event,
@@ -345,7 +369,9 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     dismissCancelError,
     coverImageUploading,
     coverImageError,
+    coverImageSuccessMessage,
     handleCoverImageUpload,
     dismissCoverImageError,
+    dismissCoverImageSuccess,
   };
 }

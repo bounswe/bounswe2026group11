@@ -3,7 +3,10 @@ import {
   createEvent,
   listCategories,
   searchLocation,
+  getEventImageUploadUrl,
+  confirmEventImageUpload,
 } from '@/services/eventService';
+import { prepareAvatarBlobs } from '@/utils/imageResize';
 import {
   CreateEventResponse,
   CategoryItem,
@@ -33,7 +36,8 @@ export type ConstraintType = 'gender' | 'age' | 'capacity' | 'other';
 export interface CreateEventFormData {
   title: string;
   description: string;
-  imageUrl: string;
+  /** Local file to upload via presigned URLs after the event is created. */
+  imageFile: File | null;
   imagePreview: string;
   categoryId: number | null;
   locationQuery: string;
@@ -65,7 +69,6 @@ export interface CreateEventFormErrors {
   startTime?: string | null;
   endDate?: string | null;
   endTime?: string | null;
-  imageUrl?: string | null;
   tags?: string | null;
   capacity?: string | null;
   minimumAge?: string | null;
@@ -75,7 +78,7 @@ export interface CreateEventFormErrors {
 const INITIAL: CreateEventFormData = {
   title: '',
   description: '',
-  imageUrl: '',
+  imageFile: null,
   imagePreview: '',
   categoryId: null,
   locationQuery: '',
@@ -194,12 +197,42 @@ export function useCreateEventViewModel() {
   const [form, setForm] = useState<CreateEventFormData>(INITIAL);
   const [errors, setErrors] = useState<CreateEventFormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageUploadSuccessMessage, setImageUploadSuccessMessage] = useState<string | null>(null);
+  const [coverImageUploadedForLastCreate, setCoverImageUploadedForLastCreate] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [locationResults, setLocationResults] = useState<LocationSuggestion[]>([]);
   const [locationSearching, setLocationSearching] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const imagePreviewBlobUrlRef = useRef<string | null>(null);
+  const imageUploadSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearImageUploadSuccessToast = useCallback(() => {
+    if (imageUploadSuccessTimerRef.current) {
+      clearTimeout(imageUploadSuccessTimerRef.current);
+      imageUploadSuccessTimerRef.current = null;
+    }
+    setImageUploadSuccessMessage(null);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (imageUploadSuccessTimerRef.current) clearTimeout(imageUploadSuccessTimerRef.current);
+    },
+    [],
+  );
+
+  const revokeImagePreviewUrl = useCallback(() => {
+    if (imagePreviewBlobUrlRef.current) {
+      URL.revokeObjectURL(imagePreviewBlobUrlRef.current);
+      imagePreviewBlobUrlRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => revokeImagePreviewUrl(), [revokeImagePreviewUrl]);
 
   useEffect(() => {
     listCategories()
@@ -212,9 +245,12 @@ export function useCreateEventViewModel() {
       setForm((prev) => ({ ...prev, [field]: value }));
       setErrors((prev) => ({ ...prev, [field]: null }));
       setApiError(null);
+      setImageError(null);
       setSuccessMessage(null);
+      clearImageUploadSuccessToast();
+      setCoverImageUploadedForLastCreate(false);
     },
-    [],
+    [clearImageUploadSuccessToast],
   );
 
   const handleLocationSearch = useCallback((query: string) => {
@@ -286,22 +322,26 @@ export function useCreateEventViewModel() {
     });
   }, []);
 
-  const handleImageUpload = useCallback((file: File | null) => {
-    if (!file) {
-      setForm((prev) => ({ ...prev, imageUrl: '', imagePreview: '' }));
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setForm((prev) => ({ ...prev, imageUrl: dataUrl, imagePreview: dataUrl }));
-    };
-    reader.readAsDataURL(file);
-  }, []);
+  const handleImageUpload = useCallback(
+    (file: File | null) => {
+      revokeImagePreviewUrl();
+      setImageError(null);
+      if (!file) {
+        setForm((prev) => ({ ...prev, imageFile: null, imagePreview: '' }));
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      imagePreviewBlobUrlRef.current = url;
+      setForm((prev) => ({ ...prev, imageFile: file, imagePreview: url }));
+    },
+    [revokeImagePreviewUrl],
+  );
 
   const removeImage = useCallback(() => {
-    setForm((prev) => ({ ...prev, imageUrl: '', imagePreview: '' }));
-  }, []);
+    revokeImagePreviewUrl();
+    setImageError(null);
+    setForm((prev) => ({ ...prev, imageFile: null, imagePreview: '' }));
+  }, [revokeImagePreviewUrl]);
 
   const removeConstraint = useCallback((index: number) => {
     setForm((prev) => ({
@@ -321,6 +361,9 @@ export function useCreateEventViewModel() {
 
       setIsLoading(true);
       setApiError(null);
+      setImageError(null);
+      clearImageUploadSuccessToast();
+      setCoverImageUploadedForLastCreate(false);
       try {
         const startTime = toISODateTime(form.startDate, form.startTime)!;
         const endTime = toISODateTime(form.endDate, form.endTime);
@@ -328,7 +371,6 @@ export function useCreateEventViewModel() {
         const request = {
           title: form.title.trim(),
           description: form.description.trim(),
-          image_url: form.imageUrl.trim() || undefined,
           category_id: form.categoryId!,
           address: form.address || undefined,
           lat: form.lat!,
@@ -346,6 +388,51 @@ export function useCreateEventViewModel() {
         };
 
         const result = await createEvent(request, token);
+
+        if (form.imageFile) {
+          setIsUploadingImage(true);
+          setImageError(null);
+          try {
+            const { original, small } = await prepareAvatarBlobs(form.imageFile);
+            const uploadInit = await getEventImageUploadUrl(result.id, token);
+            for (const instruction of uploadInit.uploads) {
+              const blob = instruction.variant === 'ORIGINAL' ? original : small;
+              const res = await fetch(instruction.url, {
+                method: instruction.method,
+                headers: instruction.headers,
+                body: blob,
+              });
+              if (!res.ok) {
+                throw new Error(`Image upload failed (${instruction.variant}).`);
+              }
+            }
+            await confirmEventImageUpload(
+              result.id,
+              { confirm_token: uploadInit.confirm_token },
+              token,
+            );
+            setCoverImageUploadedForLastCreate(true);
+            if (imageUploadSuccessTimerRef.current) clearTimeout(imageUploadSuccessTimerRef.current);
+            setImageUploadSuccessMessage('Cover image uploaded successfully.');
+            imageUploadSuccessTimerRef.current = setTimeout(() => {
+              setImageUploadSuccessMessage(null);
+              imageUploadSuccessTimerRef.current = null;
+            }, 5000);
+          } catch (err) {
+            if (err instanceof ApiError) {
+              setImageError(err.message);
+            } else {
+              setImageError(
+                err instanceof Error
+                  ? err.message
+                  : 'The event was created, but the cover image could not be uploaded.',
+              );
+            }
+          } finally {
+            setIsUploadingImage(false);
+          }
+        }
+
         setSuccessMessage('Event created successfully!');
         return result;
       } catch (err) {
@@ -359,14 +446,19 @@ export function useCreateEventViewModel() {
         setIsLoading(false);
       }
     },
-    [form],
+    [form, clearImageUploadSuccessToast],
   );
 
   return {
     form,
     errors,
     isLoading,
+    isUploadingImage,
     apiError,
+    imageError,
+    imageUploadSuccessMessage,
+    coverImageUploadedForLastCreate,
+    dismissImageUploadSuccess: clearImageUploadSuccessToast,
     successMessage,
     categories,
     locationResults,

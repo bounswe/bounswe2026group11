@@ -37,7 +37,7 @@ describe('MyEventsPage tabs', () => {
 
     const tabs = screen.getAllByRole('button');
     expect(tabs.map((tab) => tab.textContent)).toEqual([
-      'Active0',
+      'In Progress0',
       'Upcoming0',
       'Hosted0',
       'Past0',

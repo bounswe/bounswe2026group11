@@ -732,8 +732,10 @@ function EventContent({
   isAuthenticated,
   coverImageUploading,
   coverImageError,
+  coverImageSuccessMessage,
   onCoverImageFileSelected,
   onDismissCoverImageError,
+  onDismissCoverImageSuccess,
 }: {
   event: EventDetailResponse;
   joinLoading: boolean;
@@ -761,8 +763,10 @@ function EventContent({
   isAuthenticated: boolean;
   coverImageUploading: boolean;
   coverImageError: string | null;
+  coverImageSuccessMessage: string | null;
   onCoverImageFileSelected: (file: File) => void;
   onDismissCoverImageError: () => void;
+  onDismissCoverImageSuccess: () => void;
 }) {
   const navigate = useNavigate();
   const coverFileInputRef = useRef<HTMLInputElement>(null);
@@ -823,6 +827,13 @@ function EventContent({
         <div className="ed-cover-upload-error">
           <span>{coverImageError}</span>
           <button type="button" className="ed-join-error-dismiss" onClick={onDismissCoverImageError}>&times;</button>
+        </div>
+      )}
+
+      {showCoverImageEdit && coverImageSuccessMessage && (
+        <div className="ed-cover-upload-success" role="status">
+          <span>{coverImageSuccessMessage}</span>
+          <button type="button" className="ed-join-error-dismiss" onClick={onDismissCoverImageSuccess}>&times;</button>
         </div>
       )}
 
@@ -1222,8 +1233,10 @@ export default function EventDetailPage() {
       isAuthenticated={Boolean(token)}
       coverImageUploading={vm.coverImageUploading}
       coverImageError={vm.coverImageError}
+      coverImageSuccessMessage={vm.coverImageSuccessMessage}
       onCoverImageFileSelected={vm.handleCoverImageUpload}
       onDismissCoverImageError={vm.dismissCoverImageError}
+      onDismissCoverImageSuccess={vm.dismissCoverImageSuccess}
       joinLoading={vm.joinLoading}
       joinError={vm.joinError}
       viewerRatingLoading={vm.viewerRatingLoading}

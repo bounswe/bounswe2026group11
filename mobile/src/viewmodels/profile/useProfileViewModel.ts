@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -36,6 +36,7 @@ export interface ProfileViewModel {
   isUploadingAvatar: boolean;
   apiError: string | null;
   imageError: string | null;
+  imageUploadSuccessMessage: string | null;
   primaryName: string;
   secondaryName: string | null;
   avatarInitial: string;
@@ -162,6 +163,8 @@ export function useProfileViewModel(): ProfileViewModel {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [imageUploadSuccessMessage, setImageUploadSuccessMessage] = useState<string | null>(null);
+  const imageUploadSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [ratingLabel, setRatingLabel] = useState('New');
 
   const fetchProfile = useCallback(
@@ -233,6 +236,13 @@ export function useProfileViewModel(): ProfileViewModel {
     void fetchProfile('initial');
   }, [token]);
 
+  useEffect(
+    () => () => {
+      if (imageUploadSuccessTimerRef.current) clearTimeout(imageUploadSuccessTimerRef.current);
+    },
+    [],
+  );
+
   const refresh = useCallback(async () => {
     await fetchProfile('refresh');
   }, [fetchProfile]);
@@ -244,6 +254,11 @@ export function useProfileViewModel(): ProfileViewModel {
     }
 
     setImageError(null);
+    if (imageUploadSuccessTimerRef.current) {
+      clearTimeout(imageUploadSuccessTimerRef.current);
+      imageUploadSuccessTimerRef.current = null;
+    }
+    setImageUploadSuccessMessage(null);
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -310,6 +325,12 @@ export function useProfileViewModel(): ProfileViewModel {
 
       await confirmProfileAvatarUpload(uploadInit.confirm_token, token);
       await refresh();
+      if (imageUploadSuccessTimerRef.current) clearTimeout(imageUploadSuccessTimerRef.current);
+      setImageUploadSuccessMessage('Profile photo updated successfully.');
+      imageUploadSuccessTimerRef.current = setTimeout(() => {
+        setImageUploadSuccessMessage(null);
+        imageUploadSuccessTimerRef.current = null;
+      }, 5000);
     } catch (error) {
       if (error instanceof ApiError) {
         setImageError(error.message);
@@ -331,6 +352,7 @@ export function useProfileViewModel(): ProfileViewModel {
     isUploadingAvatar,
     apiError,
     imageError,
+    imageUploadSuccessMessage,
     primaryName,
     secondaryName,
     avatarInitial,

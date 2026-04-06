@@ -110,6 +110,20 @@
   margin: -8px 0 20px 0;
 }
 
+.ed-cover-upload-success {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 14px;
+  margin: -8px 0 20px 0;
+}
+
 /* Status badges */
 .ed-status-badge {
   padding: 4px 12px;

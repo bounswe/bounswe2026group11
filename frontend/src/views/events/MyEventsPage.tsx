@@ -80,7 +80,7 @@ function EventList({ events, emptyMessage }: { events: EventSummary[]; emptyMess
 }
 
 const TABS: { key: MyEventsTab; label: string }[] = [
-  { key: 'active', label: 'Active' },
+  { key: 'active', label: 'In Progress' },
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'organized', label: 'Hosted' },
   { key: 'past', label: 'Past' },
@@ -145,7 +145,7 @@ export default function MyEventsPage() {
           {vm.activeTab === 'active' && (
             <EventList
               events={vm.active}
-              emptyMessage="No active events right now."
+              emptyMessage="No events in progress right now."
             />
           )}
           {vm.activeTab === 'upcoming' && (

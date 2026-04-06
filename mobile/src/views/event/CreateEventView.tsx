@@ -225,6 +225,12 @@ export default function CreateEventView() {
           </View>
         )}
 
+        {vm.imageUploadSuccessMessage ? (
+          <View style={styles.successBanner}>
+            <Text style={styles.successBannerText}>{vm.imageUploadSuccessMessage}</Text>
+          </View>
+        ) : null}
+
         {/* Image */}
         <View style={styles.fieldGroup}>
           {vm.selectedImageUri ? (
