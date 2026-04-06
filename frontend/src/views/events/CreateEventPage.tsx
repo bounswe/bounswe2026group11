@@ -183,6 +183,7 @@ function CreateEventForm() {
   const vm = useCreateEventViewModel();
   const [showSuccess, setShowSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const busy = vm.isLoading || vm.isUploadingImage;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,6 +201,15 @@ function CreateEventForm() {
 
   return (
     <>
+      {vm.imageUploadSuccessMessage ? (
+        <div
+          className="ce-fixed-success-toast"
+          role="status"
+        >
+          {vm.imageUploadSuccessMessage}
+        </div>
+      ) : null}
+
       {showSuccess && (
         <div className="ce-popup-overlay" onClick={handleSuccessDismiss}>
           <div className="ce-popup" onClick={(e) => e.stopPropagation()}>
@@ -208,6 +218,11 @@ function CreateEventForm() {
             <p className="ce-popup-message">
               Your event has been successfully created.
             </p>
+            {vm.coverImageUploadedForLastCreate ? (
+              <p className="ce-popup-message ce-popup-message-secondary">
+                Cover image uploaded successfully.
+              </p>
+            ) : null}
             <button
               type="button"
               className="btn-primary ce-popup-btn"
@@ -219,6 +234,7 @@ function CreateEventForm() {
         </div>
       )}
       {vm.apiError && <div className="error-banner">{vm.apiError}</div>}
+      {vm.imageError && <div className="error-banner">{vm.imageError}</div>}
 
       <form className="create-event-form" onSubmit={handleSubmit}>
         {/* Host info */}
@@ -240,7 +256,7 @@ function CreateEventForm() {
             maxLength={60}
             value={vm.form.title}
             onChange={(e) => vm.updateField('title', e.target.value)}
-            disabled={vm.isLoading}
+            disabled={busy}
           />
           <div className="ce-char-count">
             {vm.form.title.length}/60
@@ -263,7 +279,7 @@ function CreateEventForm() {
             rows={4}
             value={vm.form.description}
             onChange={(e) => vm.updateField('description', e.target.value)}
-            disabled={vm.isLoading}
+            disabled={busy}
           />
           <div className="ce-char-count">
             {vm.form.description.length}/600
@@ -283,7 +299,7 @@ function CreateEventForm() {
                 type="button"
                 className={`ce-category-chip ${vm.form.categoryId === cat.id ? 'selected' : ''}`}
                 onClick={() => vm.updateField('categoryId', cat.id)}
-                disabled={vm.isLoading}
+                disabled={busy}
               >
                 {cat.name}
               </button>
@@ -305,7 +321,7 @@ function CreateEventForm() {
             accept="image/*"
             className="ce-file-hidden"
             onChange={(e) => vm.handleImageUpload(e.target.files?.[0] ?? null)}
-            disabled={vm.isLoading}
+            disabled={busy}
           />
           {vm.form.imagePreview ? (
             <div className="ce-image-preview-wrapper">
@@ -326,7 +342,7 @@ function CreateEventForm() {
               type="button"
               className="ce-image-upload-btn"
               onClick={() => fileInputRef.current?.click()}
-              disabled={vm.isLoading}
+              disabled={busy}
             >
               Upload Image
             </button>
@@ -346,7 +362,7 @@ function CreateEventForm() {
               placeholder="Search for a location..."
               value={vm.form.locationQuery}
               onChange={(e) => vm.handleLocationSearch(e.target.value)}
-              disabled={vm.isLoading}
+              disabled={busy}
             />
             {vm.locationSearching && (
               <div className="ce-location-searching">Searching...</div>
@@ -387,7 +403,7 @@ function CreateEventForm() {
               type="date"
               value={vm.form.startDate}
               onChange={(e) => vm.updateField('startDate', e.target.value)}
-              disabled={vm.isLoading}
+              disabled={busy}
             />
             {vm.errors.startDate && (
               <p className="field-error">{vm.errors.startDate}</p>
@@ -399,7 +415,7 @@ function CreateEventForm() {
               value={vm.form.startTime}
               onChange={(val) => vm.updateField('startTime', val)}
               hasError={!!vm.errors.startTime}
-              disabled={vm.isLoading}
+              disabled={busy}
             />
             {vm.errors.startTime && (
               <p className="field-error">{vm.errors.startTime}</p>
@@ -418,7 +434,7 @@ function CreateEventForm() {
               type="date"
               value={vm.form.endDate}
               onChange={(e) => vm.updateField('endDate', e.target.value)}
-              disabled={vm.isLoading}
+              disabled={busy}
             />
             {vm.errors.endDate && (
               <p className="field-error">{vm.errors.endDate}</p>
@@ -432,7 +448,7 @@ function CreateEventForm() {
               value={vm.form.endTime}
               onChange={(val) => vm.updateField('endTime', val)}
               hasError={!!vm.errors.endTime}
-              disabled={vm.isLoading}
+              disabled={busy}
             />
             {vm.errors.endTime && (
               <p className="field-error">{vm.errors.endTime}</p>
@@ -450,7 +466,7 @@ function CreateEventForm() {
                 type="button"
                 className={`ce-privacy-chip ${vm.form.privacyLevel === opt.value ? 'selected' : ''}`}
                 onClick={() => vm.updateField('privacyLevel', opt.value)}
-                disabled={vm.isLoading}
+                disabled={busy}
               >
                 {opt.label}
               </button>
@@ -475,7 +491,7 @@ function CreateEventForm() {
               if (val === '' || parseInt(val, 10) >= 0) vm.updateField('capacity', val);
             }}
             onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-            disabled={vm.isLoading}
+            disabled={busy}
           />
           {vm.errors.capacity && (
             <p className="field-error">{vm.errors.capacity}</p>
@@ -501,13 +517,13 @@ function CreateEventForm() {
                   vm.addTag();
                 }
               }}
-              disabled={vm.isLoading || vm.form.tags.length >= 5}
+              disabled={busy || vm.form.tags.length >= 5}
             />
             <button
               type="button"
               className="ce-tag-add-btn"
               onClick={vm.addTag}
-              disabled={vm.isLoading || vm.form.tags.length >= 5 || !vm.form.tagInput.trim()}
+              disabled={busy || vm.form.tags.length >= 5 || !vm.form.tagInput.trim()}
             >
               Add
             </button>
@@ -557,7 +573,7 @@ function CreateEventForm() {
                         vm.updateField('maximumAge', preset.max);
                       }
                     }}
-                    disabled={vm.isLoading}
+                    disabled={busy}
                   >
                     {preset.label}
                   </button>
@@ -585,7 +601,7 @@ function CreateEventForm() {
                   if (val === '' || parseInt(val, 10) >= 0) vm.updateField('minimumAge', val);
                 }}
                 onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                disabled={vm.isLoading}
+                disabled={busy}
               />
               {vm.errors.minimumAge && (
                 <p className="field-error">{vm.errors.minimumAge}</p>
@@ -608,7 +624,7 @@ function CreateEventForm() {
                   if (val === '' || parseInt(val, 10) >= 0) vm.updateField('maximumAge', val);
                 }}
                 onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                disabled={vm.isLoading}
+                disabled={busy}
               />
               {vm.errors.maximumAge && (
                 <p className="field-error">{vm.errors.maximumAge}</p>
@@ -631,7 +647,7 @@ function CreateEventForm() {
                       vm.form.preferredGender === opt.value ? '' : opt.value,
                     )
                   }
-                  disabled={vm.isLoading}
+                  disabled={busy}
                 >
                   {opt.label}
                 </button>
@@ -655,14 +671,14 @@ function CreateEventForm() {
                     vm.addConstraint();
                   }
                 }}
-                disabled={vm.isLoading || vm.form.constraints.length >= 5}
+                disabled={busy || vm.form.constraints.length >= 5}
               />
               <button
                 type="button"
                 className="ce-tag-add-btn"
                 onClick={vm.addConstraint}
                 disabled={
-                  vm.isLoading ||
+                  busy ||
                   vm.form.constraints.length >= MAX_CONSTRAINTS ||
                   !vm.form.otherConstraintInput.trim()
                 }
@@ -693,9 +709,15 @@ function CreateEventForm() {
         <button
           type="submit"
           className="btn-primary ce-submit"
-          disabled={vm.isLoading}
+          disabled={busy}
         >
-          {vm.isLoading ? <span className="spinner" /> : 'Create Event'}
+          {vm.isUploadingImage ? (
+            'Uploading image…'
+          ) : vm.isLoading ? (
+            <span className="spinner" />
+          ) : (
+            'Create Event'
+          )}
         </button>
       </form>
     </>

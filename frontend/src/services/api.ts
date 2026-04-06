@@ -163,3 +163,11 @@ export function apiPostAuth<T>(endpoint: string, body: unknown, token: string): 
 export function apiPatchAuth<T>(endpoint: string, body: unknown, token: string): Promise<T> {
   return executeWithRefresh<T>('PATCH', endpoint, token, body);
 }
+
+export function apiPutAuth<T>(endpoint: string, body: unknown, token: string): Promise<T> {
+  return executeWithRefresh<T>('PUT', endpoint, token, body);
+}
+
+export function apiDeleteAuth<T>(endpoint: string, token: string): Promise<T> {
+  return executeWithRefresh<T>('DELETE', endpoint, token);
+}

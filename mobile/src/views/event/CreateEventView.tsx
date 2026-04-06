@@ -225,6 +225,12 @@ export default function CreateEventView() {
           </View>
         )}
 
+        {vm.imageUploadSuccessMessage ? (
+          <View style={styles.successBanner}>
+            <Text style={styles.successBannerText}>{vm.imageUploadSuccessMessage}</Text>
+          </View>
+        ) : null}
+
         {/* Image */}
         <View style={styles.fieldGroup}>
           {vm.selectedImageUri ? (
@@ -381,7 +387,7 @@ export default function CreateEventView() {
             )}
           </View>
           {vm.isSearchingLocation && (
-            <ActivityIndicator size="small" color="#2563EB" style={styles.searchSpinner} />
+            <ActivityIndicator size="small" color="#111827" style={styles.searchSpinner} />
           )}
           {vm.locationSuggestions.length > 0 && (
             <View style={styles.suggestionsContainer}>
@@ -982,7 +988,7 @@ const styles = StyleSheet.create({
   inlineActionText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2563EB',
+    color: '#111827',
   },
   required: {
     color: '#EF4444',
@@ -1086,12 +1092,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   chipSelected: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: '#111827',
+    borderColor: '#111827',
   },
   chipUsed: {
-    backgroundColor: '#E0E7FF',
-    borderColor: '#A5B4FC',
+    backgroundColor: '#F3F4F6',
+    borderColor: '#D1D5DB',
     opacity: 0.6,
   },
   chipText: {
@@ -1102,7 +1108,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   chipTextUsed: {
-    color: '#4338CA',
+    color: '#6B7280',
   },
   showMoreBtn: {
     marginTop: 8,
@@ -1110,8 +1116,8 @@ const styles = StyleSheet.create({
   },
   showMoreText: {
     fontSize: 13,
-    color: '#2563EB',
-    fontWeight: '500',
+    color: '#111827',
+    fontWeight: '600',
   },
   locationInputRow: {
     flexDirection: 'row',
@@ -1201,7 +1207,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   privacyOptionSelected: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#111827',
   },
   privacyOptionText: {
     fontSize: 14,
@@ -1224,7 +1230,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 10,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#111827',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1240,14 +1246,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#F3F4F6',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#D1D5DB',
     marginTop: 8,
   },
   tagChipText: {
     fontSize: 13,
-    color: '#2563EB',
+    color: '#111827',
   },
   constraintInputSection: {
     marginTop: 10,
@@ -1281,7 +1287,7 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   submitButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#111827',
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',

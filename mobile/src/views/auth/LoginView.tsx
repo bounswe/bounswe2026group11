@@ -21,7 +21,11 @@ export default function LoginView() {
   const handleSubmit = async () => {
     const session = await vm.handleLogin();
     if (session) {
-      setSession(session.access_token, session.refresh_token, session.user);
+      await setSession(
+        session.access_token,
+        session.refresh_token,
+        session.user,
+      );
       router.replace('/home' as Href);
     }
   };
@@ -181,7 +185,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   button: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#111827',
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
@@ -206,7 +210,7 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     fontSize: 15,
-    color: '#2563EB',
+    color: '#111827',
     fontWeight: '600',
   },
 });

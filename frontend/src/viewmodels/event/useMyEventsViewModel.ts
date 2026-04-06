@@ -13,7 +13,7 @@ export function useMyEventsViewModel(token: string | null) {
   const [canceled, setCanceled] = useState<EventSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<MyEventsTab>('organized');
+  const [activeTab, setActiveTab] = useState<MyEventsTab>('active');
 
   const fetchEvents = useCallback(async () => {
     if (!token) return;

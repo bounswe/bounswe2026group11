@@ -64,13 +64,13 @@ describe('useMyEventsViewModel', () => {
     expect(result.current.upcoming).toHaveLength(1);
   });
 
-  it('defaults to organized tab', async () => {
+  it('defaults to active tab', async () => {
     mockService.getUpcomingEvents.mockResolvedValue([]);
 
     const { result } = renderHook(() => useMyEventsViewModel('token'));
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(result.current.activeTab).toBe('organized');
+    expect(result.current.activeTab).toBe('active');
   });
 });

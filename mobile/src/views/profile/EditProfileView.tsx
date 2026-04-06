@@ -68,6 +68,7 @@ export default function EditProfileView() {
   const handleSave = async () => {
     const success = await vm.handleSave();
     if (success) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       router.back();
     }
   };
@@ -214,7 +215,7 @@ export default function EditProfileView() {
               {vm.isSearchingLocation ? (
                 <ActivityIndicator
                   size="small"
-                  color="#2563EB"
+                  color="#111827"
                   style={styles.searchSpinner}
                 />
               ) : null}

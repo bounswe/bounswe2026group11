@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -253,6 +253,7 @@ export function useEditProfileViewModel(): EditProfileViewModel {
   const [apiError, setApiError] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [canEditGender, setCanEditGender] = useState(true);
   const [canEditBirthDate, setCanEditBirthDate] = useState(true);
   const [locationQuery, setLocationQuery] = useState('');
@@ -260,6 +261,13 @@ export function useEditProfileViewModel(): EditProfileViewModel {
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<LocationSuggestion | null>(null);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+
+  useEffect(
+    () => () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!token) {
@@ -334,6 +342,10 @@ export function useEditProfileViewModel(): EditProfileViewModel {
 
       setErrors((prev) => ({ ...prev, [field]: immediateError }));
       setApiError(null);
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+        successTimerRef.current = null;
+      }
       setSuccessMessage(null);
     },
     [],
@@ -374,6 +386,10 @@ export function useEditProfileViewModel(): EditProfileViewModel {
         return;
       }
 
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+        successTimerRef.current = null;
+      }
       setSuccessMessage(null);
     } catch {
       setImageError('We could not open your photo library. Please try again.');
@@ -492,6 +508,10 @@ export function useEditProfileViewModel(): EditProfileViewModel {
     setIsSaving(true);
     setApiError(null);
     setImageError(null);
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
     setSuccessMessage(null);
 
     try {
@@ -514,11 +534,18 @@ export function useEditProfileViewModel(): EditProfileViewModel {
 
       await updateMyProfile(request, token);
 
-      if (selectedImageUri?.startsWith('file://')) {
-        await uploadProfileAvatar(selectedImageUri, token);
+      const hadNewAvatar = Boolean(selectedImageUri?.startsWith('file://'));
+      if (hadNewAvatar) {
+        await uploadProfileAvatar(selectedImageUri!, token);
       }
 
-      setSuccessMessage('Profile updated successfully!');
+      setSuccessMessage(
+        hadNewAvatar ? 'Profile photo updated successfully.' : 'Profile updated successfully!',
+      );
+      successTimerRef.current = setTimeout(() => {
+        setSuccessMessage(null);
+        successTimerRef.current = null;
+      }, 5000);
       return true;
     } catch (err) {
       if (err instanceof ApiError) {
