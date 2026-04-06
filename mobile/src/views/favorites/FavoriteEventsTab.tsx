@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
-import EventCard from '@/components/events/EventCard';
+import ProfileEventCard from '@/components/profile/ProfileEventCard';
 import { useFavoriteEventsViewModel } from '@/viewmodels/favorites/useFavoriteEventsViewModel';
 
 export default function FavoriteEventsTab() {
@@ -35,9 +35,15 @@ export default function FavoriteEventsTab() {
         data={vm.events}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <EventCard
-            event={item}
-            onPress={(id) => router.push(`/event/${id}` as Href)}
+          <ProfileEventCard
+            title={item.title}
+            imageUrl={item.image_url}
+            categoryLabel={item.category ?? 'Event'}
+            startTime={item.start_time}
+            locationAddress={item.location_address ?? null}
+            status={item.status}
+            privacyLevel={item.privacy_level ?? null}
+            onPress={() => router.push(`/event/${item.id}` as Href)}
           />
         )}
         contentContainerStyle={styles.listContent}
@@ -46,7 +52,7 @@ export default function FavoriteEventsTab() {
         refreshing={vm.isRefreshing}
         onEndReachedThreshold={0.35}
         onEndReached={vm.loadMore}
-        ListEmptyComponent={
+        ListEmptyComponent={vm.apiError ? null : (
           <View style={styles.center}>
             <Ionicons name="heart-outline" size={40} color="#D1D5DB" />
             <Text style={styles.emptyTitle}>No favorite events yet</Text>
@@ -54,7 +60,7 @@ export default function FavoriteEventsTab() {
               Tap the heart icon on an event to save it here.
             </Text>
           </View>
-        }
+        )}
         ListFooterComponent={
           vm.isLoadingMore ? (
             <View style={styles.footerLoader}>
