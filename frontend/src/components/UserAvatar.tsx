@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './UserAvatar.css';
 
 export type UserAvatarVariant = 'accent' | 'muted';
@@ -30,6 +30,9 @@ export function UserAvatar({
   variant = 'muted',
 }: UserAvatarProps) {
   const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [avatarUrl]);
   const showImg = hasUsableSrc(avatarUrl) && !failed;
   const letter = initialLetter(username, displayName);
   const sizeClass = size === 'md' ? 'user-avatar--md' : 'user-avatar--sm';
