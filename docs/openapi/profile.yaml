@@ -3,8 +3,11 @@ info:
   title: Social Event Mapper - Profile API
   version: 0.1.0
 
+servers:
+  - url: /api
+
 paths:
-  /api/me:
+  /me:
     get:
       summary: Get current user's profile
       description: Returns the combined app_user and profile data for the authenticated user.
@@ -52,7 +55,7 @@ paths:
         "401":
           description: Missing or invalid access token.
 
-  /api/me/events/hosted:
+  /me/events/hosted:
     get:
       summary: Get the current user's hosted events
       description: Returns all events created (hosted) by the authenticated user, ordered by start time descending.
@@ -70,7 +73,7 @@ paths:
         "401":
           description: Missing or invalid access token.
 
-  /api/me/events/upcoming:
+  /me/events/upcoming:
     get:
       summary: Get the current user's upcoming events
       description: Returns events where the user has an APPROVED participation and the event is ACTIVE or IN_PROGRESS, ordered by start time ascending.
@@ -88,7 +91,7 @@ paths:
         "401":
           description: Missing or invalid access token.
 
-  /api/me/events/completed:
+  /me/events/completed:
     get:
       summary: Get the current user's completed events
       description: Returns COMPLETED events where the user had an APPROVED participation, or left the event after it had already started.
@@ -106,7 +109,7 @@ paths:
         "401":
           description: Missing or invalid access token.
 
-  /api/me/events/canceled:
+  /me/events/canceled:
     get:
       summary: Get the current user's canceled events
       description: Returns CANCELED events where the user had a CANCELED participation (covers both host and participant views).
@@ -124,7 +127,7 @@ paths:
         "401":
           description: Missing or invalid access token.
 
-  /api/me/avatar/upload-url:
+  /me/avatar/upload-url:
     post:
       summary: Create direct-upload URLs for the current user's avatar
       description: |
@@ -159,7 +162,7 @@ paths:
         "401":
           description: Missing or invalid access token.
 
-  /api/me/avatar/confirm:
+  /me/avatar/confirm:
     post:
       summary: Confirm an uploaded avatar image
       description: >

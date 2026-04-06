@@ -10,6 +10,9 @@ on:
       - "deploy/**"
       - "nginx/**"
       - ".github/workflows/deploy-dev.yml"
+  release:
+    types:
+      - published
   workflow_dispatch:
 
 concurrency:
@@ -116,23 +119,27 @@ jobs:
           script: |
             set -eu
 
+            env_file=/opt/sem/deploy/.env
+
+            append_env() {
+              printf '%s=%s\n' "$1" "$2" >> "$env_file"
+            }
+
             sudo mkdir -p /opt/sem/deploy /opt/sem/nginx
             sudo chown -R "$(id -un)":"$(id -gn)" /opt/sem
 
-            install -m 600 /dev/null /opt/sem/deploy/.env
-            cat > /opt/sem/deploy/.env <<EOF
-            DOCKERHUB_NAMESPACE=$DOCKERHUB_NAMESPACE
-            IMAGE_TAG=$IMAGE_TAG
-            DB_PASSWORD=$DB_PASSWORD
-            JWT_SECRET=$JWT_SECRET
-            RESEND_CLIENT_API_KEY=$RESEND_CLIENT_API_KEY
-            SPACES_ACCESS_KEY=$SPACES_ACCESS_KEY
-            SPACES_SECRET_KEY=$SPACES_SECRET_KEY
-            SPACES_ENDPOINT=$SPACES_ENDPOINT
-            SPACES_BUCKET=$SPACES_BUCKET
-            SPACES_CDN_BASE_URL=$SPACES_CDN_BASE_URL
-            SPACES_S3_REGION=$SPACES_S3_REGION
-            EOF
+            install -m 600 /dev/null "$env_file"
+            append_env DOCKERHUB_NAMESPACE "$DOCKERHUB_NAMESPACE"
+            append_env IMAGE_TAG "$IMAGE_TAG"
+            append_env DB_PASSWORD "$DB_PASSWORD"
+            append_env JWT_SECRET "$JWT_SECRET"
+            append_env RESEND_CLIENT_API_KEY "$RESEND_CLIENT_API_KEY"
+            append_env SPACES_ACCESS_KEY "$SPACES_ACCESS_KEY"
+            append_env SPACES_SECRET_KEY "$SPACES_SECRET_KEY"
+            append_env SPACES_ENDPOINT "$SPACES_ENDPOINT"
+            append_env SPACES_BUCKET "$SPACES_BUCKET"
+            append_env SPACES_CDN_BASE_URL "$SPACES_CDN_BASE_URL"
+            append_env SPACES_S3_REGION "$SPACES_S3_REGION"
 
       - name: Upload Docker Compose definition
         uses: appleboy/scp-action@v0.1.7
@@ -169,6 +176,20 @@ jobs:
 
             cd /opt/sem
             compose_cmd="docker compose -f deploy/docker-compose.dev.yml"
+
+            wait_for_container_running() {
+              container_name="$1"
+              attempts="$2"
+              for attempt in $(seq 1 "$attempts"); do
+                container_id="$($compose_cmd ps -q "$container_name" || true)"
+                if [ -n "$container_id" ] && [ "$(docker inspect --format '{{.State.Running}}' "$container_id")" = "true" ]; then
+                  printf '%s\n' "$container_id"
+                  return 0
+                fi
+                sleep 2
+              done
+              return 1
+            }
 
             echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
             $compose_cmd config -q
@@ -207,12 +228,64 @@ jobs:
             $compose_cmd pull backend frontend
             $compose_cmd up -d --no-deps backend frontend
 
+            backend_id="$(wait_for_container_running backend 30)" || {
+              echo "backend container did not reach running state" >&2
+              exit 1
+            }
+            frontend_id="$(wait_for_container_running frontend 30)" || {
+              echo "frontend container did not reach running state" >&2
+              exit 1
+            }
+
             nginx_id="$($compose_cmd ps -q nginx || true)"
             if [ -n "$nginx_id" ] && [ "$(docker inspect --format '{{.State.Running}}' "$nginx_id")" = "true" ]; then
+              docker exec "$nginx_id" nginx -t
               docker exec "$nginx_id" nginx -s reload
             else
               $compose_cmd up -d nginx
             fi
+
+            nginx_id="$(wait_for_container_running nginx 30)" || {
+              echo "nginx container did not reach running state" >&2
+              exit 1
+            }
+
+            for attempt in $(seq 1 30); do
+              if docker exec "$nginx_id" wget -q -O /dev/null http://backend:8080/health; then
+                break
+              fi
+              if [ "$attempt" -eq 30 ]; then
+                echo "backend post-deploy health check failed" >&2
+                docker logs "$backend_id"
+                exit 1
+              fi
+              sleep 2
+            done
+
+            for attempt in $(seq 1 30); do
+              if docker exec "$nginx_id" wget -q -O /dev/null http://frontend/; then
+                break
+              fi
+              if [ "$attempt" -eq 30 ]; then
+                echo "frontend post-deploy health check failed" >&2
+                docker logs "$frontend_id"
+                exit 1
+              fi
+              sleep 2
+            done
+
+            for attempt in $(seq 1 30); do
+              if docker exec "$nginx_id" wget -q -O /dev/null --no-check-certificate https://127.0.0.1/api/health && \
+                 docker exec "$nginx_id" wget -q -O /dev/null --no-check-certificate https://127.0.0.1/; then
+                break
+              fi
+              if [ "$attempt" -eq 30 ]; then
+                echo "nginx ingress smoke check failed" >&2
+                docker logs "$nginx_id"
+                exit 1
+              fi
+              sleep 2
+            done
 
             docker image prune -af --filter "until=72h" || true
             $compose_cmd ps

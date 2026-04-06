@@ -40,9 +40,55 @@ EXPO_PUBLIC_API_BASE_URL=http://192.168.1.42/api
 
 Restart Metro after editing `.env`.
 
+## Android APK
+
+The repository includes a GitHub Actions workflow at [`../.github/workflows/mobile-apk.yml`](../.github/workflows/mobile-apk.yml) that builds an Android APK:
+
+- when `mobile/**` changes are pushed to `main`
+- on manual `workflow_dispatch`
+- when a GitHub release is published
+
+Behavior:
+
+- matching `main` pushes upload the APK as a workflow artifact
+- release runs also attach the APK to the GitHub Release page
+
+The workflow builds an installable Android release APK by generating the Android project in CI with Expo prebuild, creating a signing keystore in CI, and then running Gradle `assembleRelease`.
+
+### Local APK build
+
+You need a **local Android SDK** (for example Android Studio installs one). Gradle looks for it via **`ANDROID_HOME`** (or **`ANDROID_SDK_ROOT`**) or **`android/local.properties`**.
+
+**macOS (typical Android Studio path):** `~/Library/Android/sdk`  
+**Linux:** often `~/Android/Sdk`
+
+Example session (after `expo prebuild` creates `android/`):
+
+```bash
+export ANDROID_HOME="$HOME/Library/Android/sdk"   # Linux: adjust path
+cd mobile
+npm install
+npx expo prebuild --platform android --clean
+# Gradle 9 from the template can fail with JvmVendorSpec / AGP; this stack needs Gradle >= 8.13. Pin to 8.13 (same as CI):
+sed -i '' 's|gradle-[0-9.]*-bin.zip|gradle-8.13-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties
+echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+cd android
+./gradlew assembleRelease
+```
+
+On Linux, use `sed -i` without the empty `''` argument.
+
+The `android/` folder (including `local.properties`) is gitignored; do not commit machine-specific SDK paths.
+
+Expected output:
+
+```text
+mobile/android/app/build/outputs/apk/release/app-release.apk
+```
+
 ## Project Structure
 
-```
+```text
 mobile/
 ├── src/
 │   └── app/           # Screens (file-based routing)
