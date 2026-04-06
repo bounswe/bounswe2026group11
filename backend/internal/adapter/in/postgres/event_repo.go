@@ -235,7 +235,7 @@ func buildRouteWKT(points []domain.GeoPoint) string {
 	return "SRID=4326;LINESTRING(" + strings.Join(segments, ", ") + ")"
 }
 
-// ListDiscoverableEvents returns nearby ACTIVE PUBLIC/PROTECTED events using
+// ListDiscoverableEvents returns nearby ACTIVE (not IN_PROGRESS) PUBLIC/PROTECTED events using
 // combined full-text search, structured filters, and keyset pagination.
 func (r *EventRepository) ListDiscoverableEvents(
 	ctx context.Context,
@@ -251,7 +251,8 @@ func (r *EventRepository) ListDiscoverableEvents(
 	lonPlaceholder := addArg(params.Origin.Lon)
 	latPlaceholder := addArg(params.Origin.Lat)
 	userPlaceholder := addArg(userID)
-	statusPlaceholder := addArg([]string{string(domain.EventStatusActive), string(domain.EventStatusInProgress)})
+	// Discovery lists joinable upcoming events only (ACTIVE), not IN_PROGRESS.
+	statusPlaceholder := addArg([]string{string(domain.EventStatusActive)})
 	privacyPlaceholder := addArg(toPrivacyLevelStringSlice(params.PrivacyLevels))
 	radiusPlaceholder := addArg(params.RadiusMeters)
 
@@ -337,6 +338,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 				COALESCE(ec.name, '') AS category_name,
 				e.image_url,
 				e.start_time,
+				e.status,
 				el.address AS location_address,
 				e.privacy_level,
 				e.approved_participant_count,
@@ -359,6 +361,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 			category_name,
 			image_url,
 			start_time,
+			status,
 			location_address,
 			privacy_level,
 			approved_participant_count,
@@ -388,6 +391,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 			categoryName             string
 			imageURL                 pgtype.Text
 			startTime                time.Time
+			eventStatus              string
 			locationAddress          pgtype.Text
 			privacyLevel             string
 			approvedParticipantCount int
@@ -405,6 +409,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 			&categoryName,
 			&imageURL,
 			&startTime,
+			&eventStatus,
 			&locationAddress,
 			&privacyLevel,
 			&approvedParticipantCount,
@@ -423,6 +428,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 			Title:                    title,
 			CategoryName:             categoryName,
 			StartTime:                startTime,
+			Status:                   domain.EventStatus(eventStatus),
 			PrivacyLevel:             domain.EventPrivacyLevel(privacyLevel),
 			ApprovedParticipantCount: approvedParticipantCount,
 			FavoriteCount:            favoriteCount,

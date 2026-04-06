@@ -907,6 +907,7 @@ func TestDiscoverEventsAppliesDefaultsAndMapsResults(t *testing.T) {
 			CategoryName:             "Sports",
 			ImageURL:                 &imageURL,
 			StartTime:                startTime,
+			Status:                   domain.EventStatusActive,
 			LocationAddress:          &address,
 			PrivacyLevel:             domain.PrivacyPublic,
 			ApprovedParticipantCount: 7,
@@ -956,6 +957,9 @@ func TestDiscoverEventsAppliesDefaultsAndMapsResults(t *testing.T) {
 	}
 	if result.Items[0].CategoryName != "Sports" {
 		t.Fatalf("expected category name %q, got %q", "Sports", result.Items[0].CategoryName)
+	}
+	if result.Items[0].Status != string(domain.EventStatusActive) {
+		t.Fatalf("expected status %q, got %q", domain.EventStatusActive, result.Items[0].Status)
 	}
 	if !result.Items[0].IsFavorited {
 		t.Fatal("expected event to be favorited")
@@ -1105,6 +1109,7 @@ func TestDiscoverEventsBuildsNextCursorFromLastReturnedItem(t *testing.T) {
 		Title:                    "First Event",
 		CategoryName:             "Sports",
 		StartTime:                time.Date(2030, time.January, 1, 18, 0, 0, 0, time.UTC),
+		Status:                   domain.EventStatusActive,
 		PrivacyLevel:             domain.PrivacyPublic,
 		ApprovedParticipantCount: 5,
 		DistanceMeters:           100,
@@ -1114,6 +1119,7 @@ func TestDiscoverEventsBuildsNextCursorFromLastReturnedItem(t *testing.T) {
 		Title:                    "Second Event",
 		CategoryName:             "Sports",
 		StartTime:                time.Date(2030, time.January, 2, 18, 0, 0, 0, time.UTC),
+		Status:                   domain.EventStatusActive,
 		PrivacyLevel:             domain.PrivacyPublic,
 		ApprovedParticipantCount: 6,
 		DistanceMeters:           200,

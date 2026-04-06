@@ -1978,6 +1978,7 @@ components:
         - title
         - category_name
         - start_time
+        - status
         - privacy_level
         - approved_participant_count
         - favorite_count
@@ -2008,6 +2009,11 @@ components:
           format: date-time
           description: Event start time.
           example: "2026-05-01T08:00:00+03:00"
+        status:
+          type: string
+          description: Event lifecycle state. The discovery endpoint returns only ACTIVE events (not IN_PROGRESS).
+          enum: [ACTIVE]
+          example: ACTIVE
         location_address:
           type:
             - string

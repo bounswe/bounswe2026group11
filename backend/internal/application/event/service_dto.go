@@ -80,6 +80,7 @@ type DiscoverableEventItem struct {
 	CategoryName             string                `json:"category_name"`
 	ImageURL                 *string               `json:"image_url"`
 	StartTime                time.Time             `json:"start_time"`
+	Status                   string                `json:"status"`
 	LocationAddress          *string               `json:"location_address"`
 	PrivacyLevel             string                `json:"privacy_level"`
 	ApprovedParticipantCount int                   `json:"approved_participant_count"`
