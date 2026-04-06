@@ -96,6 +96,7 @@ function buildViewModel(
     apiError: null,
     imageError: null,
     successMessage: null,
+    imageUploadSuccessMessage: null,
     selectedImageUri: null,
     locationSuggestions: [],
     isSearchingLocation: false,

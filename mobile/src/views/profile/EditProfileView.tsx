@@ -68,6 +68,7 @@ export default function EditProfileView() {
   const handleSave = async () => {
     const success = await vm.handleSave();
     if (success) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       router.back();
     }
   };

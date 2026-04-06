@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyEventsViewModel, type MyEventsTab } from '@/viewmodels/event/useMyEventsViewModel';
 import type { EventSummary } from '@/models/profile';
+import { EventCoverImage } from '@/components/EventCoverImage';
+import { getEventStatusPresentation } from '@/utils/eventStatus';
 import '@/styles/my-events.css';
 
 function formatDate(iso: string): string {
@@ -24,23 +26,26 @@ function formatTime(iso: string): string {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const cls = status === 'ACTIVE' ? 'me-status-active'
-    : status === 'CANCELED' ? 'me-status-canceled'
-    : 'me-status-completed';
-  return <span className={`me-status-badge ${cls}`}>{status}</span>;
+  const presentation = getEventStatusPresentation(status);
+  const cls = presentation.tone === 'active'
+    ? 'me-status-active'
+    : presentation.tone === 'canceled'
+      ? 'me-status-canceled'
+      : 'me-status-completed';
+
+  return <span className={`me-status-badge ${cls}`}>{presentation.label}</span>;
 }
 
 function EventCard({ event }: { event: EventSummary }) {
   return (
     <Link to={`/events/${event.id}`} className="me-card">
       <div className="me-card-image-wrapper">
-        {event.image_url ? (
-          <img src={event.image_url} alt={event.title} className="me-card-image" />
-        ) : (
-          <div className="me-card-image-placeholder">
-            <span>{event.category?.charAt(0) ?? 'E'}</span>
-          </div>
-        )}
+        <EventCoverImage
+          src={event.image_url}
+          alt={event.title}
+          imgClassName="me-card-image"
+          variant="card"
+        />
       </div>
       <div className="me-card-body">
         <div className="me-card-top">
@@ -75,9 +80,9 @@ function EventList({ events, emptyMessage }: { events: EventSummary[]; emptyMess
 }
 
 const TABS: { key: MyEventsTab; label: string }[] = [
-  { key: 'organized', label: 'Organized' },
+  { key: 'active', label: 'In Progress' },
   { key: 'upcoming', label: 'Upcoming' },
-  { key: 'active', label: 'Active' },
+  { key: 'organized', label: 'Hosted' },
   { key: 'past', label: 'Past' },
   { key: 'canceled', label: 'Canceled' },
 ];
@@ -97,7 +102,7 @@ export default function MyEventsPage() {
   return (
     <div className="me-page">
       <h1 className="me-title">My Events</h1>
-      <p className="me-subtitle">Events you've organized, joined, or attended</p>
+      <p className="me-subtitle">Events you've hosted, joined, or attended</p>
 
       {/* Tabs */}
       <div className="me-tabs">
@@ -137,10 +142,10 @@ export default function MyEventsPage() {
       {/* Content */}
       {!vm.isLoading && !vm.error && (
         <>
-          {vm.activeTab === 'organized' && (
+          {vm.activeTab === 'active' && (
             <EventList
-              events={vm.organized}
-              emptyMessage="You haven't organized any events yet. Create your first event!"
+              events={vm.active}
+              emptyMessage="No events in progress right now."
             />
           )}
           {vm.activeTab === 'upcoming' && (
@@ -149,10 +154,10 @@ export default function MyEventsPage() {
               emptyMessage="No upcoming events. Discover events to join!"
             />
           )}
-          {vm.activeTab === 'active' && (
+          {vm.activeTab === 'organized' && (
             <EventList
-              events={vm.active}
-              emptyMessage="No active events right now."
+              events={vm.organized}
+              emptyMessage="You haven't hosted any events yet. Create your first event!"
             />
           )}
           {vm.activeTab === 'past' && (

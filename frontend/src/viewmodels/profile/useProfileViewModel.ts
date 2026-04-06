@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { UserProfile, UpdateProfileRequest } from '../../models/profile';
 import { profileService } from '../../services/profileService';
 import { prepareAvatarBlobs } from '../../utils/imageResize';
@@ -12,6 +12,7 @@ export function useProfileViewModel(token: string | null) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Form Draft states
   const [displayName, setDisplayName] = useState('');
@@ -38,6 +39,13 @@ export function useProfileViewModel(token: string | null) {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  useEffect(
+    () => () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    },
+    [],
+  );
 
   const handleFileChange = useCallback((file: File | null) => {
     setAvatarFile(file);
@@ -99,8 +107,15 @@ export function useProfileViewModel(token: string | null) {
       if (avatarPreview) URL.revokeObjectURL(avatarPreview);
       setAvatarPreview(null);
       setIsEditing(false);
-      setSuccess('Profile updated successfully!');
-      setTimeout(() => setSuccess(null), 5000);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      const message = avatarFile
+        ? 'Profile photo updated successfully!'
+        : 'Profile updated successfully!';
+      setSuccess(message);
+      successTimerRef.current = setTimeout(() => {
+        setSuccess(null);
+        successTimerRef.current = null;
+      }, 5000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update profile');
     } finally {

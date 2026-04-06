@@ -89,6 +89,7 @@ export interface DiscoverEventItem {
   category_name: string;
   image_url: string | null;
   start_time: string;
+  status: string;
   location_address: string | null;
   privacy_level: 'PUBLIC' | 'PROTECTED';
   approved_participant_count: number;
@@ -228,6 +229,13 @@ export interface EventDetailResponse {
   viewer_context: EventDetailViewerContext;
   host_context: EventDetailHostContext | null;
 }
+
+export interface RatingWriteRequest {
+  rating: number;
+  message?: string | null;
+}
+
+export type RatingResponse = EventDetailEmbeddedRating;
 
 /* ── Join / Join Request ── */
 

@@ -85,6 +85,12 @@ export default function ProfileView() {
         </View>
       ) : null}
 
+      {vm.imageUploadSuccessMessage ? (
+        <View style={styles.successBanner}>
+          <Text style={styles.successBannerText}>{vm.imageUploadSuccessMessage}</Text>
+        </View>
+      ) : null}
+
       {vm.profile ? (
         <>
           <View style={styles.summaryCard}>
@@ -364,6 +370,19 @@ const styles = StyleSheet.create({
   errorBannerText: {
     color: '#DC2626',
     fontSize: 14,
+  },
+  successBanner: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  successBannerText: {
+    color: '#16A34A',
+    fontSize: 14,
+    fontWeight: '600',
   },
   retryButton: {
     marginTop: 8,

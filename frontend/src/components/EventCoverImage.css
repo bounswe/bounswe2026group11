@@ -1,0 +1,34 @@
+.event-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(165deg, #e5e7eb 0%, #d1d5db 45%, #9ca3af 100%);
+  color: #6b7280;
+}
+
+.event-cover-placeholder--card .event-cover-mountain-svg {
+  width: 56%;
+  max-width: 120px;
+  height: auto;
+}
+
+.event-cover-placeholder--hero .event-cover-mountain-svg {
+  width: 42%;
+  max-width: 220px;
+  height: auto;
+}
+
+.event-cover-mountain-sun {
+  fill: #e5e7eb;
+  opacity: 0.5;
+}
+
+.event-cover-mountain-back {
+  fill: #9ca3af;
+}
+
+.event-cover-mountain-front {
+  fill: #6b7280;
+}

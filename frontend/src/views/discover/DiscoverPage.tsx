@@ -7,6 +7,8 @@ import {
   type PrivacyFilter,
 } from '@/viewmodels/discover/useDiscoverViewModel';
 import type { DiscoverEventItem, DiscoverSortBy } from '@/models/event';
+import { EventCoverImage } from '@/components/EventCoverImage';
+import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import '@/styles/discover.css';
 
 const SORT_OPTIONS: { label: string; value: DiscoverSortBy }[] = [
@@ -39,15 +41,25 @@ function formatTime(iso: string): string {
 }
 
 function EventCard({ event }: { event: DiscoverEventItem }) {
+  const lifecycle = getEventLifecyclePresentation(event.status);
+
   return (
     <Link to={`/events/${event.id}`} className="dc-card">
       <div className="dc-card-image-wrapper">
-        {event.image_url ? (
-          <img src={event.image_url} alt={event.title} className="dc-card-image" />
-        ) : (
-          <div className="dc-card-image-placeholder">
-            <span>{event.category_name.charAt(0)}</span>
-          </div>
+        <EventCoverImage
+          src={event.image_url}
+          alt={event.title}
+          imgClassName="dc-card-image"
+          variant="card"
+        />
+        {lifecycle && (
+          <span
+            className={`dc-lifecycle-badge ${
+              lifecycle.variant === 'upcoming' ? 'dc-lifecycle-upcoming' : 'dc-lifecycle-in-progress'
+            }`}
+          >
+            {lifecycle.label}
+          </span>
         )}
         <span className={`dc-privacy-badge dc-privacy-${event.privacy_level.toLowerCase()}`}>
           {event.privacy_level === 'PUBLIC' ? 'Public' : 'Protected'}
@@ -95,18 +107,6 @@ export default function DiscoverPage() {
     vm.filters.radiusMeters !== 50000 ||
     vm.filters.categoryId !== null ||
     (!vm.locationLabel.endsWith('(default)') && !vm.locationLabel.endsWith('(your location)'));
-
-  if (!token) {
-    return (
-      <div className="dc-page">
-        <h1 className="dc-title">Discover Events</h1>
-        <div className="dc-login-prompt">
-          <p>Sign in to discover events near you.</p>
-          <a href="/login" className="btn-primary dc-login-btn">Sign In</a>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="dc-page">
