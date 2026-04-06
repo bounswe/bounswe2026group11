@@ -92,7 +92,6 @@ export default function DiscoverPage() {
     vm.filters.privacy !== 'ALL' ||
     vm.filters.startFrom !== '' ||
     vm.filters.startTo !== '' ||
-    vm.filters.tagNames !== '' ||
     vm.filters.radiusMeters !== 50000 ||
     vm.filters.categoryId !== null ||
     (!vm.locationLabel.endsWith('(default)') && !vm.locationLabel.endsWith('(your location)'));
@@ -248,18 +247,6 @@ export default function DiscoverPage() {
                   placeholder="To"
                 />
               </div>
-            </div>
-
-            {/* Tags */}
-            <div className="dc-filter-group">
-              <label className="dc-filter-label">Tags</label>
-              <input
-                type="text"
-                className="field-input dc-tag-input"
-                placeholder="e.g. hiking, outdoor (comma-separated)"
-                value={vm.filters.tagNames}
-                onChange={(e) => vm.updateFilter('tagNames', e.target.value)}
-              />
             </div>
 
             {/* Clear */}
