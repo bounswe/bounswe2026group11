@@ -193,8 +193,8 @@ function JoinActionSection({
         <>
           {!isAuthenticated && (
             <p className="ed-join-auth-hint">
-              Katılmak için lütfen giriş yapın.{' '}
-              <Link to="/login" className="ed-join-auth-link">Giriş yap</Link>
+              Please sign in to participate.{' '}
+              <Link to="/login" className="ed-join-auth-link">Sign in</Link>
             </p>
           )}
           <button
@@ -213,8 +213,8 @@ function JoinActionSection({
             <>
               {!isAuthenticated && (
                 <p className="ed-join-auth-hint">
-                  Katılmak için lütfen giriş yapın.{' '}
-                  <Link to="/login" className="ed-join-auth-link">Giriş yap</Link>
+                  Please sign in to participate.{' '}
+                  <Link to="/login" className="ed-join-auth-link">Sign in</Link>
                 </p>
               )}
               <button
