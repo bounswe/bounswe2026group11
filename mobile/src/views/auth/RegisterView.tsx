@@ -10,12 +10,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import {
   useRegisterViewModel,
   Gender,
   RegisterStep,
 } from '@/viewmodels/auth/useRegisterViewModel';
+import { useAuth } from '@/contexts/AuthContext';
 
 const GENDER_OPTIONS: { label: string; value: Gender }[] = [
   { label: 'Male', value: 'male' },
@@ -33,6 +34,7 @@ const STEP_SUBTITLES: Record<RegisterStep, string> = {
 
 export default function RegisterView() {
   const vm = useRegisterViewModel();
+  const { setSession } = useAuth();
 
   const handleNext = async () => {
     if (vm.step === 'details') {
@@ -40,7 +42,12 @@ export default function RegisterView() {
     } else {
       const session = await vm.handleVerifyOtp();
       if (session) {
-        router.replace('/');
+        await setSession(
+          session.access_token,
+          session.refresh_token,
+          session.user,
+        );
+        router.replace('/home' as Href);
       }
     }
   };

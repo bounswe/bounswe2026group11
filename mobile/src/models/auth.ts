@@ -82,7 +82,17 @@ export interface AuthSessionResponse {
   user: UserSummary;
 }
 
+export interface StoredAuthSession {
+  access_token: string;
+  refresh_token: string;
+  user: UserSummary;
+}
+
 export interface LogoutRequest {
+  refresh_token: string;
+}
+
+export interface RefreshRequest {
   refresh_token: string;
 }
 
