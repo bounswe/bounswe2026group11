@@ -1,18 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { EventSummary } from '@/models/event';
-import { listEvents } from '@/services/eventService';
-import { removeFavorite } from '@/services/favoriteService';
 import { useAuth } from '@/contexts/AuthContext';
-
-const DEFAULT_LOCATION = {
-  lat: 41.0082,
-  lon: 28.9784,
-};
-
-const PAGE_SIZE = 20;
+import { FavoriteEventItem } from '@/models/favorite';
+import { ApiError } from '@/services/api';
+import {
+  listFavoriteEvents,
+  removeFavorite,
+} from '@/services/favoriteService';
 
 export interface FavoriteEventsViewModel {
-  events: EventSummary[];
+  events: FavoriteEventItem[];
   isLoading: boolean;
   isRefreshing: boolean;
   isLoadingMore: boolean;
@@ -23,82 +19,81 @@ export interface FavoriteEventsViewModel {
   loadMore: () => Promise<void>;
 }
 
+function getLoadErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.status === 401) {
+    return 'You must be logged in to view favorites.';
+  }
+
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  return 'Failed to load favorite events. Please try again.';
+}
+
+function getRemoveErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.status === 401) {
+    return 'You must be logged in to manage favorites.';
+  }
+
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  return 'Failed to remove favorite. Please try again.';
+}
+
 export function useFavoriteEventsViewModel(): FavoriteEventsViewModel {
   const { token } = useAuth();
 
-  const [events, setEvents] = useState<EventSummary[]>([]);
+  const [events, setEvents] = useState<FavoriteEventItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
 
   const fetchEvents = useCallback(
-    async (mode: 'initial' | 'refresh' | 'loadMore') => {
+    async (mode: 'initial' | 'refresh') => {
       if (!token) {
         setEvents([]);
         setApiError('You must be logged in to view favorites.');
         setIsLoading(false);
+        setIsRefreshing(false);
         return;
       }
 
       if (mode === 'initial') setIsLoading(true);
       if (mode === 'refresh') setIsRefreshing(true);
-      if (mode === 'loadMore') setIsLoadingMore(true);
-
-      if (mode !== 'loadMore') {
-        setNextCursor(null);
-        setHasMore(false);
-      }
 
       setApiError(null);
 
       try {
-        const response = await listEvents(
-          {
-            lat: DEFAULT_LOCATION.lat,
-            lon: DEFAULT_LOCATION.lon,
-            only_favorited: true,
-            limit: PAGE_SIZE,
-            cursor: mode === 'loadMore' ? nextCursor ?? undefined : undefined,
-          },
-          token,
-        );
-
-        setHasMore(response.page_info.has_next);
-        setNextCursor(response.page_info.next_cursor);
-
-        if (mode === 'loadMore') {
-          setEvents((prev) => [...prev, ...response.items]);
-        } else {
-          setEvents(response.items);
+        const response = await listFavoriteEvents(token);
+        setEvents(response.items);
+      } catch (error) {
+        if (mode === 'initial') {
+          setEvents([]);
         }
-      } catch {
-        setApiError('Failed to load favorite events. Please try again.');
+
+        setApiError(getLoadErrorMessage(error));
       } finally {
         if (mode === 'initial') setIsLoading(false);
         if (mode === 'refresh') setIsRefreshing(false);
-        if (mode === 'loadMore') setIsLoadingMore(false);
       }
     },
-    [token, nextCursor],
+    [token],
   );
 
   useEffect(() => {
     void fetchEvents('initial');
-  }, [token]);
+  }, [fetchEvents]);
 
   const refresh = useCallback(async () => {
     await fetchEvents('refresh');
   }, [fetchEvents]);
 
   const loadMore = useCallback(async () => {
-    if (isLoading || isLoadingMore || isRefreshing || !hasMore || !nextCursor) {
-      return;
-    }
-    await fetchEvents('loadMore');
-  }, [isLoading, isLoadingMore, isRefreshing, hasMore, nextCursor, fetchEvents]);
+    // The favorites endpoint currently returns the full list without cursor pagination.
+  }, []);
 
   const handleRemoveFavorite = useCallback(
     async (eventId: string) => {
@@ -106,9 +101,9 @@ export function useFavoriteEventsViewModel(): FavoriteEventsViewModel {
 
       try {
         await removeFavorite(eventId, token);
-        setEvents((prev) => prev.filter((e) => e.id !== eventId));
-      } catch {
-        setApiError('Failed to remove favorite. Please try again.');
+        setEvents((prev) => prev.filter((event) => event.id !== eventId));
+      } catch (error) {
+        setApiError(getRemoveErrorMessage(error));
       }
     },
     [token],
@@ -118,8 +113,8 @@ export function useFavoriteEventsViewModel(): FavoriteEventsViewModel {
     events,
     isLoading,
     isRefreshing,
-    isLoadingMore,
-    hasMore,
+    isLoadingMore: false,
+    hasMore: false,
     apiError,
     handleRemoveFavorite,
     refresh,

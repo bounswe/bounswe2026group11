@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { formatEventDateLabel } from '@/utils/eventDate';
+import { formatEventLocation } from '@/utils/eventLocation';
 import {
   formatEventStatusLabel,
   getEventStatusBadgeColors,
@@ -18,6 +19,7 @@ interface ProfileEventCardProps {
   imageUrl?: string | null;
   categoryLabel: string;
   startTime: string;
+  locationAddress?: string | null;
   status: string;
   privacyLevel: 'PUBLIC' | 'PROTECTED' | 'PRIVATE' | null;
   onPress: () => void;
@@ -32,6 +34,7 @@ export default function ProfileEventCard({
   imageUrl,
   categoryLabel,
   startTime,
+  locationAddress,
   status,
   privacyLevel,
   onPress,
@@ -128,11 +131,22 @@ export default function ProfileEventCard({
           {title}
         </Text>
 
-        <View style={styles.metaRow}>
-          <Feather name="clock" size={16} color="#6B7280" />
-          <Text style={styles.metaText}>
-            {formatEventDateLabel(startTime)}
-          </Text>
+        <View style={styles.metaGroup}>
+          {locationAddress ? (
+            <View style={styles.metaRow}>
+              <Feather name="map-pin" size={16} color="#6B7280" />
+              <Text style={styles.metaText}>
+                {formatEventLocation(locationAddress)}
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={styles.metaRow}>
+            <Feather name="clock" size={16} color="#6B7280" />
+            <Text style={styles.metaText}>
+              {formatEventDateLabel(startTime)}
+            </Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -244,6 +258,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
     marginBottom: 10,
+  },
+  metaGroup: {
+    gap: 8,
   },
   metaRow: {
     flexDirection: 'row',

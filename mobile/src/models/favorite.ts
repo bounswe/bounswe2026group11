@@ -1,8 +1,12 @@
+import type { PrivacyLevel } from '@/models/event';
+
 export interface FavoriteEventItem {
   id: string;
   title: string;
   category?: string | null;
   image_url?: string | null;
+  location_address?: string | null;
+  privacy_level?: PrivacyLevel | null;
   status: string;
   start_time: string;
   end_time?: string | null;
