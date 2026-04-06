@@ -30,3 +30,21 @@ export interface UpdateProfileRequest {
   bio?: string | null;
   avatar_url?: string | null;
 }
+
+export interface ImageUploadInstruction {
+  variant: 'ORIGINAL' | 'SMALL';
+  method: 'PUT';
+  url: string;
+  headers: Record<string, string>;
+}
+
+export interface ImageUploadInitResponse {
+  base_url: string;
+  version: number;
+  confirm_token: string;
+  uploads: ImageUploadInstruction[];
+}
+
+export interface ImageUploadConfirmRequest {
+  confirm_token: string;
+}
