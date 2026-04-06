@@ -32,7 +32,7 @@ export function listCategories(): Promise<ListCategoriesResponse> {
 
 export function discoverEvents(
   params: DiscoverEventsParams,
-  token: string,
+  token: string | null,
 ): Promise<DiscoverEventsResponse> {
   const qs = new URLSearchParams();
   qs.set('lat', String(params.lat));
@@ -48,14 +48,21 @@ export function discoverEvents(
   if (params.sort_by) qs.set('sort_by', params.sort_by);
   if (params.limit != null) qs.set('limit', String(params.limit));
   if (params.cursor) qs.set('cursor', params.cursor);
-  return apiGetAuth<DiscoverEventsResponse>(`/events/?${qs}`, token);
+  const path = `/events/?${qs}`;
+  if (token) {
+    return apiGetAuth<DiscoverEventsResponse>(path, token);
+  }
+  return apiGet<DiscoverEventsResponse>(path);
 }
 
 export function getEventDetail(
   eventId: string,
-  token: string,
+  token: string | null,
 ): Promise<EventDetailResponse> {
-  return apiGetAuth<EventDetailResponse>(`/events/${eventId}`, token);
+  if (token) {
+    return apiGetAuth<EventDetailResponse>(`/events/${eventId}`, token);
+  }
+  return apiGet<EventDetailResponse>(`/events/${eventId}`);
 }
 
 export function joinEvent(

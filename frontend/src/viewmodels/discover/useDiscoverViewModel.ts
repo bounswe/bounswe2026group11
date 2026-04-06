@@ -120,7 +120,6 @@ export function useDiscoverViewModel(token: string | null) {
   );
 
   const fetchEvents = useCallback(async () => {
-    if (!token) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -141,7 +140,7 @@ export function useDiscoverViewModel(token: string | null) {
   }, [token, buildParams]);
 
   const loadMore = useCallback(async () => {
-    if (!token || !nextCursor || isLoadingMore) return;
+    if (!nextCursor || isLoadingMore) return;
     setIsLoadingMore(true);
     try {
       const res = await discoverEvents(buildParams(nextCursor), token);
@@ -157,9 +156,9 @@ export function useDiscoverViewModel(token: string | null) {
     }
   }, [token, nextCursor, isLoadingMore, buildParams]);
 
-  // Fetch when location is ready and token is present
+  // Fetch when location is ready (auth optional per OpenAPI)
   useEffect(() => {
-    if (locationReady && token) {
+    if (locationReady) {
       fetchEvents();
     }
   }, [locationReady, token, fetchEvents]);

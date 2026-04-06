@@ -108,18 +108,6 @@ export default function DiscoverPage() {
     vm.filters.categoryId !== null ||
     (!vm.locationLabel.endsWith('(default)') && !vm.locationLabel.endsWith('(your location)'));
 
-  if (!token) {
-    return (
-      <div className="dc-page">
-        <h1 className="dc-title">Discover Events</h1>
-        <div className="dc-login-prompt">
-          <p>Sign in to discover events near you.</p>
-          <a href="/login" className="btn-primary dc-login-btn">Sign In</a>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="dc-page">
       <h1 className="dc-title">Discover Events</h1>

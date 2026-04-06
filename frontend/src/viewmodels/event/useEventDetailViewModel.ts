@@ -29,7 +29,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   } | null>(null);
 
   const refreshEventDetail = useCallback(async () => {
-    if (!eventId || !token) {
+    if (!eventId) {
       return null;
     }
 
@@ -39,9 +39,9 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   }, [eventId, token]);
 
   const fetchDetail = useCallback(async () => {
-    if (!eventId || !token) {
+    if (!eventId) {
       setStatus('error');
-      setErrorMessage(!token ? 'You must be signed in to view this event.' : 'Invalid event ID.');
+      setErrorMessage('Invalid event ID.');
       return;
     }
 

@@ -11,10 +11,9 @@ function DotCanvas() {
   const raf = useRef(0);
 
   const COLORS = [
+    'rgba(59,130,246,.50)',   // blue
     'rgba(99,102,241,.55)',   // indigo
     'rgba(139,92,246,.50)',   // violet
-    'rgba(236,72,153,.45)',   // pink
-    'rgba(59,130,246,.50)',   // blue
     'rgba(168,85,247,.45)',   // purple
   ];
 
