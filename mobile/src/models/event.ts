@@ -175,6 +175,19 @@ export interface EventDetailEmbeddedRating {
   updated_at: string;
 }
 
+export interface RatingWriteRequest {
+  rating: number;
+  message?: string | null;
+}
+
+export interface RatingResponse {
+  id: string;
+  rating: number;
+  message?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type ParticipationStatus = 'JOINED' | 'PENDING' | 'INVITED' | 'NONE' | 'LEAVED' | 'CANCELED';
 
 export interface EventDetailViewerContext {

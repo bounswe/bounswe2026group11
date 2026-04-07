@@ -31,7 +31,7 @@ interface EventDetailViewProps {
 }
 
 function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
-  const label = level.charAt(0) + level.slice(1).toLowerCase();
+  const label = level ? level.charAt(0) + level.slice(1).toLowerCase() : '';
   const isProtected = level === 'PROTECTED';
   return (
     <View style={[styles.badge, isProtected ? styles.badgeProtected : styles.badgePublic]}>
@@ -70,6 +70,290 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+const FEEDBACK_MIN_LENGTH = 10;
+const FEEDBACK_MAX_LENGTH = 100;
+
+function formatShortDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return 'Invalid Date';
+    return d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function formatLongDateTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return 'Invalid Date';
+    return d.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function getFeedbackValidationMessage(message: string): string | null {
+  const trimmed = message.trim();
+
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  if (trimmed.length < FEEDBACK_MIN_LENGTH) {
+    return `Feedback must be at least ${FEEDBACK_MIN_LENGTH} characters.`;
+  }
+
+  if (trimmed.length > FEEDBACK_MAX_LENGTH) {
+    return `Feedback must be ${FEEDBACK_MAX_LENGTH} characters or fewer.`;
+  }
+
+  return null;
+}
+
+function renderStars(rating: number): string {
+  const rounded = Math.max(0, Math.min(5, Math.round(rating || 0)));
+  return `${'★'.repeat(rounded)}${'☆'.repeat(5 - rounded)}`;
+}
+
+function StarRatingInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <View style={styles.ratingStarRow}>
+      {[1, 2, 3, 4, 5].map((star) => {
+        const active = star <= value;
+        return (
+          <TouchableOpacity
+            key={star}
+            style={styles.ratingStarButton}
+            onPress={() => onChange(star)}
+            activeOpacity={0.75}
+            disabled={disabled}
+          >
+            <Text style={[styles.ratingStarIcon, active && styles.ratingStarIconActive]}>★</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+function ParticipantRatingSection({
+  event,
+  loading,
+  error,
+  onSubmit,
+  onDismissError,
+}: {
+  event: EventDetail;
+  loading: boolean;
+  error: string | null;
+  onSubmit: (rating: number, message?: string) => void;
+  onDismissError: () => void;
+}) {
+  const existingRating = event.viewer_event_rating;
+  const [rating, setRating] = React.useState(existingRating?.rating ?? 0);
+  const [message, setMessage] = React.useState(existingRating?.message ?? '');
+  const [isEditing, setIsEditing] = React.useState(existingRating == null);
+  const ratingStampRef = React.useRef<string | null>(
+    existingRating ? `${existingRating.id}:${existingRating.updated_at}` : null,
+  );
+
+  React.useEffect(() => {
+    setRating(existingRating?.rating ?? 0);
+    setMessage(existingRating?.message ?? '');
+
+    const nextStamp = existingRating ? `${existingRating.id}:${existingRating.updated_at}` : null;
+    const previousStamp = ratingStampRef.current;
+
+    if (!nextStamp) {
+      setIsEditing(true);
+    } else if (previousStamp !== null && nextStamp !== previousStamp && !loading && !error) {
+      setIsEditing(false);
+    } else if (previousStamp === null && !loading && !error) {
+      setIsEditing(false);
+    }
+
+    ratingStampRef.current = nextStamp;
+  }, [existingRating?.id, existingRating?.message, existingRating?.rating, existingRating?.updated_at, loading, error]);
+
+  const feedbackError = getFeedbackValidationMessage(message);
+  const trimmedLength = message.trim().length;
+  const isJoinedParticipant =
+    !event.viewer_context.is_host &&
+    event.viewer_context.participation_status === 'JOINED' &&
+    event.status === 'COMPLETED';
+  const isEligibleParticipant = isJoinedParticipant && event.rating_window.is_active;
+
+  if (!isJoinedParticipant) {
+    return null;
+  }
+
+  return (
+    <>
+      <View style={styles.divider} />
+      <View style={styles.section}>
+        <View style={styles.ratingCard}>
+          <View style={styles.ratingCardHeader}>
+            <View style={styles.ratingCardHeaderCopy}>
+              <Text style={styles.ratingKicker}>Post-event feedback</Text>
+              <Text style={styles.ratingTitle}>
+                {existingRating ? 'Update your rating for the host' : 'How was this event?'}
+              </Text>
+            </View>
+            <Text style={styles.ratingDeadline}>
+              {event.rating_window.is_active
+                ? `Open until ${formatShortDate(event.rating_window.closes_at)}`
+                : `Closed ${formatShortDate(event.rating_window.closes_at)}`}
+            </Text>
+          </View>
+
+          <Text style={styles.ratingCopy}>
+            Rate the experience from 1 to 5 stars. You can optionally leave a short message for the host.
+          </Text>
+
+          {!event.rating_window.is_active ? (
+            <View style={styles.ratingInfoBanner}>
+              <Feather name="info" size={16} color="#92400E" />
+              <Text style={styles.ratingInfoBannerText}>
+                The feedback window closed on {formatLongDateTime(event.rating_window.closes_at)}.
+              </Text>
+            </View>
+          ) : null}
+
+          {isEligibleParticipant && existingRating && !isEditing ? (
+            <View style={styles.ratingReadonly}>
+              <Text style={styles.ratingSummaryChip}>
+                {existingRating.rating}/5 · {renderStars(existingRating.rating)}
+              </Text>
+
+              {existingRating.message ? (
+                <Text style={styles.ratingReadonlyMessage}>"{existingRating.message}"</Text>
+              ) : null}
+
+              <View style={styles.ratingActionRow}>
+                <Text style={styles.ratingExistingNote}>
+                  Last updated {formatShortDate(existingRating.updated_at)}
+                </Text>
+                <TouchableOpacity
+                  style={styles.ratingEditButton}
+                  onPress={() => {
+                    onDismissError();
+                    setIsEditing(true);
+                  }}
+                >
+                  <Text style={styles.ratingEditButtonText}>Edit Rating</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : isEligibleParticipant ? (
+            <>
+              <View style={styles.ratingSelectionRow}>
+                <StarRatingInput value={rating} onChange={setRating} disabled={loading} />
+                <Text style={[styles.ratingSelectionSummary, rating > 0 && styles.ratingSelectionSummaryActive]}>
+                  {rating > 0 ? `${rating}/5 · ${renderStars(rating)}` : 'Select a star rating'}
+                </Text>
+              </View>
+
+              <Text style={styles.ratingFieldLabel}>Message</Text>
+              <TextInput
+                style={[styles.ratingTextArea, feedbackError && styles.ratingTextAreaError]}
+                placeholder="Share what stood out, how the event felt, or anything the host should know."
+                placeholderTextColor="#9CA3AF"
+                value={message}
+                onChangeText={setMessage}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                maxLength={FEEDBACK_MAX_LENGTH}
+                editable={!loading}
+              />
+
+              <View style={styles.ratingMeta}>
+                <Text style={[styles.ratingCharCount, feedbackError && styles.ratingValidationText]}>
+                  {trimmedLength}/{FEEDBACK_MAX_LENGTH}
+                </Text>
+                <Text style={styles.ratingHelper}>
+                  Optional. If you write one, keep it between {FEEDBACK_MIN_LENGTH} and {FEEDBACK_MAX_LENGTH} characters.
+                </Text>
+              </View>
+
+              {feedbackError ? (
+                <Text style={styles.ratingValidationText}>{feedbackError}</Text>
+              ) : null}
+
+              {error ? (
+                <View style={styles.inlineErrorBanner}>
+                  <Text style={styles.errorBannerText}>{error}</Text>
+                </View>
+              ) : null}
+
+              {existingRating ? (
+                <Text style={styles.ratingExistingNote}>
+                  Last updated {formatShortDate(existingRating.updated_at)}. Submitting again overwrites the existing rating.
+                </Text>
+              ) : null}
+
+              <View style={styles.ratingActionRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.ratingSubmitButton,
+                    (loading || rating === 0 || Boolean(feedbackError)) && styles.ratingSubmitButtonDisabled,
+                  ]}
+                  disabled={loading || rating === 0 || Boolean(feedbackError)}
+                  onPress={() => onSubmit(rating, message)}
+                  activeOpacity={0.85}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.ratingSubmitButtonText}>
+                      {existingRating ? 'Update Rating' : 'Submit Rating'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+
+                {existingRating ? (
+                  <TouchableOpacity
+                    style={styles.ratingCancelButton}
+                    disabled={loading}
+                    onPress={() => {
+                      onDismissError();
+                      setRating(existingRating.rating);
+                      setMessage(existingRating.message ?? '');
+                      setIsEditing(false);
+                    }}
+                  >
+                    <Text style={styles.ratingCancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </>
+          ) : null}
+        </View>
+      </View>
+    </>
+  );
+}
+
 export default function EventDetailView({ eventId }: EventDetailViewProps) {
   const vm = useEventDetailViewModel(eventId);
 
@@ -104,11 +388,14 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     }
 
     if (status_ === 'JOINED' || vm.actionState === 'success_joined') {
+      const attendedLabel =
+        vm.event.status === 'COMPLETED' ? 'You attended this event' : "You're attending";
+
       return (
         <View>
           <View style={styles.statusChip}>
             <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.statusChipTextGreen}>You&apos;re attending</Text>
+            <Text style={styles.statusChipTextGreen}>{attendedLabel}</Text>
           </View>
           {vm.canLeave && (
             <TouchableOpacity
@@ -393,6 +680,13 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                     Attendees ({vm.hostContextSummary?.approved_participant_count ?? vm.approvedParticipants.length})
                   </Text>
                 </TouchableOpacity>
+                {vm.event.status === 'COMPLETED' ? (
+                  <Text style={styles.hostActionHint}>
+                    {vm.event.rating_window.is_active
+                      ? `Participant feedback is open until ${formatLongDateTime(vm.event.rating_window.closes_at)}.`
+                      : `Participant feedback closed on ${formatLongDateTime(vm.event.rating_window.closes_at)}.`}
+                  </Text>
+                ) : null}
 
                 {vm.event.privacy_level === 'PROTECTED' && (
                   <TouchableOpacity
@@ -428,6 +722,14 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             </View>
           </>
         )}
+
+        <ParticipantRatingSection
+          event={event}
+          loading={vm.viewerRatingLoading}
+          error={vm.viewerRatingError}
+          onSubmit={(rating, message) => void vm.handleViewerRatingSubmit(rating, message)}
+          onDismissError={vm.dismissViewerRatingError}
+        />
 
         {/* Description */}
         {event.description ? (
@@ -604,7 +906,21 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             participants={vm.approvedParticipants}
             loading={vm.approvedParticipantsLoading}
             hasMore={vm.approvedParticipantsHasNext}
+            canRateParticipants={vm.event.status === 'COMPLETED' && vm.event.rating_window.is_active}
+            ratingWindowMessage={
+              vm.event.status === 'COMPLETED'
+                ? vm.event.rating_window.is_active
+                  ? `Participant feedback is open until ${formatLongDateTime(vm.event.rating_window.closes_at)}.`
+                  : `Participant feedback closed on ${formatLongDateTime(vm.event.rating_window.closes_at)}.`
+                : null
+            }
+            ratingLoadingId={vm.participantRatingLoadingId}
+            ratingError={vm.participantRatingError}
             onLoadMore={() => void vm.loadMoreApprovedParticipants()}
+            onSubmitRating={(participantUserId, rating, message) => {
+              void vm.handleParticipantRatingSubmit(participantUserId, rating, message);
+            }}
+            onDismissRatingError={vm.dismissParticipantRatingError}
             onClose={() => vm.setShowAttendeesModal(false)}
           />
         </>
@@ -960,6 +1276,238 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#DC2626',
   },
+  ratingCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#F8FAFC',
+    padding: 18,
+    gap: 14,
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
+  },
+  ratingCardHeader: {
+    gap: 12,
+  },
+  ratingCardHeaderCopy: {
+    gap: 4,
+  },
+  ratingKicker: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#111827',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    backgroundColor: '#E2E8F0',
+  },
+  ratingTitle: {
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  ratingDeadline: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(17, 24, 39, 0.15)',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  ratingCopy: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#475569',
+  },
+  ratingInfoBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  ratingInfoBannerText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#92400E',
+    fontWeight: '500',
+  },
+  ratingReadonly: {
+    gap: 12,
+  },
+  ratingSummaryChip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 251, 235, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    color: '#9A6700',
+    fontSize: 14,
+    fontWeight: '700',
+    overflow: 'hidden',
+  },
+  ratingReadonlyMessage: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#334155',
+  },
+  ratingSelectionRow: {
+    gap: 10,
+  },
+  ratingStarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ratingStarButton: {
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ratingStarIcon: {
+    fontSize: 40,
+    color: '#CBD5E1',
+  },
+  ratingStarIconActive: {
+    color: '#F59E0B',
+  },
+  ratingSelectionSummary: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.3)',
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  ratingSelectionSummaryActive: {
+    color: '#9A6700',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    backgroundColor: 'rgba(255, 251, 235, 0.9)',
+  },
+  ratingFieldLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  ratingTextArea: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#111827',
+    backgroundColor: '#FFFFFF',
+    minHeight: 112,
+  },
+  ratingTextAreaError: {
+    borderColor: '#FCA5A5',
+  },
+  ratingMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 4,
+  },
+  ratingCharCount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  ratingHelper: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#64748B',
+    flex: 1,
+  },
+  ratingValidationText: {
+    fontSize: 13,
+    color: '#DC2626',
+  },
+  ratingExistingNote: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#64748B',
+    flex: 1,
+  },
+  ratingActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  ratingEditButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: 'transparent',
+  },
+  ratingEditButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  ratingSubmitButton: {
+    minWidth: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: '#111827',
+  },
+  ratingSubmitButtonDisabled: {
+    opacity: 0.55,
+  },
+  ratingSubmitButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  ratingCancelButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: 'transparent',
+  },
+  ratingCancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  inlineErrorBanner: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    padding: 12,
+  },
 
   /* Error states */
   errorContainer: {
@@ -1138,5 +1686,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#DC2626',
+  },
+  hostActionHint: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#6B7280',
+    marginTop: -4,
   },
 });

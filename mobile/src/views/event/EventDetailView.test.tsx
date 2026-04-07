@@ -28,7 +28,10 @@ jest.mock('@expo/vector-icons', () => {
 
   function createIconComponent(library: string) {
     return ({ name }: { name: string }) =>
-      ReactLocal.createElement('span', { 'data-icon-library': library, 'data-icon': name });
+      ReactLocal.createElement('span', {
+        'data-icon-library': library,
+        'data-icon': name,
+      });
   }
 
   return {
@@ -95,11 +98,14 @@ function makeEvent(overrides: Partial<EventDetail> = {}): EventDetail {
       is_favorited: false,
       participation_status: 'PENDING',
     },
+    host_context: null,
     ...overrides,
   };
 }
 
-function buildViewModel(overrides: Partial<EventDetailViewModel> = {}): EventDetailViewModel {
+function buildViewModel(
+  overrides: Partial<EventDetailViewModel> = {},
+): EventDetailViewModel {
   return {
     event: makeEvent(),
     hostContextSummary: null,
@@ -117,6 +123,10 @@ function buildViewModel(overrides: Partial<EventDetailViewModel> = {}): EventDet
     participationStatus: 'PENDING',
     isQuotaFull: false,
     constraintViolation: null,
+    viewerRatingLoading: false,
+    viewerRatingError: null,
+    participantRatingLoadingId: null,
+    participantRatingError: null,
     showJoinRequestModal: false,
     joinRequestMessage: '',
     openJoinRequestModal: jest.fn(),
@@ -127,6 +137,10 @@ function buildViewModel(overrides: Partial<EventDetailViewModel> = {}): EventDet
     handleLeaveEvent: jest.fn().mockResolvedValue(undefined),
     handleRequestJoin: jest.fn().mockResolvedValue(undefined),
     handleToggleFavorite: jest.fn().mockResolvedValue(undefined),
+    handleViewerRatingSubmit: jest.fn().mockResolvedValue(undefined),
+    handleParticipantRatingSubmit: jest.fn().mockResolvedValue(undefined),
+    dismissViewerRatingError: jest.fn(),
+    dismissParticipantRatingError: jest.fn(),
     retry: jest.fn(),
     showRequestsModal: false,
     setShowRequestsModal: jest.fn(),

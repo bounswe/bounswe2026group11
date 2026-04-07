@@ -56,6 +56,8 @@ const mockListEventPendingJoinRequests = jest.mocked(eventService.listEventPendi
 const mockApproveJoinRequest = jest.mocked(eventService.approveJoinRequest);
 const mockRejectJoinRequest = jest.mocked(eventService.rejectJoinRequest);
 const mockCancelEvent = jest.mocked(eventService.cancelEvent);
+const mockUpsertEventRating = jest.mocked(eventService.upsertEventRating);
+const mockUpsertParticipantRating = jest.mocked(eventService.upsertParticipantRating);
 const mockAddFavorite = jest.mocked(favoriteService.addFavorite);
 const mockRemoveFavorite = jest.mocked(favoriteService.removeFavorite);
 
@@ -195,6 +197,30 @@ const joinedInProgressEventFixture: EventDetail = {
   },
 };
 
+const completedJoinedEventFixture: EventDetail = {
+  ...publicEventFixture,
+  status: 'COMPLETED',
+  viewer_context: {
+    ...publicEventFixture.viewer_context,
+    participation_status: 'JOINED',
+  },
+  rating_window: {
+    opens_at: '2026-05-01T12:00:00+03:00',
+    closes_at: '2026-05-08T12:00:00+03:00',
+    is_active: true,
+  },
+};
+
+const completedHostedEventFixture: EventDetail = {
+  ...hostedEventFixture,
+  status: 'COMPLETED',
+  rating_window: {
+    opens_at: '2026-05-01T12:00:00+03:00',
+    closes_at: '2026-05-08T12:00:00+03:00',
+    is_active: true,
+  },
+};
+
 describe('resolveConstraintViolation', () => {
   it('returns null when event has no gender or age constraints', () => {
     expect(
@@ -312,6 +338,20 @@ describe('useEventDetailViewModel', () => {
     mockApproveJoinRequest.mockResolvedValue(undefined);
     mockRejectJoinRequest.mockResolvedValue(undefined);
     mockCancelEvent.mockResolvedValue(undefined);
+    mockUpsertEventRating.mockResolvedValue({
+      id: 'rating-1',
+      rating: 5,
+      message: 'Great host and experience.',
+      created_at: '2026-05-02T10:00:00+03:00',
+      updated_at: '2026-05-02T10:00:00+03:00',
+    });
+    mockUpsertParticipantRating.mockResolvedValue({
+      id: 'rating-2',
+      rating: 4,
+      message: 'Reliable and communicative.',
+      created_at: '2026-05-02T11:00:00+03:00',
+      updated_at: '2026-05-02T11:00:00+03:00',
+    });
     mockAddFavorite.mockResolvedValue(undefined);
     mockRemoveFavorite.mockResolvedValue(undefined);
   });
@@ -1196,6 +1236,163 @@ describe('useEventDetailViewModel', () => {
       });
 
       expect(result.current.actionError).toBe('Failed to leave the event. Please try again.');
+    });
+  });
+
+  describe('rating actions', () => {
+    it('submits viewer rating and refreshes event detail', async () => {
+      const ratedEvent: EventDetail = {
+        ...completedJoinedEventFixture,
+        viewer_event_rating: {
+          id: 'rating-1',
+          rating: 5,
+          message: 'Great host and experience.',
+          created_at: '2026-05-02T10:00:00+03:00',
+          updated_at: '2026-05-02T10:00:00+03:00',
+        },
+      };
+
+      mockGetEventDetail
+        .mockResolvedValueOnce(completedJoinedEventFixture)
+        .mockResolvedValueOnce(ratedEvent);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleViewerRatingSubmit(5, '  Great host and experience.  ');
+      });
+
+      expect(mockUpsertEventRating).toHaveBeenCalledWith(
+        'event-uuid-001',
+        { rating: 5, message: 'Great host and experience.' },
+        'mock-token',
+      );
+      expect(result.current.viewerRatingError).toBeNull();
+      expect(result.current.event?.viewer_event_rating?.rating).toBe(5);
+    });
+
+    it('maps viewer rating errors from the backend', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(completedJoinedEventFixture);
+      mockUpsertEventRating.mockRejectedValueOnce(
+        new ApiError(422, {
+          error: {
+            code: 'validation_error',
+            message: 'Validation error',
+            details: { message: 'Feedback must be at least 10 characters.' },
+          },
+        }),
+      );
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleViewerRatingSubmit(4, 'short');
+      });
+
+      expect(result.current.viewerRatingError).toBe('Feedback must be at least 10 characters.');
+
+      act(() => {
+        result.current.dismissViewerRatingError();
+      });
+
+      expect(result.current.viewerRatingError).toBeNull();
+    });
+
+    it('submits participant rating and refreshes host lists', async () => {
+      const ratedHostedEvent: EventDetail = {
+        ...completedHostedEventFixture,
+        host_context: {
+          ...completedHostedEventFixture.host_context!,
+          approved_participants: [
+            {
+              ...completedHostedEventFixture.host_context!.approved_participants[0],
+              host_rating: {
+                id: 'rating-2',
+                rating: 4,
+                message: 'Reliable and communicative.',
+                created_at: '2026-05-02T11:00:00+03:00',
+                updated_at: '2026-05-02T11:00:00+03:00',
+              },
+            },
+          ],
+        },
+      };
+
+      mockGetEventDetail
+        .mockResolvedValueOnce(completedHostedEventFixture)
+        .mockResolvedValueOnce(ratedHostedEvent);
+      mockListEventApprovedParticipants
+        .mockResolvedValueOnce({
+          items: completedHostedEventFixture.host_context?.approved_participants ?? [],
+          page_info: { next_cursor: null, has_next: false },
+        })
+        .mockResolvedValueOnce({
+          items: ratedHostedEvent.host_context?.approved_participants ?? [],
+          page_info: { next_cursor: null, has_next: false },
+        });
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-003'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleParticipantRatingSubmit('u1', 4, 'Reliable and communicative.');
+      });
+
+      expect(mockUpsertParticipantRating).toHaveBeenCalledWith(
+        'event-uuid-003',
+        'u1',
+        { rating: 4, message: 'Reliable and communicative.' },
+        'mock-token',
+      );
+      expect(result.current.participantRatingError).toBeNull();
+    });
+
+    it('stores participant rating errors on the matching participant', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(completedHostedEventFixture);
+      mockListEventApprovedParticipants.mockResolvedValueOnce({
+        items: completedHostedEventFixture.host_context?.approved_participants ?? [],
+        page_info: { next_cursor: null, has_next: false },
+      });
+      mockUpsertParticipantRating.mockRejectedValueOnce(
+        new ApiError(403, {
+          error: {
+            code: 'rating_window_closed',
+            message: 'The 7-day rating window has already closed.',
+          },
+        }),
+      );
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-003'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleParticipantRatingSubmit('u1', 4, 'Reliable and communicative.');
+      });
+
+      expect(result.current.participantRatingError).toEqual({
+        participantUserId: 'u1',
+        message: 'The 7-day rating window has already closed.',
+      });
+
+      act(() => {
+        result.current.dismissParticipantRatingError();
+      });
+
+      expect(result.current.participantRatingError).toBeNull();
     });
   });
 });

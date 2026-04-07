@@ -143,3 +143,14 @@ export async function apiPatchAuth<T>(endpoint: string, body: unknown, token: st
     { token, requiresAuth: true },
   );
 }
+
+export async function apiPutAuth<T>(endpoint: string, body: unknown, token: string): Promise<T> {
+  return requestJson<T>(
+    endpoint,
+    {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    },
+    { token, requiresAuth: true },
+  );
+}
