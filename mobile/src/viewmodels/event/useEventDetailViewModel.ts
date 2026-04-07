@@ -316,6 +316,17 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         { message: joinRequestMessage.trim() || null },
         token,
       );
+      setEvent((prev) =>
+        prev
+          ? {
+              ...prev,
+              viewer_context: {
+                ...prev.viewer_context,
+                participation_status: 'PENDING',
+              },
+            }
+          : prev,
+      );
       setParticipationStatus('PENDING');
       setActionState('success_requested');
       setShowJoinRequestModal(false);

@@ -38,6 +38,7 @@ type stubEventService struct {
 	rejectJoinCallCount      int
 	lastInput                event.CreateEventInput
 	lastDiscoverInput        event.DiscoverEventsInput
+	lastDetailUserID         uuid.UUID
 	lastDetailEventID        uuid.UUID
 	lastLeaveEventID         uuid.UUID
 	lastRequestJoinInput     event.RequestJoinInput
@@ -86,8 +87,9 @@ func (s *stubEventService) DiscoverEvents(_ context.Context, _ uuid.UUID, input 
 	}, nil
 }
 
-func (s *stubEventService) GetEventDetail(_ context.Context, _, eventID uuid.UUID) (*event.GetEventDetailResult, error) {
+func (s *stubEventService) GetEventDetail(_ context.Context, userID, eventID uuid.UUID) (*event.GetEventDetailResult, error) {
 	s.detailCallCount++
+	s.lastDetailUserID = userID
 	s.lastDetailEventID = eventID
 	if s.err != nil {
 		return nil, s.err
@@ -553,6 +555,9 @@ func TestGetEventDetailReturns200(t *testing.T) {
 	if svc.lastDetailEventID != eventID {
 		t.Fatalf("expected detail service to receive event %s, got %s", eventID, svc.lastDetailEventID)
 	}
+	if svc.lastDetailUserID == uuid.Nil {
+		t.Fatal("expected detail service to receive authenticated caller id")
+	}
 
 	var body event.GetEventDetailResult
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
@@ -560,6 +565,12 @@ func TestGetEventDetailReturns200(t *testing.T) {
 	}
 	if body.ID != eventID.String() {
 		t.Fatalf("expected response id %s, got %s", eventID, body.ID)
+	}
+	if got := resp.Header.Get(fiber.HeaderCacheControl); got != "private, no-store" {
+		t.Fatalf("expected Cache-Control header %q, got %q", "private, no-store", got)
+	}
+	if got := resp.Header.Get(fiber.HeaderVary); got != fiber.HeaderAuthorization {
+		t.Fatalf("expected Vary header %q, got %q", fiber.HeaderAuthorization, got)
 	}
 }
 

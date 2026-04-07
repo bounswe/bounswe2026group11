@@ -49,6 +49,11 @@ async function requestJson<T>(
     ...(init.headers as Record<string, string> | undefined),
   };
 
+  if (init.method === 'GET') {
+    headers['Cache-Control'] = 'no-store';
+    headers.Pragma = 'no-cache';
+  }
+
   if (activeToken) {
     headers.Authorization = `Bearer ${activeToken}`;
   }

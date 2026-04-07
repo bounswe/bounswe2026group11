@@ -100,6 +100,7 @@ export async function apiGet<T>(endpoint: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
   });
 
   if (!response.ok) {
@@ -124,6 +125,7 @@ async function fetchWithAuth(
 
   const init: RequestInit = { method, headers };
   if (body !== undefined) init.body = JSON.stringify(body);
+  if (method === 'GET') init.cache = 'no-store';
 
   return fetch(`${API_BASE_URL}${endpoint}`, init);
 }

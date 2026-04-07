@@ -254,6 +254,20 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     }
   }, [eventId, token, refreshEventDetail]);
 
+  const markViewerPendingJoinRequest = useCallback(() => {
+    setEvent((prev) => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        viewer_context: {
+          ...prev.viewer_context,
+          participation_status: 'PENDING',
+        },
+      };
+    });
+  }, []);
+
   const handleRequestJoin = useCallback(async (message?: string) => {
     if (!eventId || !token) return;
     setJoinLoading(true);
@@ -261,7 +275,12 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
 
     try {
       await requestJoinEvent(eventId, token, message);
-      await refreshEventDetail();
+      markViewerPendingJoinRequest();
+      try {
+        await refreshEventDetail();
+      } catch {
+        // Keep the optimistic pending state if the follow-up detail fetch is stale or fails.
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
@@ -278,7 +297,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } finally {
       setJoinLoading(false);
     }
-  }, [eventId, token, refreshEventDetail]);
+  }, [eventId, token, markViewerPendingJoinRequest, refreshEventDetail]);
 
   const [moderatingId, setModeratingId] = useState<string | null>(null);
   const [moderateError, setModerateError] = useState<string | null>(null);
