@@ -284,6 +284,27 @@
   gap: 2px;
 }
 
+.ed-metric-topline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ed-metric-emote {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  line-height: 1;
+  color: #111827;
+}
+
+.ed-metric-emote svg {
+  width: 18px;
+  height: 18px;
+}
+
 .ed-metric-value {
   font-size: 18px;
   font-weight: 700;
@@ -300,6 +321,7 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+  margin-top: 24px;
 }
 
 .ed-section {

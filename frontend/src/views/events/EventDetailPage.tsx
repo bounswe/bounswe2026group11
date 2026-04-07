@@ -129,6 +129,25 @@ function PencilCoverIcon() {
   );
 }
 
+function ParticipantsMetricIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+      <circle cx="9.5" cy="7" r="3.5" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a3.5 3.5 0 0 1 0 6.74" />
+    </svg>
+  );
+}
+
+function SavesMetricIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3h9l3 3v15l-7.5-4L3 21V6a3 3 0 0 1 3-3Z" />
+    </svg>
+  );
+}
+
 function PrivacyBadge({ level }: { level: string }) {
   const label = level === 'PUBLIC' ? 'Public' : level === 'PROTECTED' ? 'Protected' : 'Private';
   return (
@@ -165,6 +184,7 @@ function JoinActionSection({
 }) {
   const [requestMessage, setRequestMessage] = useState('');
   const [showRequestForm, setShowRequestForm] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
   const ctx = event.viewer_context;
 
   // Host doesn't see join actions
@@ -196,15 +216,23 @@ function JoinActionSection({
             <button
               type="button"
               className="ed-leave-btn"
-              onClick={() => {
-                if (window.confirm('Are you sure you want to leave this event?')) {
-                  onLeave();
-                }
-              }}
+              onClick={() => setShowLeaveModal(true)}
               disabled={leaveLoading}
             >
               {leaveLoading ? <span className="spinner" /> : 'Leave Event'}
             </button>
+            {showLeaveModal && (
+              <LeaveConfirmModal
+                loading={leaveLoading}
+                onClose={() => {
+                  if (!leaveLoading) setShowLeaveModal(false);
+                }}
+                onConfirm={() => {
+                  onLeave();
+                  setShowLeaveModal(false);
+                }}
+              />
+            )}
           </div>
         )}
       </div>
@@ -766,6 +794,45 @@ function CancelConfirmModal({
   );
 }
 
+function LeaveConfirmModal({
+  onConfirm,
+  onClose,
+  loading,
+}: {
+  onConfirm: () => void;
+  onClose: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="ed-modal-overlay" onClick={onClose}>
+      <div className="ed-modal" onClick={(e) => e.stopPropagation()}>
+        <h3 className="ed-modal-title">Leave Event</h3>
+        <p className="ed-modal-text">
+          Are you sure you want to leave this event? You will lose your spot and may need to rejoin later.
+        </p>
+        <div className="ed-modal-actions">
+          <button
+            type="button"
+            className="ed-modal-cancel-btn"
+            onClick={onClose}
+            disabled={loading}
+          >
+            Go Back
+          </button>
+          <button
+            type="button"
+            className="ed-modal-confirm-btn"
+            onClick={onConfirm}
+            disabled={loading}
+          >
+            {loading ? <span className="spinner" /> : 'Yes, Leave Event'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EventContent({
   event,
   joinLoading,
@@ -962,7 +1029,10 @@ function EventContent({
       {/* Metrics row */}
       <div className="ed-metrics">
         <div className="ed-metric">
-          <span className="ed-metric-value">{event.approved_participant_count}</span>
+          <div className="ed-metric-topline">
+            <span className="ed-metric-emote" aria-hidden><ParticipantsMetricIcon /></span>
+            <span className="ed-metric-value">{event.approved_participant_count}</span>
+          </div>
           <span className="ed-metric-label">Participant{event.approved_participant_count !== 1 ? 's' : ''}</span>
         </div>
         {event.viewer_context.is_host && (
@@ -972,7 +1042,10 @@ function EventContent({
           </div>
         )}
         <div className="ed-metric">
-          <span className="ed-metric-value">{event.favorite_count}</span>
+          <div className="ed-metric-topline">
+            <span className="ed-metric-emote" aria-hidden><SavesMetricIcon /></span>
+            <span className="ed-metric-value">{event.favorite_count}</span>
+          </div>
           <span className="ed-metric-label">Save{event.favorite_count !== 1 ? 's' : ''}</span>
         </div>
         {event.host_score.final_score != null && (
