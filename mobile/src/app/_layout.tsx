@@ -2,6 +2,8 @@ import { Stack, router, usePathname, type Href } from 'expo-router';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
+const AUTH_ROUTES = new Set(['/', '/register', '/forgot-password']);
+
 function AppStack() {
   const { isHydrating, token } = useAuth();
   const pathname = usePathname();
@@ -9,16 +11,14 @@ function AppStack() {
   useEffect(() => {
     if (isHydrating === true) return;
 
-    const isAuthRoute =
-      pathname === '/' || pathname === '/register' || pathname === '/forgot-password';
-    const isProtectedRoute = !isAuthRoute;
+    const isAuthRoute = AUTH_ROUTES.has(pathname);
 
     if (token && isAuthRoute) {
-      router.replace('/home' as Href);
+      router.replace('/(tabs)/home' as Href);
       return;
     }
 
-    if (!token && isProtectedRoute) {
+    if (!token && !isAuthRoute) {
       router.replace('/' as Href);
     }
   }, [isHydrating, pathname, token]);

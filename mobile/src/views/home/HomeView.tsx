@@ -12,7 +12,6 @@ import HomeHeader from '@/components/home/HomeHeader';
 import SearchSection from '@/components/home/SearchSection';
 import EmptyState from '@/components/home/EmptyState';
 import LoadingState from '@/components/home/LoadingState';
-import BottomTabBar from '@/components/common/BottomTabBar';
 import EventCard from '@/components/events/EventCard';
 import FiltersBottomSheet from '@/components/home/FiltersBottomSheet';
 import { useHomeViewModel } from '@/viewmodels/home/useHomeViewModel';
@@ -104,8 +103,6 @@ export default function HomeView() {
           )}
         </View>
       </View>
-
-      <BottomTabBar />
 
       <FiltersBottomSheet
         visible={vm.isFilterModalOpen}

@@ -105,7 +105,7 @@ describe('MyEventsView', () => {
     jest.clearAllMocks();
   });
 
-  it('renders the my events page, event cards, and bottom tab bar', () => {
+  it('renders the my events page and event cards', () => {
     const event = makeEvent();
     mockUseMyEventsViewModel.mockReturnValue(
       buildViewModel({
@@ -115,7 +115,7 @@ describe('MyEventsView', () => {
 
     render(<MyEventsView />);
 
-    expect(screen.getAllByText('My Events')).toHaveLength(2);
+    expect(screen.getByText('My Events')).toBeTruthy();
     expect(screen.getByText('Hosting')).toBeTruthy();
     expect(screen.getByText('Attending')).toBeTruthy();
     expect(screen.getByText('Bosphorus Sunrise Run')).toBeTruthy();
@@ -124,7 +124,6 @@ describe('MyEventsView', () => {
     ).toBeTruthy();
     expect(screen.getByText('Bebek Sahili, Istanbul')).toBeTruthy();
     expect(screen.getByText('Host')).toBeTruthy();
-    expect(screen.getByText('Favorites')).toBeTruthy();
   });
 
   it('updates the selected status tab when a segment is pressed', () => {

@@ -11,7 +11,6 @@ import {
 import { router, type Href, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import BottomTabBar from '@/components/common/BottomTabBar';
 import ProfileEventCard from '@/components/profile/ProfileEventCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLogoutViewModel } from '@/viewmodels/auth/useLogoutViewModel';
@@ -335,7 +334,6 @@ export default function ProfileView() {
         )}
       </View>
 
-      <BottomTabBar />
     </SafeAreaView>
   );
 }

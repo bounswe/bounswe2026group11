@@ -10,7 +10,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
-import BottomTabBar from '@/components/common/BottomTabBar';
 import MyEventCard from '@/components/events/MyEventCard';
 import { useMyEventsViewModel } from '@/viewmodels/event/useMyEventsViewModel';
 
@@ -133,7 +132,6 @@ export default function MyEventsView() {
         </View>
       </View>
 
-      <BottomTabBar />
     </SafeAreaView>
   );
 }
