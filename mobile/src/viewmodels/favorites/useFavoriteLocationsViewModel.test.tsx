@@ -32,6 +32,13 @@ const suggestionBesiktas = {
   lon: '29.0083',
 };
 
+const suggestionBogaziciDorm = {
+  display_name:
+    'Boğaziçi Üniversitesi 4.Kuzey Yurdu, Hisar Üstü, Sarıyer, İstanbul, Türkiye',
+  lat: '41.0845',
+  lon: '29.0506',
+};
+
 function makeLocation(id: string, name: string) {
   return {
     id,
@@ -141,7 +148,7 @@ describe('useFavoriteLocationsViewModel', () => {
     expect(mockCreateFavoriteLocation).toHaveBeenCalledWith(
       {
         name: 'Home',
-        address: suggestionBesiktas.display_name,
+        address: 'Besiktas, Istanbul, Turkiye',
         lat: 41.0422,
         lon: 29.0083,
       },
@@ -153,6 +160,37 @@ describe('useFavoriteLocationsViewModel', () => {
     ]);
     expect(result.current.isAddModalOpen).toBe(false);
     expect(result.current.addError).toBeNull();
+  });
+
+  it('saves the raw display_name of a detailed suggestion', async () => {
+    const { result } = renderHook(() => useFavoriteLocationsViewModel());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const rawAddress =
+      'Boğaziçi Üniversitesi 4.Kuzey Yurdu, Hisar Üstü, Sarıyer, İstanbul, Türkiye';
+
+    act(() => {
+      result.current.openAddModal();
+      result.current.setAddName('Dorm');
+      result.current.selectSuggestion(suggestionBogaziciDorm);
+    });
+
+    expect(result.current.addLocationQuery).toBe(rawAddress);
+
+    await act(async () => {
+      await result.current.submitAdd();
+    });
+
+    expect(mockCreateFavoriteLocation).toHaveBeenCalledWith(
+      {
+        name: 'Dorm',
+        address: rawAddress,
+        lat: 41.0845,
+        lon: 29.0506,
+      },
+      'mock-token',
+    );
   });
 
   it('blocks submit with validation errors before calling the API', async () => {

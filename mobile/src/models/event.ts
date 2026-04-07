@@ -329,6 +329,7 @@ export interface HomeFiltersDraft {
   startDate: string;
   endDate: string;
   radiusKm: number;
+  sortBy: Extract<DiscoverEventsSortBy, 'START_TIME' | 'DISTANCE'>;
 }
 
 // Image upload types (presigned URL flow)

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  DiscoverEventsSortBy,
   EventCategory,
   EventSummary,
   HomeFilterPrivacyLevel,
@@ -23,10 +24,10 @@ const PAGE_SIZE = 2;
 const MAX_FAVORITE_LOCATION_OPTIONS = 3;
 
 const DEFAULT_LOCATION = {
-  lat: 41.0082,
-  lon: 28.9784,
+  lat: 41.0422,
+  lon: 29.0083,
 };
-const DEFAULT_LOCATION_LABEL = 'Istanbul';
+const DEFAULT_LOCATION_LABEL = 'Beşiktaş, Istanbul';
 const FALLBACK_LOCATION: LocationSuggestion = {
   display_name: DEFAULT_LOCATION_LABEL,
   lat: String(DEFAULT_LOCATION.lat),
@@ -39,6 +40,7 @@ const DEFAULT_FILTERS: HomeFiltersDraft = {
   startDate: '',
   endDate: '',
   radiusKm: 10,
+  sortBy: 'START_TIME',
 };
 
 type DefaultLocationSource = 'PROFILE' | 'LIVE' | 'FALLBACK';
@@ -355,6 +357,9 @@ export interface HomeViewModel {
   updateDraftStartDate: (value: string) => void;
   updateDraftEndDate: (value: string) => void;
   updateDraftRadiusKm: (value: number) => void;
+  updateDraftSortBy: (
+    value: Extract<DiscoverEventsSortBy, 'START_TIME' | 'DISTANCE'>,
+  ) => void;
   loadMoreEvents: () => Promise<void>;
   refreshEvents: () => Promise<void>;
   silentRefresh: () => Promise<void>;
@@ -468,6 +473,19 @@ export function useHomeViewModel(): HomeViewModel {
     }
 
     try {
+      const liveLocation = await getCurrentLocationSuggestion();
+
+      if (liveLocation) {
+        setDefaultLocation(liveLocation);
+        setDefaultLocationSource('LIVE');
+        syncSelectedLocationWithDefault(liveLocation);
+        return liveLocation;
+      }
+    } catch {
+      // Fall through to profile and fallback location resolution.
+    }
+
+    try {
       const profile = await getMyProfile(token);
       const profileLocation = profileToSelectedLocation(profile);
 
@@ -476,19 +494,6 @@ export function useHomeViewModel(): HomeViewModel {
         setDefaultLocationSource('PROFILE');
         syncSelectedLocationWithDefault(profileLocation);
         return profileLocation;
-      }
-    } catch {
-      // Fall through to live-location resolution when profile lookup fails.
-    }
-
-    try {
-      const liveLocation = await getCurrentLocationSuggestion();
-
-      if (liveLocation) {
-        setDefaultLocation(liveLocation);
-        setDefaultLocationSource('LIVE');
-        syncSelectedLocationWithDefault(liveLocation);
-        return liveLocation;
       }
     } catch {
       // Fall through to the hardcoded fallback location.
@@ -584,6 +589,7 @@ export function useHomeViewModel(): HomeViewModel {
                 : undefined,
             start_from: parseStrictDateToIso(appliedFilters.startDate, 'start'),
             start_to: parseStrictDateToIso(appliedFilters.endDate, 'end'),
+            sort_by: appliedFilters.sortBy,
             limit: PAGE_SIZE,
             cursor:
               mode === 'loadMore' ? cursorOverride ?? undefined : undefined,
@@ -876,6 +882,15 @@ export function useHomeViewModel(): HomeViewModel {
     }));
   }, []);
 
+  const updateDraftSortBy = useCallback((
+    value: Extract<DiscoverEventsSortBy, 'START_TIME' | 'DISTANCE'>,
+  ) => {
+    setFilterDraft((prev) => ({
+      ...prev,
+      sortBy: value,
+    }));
+  }, []);
+
   const loadMoreEvents = useCallback(async () => {
     if (isLoading || isLoadingMore || isRefreshing || !hasMore || !nextCursor) {
       return;
@@ -933,6 +948,7 @@ export function useHomeViewModel(): HomeViewModel {
               : undefined,
           start_from: parseStrictDateToIso(appliedFilters.startDate, 'start'),
           start_to: parseStrictDateToIso(appliedFilters.endDate, 'end'),
+          sort_by: appliedFilters.sortBy,
           limit: PAGE_SIZE,
         },
         token,
@@ -1011,6 +1027,7 @@ export function useHomeViewModel(): HomeViewModel {
     updateDraftStartDate,
     updateDraftEndDate,
     updateDraftRadiusKm,
+    updateDraftSortBy,
     openLocationModal,
     closeLocationModal,
     updateLocationQuery,

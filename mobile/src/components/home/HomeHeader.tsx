@@ -1,6 +1,7 @@
 import React, { forwardRef } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import SemLogo from '@/components/common/SemLogo';
 
 interface HomeHeaderProps {
   locationLabel: string;
@@ -16,24 +17,24 @@ const HomeHeader = forwardRef<any, HomeHeaderProps>(function HomeHeader(
 ) {
   return (
     <View style={styles.container}>
-      <View style={styles.leftSection}>
-        <Text style={styles.kicker}>Discover events near</Text>
+      <View style={styles.logoWrap}>
+        <SemLogo height={56} color="#111827" />
+      </View>
 
-        <View ref={locationButtonRef} collapsable={false}>
-          <TouchableOpacity
-            style={styles.locationButton}
-            activeOpacity={0.85}
-            onPress={onPressLocation}
-            accessibilityRole="button"
-            accessibilityLabel="Select location"
-          >
-            <Feather name="map-pin" size={16} color="#FFFFFF" />
-            <Text style={styles.locationButtonText} numberOfLines={1}>
-              {locationLabel}
-            </Text>
-            <Feather name="chevron-down" size={16} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+      <View ref={locationButtonRef} collapsable={false} style={styles.locationWrap}>
+        <TouchableOpacity
+          style={styles.locationButton}
+          activeOpacity={0.85}
+          onPress={onPressLocation}
+          accessibilityRole="button"
+          accessibilityLabel="Select location"
+        >
+          <Feather name="map-pin" size={16} color="#FFFFFF" />
+          <Text style={styles.locationButtonText} numberOfLines={1}>
+            {locationLabel}
+          </Text>
+          <Feather name="chevron-down" size={16} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -42,23 +43,24 @@ const HomeHeader = forwardRef<any, HomeHeaderProps>(function HomeHeader(
 const styles = StyleSheet.create({
   container: {
     marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
-  leftSection: {
-    flex: 1,
-    marginRight: 12,
+  logoWrap: {
+    flexShrink: 0,
+    marginRight: 8,
   },
-  kicker: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 8,
+  locationWrap: {
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: '58%',
+    alignItems: 'flex-end',
   },
   locationButton: {
-    alignSelf: 'flex-start',
     maxWidth: '100%',
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#111827',
@@ -68,8 +70,9 @@ const styles = StyleSheet.create({
   },
   locationButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '800',
+    fontStyle: 'italic',
     marginHorizontal: 8,
     flexShrink: 1,
   },
