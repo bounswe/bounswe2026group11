@@ -195,6 +195,18 @@
   flex-shrink: 0;
 }
 
+.me-status-upcoming {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
+.me-status-in-progress {
+  background-color: #fef9c3;
+  color: #a16207;
+  border: 1px solid #fde047;
+}
+
 .me-status-active {
   background-color: #dcfce7;
   color: #16a34a;

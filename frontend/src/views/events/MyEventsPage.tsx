@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMyEventsViewModel, type MyEventsTab } from '@/viewmodels/event/useMyEventsViewModel';
 import type { EventSummary } from '@/models/profile';
 import { EventCoverImage } from '@/components/EventCoverImage';
-import { getEventStatusPresentation } from '@/utils/eventStatus';
+import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/utils/eventStatus';
 import '@/styles/my-events.css';
 
 function formatDate(iso: string): string {
@@ -26,6 +26,15 @@ function formatTime(iso: string): string {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const lifecycle = getEventLifecyclePresentation(status);
+  if (lifecycle) {
+    const cls = lifecycle.variant === 'upcoming'
+      ? 'me-status-upcoming'
+      : 'me-status-in-progress';
+
+    return <span className={`me-status-badge ${cls}`}>{lifecycle.label}</span>;
+  }
+
   const presentation = getEventStatusPresentation(status);
   const cls = presentation.tone === 'active'
     ? 'me-status-active'
