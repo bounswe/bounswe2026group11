@@ -186,21 +186,22 @@ export default function ProfileView() {
               </View>
             </View>
 
-            <View style={styles.statsRow}>
+            <View style={styles.statsSection}>
+              <Text style={styles.statsSectionTitle}>Ratings</Text>
+              <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{vm.ratingLabel}</Text>
-                <Text style={styles.statLabel}>Rating</Text>
+                <Text style={styles.statValue}>{vm.overallRatingLabel}</Text>
+                <Text style={styles.statLabel}>Overall</Text>
               </View>
-
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{vm.hostedCount}</Text>
-                <Text style={styles.statLabel}>Hosted</Text>
+                <Text style={styles.statValue}>{vm.hostRatingLabel}</Text>
+                <Text style={styles.statLabel}>Host</Text>
               </View>
-
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{vm.attendedCount}</Text>
-                <Text style={styles.statLabel}>Attended</Text>
+                <Text style={styles.statValue}>{vm.participantRatingLabel}</Text>
+                <Text style={styles.statLabel}>Participant</Text>
               </View>
+            </View>
             </View>
           </View>
 
@@ -503,26 +504,44 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'stretch',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 10,
+  },
+  statsSection: {
+    gap: 10,
+  },
+  statsSectionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   statItem: {
     flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 14,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '700',
     color: '#111827',
     textAlign: 'center',
   },
   statLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
     color: '#64748B',
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.2,
   },
   menuCard: {
     backgroundColor: '#FFFFFF',
