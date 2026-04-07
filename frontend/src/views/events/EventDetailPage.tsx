@@ -79,6 +79,30 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`ed-status-badge ${cls}`}>{presentation.label}</span>;
 }
 
+function ExpiryWarningBanner({ event }: { event: EventDetailResponse }) {
+  if (event.status !== 'ACTIVE') return null;
+
+  const createdAt = new Date(event.created_at);
+  const now = new Date();
+  const daysSinceCreation = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+  const autoCompleteDay = 60;
+  const warningStartDay = 53;
+
+  if (daysSinceCreation < warningStartDay || daysSinceCreation >= autoCompleteDay) return null;
+
+  const daysRemaining = autoCompleteDay - daysSinceCreation;
+
+  return (
+    <div className="ed-expiry-warning">
+      <span className="ed-expiry-warning-icon">&#9200;</span>
+      <span>
+        This event will be automatically completed in <strong>{daysRemaining} day{daysRemaining !== 1 ? 's' : ''}</strong> due to inactivity.
+        {event.viewer_context.is_host && ' Update the event to keep it active.'}
+      </span>
+    </div>
+  );
+}
+
 function PencilCoverIcon() {
   return (
     <svg
@@ -887,6 +911,9 @@ function EventContent({
           </div>
         )}
       </div>
+
+      {/* Expiry warning — shown in last 7 days before auto-completion */}
+      <ExpiryWarningBanner event={event} />
 
       {/* Join action — prominent position */}
       <JoinActionSection

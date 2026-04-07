@@ -179,3 +179,48 @@
 .cancel-btn:hover {
   background-color: #e5e7eb;
 }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .profile-container {
+    margin: 1rem auto;
+    padding: 1.25rem;
+    border-radius: 10px;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 1.5rem;
+  }
+
+  .profile-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .edit-toggle-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .avatar-preview img,
+  .avatar-placeholder {
+    width: 90px;
+    height: 90px;
+    font-size: 2rem;
+  }
+
+  .info-group p {
+    font-size: 1rem;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .save-btn,
+  .cancel-btn {
+    width: 100%;
+  }
+}

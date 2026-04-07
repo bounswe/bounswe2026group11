@@ -1223,6 +1223,32 @@
   border: 1px solid #e5e7eb;
 }
 
+/* Expiry warning banner */
+.ed-expiry-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.ed-expiry-warning-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.ed-expiry-warning strong {
+  font-weight: 700;
+  color: #78350f;
+}
+
 .ed-join-error {
   display: flex;
   align-items: flex-start;
@@ -1363,5 +1389,30 @@
 
   .ed-inline-rating-editor {
     margin-left: 0;
+  }
+
+  .ed-page {
+    padding: 0 4px;
+  }
+
+  .ed-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ed-modal {
+    padding: 20px;
+    margin: 12px;
+  }
+
+  .ed-modal-overlay {
+    padding: 12px;
+  }
+
+  .ed-section-title {
+    font-size: 16px;
+  }
+
+  .ed-description {
+    font-size: 14px;
   }
 }
