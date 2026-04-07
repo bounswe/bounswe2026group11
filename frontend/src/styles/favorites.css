@@ -1,0 +1,305 @@
+/* ── Favorite Locations Tab ── */
+
+.fav-loc {
+  margin-top: 1.5rem;
+}
+
+.fav-loc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.fav-loc-count {
+  font-size: 0.95rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.fav-loc-add-btn {
+  padding: 0.5rem 1.1rem;
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fav-loc-add-btn:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.fav-loc-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fav-loc-limit-banner {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+/* ── Location cards ── */
+
+.fav-loc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fav-loc-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  transition: box-shadow 0.15s;
+}
+
+.fav-loc-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.fav-loc-card-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.fav-loc-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.fav-loc-card-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.fav-loc-card-address {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fav-loc-card-remove {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.fav-loc-card-remove:hover:not(:disabled) {
+  color: #ef4444;
+  border-color: #fca5a5;
+}
+
+.fav-loc-card-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Add Location Modal ── */
+
+.fav-loc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  padding: 1rem;
+}
+
+.fav-loc-modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.75rem;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.fav-loc-modal-title {
+  margin: 0 0 1.25rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.fav-loc-modal-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.fav-loc-modal-field {
+  margin-bottom: 1rem;
+}
+
+.fav-loc-modal-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.4rem;
+}
+
+.fav-loc-search-wrapper {
+  position: relative;
+}
+
+.fav-loc-searching {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.fav-loc-suggestions {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.fav-loc-suggestion-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  color: #334155;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.fav-loc-suggestion-item:hover {
+  background: #f1f5f9;
+}
+
+.fav-loc-selected {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  color: #166534;
+  margin-bottom: 1rem;
+}
+
+.fav-loc-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
+
+.fav-loc-modal-cancel {
+  padding: 0.55rem 1.1rem;
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fav-loc-modal-cancel:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.fav-loc-modal-save {
+  padding: 0.55rem 1.1rem;
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fav-loc-modal-save:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.fav-loc-modal-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fav-loc-modal-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Mobile responsive ── */
+
+@media (max-width: 600px) {
+  .fav-loc-card {
+    padding: 0.75rem 1rem;
+  }
+
+  .fav-loc-card-address {
+    white-space: normal;
+  }
+
+  .fav-loc-modal {
+    padding: 1.25rem;
+    border-radius: 12px;
+  }
+
+  .fav-loc-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .fav-loc-modal-cancel,
+  .fav-loc-modal-save {
+    width: 100%;
+    text-align: center;
+  }
+}

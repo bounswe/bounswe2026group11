@@ -1,10 +1,14 @@
-import { apiGetAuth, apiPatchAuth, apiPostAuth } from './api';
+import { apiGetAuth, apiPatchAuth, apiPostAuth, apiDeleteAuth } from './api';
 import {
   UserProfile,
   EventSummary,
   UpdateProfileRequest,
   ImageUploadInitResponse,
   ImageUploadConfirmRequest,
+  FavoriteLocation,
+  FavoriteLocationsResponse,
+  CreateFavoriteLocationRequest,
+  UpdateFavoriteLocationRequest,
 } from '../models/profile';
 
 interface EventListResponse {
@@ -49,5 +53,22 @@ export const profileService = {
 
   async confirmAvatarUpload(body: ImageUploadConfirmRequest, token: string): Promise<void> {
     return apiPostAuth<void>('/me/avatar/confirm', body, token);
+  },
+
+  async getFavoriteLocations(token: string): Promise<FavoriteLocation[]> {
+    const res = await apiGetAuth<FavoriteLocationsResponse>('/me/favorite-locations', token);
+    return res.items ?? [];
+  },
+
+  async createFavoriteLocation(data: CreateFavoriteLocationRequest, token: string): Promise<FavoriteLocation> {
+    return apiPostAuth<FavoriteLocation>('/me/favorite-locations', data, token);
+  },
+
+  async updateFavoriteLocation(id: string, data: UpdateFavoriteLocationRequest, token: string): Promise<FavoriteLocation> {
+    return apiPatchAuth<FavoriteLocation>(`/me/favorite-locations/${id}`, data, token);
+  },
+
+  async deleteFavoriteLocation(id: string, token: string): Promise<void> {
+    return apiDeleteAuth<void>(`/me/favorite-locations/${id}`, token);
   },
 };
