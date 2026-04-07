@@ -3,11 +3,8 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { logout } from '@/services/authService';
+import SemLogo from '@/components/SemLogo';
 import '@/styles/shell.css';
-
-const PUBLIC_NAV = [
-  { to: '/discover', label: 'Discover' },
-];
 
 const AUTH_NAV = [
   { to: '/discover', label: 'Discover' },
@@ -24,7 +21,7 @@ export default function AppShell() {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isLoggedIn = !!token;
-  const navItems = isLoggedIn ? AUTH_NAV : PUBLIC_NAV;
+  const navItems = isLoggedIn ? AUTH_NAV : [];
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -55,23 +52,25 @@ export default function AppShell() {
       <header className="shell-header">
         <div className="shell-header-inner">
           <NavLink to="/discover" className="shell-logo" onClick={closeMobileMenu}>
-            Social Event Mapper
+            <SemLogo height={48} color="#111827" />
           </NavLink>
 
-          <nav className={`shell-nav ${menuOpen ? 'open' : ''}`}>
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `shell-nav-link ${isActive ? 'active' : ''}`
-                }
-                onClick={closeMobileMenu}
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+          {navItems.length > 0 && (
+            <nav className={`shell-nav ${menuOpen ? 'open' : ''}`}>
+              {navItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `shell-nav-link ${isActive ? 'active' : ''}`
+                  }
+                  onClick={closeMobileMenu}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+          )}
 
           <div className="shell-header-right">
             {isLoggedIn ? (
@@ -125,23 +124,27 @@ export default function AppShell() {
               </div>
             )}
 
-            <button
-              className="shell-hamburger"
-              onClick={() => setMenuOpen((prev) => !prev)}
-              aria-label="Toggle navigation"
-            >
-              <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
-              <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
-              <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
-            </button>
+            {navItems.length > 0 && (
+              <button
+                className="shell-hamburger"
+                onClick={() => setMenuOpen((prev) => !prev)}
+                aria-label="Toggle navigation"
+              >
+                <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
+                <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
+                <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
+              </button>
+            )}
           </div>
         </div>
       </header>
 
-      <div
-        className={`shell-overlay ${menuOpen ? 'visible' : ''}`}
-        onClick={closeMobileMenu}
-      />
+      {navItems.length > 0 && (
+        <div
+          className={`shell-overlay ${menuOpen ? 'visible' : ''}`}
+          onClick={closeMobileMenu}
+        />
+      )}
 
       <main className="shell-main">
         <Outlet />
