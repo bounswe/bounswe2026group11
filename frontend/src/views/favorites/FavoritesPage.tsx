@@ -1,10 +1,15 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFavoritesViewModel } from '@/viewmodels/favorites/useFavoritesViewModel';
+import FavoriteLocationsTab from './FavoriteLocationsTab';
 import type { FavoriteEventItem } from '@/models/event';
 import { EventCoverImage } from '@/components/EventCoverImage';
 import { getEventStatusPresentation } from '@/utils/eventStatus';
 import '@/styles/my-events.css';
+import '@/styles/favorites.css';
+
+type FavoritesTab = 'events' | 'locations';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -61,44 +66,76 @@ function FavoriteCard({ item }: { item: FavoriteEventItem }) {
   );
 }
 
+function FavoriteEventsContent({ token }: { token: string | null }) {
+  const vm = useFavoritesViewModel(token);
+
+  if (vm.isLoading) {
+    return (
+      <div className="me-loading">
+        <span className="spinner" />
+        <p>Loading your favorites...</p>
+      </div>
+    );
+  }
+
+  if (vm.error) {
+    return (
+      <div className="me-error">
+        <p>{vm.error}</p>
+        <button type="button" className="me-retry-btn" onClick={vm.retry}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (vm.items.length === 0) {
+    return (
+      <div className="me-empty">
+        <p>No favorites yet. Discover events and save them for later!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="me-grid">
+      {vm.items.map((item) => (
+        <FavoriteCard key={item.id} item={item} />
+      ))}
+    </div>
+  );
+}
+
+const TABS: { key: FavoritesTab; label: string }[] = [
+  { key: 'events', label: 'Events' },
+  { key: 'locations', label: 'Locations' },
+];
+
 export default function FavoritesPage() {
   const { token } = useAuth();
-  const vm = useFavoritesViewModel(token);
+  const [activeTab, setActiveTab] = useState<FavoritesTab>('events');
 
   return (
     <div className="me-page">
       <h1 className="me-title">Favorites</h1>
-      <p className="me-subtitle">Events you've saved for later</p>
+      <p className="me-subtitle">Your saved events and locations</p>
 
-      {vm.isLoading && (
-        <div className="me-loading">
-          <span className="spinner" />
-          <p>Loading your favorites...</p>
-        </div>
-      )}
-
-      {vm.error && (
-        <div className="me-error">
-          <p>{vm.error}</p>
-          <button type="button" className="me-retry-btn" onClick={vm.retry}>
-            Retry
+      {/* Tabs */}
+      <div className="me-tabs">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            className={`me-tab ${activeTab === tab.key ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
           </button>
-        </div>
-      )}
+        ))}
+      </div>
 
-      {!vm.isLoading && !vm.error && vm.items.length === 0 && (
-        <div className="me-empty">
-          <p>No favorites yet. Discover events and save them for later!</p>
-        </div>
-      )}
-
-      {!vm.isLoading && !vm.error && vm.items.length > 0 && (
-        <div className="me-grid">
-          {vm.items.map((item) => (
-            <FavoriteCard key={item.id} item={item} />
-          ))}
-        </div>
-      )}
+      {activeTab === 'events' && <FavoriteEventsContent token={token} />}
+      {activeTab === 'locations' && <FavoriteLocationsTab />}
     </div>
   );
 }
