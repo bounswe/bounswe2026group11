@@ -226,6 +226,17 @@ export interface EventDetailHostContext {
   invitations: EventDetailInvitation[];
 }
 
+export interface EventHostContextSummary {
+  approved_participant_count: number;
+  pending_join_request_count: number;
+  invitation_count: number;
+}
+
+export interface EventCollectionPageInfo {
+  next_cursor?: string | null;
+  has_next: boolean;
+}
+
 export interface EventDetail {
   id: string;
   title: string;
@@ -253,6 +264,21 @@ export interface EventDetail {
   viewer_event_rating?: EventDetailEmbeddedRating | null;
   viewer_context: EventDetailViewerContext;
   host_context?: EventDetailHostContext | null;
+}
+
+export interface EventApprovedParticipantsResponse {
+  items: EventDetailApprovedParticipant[];
+  page_info: EventCollectionPageInfo;
+}
+
+export interface EventPendingJoinRequestsResponse {
+  items: EventDetailPendingJoinRequest[];
+  page_info: EventCollectionPageInfo;
+}
+
+export interface EventInvitationsResponse {
+  items: EventDetailInvitation[];
+  page_info: EventCollectionPageInfo;
 }
 
 export interface JoinEventResponse {

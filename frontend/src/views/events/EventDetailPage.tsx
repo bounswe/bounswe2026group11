@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
-import type { EventDetailApprovedParticipant, EventDetailResponse } from '@/models/event';
+import type {
+  EventDetailApprovedParticipant,
+  EventDetailInvitation,
+  EventDetailPendingJoinRequest,
+  EventDetailResponse,
+  EventHostContextSummary,
+} from '@/models/event';
 import { EventCoverImage } from '@/components/EventCoverImage';
 import { UserAvatar } from '@/components/UserAvatar';
 import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/utils/eventStatus';
@@ -756,6 +762,19 @@ function EventContent({
   favoriteLoading,
   onFavoriteToggle,
   isAuthenticated,
+  hostContextSummary,
+  approvedParticipants,
+  approvedParticipantsLoading,
+  approvedParticipantsHasNext,
+  pendingJoinRequests,
+  pendingJoinRequestsLoading,
+  pendingJoinRequestsHasNext,
+  invitations,
+  invitationsLoading,
+  invitationsHasNext,
+  onLoadMoreApprovedParticipants,
+  onLoadMorePendingJoinRequests,
+  onLoadMoreInvitations,
   coverImageUploading,
   coverImageError,
   coverImageSuccessMessage,
@@ -789,6 +808,19 @@ function EventContent({
   favoriteLoading: boolean;
   onFavoriteToggle: () => void;
   isAuthenticated: boolean;
+  hostContextSummary: EventHostContextSummary | null;
+  approvedParticipants: EventDetailApprovedParticipant[];
+  approvedParticipantsLoading: boolean;
+  approvedParticipantsHasNext: boolean;
+  pendingJoinRequests: EventDetailPendingJoinRequest[];
+  pendingJoinRequestsLoading: boolean;
+  pendingJoinRequestsHasNext: boolean;
+  invitations: EventDetailInvitation[];
+  invitationsLoading: boolean;
+  invitationsHasNext: boolean;
+  onLoadMoreApprovedParticipants: () => void;
+  onLoadMorePendingJoinRequests: () => void;
+  onLoadMoreInvitations: () => void;
   coverImageUploading: boolean;
   coverImageError: string | null;
   coverImageSuccessMessage: string | null;
@@ -1062,7 +1094,7 @@ function EventContent({
         )}
 
         {/* Host management section — only visible to host */}
-        {event.viewer_context.is_host && event.host_context && (
+        {event.viewer_context.is_host && (
           <div className="ed-section">
             <h2 className="ed-section-title">Management</h2>
 
@@ -1089,18 +1121,20 @@ function EventContent({
             {/* Approved participants */}
             <div className="ed-mgmt-group">
               <h3 className="ed-mgmt-title">
-                Approved Participants ({event.host_context.approved_participants.length})
+                Approved Participants ({hostContextSummary?.approved_participant_count ?? approvedParticipants.length})
               </h3>
               {hostCanRateParticipants && (
                 <div className="ed-rating-banner">
                   Participant rating window is open until {formatShortDate(event.rating_window.closes_at)}
                 </div>
               )}
-              {event.host_context.approved_participants.length === 0 ? (
+              {approvedParticipantsLoading && approvedParticipants.length === 0 ? (
+                <p className="ed-mgmt-empty">Loading participants...</p>
+              ) : approvedParticipants.length === 0 ? (
                 <p className="ed-mgmt-empty">No participants yet</p>
               ) : (
                 <ul className="ed-mgmt-list">
-                  {event.host_context.approved_participants.map((p) => (
+                  {approvedParticipants.map((p) => (
                     <HostParticipantRatingItem
                       key={p.participation_id}
                       participant={p}
@@ -1122,13 +1156,23 @@ function EventContent({
                   ))}
                 </ul>
               )}
+              {approvedParticipantsHasNext && (
+                <button
+                  type="button"
+                  className="ed-secondary-btn"
+                  onClick={onLoadMoreApprovedParticipants}
+                  disabled={approvedParticipantsLoading}
+                >
+                  {approvedParticipantsLoading ? 'Loading...' : 'Load More Participants'}
+                </button>
+              )}
             </div>
 
             {/* Pending requests */}
-            {event.host_context.pending_join_requests.length > 0 && (
+            {(pendingJoinRequests.length > 0 || (hostContextSummary?.pending_join_request_count ?? 0) > 0) && (
               <div className="ed-mgmt-group">
                 <h3 className="ed-mgmt-title">
-                  Pending Requests ({event.host_context.pending_join_requests.length})
+                  Pending Requests ({hostContextSummary?.pending_join_request_count ?? pendingJoinRequests.length})
                 </h3>
                 {moderateError && (
                   <div className="ed-join-error" style={{ marginBottom: 10 }}>
@@ -1136,8 +1180,11 @@ function EventContent({
                     <button type="button" className="ed-join-error-dismiss" onClick={onDismissModerateError}>&times;</button>
                   </div>
                 )}
+                {pendingJoinRequestsLoading && pendingJoinRequests.length === 0 ? (
+                  <p className="ed-mgmt-empty">Loading requests...</p>
+                ) : (
                 <ul className="ed-mgmt-list">
-                  {event.host_context.pending_join_requests.map((r) => (
+                  {pendingJoinRequests.map((r) => (
                     <li key={r.join_request_id} className="ed-mgmt-item ed-mgmt-item-pending">
                       <UserAvatar
                         username={r.user.username}
@@ -1175,17 +1222,31 @@ function EventContent({
                     </li>
                   ))}
                 </ul>
+                )}
+                {pendingJoinRequestsHasNext && (
+                  <button
+                    type="button"
+                    className="ed-secondary-btn"
+                    onClick={onLoadMorePendingJoinRequests}
+                    disabled={pendingJoinRequestsLoading}
+                  >
+                    {pendingJoinRequestsLoading ? 'Loading...' : 'Load More Requests'}
+                  </button>
+                )}
               </div>
             )}
 
             {/* Invitations */}
-            {event.host_context.invitations.length > 0 && (
+            {(invitations.length > 0 || (hostContextSummary?.invitation_count ?? 0) > 0) && (
               <div className="ed-mgmt-group">
                 <h3 className="ed-mgmt-title">
-                  Invitations ({event.host_context.invitations.length})
+                  Invitations ({hostContextSummary?.invitation_count ?? invitations.length})
                 </h3>
+                {invitationsLoading && invitations.length === 0 ? (
+                  <p className="ed-mgmt-empty">Loading invitations...</p>
+                ) : (
                 <ul className="ed-mgmt-list">
-                  {event.host_context.invitations.map((inv) => (
+                  {invitations.map((inv) => (
                     <li key={inv.invitation_id} className="ed-mgmt-item">
                       <UserAvatar
                         username={inv.user.username}
@@ -1204,6 +1265,17 @@ function EventContent({
                     </li>
                   ))}
                 </ul>
+                )}
+                {invitationsHasNext && (
+                  <button
+                    type="button"
+                    className="ed-secondary-btn"
+                    onClick={onLoadMoreInvitations}
+                    disabled={invitationsLoading}
+                  >
+                    {invitationsLoading ? 'Loading...' : 'Load More Invitations'}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1304,6 +1376,19 @@ export default function EventDetailPage() {
       onDismissCancelError={vm.dismissCancelError}
       favoriteLoading={vm.favoriteLoading}
       onFavoriteToggle={vm.handleFavoriteToggle}
+      hostContextSummary={vm.hostContextSummary}
+      approvedParticipants={vm.approvedParticipants}
+      approvedParticipantsLoading={vm.approvedParticipantsLoading}
+      approvedParticipantsHasNext={vm.approvedParticipantsHasNext}
+      pendingJoinRequests={vm.pendingJoinRequests}
+      pendingJoinRequestsLoading={vm.pendingJoinRequestsLoading}
+      pendingJoinRequestsHasNext={vm.pendingJoinRequestsHasNext}
+      invitations={vm.invitations}
+      invitationsLoading={vm.invitationsLoading}
+      invitationsHasNext={vm.invitationsHasNext}
+      onLoadMoreApprovedParticipants={vm.loadMoreApprovedParticipants}
+      onLoadMorePendingJoinRequests={vm.loadMorePendingJoinRequests}
+      onLoadMoreInvitations={vm.loadMoreInvitations}
     />
   );
 }

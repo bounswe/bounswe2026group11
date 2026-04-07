@@ -16,12 +16,18 @@ import { EventDetailApprovedParticipant } from '@/models/event';
 interface ParticipantListModalProps {
   visible: boolean;
   participants: EventDetailApprovedParticipant[];
+  loading: boolean;
+  hasMore: boolean;
+  onLoadMore: () => void;
   onClose: () => void;
 }
 
 export default function ParticipantListModal({
   visible,
   participants,
+  loading,
+  hasMore,
+  onLoadMore,
   onClose,
 }: ParticipantListModalProps) {
   const panY = React.useRef(new Animated.Value(0)).current;
@@ -111,7 +117,14 @@ export default function ParticipantListModal({
               </View>
             )}
             ListEmptyComponent={
-              <Text style={styles.empty}>No attendees yet.</Text>
+              <Text style={styles.empty}>{loading ? 'Loading attendees...' : 'No attendees yet.'}</Text>
+            }
+            ListFooterComponent={
+              hasMore ? (
+                <TouchableOpacity style={styles.loadMoreBtn} onPress={onLoadMore}>
+                  <Text style={styles.loadMoreText}>Load more</Text>
+                </TouchableOpacity>
+              ) : null
             }
           />
         </Animated.View>
@@ -200,5 +213,17 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 32,
     fontSize: 15,
+  },
+  loadMoreBtn: {
+    marginTop: 16,
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+  },
+  loadMoreText: {
+    color: '#2563EB',
+    fontWeight: '600',
   },
 });

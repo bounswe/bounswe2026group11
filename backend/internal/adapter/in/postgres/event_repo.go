@@ -265,7 +265,10 @@ func (r *EventRepository) ListDiscoverableEvents(
 		domain.LocationRoute,
 		routeAnchorExpr,
 	)
-	distanceExpr := fmt.Sprintf("ST_Distance(%s, %s)", distanceSourceExpr, originExpr)
+	distanceExpr := "0::double precision"
+	if params.SortBy == domain.EventDiscoverySortDistance || params.SortBy == domain.EventDiscoverySortRelevance {
+		distanceExpr = fmt.Sprintf("ST_Distance(%s, %s)", distanceSourceExpr, originExpr)
+	}
 	routeRadiusExpr := fmt.Sprintf(
 		`EXISTS (
 			SELECT 1
@@ -506,6 +509,28 @@ func buildDiscoverEventsPagination(
 	}
 }
 
+func buildEventCollectionCursorClause(
+	params eventapp.EventCollectionPageParams,
+	args *[]any,
+	createdAtExpr, idExpr string,
+) string {
+	if params.DecodedCursor == nil {
+		return ""
+	}
+
+	*args = append(*args, params.DecodedCursor.CreatedAt, params.DecodedCursor.EntityID)
+	createdAtArgPosition := len(*args) - 1
+	idArgPosition := len(*args)
+
+	return fmt.Sprintf(
+		" AND (%s, %s) > ($%d, $%d)",
+		createdAtExpr,
+		idExpr,
+		createdAtArgPosition,
+		idArgPosition,
+	)
+}
+
 func toInt64Slice(values []int) []int64 {
 	converted := make([]int64, len(values))
 	for i, value := range values {
@@ -541,7 +566,6 @@ func (r *EventRepository) GetEventDetail(
 		tags              []string
 		constraints       []eventapp.EventDetailConstraintRecord
 		viewerEventRating *eventapp.EventDetailRatingRecord
-		hostContext       *eventapp.EventDetailHostContextRecord
 		wg                sync.WaitGroup
 		firstErr          error
 		errOnce           sync.Once
@@ -596,17 +620,6 @@ func (r *EventRepository) GetEventDetail(
 		return nil
 	})
 
-	if record.ViewerContext.IsHost {
-		runConcurrentLoad(func(ctx context.Context) error {
-			loadedHostContext, err := r.loadEventHostContext(groupCtx, eventID)
-			if err != nil {
-				return err
-			}
-			hostContext = loadedHostContext
-			return nil
-		})
-	}
-
 	wg.Wait()
 	if firstErr != nil {
 		return nil, firstErr
@@ -617,9 +630,78 @@ func (r *EventRepository) GetEventDetail(
 	record.Tags = tags
 	record.Constraints = constraints
 	record.ViewerEventRating = viewerEventRating
-	record.HostContext = hostContext
 
 	return record, nil
+}
+
+// GetEventHostContextSummary returns host-only management counters.
+func (r *EventRepository) GetEventHostContextSummary(
+	ctx context.Context,
+	eventID uuid.UUID,
+) (*eventapp.EventHostContextSummaryRecord, error) {
+	var record eventapp.EventHostContextSummaryRecord
+
+	if err := r.pool.QueryRow(ctx, `
+		SELECT
+			(
+				SELECT COUNT(*)
+				FROM participation p
+				JOIN event e ON e.id = p.event_id
+				WHERE p.event_id = $1
+				  AND p.status = $2
+				  AND p.user_id <> e.host_id
+			) AS approved_participant_count,
+			(
+				SELECT COUNT(*)
+				FROM join_request jr
+				WHERE jr.event_id = $1
+				  AND jr.status = $3
+			) AS pending_join_request_count,
+			(
+				SELECT COUNT(*)
+				FROM invitation inv
+				WHERE inv.event_id = $1
+			) AS invitation_count
+	`,
+		eventID,
+		domain.ParticipationStatusApproved,
+		string(domain.JoinRequestStatusPending),
+	).Scan(
+		&record.ApprovedParticipantCount,
+		&record.PendingJoinRequestCount,
+		&record.InvitationCount,
+	); err != nil {
+		return nil, fmt.Errorf("get event host context summary: %w", err)
+	}
+
+	return &record, nil
+}
+
+// ListEventApprovedParticipants returns a paginated approved-participant collection.
+func (r *EventRepository) ListEventApprovedParticipants(
+	ctx context.Context,
+	eventID uuid.UUID,
+	params eventapp.EventCollectionPageParams,
+) ([]eventapp.EventDetailApprovedParticipantRecord, error) {
+	return r.loadApprovedParticipants(ctx, eventID, params)
+}
+
+// ListEventPendingJoinRequests returns a paginated pending join-request collection.
+func (r *EventRepository) ListEventPendingJoinRequests(
+	ctx context.Context,
+	eventID uuid.UUID,
+	params eventapp.EventCollectionPageParams,
+) ([]eventapp.EventDetailPendingJoinRequestRecord, error) {
+	return r.loadPendingJoinRequests(ctx, eventID, params)
+}
+
+// ListEventInvitations returns a paginated invitation collection.
+func (r *EventRepository) ListEventInvitations(
+	ctx context.Context,
+	eventID uuid.UUID,
+	params eventapp.EventCollectionPageParams,
+) ([]eventapp.EventDetailInvitationRecord, error) {
+	return r.loadInvitations(ctx, eventID, params)
 }
 
 func (r *EventRepository) loadEventDetailCore(
@@ -1013,74 +1095,6 @@ func (r *EventRepository) loadEventConstraints(
 	return constraints, nil
 }
 
-func (r *EventRepository) loadEventHostContext(
-	ctx context.Context,
-	eventID uuid.UUID,
-) (*eventapp.EventDetailHostContextRecord, error) {
-	groupCtx, cancel := context.WithCancelCause(ctx)
-	defer cancel(nil)
-
-	var (
-		approvedParticipants []eventapp.EventDetailApprovedParticipantRecord
-		pendingJoinRequests  []eventapp.EventDetailPendingJoinRequestRecord
-		invitations          []eventapp.EventDetailInvitationRecord
-		wg                   sync.WaitGroup
-		firstErr             error
-		errOnce              sync.Once
-	)
-
-	runConcurrentLoad := func(load func(context.Context) error) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := load(groupCtx); err != nil {
-				errOnce.Do(func() {
-					firstErr = err
-					cancel(err)
-				})
-			}
-		}()
-	}
-
-	runConcurrentLoad(func(ctx context.Context) error {
-		loadedApprovedParticipants, err := r.loadApprovedParticipants(groupCtx, eventID)
-		if err != nil {
-			return err
-		}
-		approvedParticipants = loadedApprovedParticipants
-		return nil
-	})
-
-	runConcurrentLoad(func(ctx context.Context) error {
-		loadedPendingJoinRequests, err := r.loadPendingJoinRequests(groupCtx, eventID)
-		if err != nil {
-			return err
-		}
-		pendingJoinRequests = loadedPendingJoinRequests
-		return nil
-	})
-
-	runConcurrentLoad(func(ctx context.Context) error {
-		loadedInvitations, err := r.loadInvitations(groupCtx, eventID)
-		if err != nil {
-			return err
-		}
-		invitations = loadedInvitations
-		return nil
-	})
-
-	wg.Wait()
-	if firstErr != nil {
-		return nil, firstErr
-	}
-
-	return &eventapp.EventDetailHostContextRecord{
-		ApprovedParticipants: approvedParticipants,
-		PendingJoinRequests:  pendingJoinRequests,
-		Invitations:          invitations,
-	}, nil
-}
-
 func (r *EventRepository) loadViewerEventRating(
 	ctx context.Context,
 	eventID, participantUserID uuid.UUID,
@@ -1116,8 +1130,13 @@ func (r *EventRepository) loadViewerEventRating(
 func (r *EventRepository) loadApprovedParticipants(
 	ctx context.Context,
 	eventID uuid.UUID,
+	params eventapp.EventCollectionPageParams,
 ) ([]eventapp.EventDetailApprovedParticipantRecord, error) {
-	rows, err := r.pool.Query(ctx, `
+	args := []any{eventID, domain.ParticipationStatusApproved}
+	cursorClause := buildEventCollectionCursorClause(params, &args, "p.created_at", "p.id")
+	args = append(args, params.RepositoryFetchLimit)
+
+	rows, err := r.pool.Query(ctx, fmt.Sprintf(`
 		SELECT
 			p.id,
 			p.status,
@@ -1146,8 +1165,10 @@ func (r *EventRepository) loadApprovedParticipants(
 		WHERE p.event_id = $1
 		  AND p.status = $2
 		  AND p.user_id <> e.host_id
+		  %s
 		ORDER BY p.created_at ASC, p.id ASC
-	`, eventID, domain.ParticipationStatusApproved)
+		LIMIT $%d
+	`, cursorClause, len(args)), args...)
 	if err != nil {
 		return nil, fmt.Errorf("load approved participants: %w", err)
 	}
@@ -1239,8 +1260,13 @@ func (r *EventRepository) loadApprovedParticipants(
 func (r *EventRepository) loadPendingJoinRequests(
 	ctx context.Context,
 	eventID uuid.UUID,
+	params eventapp.EventCollectionPageParams,
 ) ([]eventapp.EventDetailPendingJoinRequestRecord, error) {
-	rows, err := r.pool.Query(ctx, `
+	args := []any{eventID, string(domain.JoinRequestStatusPending)}
+	cursorClause := buildEventCollectionCursorClause(params, &args, "jr.created_at", "jr.id")
+	args = append(args, params.RepositoryFetchLimit)
+
+	rows, err := r.pool.Query(ctx, fmt.Sprintf(`
 		SELECT
 			jr.id,
 			jr.status,
@@ -1259,8 +1285,10 @@ func (r *EventRepository) loadPendingJoinRequests(
 		LEFT JOIN user_score us ON us.user_id = u.id
 		WHERE jr.event_id = $1
 		  AND jr.status = $2
+		  %s
 		ORDER BY jr.created_at ASC, jr.id ASC
-	`, eventID, string(domain.JoinRequestStatusPending))
+		LIMIT $%d
+	`, cursorClause, len(args)), args...)
 	if err != nil {
 		return nil, fmt.Errorf("load pending join requests: %w", err)
 	}
@@ -1333,8 +1361,13 @@ func (r *EventRepository) loadPendingJoinRequests(
 func (r *EventRepository) loadInvitations(
 	ctx context.Context,
 	eventID uuid.UUID,
+	params eventapp.EventCollectionPageParams,
 ) ([]eventapp.EventDetailInvitationRecord, error) {
-	rows, err := r.pool.Query(ctx, `
+	args := []any{eventID}
+	cursorClause := buildEventCollectionCursorClause(params, &args, "inv.created_at", "inv.id")
+	args = append(args, params.RepositoryFetchLimit)
+
+	rows, err := r.pool.Query(ctx, fmt.Sprintf(`
 		SELECT
 			inv.id,
 			inv.status,
@@ -1353,8 +1386,10 @@ func (r *EventRepository) loadInvitations(
 		LEFT JOIN profile pr ON pr.user_id = u.id
 		LEFT JOIN user_score us ON us.user_id = u.id
 		WHERE inv.event_id = $1
+		  %s
 		ORDER BY inv.created_at ASC, inv.id ASC
-	`, eventID)
+		LIMIT $%d
+	`, cursorClause, len(args)), args...)
 	if err != nil {
 		return nil, fmt.Errorf("load invitations: %w", err)
 	}

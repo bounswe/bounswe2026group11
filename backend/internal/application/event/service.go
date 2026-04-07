@@ -23,6 +23,11 @@ type Service struct {
 
 var _ UseCase = (*Service)(nil)
 
+const (
+	defaultEventCollectionLimit = 25
+	maxEventCollectionLimit     = 50
+)
+
 // NewService constructs an event Service with its own repository and the
 // cross-aggregate services it orchestrates.
 func NewService(
@@ -142,6 +147,99 @@ func (s *Service) GetEventDetail(ctx context.Context, userID, eventID uuid.UUID)
 	}
 
 	return toEventDetailResult(record, s.now().UTC()), nil
+}
+
+// GetEventHostContextSummary returns host-only management counters without
+// loading the underlying collections.
+func (s *Service) GetEventHostContextSummary(ctx context.Context, userID, eventID uuid.UUID) (*EventHostContextSummary, error) {
+	if _, err := s.requireEventHost(ctx, userID, eventID); err != nil {
+		return nil, err
+	}
+
+	record, err := s.eventRepo.GetEventHostContextSummary(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+
+	return toEventHostContextSummary(record), nil
+}
+
+// ListEventApprovedParticipants returns the host-only approved-participant collection.
+func (s *Service) ListEventApprovedParticipants(
+	ctx context.Context,
+	userID, eventID uuid.UUID,
+	input ListEventCollectionInput,
+) (*ListEventApprovedParticipantsResult, error) {
+	if _, err := s.requireEventHost(ctx, userID, eventID); err != nil {
+		return nil, err
+	}
+
+	params, err := normalizeEventCollectionInput(input)
+	if err != nil {
+		return nil, err
+	}
+
+	records, nextCursor, hasNext, err := s.loadEventApprovedParticipantsPage(ctx, eventID, params)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ListEventApprovedParticipantsResult{
+		Items:    toEventDetailApprovedParticipants(records),
+		PageInfo: toEventCollectionPageInfo(nextCursor, hasNext),
+	}, nil
+}
+
+// ListEventPendingJoinRequests returns the host-only pending join-request collection.
+func (s *Service) ListEventPendingJoinRequests(
+	ctx context.Context,
+	userID, eventID uuid.UUID,
+	input ListEventCollectionInput,
+) (*ListEventPendingJoinRequestsResult, error) {
+	if _, err := s.requireEventHost(ctx, userID, eventID); err != nil {
+		return nil, err
+	}
+
+	params, err := normalizeEventCollectionInput(input)
+	if err != nil {
+		return nil, err
+	}
+
+	records, nextCursor, hasNext, err := s.loadEventPendingJoinRequestsPage(ctx, eventID, params)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ListEventPendingJoinRequestsResult{
+		Items:    toEventDetailPendingJoinRequests(records),
+		PageInfo: toEventCollectionPageInfo(nextCursor, hasNext),
+	}, nil
+}
+
+// ListEventInvitations returns the host-only invitation collection.
+func (s *Service) ListEventInvitations(
+	ctx context.Context,
+	userID, eventID uuid.UUID,
+	input ListEventCollectionInput,
+) (*ListEventInvitationsResult, error) {
+	if _, err := s.requireEventHost(ctx, userID, eventID); err != nil {
+		return nil, err
+	}
+
+	params, err := normalizeEventCollectionInput(input)
+	if err != nil {
+		return nil, err
+	}
+
+	records, nextCursor, hasNext, err := s.loadEventInvitationsPage(ctx, eventID, params)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ListEventInvitationsResult{
+		Items:    toEventDetailInvitations(records),
+		PageInfo: toEventCollectionPageInfo(nextCursor, hasNext),
+	}, nil
 }
 
 // JoinEvent allows a user to join a PUBLIC event directly. The resulting
@@ -417,4 +515,160 @@ func canLeaveEvent(event *domain.Event, now time.Time) bool {
 		return false
 	}
 	return true
+}
+
+func normalizeEventCollectionInput(input ListEventCollectionInput) (EventCollectionPageParams, error) {
+	params := EventCollectionPageParams{
+		Limit: defaultEventCollectionLimit,
+	}
+
+	if input.Limit != nil {
+		if *input.Limit < 1 || *input.Limit > maxEventCollectionLimit {
+			return EventCollectionPageParams{}, domain.ValidationError(map[string]string{
+				"limit": "limit must be between 1 and 50",
+			})
+		}
+		params.Limit = *input.Limit
+	}
+
+	if input.Cursor != nil {
+		params.CursorToken = *input.Cursor
+	}
+	params.RepositoryFetchLimit = params.Limit + 1
+
+	if params.CursorToken != "" {
+		cursor, err := decodeEventCollectionCursor(params.CursorToken)
+		if err != nil {
+			return EventCollectionPageParams{}, domain.ValidationError(map[string]string{
+				"cursor": "cursor is invalid",
+			})
+		}
+		params.DecodedCursor = cursor
+	}
+
+	return params, nil
+}
+
+func (s *Service) requireEventHost(ctx context.Context, userID, eventID uuid.UUID) (*domain.Event, error) {
+	event, err := s.eventRepo.GetEventByID(ctx, eventID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+		}
+		return nil, err
+	}
+
+	if event.HostID != userID {
+		return nil, domain.ForbiddenError(
+			domain.ErrorCodeEventHostManagementNotAllowed,
+			"Only the event host can access this management resource.",
+		)
+	}
+
+	return event, nil
+}
+
+func (s *Service) loadEventApprovedParticipantsPage(
+	ctx context.Context,
+	eventID uuid.UUID,
+	params EventCollectionPageParams,
+) ([]EventDetailApprovedParticipantRecord, *string, bool, error) {
+	records, err := s.eventRepo.ListEventApprovedParticipants(ctx, eventID, params)
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	hasNext := len(records) > params.Limit
+	if hasNext {
+		records = records[:params.Limit]
+	}
+
+	nextCursor, err := buildNextApprovedParticipantsCursor(records, hasNext)
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	return records, nextCursor, hasNext, nil
+}
+
+func (s *Service) loadEventPendingJoinRequestsPage(
+	ctx context.Context,
+	eventID uuid.UUID,
+	params EventCollectionPageParams,
+) ([]EventDetailPendingJoinRequestRecord, *string, bool, error) {
+	records, err := s.eventRepo.ListEventPendingJoinRequests(ctx, eventID, params)
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	hasNext := len(records) > params.Limit
+	if hasNext {
+		records = records[:params.Limit]
+	}
+
+	nextCursor, err := buildNextPendingJoinRequestsCursor(records, hasNext)
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	return records, nextCursor, hasNext, nil
+}
+
+func (s *Service) loadEventInvitationsPage(
+	ctx context.Context,
+	eventID uuid.UUID,
+	params EventCollectionPageParams,
+) ([]EventDetailInvitationRecord, *string, bool, error) {
+	records, err := s.eventRepo.ListEventInvitations(ctx, eventID, params)
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	hasNext := len(records) > params.Limit
+	if hasNext {
+		records = records[:params.Limit]
+	}
+
+	nextCursor, err := buildNextInvitationsCursor(records, hasNext)
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	return records, nextCursor, hasNext, nil
+}
+
+func buildNextApprovedParticipantsCursor(records []EventDetailApprovedParticipantRecord, hasNext bool) (*string, error) {
+	if !hasNext || len(records) == 0 {
+		return nil, nil
+	}
+
+	return encodeNextEventCollectionCursor(records[len(records)-1].CreatedAt, records[len(records)-1].ParticipationID)
+}
+
+func buildNextPendingJoinRequestsCursor(records []EventDetailPendingJoinRequestRecord, hasNext bool) (*string, error) {
+	if !hasNext || len(records) == 0 {
+		return nil, nil
+	}
+
+	return encodeNextEventCollectionCursor(records[len(records)-1].CreatedAt, records[len(records)-1].JoinRequestID)
+}
+
+func buildNextInvitationsCursor(records []EventDetailInvitationRecord, hasNext bool) (*string, error) {
+	if !hasNext || len(records) == 0 {
+		return nil, nil
+	}
+
+	return encodeNextEventCollectionCursor(records[len(records)-1].CreatedAt, records[len(records)-1].InvitationID)
+}
+
+func encodeNextEventCollectionCursor(createdAt time.Time, entityID uuid.UUID) (*string, error) {
+	encoded, err := encodeEventCollectionCursor(EventCollectionCursor{
+		CreatedAt: createdAt,
+		EntityID:  entityID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &encoded, nil
 }

@@ -128,11 +128,12 @@ func TestCreateEventPersistsInternalHostParticipationWithoutChangingVisibleCount
 	if detail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusNone) {
 		t.Fatalf("expected host participation_status %q, got %q", domain.EventDetailParticipationStatusNone, detail.ViewerContext.ParticipationStatus)
 	}
-	if detail.HostContext == nil {
-		t.Fatal("expected host_context for host viewer")
+	hostSummary, err := harness.Service.GetEventHostContextSummary(context.Background(), host.ID, eventID)
+	if err != nil {
+		t.Fatalf("GetEventHostContextSummary() error = %v", err)
 	}
-	if len(detail.HostContext.ApprovedParticipants) != 0 {
-		t.Fatalf("expected host_context approved participants to exclude host, got %d entries", len(detail.HostContext.ApprovedParticipants))
+	if hostSummary.ApprovedParticipantCount != 0 {
+		t.Fatalf("expected approved participant summary 0, got %d", hostSummary.ApprovedParticipantCount)
 	}
 }
 
@@ -1087,8 +1088,12 @@ func TestGetEventDetailReadsPrivateEventForHost(t *testing.T) {
 	if !result.ViewerContext.IsHost {
 		t.Fatal("expected host viewer_context.is_host to be true")
 	}
-	if result.HostContext == nil {
-		t.Fatal("expected host_context for host")
+	hostSummary, err := harness.Service.GetEventHostContextSummary(context.Background(), host.ID, eventID)
+	if err != nil {
+		t.Fatalf("GetEventHostContextSummary() error = %v", err)
+	}
+	if hostSummary == nil {
+		t.Fatal("expected host summary for host")
 	}
 }
 
@@ -1351,8 +1356,7 @@ func TestGetEventDetailReturnsHostOnlyManagementLists(t *testing.T) {
 	insertUserScore(t, invitee.ID, nil, 0, nil, 6, float64Ptr(4.1))
 
 	// when
-	hostResult, err := harness.Service.GetEventDetail(context.Background(), host.ID, eventID)
-	if err != nil {
+	if _, err := harness.Service.GetEventDetail(context.Background(), host.ID, eventID); err != nil {
 		t.Fatalf("GetEventDetail() host error = %v", err)
 	}
 	nonHostResult, err := harness.Service.GetEventDetail(context.Background(), nonHostViewer.ID, eventID)
@@ -1361,44 +1365,60 @@ func TestGetEventDetailReturnsHostOnlyManagementLists(t *testing.T) {
 	}
 
 	// then
-	if hostResult.HostContext == nil {
-		t.Fatal("expected host_context for host viewer")
+	hostSummary, err := harness.Service.GetEventHostContextSummary(context.Background(), host.ID, eventID)
+	if err != nil {
+		t.Fatalf("GetEventHostContextSummary() error = %v", err)
 	}
-	if len(hostResult.HostContext.ApprovedParticipants) != 1 {
-		t.Fatalf("expected 1 approved participant, got %d", len(hostResult.HostContext.ApprovedParticipants))
+	if hostSummary.ApprovedParticipantCount != 1 || hostSummary.PendingJoinRequestCount != 1 || hostSummary.InvitationCount != 1 {
+		t.Fatalf("unexpected host summary: %+v", hostSummary)
 	}
-	if len(hostResult.HostContext.PendingJoinRequests) != 1 {
-		t.Fatalf("expected 1 pending join request, got %d", len(hostResult.HostContext.PendingJoinRequests))
+	participants, err := harness.Service.ListEventApprovedParticipants(context.Background(), host.ID, eventID, eventapp.ListEventCollectionInput{})
+	if err != nil {
+		t.Fatalf("ListEventApprovedParticipants() error = %v", err)
 	}
-	if len(hostResult.HostContext.Invitations) != 1 {
-		t.Fatalf("expected 1 invitation, got %d", len(hostResult.HostContext.Invitations))
+	pendingRequests, err := harness.Service.ListEventPendingJoinRequests(context.Background(), host.ID, eventID, eventapp.ListEventCollectionInput{})
+	if err != nil {
+		t.Fatalf("ListEventPendingJoinRequests() error = %v", err)
 	}
-	if hostResult.HostContext.ApprovedParticipants[0].User.Username != "approved_user" {
-		t.Fatalf("expected approved participant username %q, got %q", "approved_user", hostResult.HostContext.ApprovedParticipants[0].User.Username)
+	invitations, err := harness.Service.ListEventInvitations(context.Background(), host.ID, eventID, eventapp.ListEventCollectionInput{})
+	if err != nil {
+		t.Fatalf("ListEventInvitations() error = %v", err)
 	}
-	if hostResult.HostContext.ApprovedParticipants[0].User.FinalScore == nil || *hostResult.HostContext.ApprovedParticipants[0].User.FinalScore != 4.4 {
-		t.Fatalf("expected approved participant final_score 4.4, got %v", hostResult.HostContext.ApprovedParticipants[0].User.FinalScore)
+	if len(participants.Items) != 1 {
+		t.Fatalf("expected 1 approved participant, got %d", len(participants.Items))
 	}
-	if hostResult.HostContext.ApprovedParticipants[0].User.RatingCount != 5 {
-		t.Fatalf("expected approved participant rating_count 5, got %d", hostResult.HostContext.ApprovedParticipants[0].User.RatingCount)
+	if len(pendingRequests.Items) != 1 {
+		t.Fatalf("expected 1 pending join request, got %d", len(pendingRequests.Items))
 	}
-	if hostResult.HostContext.PendingJoinRequests[0].User.Username != "pending_user" {
-		t.Fatalf("expected pending join request username %q, got %q", "pending_user", hostResult.HostContext.PendingJoinRequests[0].User.Username)
+	if len(invitations.Items) != 1 {
+		t.Fatalf("expected 1 invitation, got %d", len(invitations.Items))
 	}
-	if hostResult.HostContext.PendingJoinRequests[0].User.FinalScore == nil || *hostResult.HostContext.PendingJoinRequests[0].User.FinalScore != 3.8 {
-		t.Fatalf("expected pending user final_score 3.8, got %v", hostResult.HostContext.PendingJoinRequests[0].User.FinalScore)
+	if participants.Items[0].User.Username != "approved_user" {
+		t.Fatalf("expected approved participant username %q, got %q", "approved_user", participants.Items[0].User.Username)
 	}
-	if hostResult.HostContext.PendingJoinRequests[0].User.RatingCount != 2 {
-		t.Fatalf("expected pending user rating_count 2, got %d", hostResult.HostContext.PendingJoinRequests[0].User.RatingCount)
+	if participants.Items[0].User.FinalScore == nil || *participants.Items[0].User.FinalScore != 4.4 {
+		t.Fatalf("expected approved participant final_score 4.4, got %v", participants.Items[0].User.FinalScore)
 	}
-	if hostResult.HostContext.Invitations[0].User.Username != "invited_user" {
-		t.Fatalf("expected invitation username %q, got %q", "invited_user", hostResult.HostContext.Invitations[0].User.Username)
+	if participants.Items[0].User.RatingCount != 5 {
+		t.Fatalf("expected approved participant rating_count 5, got %d", participants.Items[0].User.RatingCount)
 	}
-	if hostResult.HostContext.Invitations[0].User.FinalScore == nil || *hostResult.HostContext.Invitations[0].User.FinalScore != 4.1 {
-		t.Fatalf("expected invited user final_score 4.1, got %v", hostResult.HostContext.Invitations[0].User.FinalScore)
+	if pendingRequests.Items[0].User.Username != "pending_user" {
+		t.Fatalf("expected pending join request username %q, got %q", "pending_user", pendingRequests.Items[0].User.Username)
 	}
-	if hostResult.HostContext.Invitations[0].User.RatingCount != 6 {
-		t.Fatalf("expected invited user rating_count 6, got %d", hostResult.HostContext.Invitations[0].User.RatingCount)
+	if pendingRequests.Items[0].User.FinalScore == nil || *pendingRequests.Items[0].User.FinalScore != 3.8 {
+		t.Fatalf("expected pending user final_score 3.8, got %v", pendingRequests.Items[0].User.FinalScore)
+	}
+	if pendingRequests.Items[0].User.RatingCount != 2 {
+		t.Fatalf("expected pending user rating_count 2, got %d", pendingRequests.Items[0].User.RatingCount)
+	}
+	if invitations.Items[0].User.Username != "invited_user" {
+		t.Fatalf("expected invitation username %q, got %q", "invited_user", invitations.Items[0].User.Username)
+	}
+	if invitations.Items[0].User.FinalScore == nil || *invitations.Items[0].User.FinalScore != 4.1 {
+		t.Fatalf("expected invited user final_score 4.1, got %v", invitations.Items[0].User.FinalScore)
+	}
+	if invitations.Items[0].User.RatingCount != 6 {
+		t.Fatalf("expected invited user rating_count 6, got %d", invitations.Items[0].User.RatingCount)
 	}
 	if nonHostResult.HostContext != nil {
 		t.Fatal("expected non-host response to omit host_context")
@@ -1976,18 +1996,25 @@ func TestApproveJoinRequestSuccessPath(t *testing.T) {
 		t.Fatal("expected approved join request to reference a participation row")
 	}
 
-	hostDetail, err := harness.Service.GetEventDetail(context.Background(), host.ID, event.ID)
-	if err != nil {
+	if _, err := harness.Service.GetEventDetail(context.Background(), host.ID, event.ID); err != nil {
 		t.Fatalf("GetEventDetail() host error = %v", err)
 	}
-	if len(hostDetail.HostContext.PendingJoinRequests) != 0 {
-		t.Fatalf("expected no pending join requests after approval, got %d", len(hostDetail.HostContext.PendingJoinRequests))
+	hostRequests, err := harness.Service.ListEventPendingJoinRequests(context.Background(), host.ID, event.ID, eventapp.ListEventCollectionInput{})
+	if err != nil {
+		t.Fatalf("ListEventPendingJoinRequests() error = %v", err)
 	}
-	if len(hostDetail.HostContext.ApprovedParticipants) != 1 {
-		t.Fatalf("expected 1 approved participant after approval, got %d", len(hostDetail.HostContext.ApprovedParticipants))
+	hostParticipants, err := harness.Service.ListEventApprovedParticipants(context.Background(), host.ID, event.ID, eventapp.ListEventCollectionInput{})
+	if err != nil {
+		t.Fatalf("ListEventApprovedParticipants() error = %v", err)
 	}
-	if hostDetail.HostContext.ApprovedParticipants[0].User.Username != "requester_user" {
-		t.Fatalf("expected approved participant username %q, got %q", "requester_user", hostDetail.HostContext.ApprovedParticipants[0].User.Username)
+	if len(hostRequests.Items) != 0 {
+		t.Fatalf("expected no pending join requests after approval, got %d", len(hostRequests.Items))
+	}
+	if len(hostParticipants.Items) != 1 {
+		t.Fatalf("expected 1 approved participant after approval, got %d", len(hostParticipants.Items))
+	}
+	if hostParticipants.Items[0].User.Username != "requester_user" {
+		t.Fatalf("expected approved participant username %q, got %q", "requester_user", hostParticipants.Items[0].User.Username)
 	}
 
 	requesterDetail, err := harness.Service.GetEventDetail(context.Background(), requester.ID, event.ID)
@@ -2061,12 +2088,15 @@ func TestRejectJoinRequestSuccessPath(t *testing.T) {
 		t.Fatalf("expected no participation row after rejection, got %d", count)
 	}
 
-	hostDetail, err := harness.Service.GetEventDetail(context.Background(), host.ID, event.ID)
-	if err != nil {
+	if _, err := harness.Service.GetEventDetail(context.Background(), host.ID, event.ID); err != nil {
 		t.Fatalf("GetEventDetail() host error = %v", err)
 	}
-	if len(hostDetail.HostContext.PendingJoinRequests) != 0 {
-		t.Fatalf("expected no pending join requests after rejection, got %d", len(hostDetail.HostContext.PendingJoinRequests))
+	hostRequests, err := harness.Service.ListEventPendingJoinRequests(context.Background(), host.ID, event.ID, eventapp.ListEventCollectionInput{})
+	if err != nil {
+		t.Fatalf("ListEventPendingJoinRequests() error = %v", err)
+	}
+	if len(hostRequests.Items) != 0 {
+		t.Fatalf("expected no pending join requests after rejection, got %d", len(hostRequests.Items))
 	}
 
 	requesterDetail, err := harness.Service.GetEventDetail(context.Background(), requester.ID, event.ID)

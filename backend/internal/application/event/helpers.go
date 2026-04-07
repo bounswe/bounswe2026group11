@@ -132,13 +132,6 @@ func toEventDetailResult(record *EventDetailRecord, now time.Time) *GetEventDeta
 		preferredGender := string(*record.PreferredGender)
 		result.PreferredGender = &preferredGender
 	}
-	if record.HostContext != nil {
-		result.HostContext = &EventDetailHostContext{
-			ApprovedParticipants: toEventDetailApprovedParticipants(record.HostContext.ApprovedParticipants),
-			PendingJoinRequests:  toEventDetailPendingJoinRequests(record.HostContext.PendingJoinRequests),
-			Invitations:          toEventDetailInvitations(record.HostContext.Invitations),
-		}
-	}
 
 	return result
 }
@@ -257,6 +250,25 @@ func toEventDetailRating(record *EventDetailRatingRecord) *EventDetailRating {
 		Message:   record.Message,
 		CreatedAt: record.CreatedAt,
 		UpdatedAt: record.UpdatedAt,
+	}
+}
+
+func toEventHostContextSummary(record *EventHostContextSummaryRecord) *EventHostContextSummary {
+	if record == nil {
+		return nil
+	}
+
+	return &EventHostContextSummary{
+		ApprovedParticipantCount: record.ApprovedParticipantCount,
+		PendingJoinRequestCount:  record.PendingJoinRequestCount,
+		InvitationCount:          record.InvitationCount,
+	}
+}
+
+func toEventCollectionPageInfo(nextCursor *string, hasNext bool) EventCollectionPageInfo {
+	return EventCollectionPageInfo{
+		NextCursor: nextCursor,
+		HasNext:    hasNext,
 	}
 }
 
