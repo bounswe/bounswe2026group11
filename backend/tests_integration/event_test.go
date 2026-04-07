@@ -1748,6 +1748,31 @@ func TestRequestJoinSuccessPath(t *testing.T) {
 	}
 }
 
+func TestRequestJoinReflectsPendingStatusInProtectedEventDetail(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	requester := common.GivenUser(t, harness.AuthRepo)
+	event := common.GivenProtectedEvent(t, harness.Service, host.ID)
+
+	if _, err := harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{}); err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+
+	// when
+	detail, err := harness.Service.GetEventDetail(context.Background(), requester.ID, event.ID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if detail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusPending) {
+		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusPending, detail.ViewerContext.ParticipationStatus)
+	}
+}
+
 func TestRequestJoinRejectsDuplicate(t *testing.T) {
 	t.Parallel()
 

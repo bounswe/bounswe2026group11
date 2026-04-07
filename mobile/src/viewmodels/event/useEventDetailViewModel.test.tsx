@@ -677,6 +677,7 @@ describe('useEventDetailViewModel', () => {
         'mock-token',
       );
       expect(result.current.participationStatus).toBe('PENDING');
+      expect(result.current.event?.viewer_context.participation_status).toBe('PENDING');
       expect(result.current.actionState).toBe('success_requested');
       expect(result.current.showJoinRequestModal).toBe(false);
       expect(result.current.joinRequestMessage).toBe('');
