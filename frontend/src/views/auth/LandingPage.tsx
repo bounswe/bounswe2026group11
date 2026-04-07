@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import partyImg from '@/assets/party.jpg';
+import concertImg from '@/assets/concert.png';
+import SemLogo from '@/components/SemLogo';
 import '@/styles/landing.css';
 
 /* ── Interactive dot‑grid canvas ── */
@@ -118,7 +119,7 @@ export default function LandingPage() {
     <div className="landing">
       {/* Left — hero image */}
       <div className="landing-left">
-        <img src={partyImg} alt="People celebrating at a party" className="landing-hero-img" />
+        <img src={concertImg} alt="Crowd at a live concert with stage lights" className="landing-hero-img" />
         <div className="landing-img-overlay" />
       </div>
 
@@ -127,9 +128,9 @@ export default function LandingPage() {
         <DotCanvas />
 
         <div className="landing-content">
-          <h1 className="landing-logo">
-            <span className="logo-icon">✦</span> Social Event Mapper
-          </h1>
+          <div className="landing-logo">
+            <SemLogo height={88} color="#ffffff" />
+          </div>
           <p className="landing-tagline">
             Discover events, meet people, and make memories.
           </p>

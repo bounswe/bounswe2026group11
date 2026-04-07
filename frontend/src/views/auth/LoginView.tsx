@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLoginViewModel } from '@/viewmodels/auth/useLoginViewModel';
 import { useAuth } from '@/contexts/AuthContext';
+import SemLogo from '@/components/SemLogo';
 import '@/styles/auth.css';
 
 export default function LoginView() {
@@ -21,6 +22,9 @@ export default function LoginView() {
   return (
     <div className="auth-page">
       <div className="auth-card">
+        <div className="auth-brand">
+          <SemLogo height={76} color="#111827" />
+        </div>
         <h1 className="auth-title">Welcome Back</h1>
         <p className="auth-subtitle">Sign in to continue to your account</p>
 
