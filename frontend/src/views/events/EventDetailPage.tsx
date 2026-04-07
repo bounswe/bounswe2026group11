@@ -79,6 +79,30 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`ed-status-badge ${cls}`}>{presentation.label}</span>;
 }
 
+function ExpiryWarningBanner({ event }: { event: EventDetailResponse }) {
+  if (event.status !== 'ACTIVE') return null;
+
+  const createdAt = new Date(event.created_at);
+  const now = new Date();
+  const daysSinceCreation = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+  const autoCompleteDay = 60;
+  const warningStartDay = 53;
+
+  if (daysSinceCreation < warningStartDay || daysSinceCreation >= autoCompleteDay) return null;
+
+  const daysRemaining = autoCompleteDay - daysSinceCreation;
+
+  return (
+    <div className="ed-expiry-warning">
+      <span className="ed-expiry-warning-icon">&#9200;</span>
+      <span>
+        This event will be automatically completed in <strong>{daysRemaining} day{daysRemaining !== 1 ? 's' : ''}</strong> due to inactivity.
+        {event.viewer_context.is_host && ' Update the event to keep it active.'}
+      </span>
+    </div>
+  );
+}
+
 function PencilCoverIcon() {
   return (
     <svg
@@ -729,6 +753,8 @@ function EventContent({
   cancelError,
   onCancel,
   onDismissCancelError,
+  favoriteLoading,
+  onFavoriteToggle,
   isAuthenticated,
   coverImageUploading,
   coverImageError,
@@ -760,6 +786,8 @@ function EventContent({
   cancelError: string | null;
   onCancel: () => void;
   onDismissCancelError: () => void;
+  favoriteLoading: boolean;
+  onFavoriteToggle: () => void;
   isAuthenticated: boolean;
   coverImageUploading: boolean;
   coverImageError: string | null;
@@ -841,7 +869,19 @@ function EventContent({
       <div className="ed-header">
         <div className="ed-title-row">
           <h1 className="ed-title">{event.title}</h1>
-          <StatusBadge status={event.status} />
+          <div className="ed-title-actions">
+            <button
+              type="button"
+              className={`ed-favorite-btn ${event.viewer_context.is_favorited ? 'favorited' : ''}`}
+              onClick={isAuthenticated ? onFavoriteToggle : () => navigate('/login')}
+              disabled={favoriteLoading}
+              aria-label={event.viewer_context.is_favorited ? 'Remove from favorites' : 'Add to favorites'}
+              title={isAuthenticated ? undefined : 'Sign in to save this event'}
+            >
+              {event.viewer_context.is_favorited ? '★' : '☆'}
+            </button>
+            <StatusBadge status={event.status} />
+          </div>
         </div>
         {event.category && (
           <span className="ed-category">{event.category.name}</span>
@@ -871,6 +911,9 @@ function EventContent({
           </div>
         )}
       </div>
+
+      {/* Expiry warning — shown in last 7 days before auto-completion */}
+      <ExpiryWarningBanner event={event} />
 
       {/* Join action — prominent position */}
       <JoinActionSection
@@ -1259,6 +1302,8 @@ export default function EventDetailPage() {
       cancelError={vm.cancelError}
       onCancel={vm.handleCancel}
       onDismissCancelError={vm.dismissCancelError}
+      favoriteLoading={vm.favoriteLoading}
+      onFavoriteToggle={vm.handleFavoriteToggle}
     />
   );
 }

@@ -212,6 +212,10 @@
 
 /* Responsive */
 @media (max-width: 600px) {
+  .me-title {
+    font-size: 22px;
+  }
+
   .me-grid {
     grid-template-columns: 1fr;
   }
@@ -224,5 +228,7 @@
   .me-tab {
     white-space: nowrap;
     flex-shrink: 0;
+    padding: 10px 14px;
+    font-size: 14px;
   }
 }

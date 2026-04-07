@@ -8,6 +8,8 @@ import {
   approveJoinRequest,
   rejectJoinRequest,
   cancelEvent,
+  addFavorite,
+  removeFavorite,
   upsertEventRating,
   upsertParticipantRating,
 } from '@/services/eventService';
@@ -191,6 +193,55 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     }
   }, [eventId, token, refreshEventDetail]);
 
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+
+  const handleFavoriteToggle = useCallback(async () => {
+    if (!eventId || !token || !event) return;
+
+    const wasFavorited = event.viewer_context.is_favorited;
+    const previousCount = event.favorite_count;
+    const nextCount = wasFavorited
+      ? Math.max(0, previousCount - 1)
+      : previousCount + 1;
+
+    setFavoriteLoading(true);
+    setEvent((prev) =>
+      prev
+        ? {
+            ...prev,
+            favorite_count: nextCount,
+            viewer_context: {
+              ...prev.viewer_context,
+              is_favorited: !wasFavorited,
+            },
+          }
+        : prev,
+    );
+
+    try {
+      if (wasFavorited) {
+        await removeFavorite(eventId, token);
+      } else {
+        await addFavorite(eventId, token);
+      }
+    } catch {
+      setEvent((prev) =>
+        prev
+          ? {
+              ...prev,
+              favorite_count: previousCount,
+              viewer_context: {
+                ...prev.viewer_context,
+                is_favorited: wasFavorited,
+              },
+            }
+          : prev,
+      );
+    } finally {
+      setFavoriteLoading(false);
+    }
+  }, [eventId, token, event]);
+
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
@@ -354,6 +405,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     moderateError,
     cancelLoading,
     cancelError,
+    favoriteLoading,
+    handleFavoriteToggle,
     retry: fetchDetail,
     handleJoin,
     handleRequestJoin,

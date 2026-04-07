@@ -167,6 +167,14 @@ export function deleteParticipantRating(
   return apiDeleteAuth<void>(`/events/${eventId}/participants/${participantUserId}/rating`, token);
 }
 
+export function addFavorite(eventId: string, token: string): Promise<void> {
+  return apiPostAuth<void>(`/events/${eventId}/favorite`, {}, token);
+}
+
+export function removeFavorite(eventId: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/events/${eventId}/favorite`, token);
+}
+
 export async function getFavoriteEvents(token: string): Promise<FavoriteEventItem[]> {
   const res = await apiGetAuth<FavoriteEventsResponse>('/me/favorites', token);
   return res.items ?? [];
