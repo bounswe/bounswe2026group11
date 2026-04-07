@@ -961,15 +961,26 @@
   align-items: center;
   justify-content: space-between;
   font-size: 12px;
+  padding-bottom: 10px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid #e5e7eb;
+  gap: 12px;
 }
 
 .dc-card-category {
   color: #111827;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .dc-card-date {
-  color: #9ca3af;
+  color: #111827;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 .dc-card-title {

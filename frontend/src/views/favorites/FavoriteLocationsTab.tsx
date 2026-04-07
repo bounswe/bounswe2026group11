@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useFavoriteLocationsViewModel } from '@/viewmodels/favorites/useFavoriteLocationsViewModel';
+import { formatEventLocation } from '@/utils/eventLocation';
 import '@/styles/favorites.css';
 
 export default function FavoriteLocationsTab() {
@@ -127,7 +128,7 @@ export default function FavoriteLocationsTab() {
                           className="fav-loc-suggestion-item"
                           onClick={() => vm.selectSuggestion(s)}
                         >
-                          {s.display_name}
+                          {formatEventLocation(s.display_name)}
                         </button>
                       </li>
                     ))}
@@ -138,7 +139,7 @@ export default function FavoriteLocationsTab() {
 
             {vm.selectedSuggestion && (
               <div className="fav-loc-selected">
-                📍 {vm.selectedSuggestion.display_name}
+                📍 {formatEventLocation(vm.selectedSuggestion.display_name)}
               </div>
             )}
 
