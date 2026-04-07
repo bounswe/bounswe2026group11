@@ -11,10 +11,10 @@ function DotCanvas() {
   const raf = useRef(0);
 
   const COLORS = [
-    'rgba(59,130,246,.50)',   // blue
-    'rgba(99,102,241,.55)',   // indigo
-    'rgba(139,92,246,.50)',   // violet
-    'rgba(168,85,247,.45)',   // purple
+    'rgba(255,255,255,.30)',
+    'rgba(200,200,210,.35)',
+    'rgba(160,165,175,.30)',
+    'rgba(130,135,145,.25)',
   ];
 
   const initDots = useCallback((w: number, h: number) => {

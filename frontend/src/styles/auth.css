@@ -72,8 +72,8 @@
 }
 
 .field-input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #111827;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.1);
 }
 
 .field-input.has-error {
@@ -110,19 +110,19 @@
 }
 
 .gender-option:hover {
-  border-color: #2563eb;
+  border-color: #111827;
 }
 
 .gender-option.selected {
-  background-color: #2563eb;
-  border-color: #2563eb;
+  background-color: #111827;
+  border-color: #111827;
   color: #ffffff;
 }
 
 /* Buttons */
 .btn-primary {
   width: 100%;
-  background-color: #2563eb;
+  background-color: #111827;
   color: #ffffff;
   border: none;
   border-radius: 10px;
@@ -135,7 +135,7 @@
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #1d4ed8;
+  background-color: #0F172A;
 }
 
 .btn-primary:disabled {
@@ -173,7 +173,7 @@
 
 .auth-footer a,
 .link {
-  color: #2563eb;
+  color: #111827;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
@@ -199,7 +199,7 @@
 }
 
 .step-dot.active {
-  background-color: #2563eb;
+  background-color: #111827;
 }
 
 /* Forgot password link */
@@ -227,18 +227,18 @@
 .btn-outline {
   width: 100%;
   background: none;
-  border: 2px solid #2563eb;
+  border: 2px solid #111827;
   border-radius: 10px;
   padding: 14px;
   font-size: 16px;
   font-weight: 600;
-  color: #2563eb;
+  color: #111827;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .btn-outline:hover {
-  background-color: #eff6ff;
+  background-color: #F3F4F6;
 }
 
 /* Spinner */

@@ -39,7 +39,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at 30% 40%, #1a1a2e 0%, #0f0f14 70%);
+  background: radial-gradient(ellipse at 30% 40%, #1a1a22 0%, #0f0f14 70%);
 }
 
 .dot-canvas {
@@ -80,7 +80,7 @@
 
 .logo-icon {
   font-size: 32px;
-  color: #a78bfa;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .landing-tagline {
@@ -110,17 +110,17 @@
   letter-spacing: 0.2px;
 }
 
-/* Primary — solid purple */
+/* Primary — solid white */
 .landing-btn--primary {
-  background: #7c3aed;
-  color: #ffffff;
-  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+  background: #ffffff;
+  color: #0F172A;
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.25);
 }
 
 .landing-btn--primary:hover {
-  background: #6d28d9;
+  background: #F3F4F6;
   transform: translateY(-2px);
-  box-shadow: 0 6px 28px rgba(109, 40, 217, 0.45);
+  box-shadow: 0 6px 28px rgba(255, 255, 255, 0.3);
 }
 
 /* Outline */
@@ -132,8 +132,8 @@
 }
 
 .landing-btn--outline:hover {
-  border-color: rgba(139, 92, 246, 0.6);
-  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
 }
 

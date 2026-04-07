@@ -8,7 +8,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   if (isLoading) {
     return (
       <div className="auth-page">
-        <div className="spinner" style={{ borderTopColor: '#2563eb', borderColor: 'rgba(37,99,235,0.2)' }} />
+        <div className="spinner" style={{ borderTopColor: '#111827', borderColor: 'rgba(17,24,39,0.2)' }} />
       </div>
     );
   }

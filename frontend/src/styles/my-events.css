@@ -45,8 +45,8 @@
 }
 
 .me-tab.active {
-  color: #2563eb;
-  border-bottom-color: #2563eb;
+  color: #111827;
+  border-bottom-color: #111827;
   font-weight: 600;
 }
 
@@ -60,8 +60,8 @@
 }
 
 .me-tab.active .me-tab-count {
-  background-color: #eff6ff;
-  color: #2563eb;
+  background-color: #F3F4F6;
+  color: #111827;
 }
 
 /* Loading */
@@ -163,7 +163,7 @@
 .me-card-category {
   font-size: 12px;
   font-weight: 600;
-  color: #2563eb;
+  color: #111827;
 }
 
 .me-card-title {
