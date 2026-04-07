@@ -300,11 +300,16 @@ export interface FavoriteEventItem {
   id: string;
   title: string;
   category: string | null;
+  category_name?: string | null;
   image_url: string | null;
   status: string;
   start_time: string;
   end_time: string | null;
   favorited_at: string;
+  location_address?: string | null;
+  privacy_level?: 'PUBLIC' | 'PROTECTED' | 'PRIVATE' | null;
+  approved_participant_count?: number;
+  host_score?: HostScoreSummary | null;
 }
 
 export interface FavoriteEventsResponse {
