@@ -25,8 +25,8 @@
 
 .edit-toggle-btn {
   background-color: transparent;
-  color: #2563eb;
-  border: 1px solid #2563eb;
+  color: #111827;
+  border: 1px solid #111827;
   padding: 0.5rem 1rem;
   border-radius: 6px;
   cursor: pointer;
@@ -35,7 +35,7 @@
 }
 
 .edit-toggle-btn:hover {
-  background-color: #2563eb;
+  background-color: #111827;
   color: white;
 }
 
@@ -51,7 +51,7 @@
   height: 120px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid #2563eb;
+  border: 3px solid #111827;
   background-color: #e5e7eb;
 }
 
@@ -130,7 +130,7 @@
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: #111827;
 }
 
 .form-group textarea {
@@ -146,7 +146,7 @@
 
 .save-btn {
   flex: 1;
-  background-color: #2563eb;
+  background-color: #111827;
   color: #ffffff;
   border: none;
   padding: 0.75rem;

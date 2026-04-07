@@ -19,8 +19,8 @@
 }
 
 .ed-back-btn:hover {
-  border-color: #2563eb;
-  color: #2563eb;
+  border-color: #111827;
+  color: #111827;
 }
 
 /* Hero image */
@@ -261,8 +261,8 @@
   display: inline-block;
   padding: 4px 12px;
   border-radius: 14px;
-  background-color: #eff6ff;
-  color: #2563eb;
+  background-color: #F3F4F6;
+  color: #111827;
   font-size: 13px;
   font-weight: 600;
 }
@@ -431,8 +431,8 @@
 .ed-tag {
   padding: 5px 14px;
   border-radius: 16px;
-  background-color: #eff6ff;
-  color: #2563eb;
+  background-color: #F3F4F6;
+  color: #111827;
   font-size: 13px;
   font-weight: 500;
 }
@@ -498,9 +498,9 @@
 }
 
 .ed-participation-invited {
-  background-color: #eff6ff;
-  color: #2563eb;
-  border: 1px solid #bfdbfe;
+  background-color: #F3F4F6;
+  color: #111827;
+  border: 1px solid #D1D5DB;
 }
 
 .ed-leave-action {
@@ -541,12 +541,12 @@
 .ed-rating-banner {
   padding: 12px 16px;
   border-radius: 10px;
-  background-color: #eff6ff;
-  color: #2563eb;
+  background-color: #F3F4F6;
+  color: #111827;
   font-size: 14px;
   font-weight: 500;
   text-align: center;
-  border: 1px solid #bfdbfe;
+  border: 1px solid #D1D5DB;
   margin-bottom: 10px;
 }
 
@@ -556,11 +556,11 @@
   gap: 16px;
   padding: 24px;
   border-radius: 20px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid #D1D5DB;
   background:
-    radial-gradient(circle at top right, rgba(37, 99, 235, 0.16), transparent 36%),
-    linear-gradient(135deg, #f8fbff 0%, #eef4ff 100%);
-  box-shadow: 0 16px 40px rgba(37, 99, 235, 0.08);
+    radial-gradient(circle at top right, rgba(17, 24, 39, 0.06), transparent 36%),
+    linear-gradient(135deg, #FAFAFA 0%, #F3F4F6 100%);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.06);
 }
 
 .ed-participant-rating-section {
@@ -580,8 +580,8 @@
   align-items: center;
   padding: 6px 10px;
   border-radius: 999px;
-  background-color: #dbeafe;
-  color: #1d4ed8;
+  background-color: #E2E8F0;
+  color: #111827;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -606,8 +606,8 @@
   padding: 8px 12px;
   border-radius: 999px;
   background-color: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(37, 99, 235, 0.18);
-  color: #1e40af;
+  border: 1px solid rgba(17, 24, 39, 0.15);
+  color: #111827;
   font-size: 13px;
   font-weight: 600;
 }
@@ -811,9 +811,9 @@
   margin-left: auto;
   padding: 9px 14px;
   border-radius: 10px;
-  border: 1px solid #2563eb;
+  border: 1px solid #111827;
   background-color: #ffffff;
-  color: #2563eb;
+  color: #111827;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -821,7 +821,7 @@
 }
 
 .ed-rate-participant-btn:hover:not(:disabled) {
-  background-color: #eff6ff;
+  background-color: #F3F4F6;
 }
 
 .ed-rate-participant-btn:disabled {
@@ -834,7 +834,7 @@
   margin-left: 48px;
   padding: 18px;
   border-radius: 16px;
-  border: 1px solid #dbeafe;
+  border: 1px solid #E5E7EB;
   background-color: #ffffff;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
   display: flex;
@@ -1209,7 +1209,7 @@
 }
 
 .ed-join-auth-link {
-  color: #2563eb;
+  color: #111827;
   font-weight: 600;
   text-decoration: none;
 }

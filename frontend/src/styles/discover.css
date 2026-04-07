@@ -62,14 +62,14 @@
 
 .dc-filter-toggle:hover,
 .dc-filter-toggle.active {
-  border-color: #2563eb;
-  color: #2563eb;
+  border-color: #111827;
+  color: #111827;
 }
 
 .dc-filter-toggle.has-filters {
-  background-color: #eff6ff;
-  border-color: #2563eb;
-  color: #2563eb;
+  background-color: #F3F4F6;
+  border-color: #111827;
+  color: #111827;
   font-weight: 600;
 }
 
@@ -115,12 +115,12 @@
 }
 
 .dc-filter-chip:hover {
-  border-color: #2563eb;
+  border-color: #111827;
 }
 
 .dc-filter-chip.selected {
-  background-color: #2563eb;
-  border-color: #2563eb;
+  background-color: #111827;
+  border-color: #111827;
   color: #ffffff;
 }
 
@@ -184,16 +184,16 @@
 .dc-use-my-loc {
   padding: 2px 10px;
   border-radius: 12px;
-  border: 1px solid #2563eb;
+  border: 1px solid #111827;
   background: none;
-  color: #2563eb;
+  color: #111827;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .dc-use-my-loc:hover {
-  background-color: #eff6ff;
+  background-color: #F3F4F6;
 }
 
 .dc-location-wrapper {
@@ -264,12 +264,12 @@
 }
 
 .dc-sort-chip:hover {
-  border-color: #2563eb;
+  border-color: #111827;
 }
 
 .dc-sort-chip.selected {
-  background-color: #2563eb;
-  border-color: #2563eb;
+  background-color: #111827;
+  border-color: #111827;
   color: #ffffff;
 }
 
@@ -292,14 +292,14 @@
 }
 
 .dc-category-chip:hover {
-  border-color: #2563eb;
-  color: #2563eb;
+  border-color: #111827;
+  color: #111827;
 }
 
 .dc-category-chip.selected {
-  background-color: #eff6ff;
-  border-color: #2563eb;
-  color: #2563eb;
+  background-color: #F3F4F6;
+  border-color: #111827;
+  color: #111827;
   font-weight: 600;
 }
 
@@ -453,7 +453,7 @@
 }
 
 .dc-card-category {
-  color: #2563eb;
+  color: #111827;
   font-weight: 600;
 }
 
@@ -525,8 +525,8 @@
 }
 
 .dc-load-more-btn:hover:not(:disabled) {
-  border-color: #2563eb;
-  color: #2563eb;
+  border-color: #111827;
+  color: #111827;
 }
 
 .dc-load-more-btn:disabled {
