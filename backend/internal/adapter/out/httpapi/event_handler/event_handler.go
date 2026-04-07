@@ -76,6 +76,8 @@ func (h *EventHandler) GetEventDetail(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	c.Set(fiber.HeaderCacheControl, "private, no-store")
+	c.Set(fiber.HeaderVary, fiber.HeaderAuthorization)
 	return c.JSON(result)
 }
 

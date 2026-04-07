@@ -127,10 +127,16 @@ export default function HomeView() {
         selectedLocation={vm.pendingLocation}
         onClose={vm.closeLocationModal}
         onReset={vm.resetLocationDraft}
+        onRetryFavoriteLocations={vm.retryFavoriteLocations}
         onChangeQuery={vm.updateLocationQuery}
+        onSelectSavedLocation={vm.selectSavedLocationOption}
         onSelectSuggestion={vm.selectLocationSuggestion}
         onApply={vm.applySelectedLocation}
         anchorTop={locationPopupTop}
+        defaultOption={vm.defaultLocationOption}
+        favoriteOptions={vm.favoriteLocationOptions}
+        isLoadingFavoriteLocations={vm.isLoadingFavoriteLocations}
+        favoriteLocationsError={vm.favoriteLocationsError}
       />
     </SafeAreaView>
   );

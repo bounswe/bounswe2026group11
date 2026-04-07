@@ -7,6 +7,7 @@ const React = require('react');
  */
 const REACT_NATIVE_ONLY_PROPS = new Set([
   'activeOpacity',
+  'animationType',
   'allowFontScaling',
   'contentContainerStyle',
   'cursorColor',
@@ -34,7 +35,9 @@ const REACT_NATIVE_ONLY_PROPS = new Set([
   'delayPressOut',
   'hitSlop',
   'horizontal',
+  'keyboardType',
   'nestedScrollEnabled',
+  'onRequestClose',
   'overScrollMode',
   'pressRetentionOffset',
   'refreshControl',
@@ -46,7 +49,10 @@ const REACT_NATIVE_ONLY_PROPS = new Set([
   'shouldRasterizeIOS',
   'snapToAlignment',
   'snapToInterval',
+  'textContentType',
+  'transparent',
   'tvParallaxProperties',
+  'visible',
 ]);
 
 function stripReactNativeOnlyProps(props) {
@@ -91,6 +97,23 @@ function createContainer(tagName) {
 const View = createContainer('div');
 const ScrollView = createContainer('div');
 const KeyboardAvoidingView = createContainer('div');
+const Modal = React.forwardRef(function MockModal(
+  { children, visible, ...props },
+  ref,
+) {
+  if (!visible) {
+    return null;
+  }
+
+  return React.createElement(
+    'div',
+    {
+      ref,
+      ...stripReactNativeOnlyProps(props),
+    },
+    children,
+  );
+});
 
 const Text = React.forwardRef(function MockText(
   { children, accessibilityLabel, testID, style, ...props },
@@ -226,5 +249,6 @@ module.exports = {
   ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Image,
 };

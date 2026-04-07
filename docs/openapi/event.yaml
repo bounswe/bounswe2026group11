@@ -46,6 +46,8 @@ paths:
         - `viewer_event_rating` returns the authenticated participant's current rating for the event, if one exists.
         - `viewer_context` is always present. For unauthenticated callers, `participation_status`
           is `NONE` and `is_favorited` is `false`.
+        - Responses are viewer-specific when a bearer token is supplied, so the endpoint returns
+          `Cache-Control: private, no-store` and `Vary: Authorization`.
         - Host management collections are no longer embedded in this response. Hosts should use
           `GET /events/{id}/host-context`, `GET /events/{id}/participants`,
           `GET /events/{id}/join-requests`, and `GET /events/{id}/invitations`.
@@ -65,6 +67,17 @@ paths:
       responses:
         '200':
           description: Event detail returned successfully.
+          headers:
+            Cache-Control:
+              description: Viewer-specific responses are not cacheable.
+              schema:
+                type: string
+                example: private, no-store
+            Vary:
+              description: Indicates that authenticated and anonymous responses must not share caches.
+              schema:
+                type: string
+                example: Authorization
           content:
             application/json:
               schema:

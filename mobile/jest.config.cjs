@@ -12,6 +12,7 @@ module.exports = {
     '^expo-file-system/legacy$': '<rootDir>/jest/mocks/expo-file-system-legacy.js',
     '^expo-image-picker$': '<rootDir>/jest/mocks/expo-image-picker.js',
     '^expo-image-manipulator$': '<rootDir>/jest/mocks/expo-image-manipulator.js',
+    '^expo-location$': '<rootDir>/jest/mocks/expo-location.js',
     '^expo-secure-store$': '<rootDir>/jest/mocks/expo-secure-store.js',
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],

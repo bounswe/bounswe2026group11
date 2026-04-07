@@ -7,7 +7,13 @@
     "scheme": "social-event-mapper",
     "userInterfaceStyle": "automatic",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Social Event Mapper to access your location so we can suggest nearby events and fill in your current location when you do not have a default location set."
+        }
+      ]
     ],
     "android": {
       "package": "com.bounswe2026group11.socialeventmapper",

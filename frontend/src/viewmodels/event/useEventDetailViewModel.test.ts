@@ -8,6 +8,7 @@ const mockGetEventDetail = vi.fn();
 const mockGetEventHostContextSummary = vi.fn();
 const mockAddFavorite = vi.fn();
 const mockRemoveFavorite = vi.fn();
+const mockRequestJoinEvent = vi.fn();
 
 vi.mock('@/services/eventService', () => ({
   getEventDetail: (...args: unknown[]) => mockGetEventDetail(...args),
@@ -15,7 +16,7 @@ vi.mock('@/services/eventService', () => ({
   getEventImageUploadUrl: vi.fn(),
   confirmEventImageUpload: vi.fn(),
   joinEvent: vi.fn(),
-  requestJoinEvent: vi.fn(),
+  requestJoinEvent: (...args: unknown[]) => mockRequestJoinEvent(...args),
   listEventApprovedParticipants: vi.fn(),
   listEventPendingJoinRequests: vi.fn(),
   listEventInvitations: vi.fn(),
@@ -94,6 +95,12 @@ describe('useEventDetailViewModel favorites', () => {
     });
     mockAddFavorite.mockResolvedValue(undefined);
     mockRemoveFavorite.mockResolvedValue(undefined);
+    mockRequestJoinEvent.mockResolvedValue({
+      join_request_id: 'join-request-1',
+      event_id: 'event-1',
+      status: 'PENDING',
+      created_at: '2026-04-02T10:00:00Z',
+    });
   });
 
   it('adds favorite locally without refetching event detail', async () => {
@@ -154,5 +161,33 @@ describe('useEventDetailViewModel favorites', () => {
     expect(mockGetEventDetail).toHaveBeenCalledTimes(1);
     expect(result.current.event?.viewer_context.is_favorited).toBe(false);
     expect(result.current.event?.favorite_count).toBe(3);
+  });
+
+  it('marks the viewer as pending immediately after a successful join request', async () => {
+    mockGetEventDetail
+      .mockResolvedValueOnce(
+        makeEvent({
+          privacy_level: 'PROTECTED',
+          status: 'ACTIVE',
+          viewer_context: {
+            is_host: false,
+            is_favorited: false,
+            participation_status: 'NONE',
+          },
+        }),
+      )
+      .mockRejectedValueOnce(new Error('stale detail fetch'));
+
+    const { result } = renderHook(() => useEventDetailViewModel('event-1', 'token'));
+
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    await act(async () => {
+      await result.current.handleRequestJoin();
+    });
+
+    expect(mockRequestJoinEvent).toHaveBeenCalledWith('event-1', 'token', undefined);
+    expect(result.current.event?.viewer_context.participation_status).toBe('PENDING');
+    expect(result.current.joinError).toBeNull();
   });
 });

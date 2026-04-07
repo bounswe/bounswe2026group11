@@ -211,4 +211,19 @@ describe('EventDetailPage ratings', () => {
     expect(screen.getByText(/reliable and easy to coordinate with\./i)).toBeDefined();
     expect(screen.getByRole('button', { name: /edit rating/i })).toBeDefined();
   });
+
+  it('shows a pending join-request banner instead of join actions', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PROTECTED';
+    event.viewer_context.participation_status = 'PENDING';
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.getByText(/your join request is pending approval/i)).toBeDefined();
+    expect(screen.queryByRole('button', { name: /request to join/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /join event/i })).toBeNull();
+  });
 });
