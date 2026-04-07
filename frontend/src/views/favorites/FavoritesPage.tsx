@@ -5,8 +5,9 @@ import { useFavoritesViewModel } from '@/viewmodels/favorites/useFavoritesViewMo
 import FavoriteLocationsTab from './FavoriteLocationsTab';
 import type { FavoriteEventItem } from '@/models/event';
 import { EventCoverImage } from '@/components/EventCoverImage';
-import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/utils/eventStatus';
+import { getEventCardBadgePresentation } from '@/utils/eventStatus';
 import '@/styles/my-events.css';
+import '@/styles/discover.css';
 import '@/styles/favorites.css';
 
 type FavoritesTab = 'events' | 'locations';
@@ -17,7 +18,6 @@ function formatDate(iso: string): string {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
   });
 }
 
@@ -30,46 +30,61 @@ function formatTime(iso: string): string {
   });
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const lifecycle = getEventLifecyclePresentation(status);
-  if (lifecycle) {
-    const cls = lifecycle.variant === 'upcoming'
-      ? 'me-status-upcoming'
-      : 'me-status-in-progress';
-
-    return <span className={`me-status-badge ${cls}`}>{lifecycle.label}</span>;
-  }
-
-  const presentation = getEventStatusPresentation(status);
-  const cls = presentation.tone === 'active'
-    ? 'me-status-active'
-    : presentation.tone === 'canceled'
-      ? 'me-status-canceled'
-      : 'me-status-completed';
-
-  return <span className={`me-status-badge ${cls}`}>{presentation.label}</span>;
-}
-
 function FavoriteCard({ item }: { item: FavoriteEventItem }) {
+  const badge = getEventCardBadgePresentation(item.status);
+  const category = item.category_name ?? item.category ?? 'Event';
+
   return (
-    <Link to={`/events/${item.id}`} className="me-card">
-      <div className="me-card-image-wrapper">
+    <Link to={`/events/${item.id}`} className="dc-card">
+      <div className="dc-card-image-wrapper">
         <EventCoverImage
           src={item.image_url}
           alt={item.title}
-          imgClassName="me-card-image"
+          imgClassName="dc-card-image"
           variant="card"
         />
+        {badge && (
+          <span
+            className={`dc-lifecycle-badge ${
+              badge.variant === 'upcoming'
+                ? 'dc-lifecycle-upcoming'
+                : badge.variant === 'in_progress'
+                  ? 'dc-lifecycle-in-progress'
+                  : badge.variant === 'canceled'
+                    ? 'dc-lifecycle-canceled'
+                    : 'dc-lifecycle-completed'
+            }`}
+          >
+            {badge.label}
+          </span>
+        )}
+        {item.privacy_level && item.privacy_level !== 'PRIVATE' && (
+          <span className={`dc-privacy-badge dc-privacy-${item.privacy_level.toLowerCase()}`}>
+            {item.privacy_level === 'PUBLIC' ? 'Public' : 'Protected'}
+          </span>
+        )}
       </div>
-      <div className="me-card-body">
-        <div className="me-card-top">
-          {item.category && <span className="me-card-category">{item.category}</span>}
-          <StatusBadge status={item.status} />
+      <div className="dc-card-body">
+        <div className="dc-card-meta">
+          <span className="dc-card-category">{category}</span>
+          <span className="dc-card-date">
+            {formatDate(item.start_time)} &middot; {formatTime(item.start_time)}
+          </span>
         </div>
-        <h3 className="me-card-title">{item.title}</h3>
-        <p className="me-card-date">
-          {formatDate(item.start_time)} &middot; {formatTime(item.start_time)}
-        </p>
+        <h3 className="dc-card-title">{item.title}</h3>
+        {item.location_address && (
+          <p className="dc-card-location">{item.location_address}</p>
+        )}
+        <div className="dc-card-footer">
+          <span className="dc-card-participants">
+            {item.approved_participant_count ?? 0} participant{item.approved_participant_count === 1 ? '' : 's'}
+          </span>
+          {item.host_score?.final_score != null && (
+            <span className="dc-card-score">
+              {'★'} {item.host_score.final_score.toFixed(1)}
+            </span>
+          )}
+        </div>
       </div>
     </Link>
   );

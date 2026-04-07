@@ -926,6 +926,16 @@
   color: #a16207;
 }
 
+.dc-lifecycle-canceled {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.dc-lifecycle-completed {
+  background-color: #e5e7eb;
+  color: #6b7280;
+}
+
 .dc-privacy-badge {
   position: absolute;
   top: 10px;

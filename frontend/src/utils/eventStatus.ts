@@ -1,8 +1,14 @@
 export type EventLifecycleVariant = 'upcoming' | 'in_progress';
+export type EventCardBadgeVariant = EventLifecycleVariant | 'canceled' | 'completed';
 
 export interface EventLifecyclePresentation {
   label: string;
   variant: EventLifecycleVariant;
+}
+
+export interface EventCardBadgePresentation {
+  label: string;
+  variant: EventCardBadgeVariant;
 }
 
 /** Labels and styling for ACTIVE (shown as UPCOMING) and IN_PROGRESS on cards and detail. */
@@ -12,6 +18,22 @@ export function getEventLifecyclePresentation(status: string): EventLifecyclePre
   }
   if (status === 'IN_PROGRESS') {
     return { label: 'IN PROGRESS', variant: 'in_progress' };
+  }
+  return null;
+}
+
+export function getEventCardBadgePresentation(status: string): EventCardBadgePresentation | null {
+  if (status === 'ACTIVE') {
+    return { label: 'UPCOMING', variant: 'upcoming' };
+  }
+  if (status === 'IN_PROGRESS') {
+    return { label: 'IN PROGRESS', variant: 'in_progress' };
+  }
+  if (status === 'CANCELED') {
+    return { label: 'CANCELED', variant: 'canceled' };
+  }
+  if (status === 'COMPLETED') {
+    return { label: 'COMPLETED', variant: 'completed' };
   }
   return null;
 }

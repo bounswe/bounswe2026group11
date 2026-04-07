@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMyEventsViewModel, type MyEventsTab } from '@/viewmodels/event/useMyEventsViewModel';
 import type { EventSummary } from '@/models/profile';
 import { EventCoverImage } from '@/components/EventCoverImage';
-import { getEventLifecyclePresentation } from '@/utils/eventStatus';
+import { getEventCardBadgePresentation } from '@/utils/eventStatus';
 import '@/styles/my-events.css';
 import '@/styles/discover.css';
 
@@ -26,7 +26,7 @@ function formatTime(iso: string): string {
 }
 
 function EventCard({ event }: { event: EventSummary }) {
-  const lifecycle = getEventLifecyclePresentation(event.status);
+  const badge = getEventCardBadgePresentation(event.status);
   const category = event.category_name ?? event.category;
 
   return (
@@ -38,13 +38,19 @@ function EventCard({ event }: { event: EventSummary }) {
           imgClassName="dc-card-image"
           variant="card"
         />
-        {lifecycle && (
+        {badge && (
           <span
             className={`dc-lifecycle-badge ${
-              lifecycle.variant === 'upcoming' ? 'dc-lifecycle-upcoming' : 'dc-lifecycle-in-progress'
+              badge.variant === 'upcoming'
+                ? 'dc-lifecycle-upcoming'
+                : badge.variant === 'in_progress'
+                  ? 'dc-lifecycle-in-progress'
+                  : badge.variant === 'canceled'
+                    ? 'dc-lifecycle-canceled'
+                    : 'dc-lifecycle-completed'
             }`}
           >
-            {lifecycle.label}
+            {badge.label}
           </span>
         )}
         {event.privacy_level && event.privacy_level !== 'PRIVATE' && (
