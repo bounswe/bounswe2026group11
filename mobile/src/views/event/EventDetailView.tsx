@@ -31,7 +31,7 @@ interface EventDetailViewProps {
 }
 
 function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
-  const label = level.charAt(0) + level.slice(1).toLowerCase();
+  const label = level ? level.charAt(0) + level.slice(1).toLowerCase() : '';
   const isProtected = level === 'PROTECTED';
   return (
     <View style={[styles.badge, isProtected ? styles.badgeProtected : styles.badgePublic]}>
@@ -74,22 +74,34 @@ const FEEDBACK_MIN_LENGTH = 10;
 const FEEDBACK_MAX_LENGTH = 100;
 
 function formatShortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return 'Invalid Date';
+    return d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return iso;
+  }
 }
 
 function formatLongDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return 'Invalid Date';
+    return d.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return iso;
+  }
 }
 
 function getFeedbackValidationMessage(message: string): string | null {
@@ -111,7 +123,8 @@ function getFeedbackValidationMessage(message: string): string | null {
 }
 
 function renderStars(rating: number): string {
-  return `${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}`;
+  const rounded = Math.max(0, Math.min(5, Math.round(rating || 0)));
+  return `${'★'.repeat(rounded)}${'☆'.repeat(5 - rounded)}`;
 }
 
 function StarRatingInput({
