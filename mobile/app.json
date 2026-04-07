@@ -6,6 +6,9 @@
     "orientation": "portrait",
     "scheme": "social-event-mapper",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#ffffff"
+    },
     "plugins": [
       "expo-router",
       [
