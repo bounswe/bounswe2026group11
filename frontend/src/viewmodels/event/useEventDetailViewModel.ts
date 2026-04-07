@@ -8,6 +8,8 @@ import {
   approveJoinRequest,
   rejectJoinRequest,
   cancelEvent,
+  addFavorite,
+  removeFavorite,
   upsertEventRating,
   upsertParticipantRating,
 } from '@/services/eventService';
@@ -191,6 +193,25 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     }
   }, [eventId, token, refreshEventDetail]);
 
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+
+  const handleFavoriteToggle = useCallback(async () => {
+    if (!eventId || !token || !event) return;
+    setFavoriteLoading(true);
+    try {
+      if (event.viewer_context.is_favorited) {
+        await removeFavorite(eventId, token);
+      } else {
+        await addFavorite(eventId, token);
+      }
+      await refreshEventDetail();
+    } catch {
+      // silently fail — UI will stay in previous state
+    } finally {
+      setFavoriteLoading(false);
+    }
+  }, [eventId, token, event, refreshEventDetail]);
+
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
@@ -354,6 +375,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     moderateError,
     cancelLoading,
     cancelError,
+    favoriteLoading,
+    handleFavoriteToggle,
     retry: fetchDetail,
     handleJoin,
     handleRequestJoin,

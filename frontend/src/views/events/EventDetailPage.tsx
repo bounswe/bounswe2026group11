@@ -753,6 +753,8 @@ function EventContent({
   cancelError,
   onCancel,
   onDismissCancelError,
+  favoriteLoading,
+  onFavoriteToggle,
   isAuthenticated,
   coverImageUploading,
   coverImageError,
@@ -784,6 +786,8 @@ function EventContent({
   cancelError: string | null;
   onCancel: () => void;
   onDismissCancelError: () => void;
+  favoriteLoading: boolean;
+  onFavoriteToggle: () => void;
   isAuthenticated: boolean;
   coverImageUploading: boolean;
   coverImageError: string | null;
@@ -865,7 +869,19 @@ function EventContent({
       <div className="ed-header">
         <div className="ed-title-row">
           <h1 className="ed-title">{event.title}</h1>
-          <StatusBadge status={event.status} />
+          <div className="ed-title-actions">
+            <button
+              type="button"
+              className={`ed-favorite-btn ${event.viewer_context.is_favorited ? 'favorited' : ''}`}
+              onClick={isAuthenticated ? onFavoriteToggle : () => navigate('/login')}
+              disabled={favoriteLoading}
+              aria-label={event.viewer_context.is_favorited ? 'Remove from favorites' : 'Add to favorites'}
+              title={isAuthenticated ? undefined : 'Sign in to save this event'}
+            >
+              {event.viewer_context.is_favorited ? '★' : '☆'}
+            </button>
+            <StatusBadge status={event.status} />
+          </div>
         </div>
         {event.category && (
           <span className="ed-category">{event.category.name}</span>
@@ -1286,6 +1302,8 @@ export default function EventDetailPage() {
       cancelError={vm.cancelError}
       onCancel={vm.handleCancel}
       onDismissCancelError={vm.dismissCancelError}
+      favoriteLoading={vm.favoriteLoading}
+      onFavoriteToggle={vm.handleFavoriteToggle}
     />
   );
 }
