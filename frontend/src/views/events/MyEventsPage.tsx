@@ -36,22 +36,7 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`me-status-badge ${cls}`}>{presentation.label}</span>;
 }
 
-function EventCard({ 
-  event, 
-  onLeave, 
-  isLeaving 
-}: { 
-  event: EventSummary; 
-  onLeave?: (eventId: string) => void; 
-  isLeaving?: boolean; 
-}) {
-  const handleLeaveClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (window.confirm('Are you sure to leave?')) {
-      onLeave?.(event.id);
-    }
-  };
-
+function EventCard({ event }: { event: EventSummary }) {
   return (
     <Link to={`/events/${event.id}`} className="me-card">
       <div className="me-card-image-wrapper">
@@ -71,34 +56,12 @@ function EventCard({
         <p className="me-card-date">
           {formatDate(event.start_time)} &middot; {formatTime(event.start_time)}
         </p>
-        {onLeave && (
-          <button
-            type="button"
-            className="me-leave-btn"
-            onClick={handleLeaveClick}
-            disabled={isLeaving}
-          >
-            {isLeaving ? 'Leaving...' : 'Leave Event'}
-          </button>
-        )}
       </div>
     </Link>
   );
 }
 
-function EventList({ 
-  events, 
-  emptyMessage,
-  onLeave,
-  leavingEventId,
-  hostedEventIds
-}: { 
-  events: EventSummary[]; 
-  emptyMessage: string;
-  onLeave?: (eventId: string) => void;
-  leavingEventId?: string | null;
-  hostedEventIds?: string[];
-}) {
+function EventList({ events, emptyMessage }: { events: EventSummary[]; emptyMessage: string }) {
   if (events.length === 0) {
     return (
       <div className="me-empty">
@@ -110,12 +73,7 @@ function EventList({
   return (
     <div className="me-grid">
       {events.map((event) => (
-        <EventCard 
-          key={event.id} 
-          event={event} 
-          onLeave={hostedEventIds?.includes(event.id) ? undefined : onLeave}
-          isLeaving={leavingEventId === event.id}
-        />
+        <EventCard key={event.id} event={event} />
       ))}
     </div>
   );
@@ -140,8 +98,6 @@ export default function MyEventsPage() {
     past: vm.past.length,
     canceled: vm.canceled.length,
   };
-
-  const hostedEventIds = vm.organized.map(e => e.id);
 
   return (
     <div className="me-page">
@@ -190,18 +146,12 @@ export default function MyEventsPage() {
             <EventList
               events={vm.active}
               emptyMessage="No events in progress right now."
-              onLeave={vm.handleLeaveEvent}
-              leavingEventId={vm.leavingEventId}
-              hostedEventIds={hostedEventIds}
             />
           )}
           {vm.activeTab === 'upcoming' && (
             <EventList
               events={vm.upcoming}
               emptyMessage="No upcoming events. Discover events to join!"
-              onLeave={vm.handleLeaveEvent}
-              leavingEventId={vm.leavingEventId}
-              hostedEventIds={hostedEventIds}
             />
           )}
           {vm.activeTab === 'organized' && (

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { profileService } from '@/services/profileService';
-import { leaveEvent } from '@/services/eventService';
 import type { EventSummary } from '@/models/profile';
 import { ApiError } from '@/services/api';
 
@@ -15,7 +14,6 @@ export function useMyEventsViewModel(token: string | null) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<MyEventsTab>('active');
-  const [leavingEventId, setLeavingEventId] = useState<string | null>(null);
 
   const fetchEvents = useCallback(async () => {
     if (!token) return;
@@ -50,23 +48,6 @@ export function useMyEventsViewModel(token: string | null) {
     fetchEvents();
   }, [fetchEvents]);
 
-  const handleLeaveEvent = async (eventId: string) => {
-    if (!token) return;
-    setLeavingEventId(eventId);
-    try {
-      await leaveEvent(eventId, token);
-      await fetchEvents();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        window.alert(`Failed to leave event: ${err.message}`);
-      } else {
-        window.alert('Failed to leave event. Please try again.');
-      }
-    } finally {
-      setLeavingEventId(null);
-    }
-  };
-
   return {
     organized,
     upcoming,
@@ -77,8 +58,6 @@ export function useMyEventsViewModel(token: string | null) {
     error,
     activeTab,
     setActiveTab,
-    leavingEventId,
-    handleLeaveEvent,
     retry: fetchEvents,
   };
 }
