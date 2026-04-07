@@ -3,6 +3,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { UserProfile, UpdateProfileRequest } from '../../models/profile';
 import { profileService } from '../../services/profileService';
 import { prepareAvatarBlobs } from '../../utils/imageResize';
+import { searchLocation } from '@/services/eventService';
+import type { LocationSuggestion } from '@/models/event';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 export function useProfileViewModel(token: string | null) {
   const { setProfileSummary } = useAuth();
@@ -22,6 +26,14 @@ export function useProfileViewModel(token: string | null) {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
+  // Default location states
+  const [locationQuery, setLocationQuery] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<{ address: string; lat: number; lon: number } | null>(null);
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const [locationCleared, setLocationCleared] = useState(false);
+  const locationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const fetchProfile = useCallback(async () => {
     if (!token) return;
     setIsLoading(true);
@@ -31,6 +43,13 @@ export function useProfileViewModel(token: string | null) {
       setProfile(data);
       setDisplayName(data.display_name || '');
       setBio(data.bio || '');
+      setSelectedLocation(
+        data.default_location_address
+          ? { address: data.default_location_address, lat: data.default_location_lat!, lon: data.default_location_lon! }
+          : null,
+      );
+      setLocationQuery('');
+      setLocationCleared(false);
       setProfileSummary({
         avatarUrl: data.avatar_url ?? null,
         displayName: data.display_name ?? null,
@@ -49,9 +68,50 @@ export function useProfileViewModel(token: string | null) {
   useEffect(
     () => () => {
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      if (locationTimerRef.current) clearTimeout(locationTimerRef.current);
     },
     [],
   );
+
+  const handleLocationSearch = useCallback((query: string) => {
+    setLocationQuery(query);
+    if (locationTimerRef.current) clearTimeout(locationTimerRef.current);
+
+    if (query.trim().length < 2) {
+      setLocationSuggestions([]);
+      return;
+    }
+
+    locationTimerRef.current = setTimeout(async () => {
+      setIsSearchingLocation(true);
+      try {
+        const results = await searchLocation(query);
+        setLocationSuggestions(results);
+      } catch {
+        setLocationSuggestions([]);
+      } finally {
+        setIsSearchingLocation(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+  }, []);
+
+  const selectLocation = useCallback((suggestion: LocationSuggestion) => {
+    setSelectedLocation({
+      address: suggestion.display_name,
+      lat: parseFloat(suggestion.lat),
+      lon: parseFloat(suggestion.lon),
+    });
+    setLocationQuery('');
+    setLocationSuggestions([]);
+    setLocationCleared(false);
+  }, []);
+
+  const clearLocation = useCallback(() => {
+    setSelectedLocation(null);
+    setLocationQuery('');
+    setLocationSuggestions([]);
+    setLocationCleared(true);
+  }, []);
 
   const handleFileChange = useCallback((file: File | null) => {
     setAvatarFile(file);
@@ -66,6 +126,14 @@ export function useProfileViewModel(token: string | null) {
       setAvatarFile(null);
       if (avatarPreview) URL.revokeObjectURL(avatarPreview);
       setAvatarPreview(null);
+      setSelectedLocation(
+        profile?.default_location_address
+          ? { address: profile.default_location_address, lat: profile.default_location_lat!, lon: profile.default_location_lon! }
+          : null,
+      );
+      setLocationQuery('');
+      setLocationSuggestions([]);
+      setLocationCleared(false);
       setError(null);
       setSuccess(null);
     }
@@ -108,6 +176,17 @@ export function useProfileViewModel(token: string | null) {
         bio: bio.trim() || null,
       };
 
+      // Include location if changed
+      if (locationCleared) {
+        updatePayload.default_location_address = null;
+        updatePayload.default_location_lat = null;
+        updatePayload.default_location_lon = null;
+      } else if (selectedLocation && selectedLocation.address !== profile?.default_location_address) {
+        updatePayload.default_location_address = selectedLocation.address;
+        updatePayload.default_location_lat = selectedLocation.lat;
+        updatePayload.default_location_lon = selectedLocation.lon;
+      }
+
       await profileService.updateMyProfile(updatePayload, token);
       await fetchProfile();
 
@@ -146,5 +225,14 @@ export function useProfileViewModel(token: string | null) {
     handleFileChange,
     handleEditToggle,
     handleSave,
+    // Default location
+    locationQuery,
+    handleLocationSearch,
+    locationSuggestions,
+    selectedLocation,
+    selectLocation,
+    clearLocation,
+    isSearchingLocation,
+    locationCleared,
   };
 }

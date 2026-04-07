@@ -29,6 +29,9 @@ export interface UpdateProfileRequest {
   display_name?: string | null;
   bio?: string | null;
   avatar_url?: string | null;
+  default_location_address?: string | null;
+  default_location_lat?: number | null;
+  default_location_lon?: number | null;
 }
 
 /* ── Favorite Locations ── */
