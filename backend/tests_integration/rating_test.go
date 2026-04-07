@@ -188,11 +188,8 @@ func TestParticipantRatingUpdatesParticipantScoreAndHostContext(t *testing.T) {
 		t.Fatalf("UpsertParticipantRating() create error = %v", err)
 	}
 
-	detailAfterCreate, err := harness.Service.GetEventDetail(context.Background(), host.ID, eventID)
-	if err != nil {
-		t.Fatalf("GetEventDetail() after create error = %v", err)
-	}
 	scoreAfterCreate := queryUserScore(t, participant.ID)
+	apAfterCreate := listHostApprovedParticipants(t, harness, host.ID, eventID)
 
 	_, err = harness.RatingService.UpsertParticipantRating(context.Background(), host.ID, eventID, participant.ID, ratingapp.UpsertRatingInput{
 		Rating:  2,
@@ -202,38 +199,32 @@ func TestParticipantRatingUpdatesParticipantScoreAndHostContext(t *testing.T) {
 		t.Fatalf("UpsertParticipantRating() update error = %v", err)
 	}
 
-	detailAfterUpdate, err := harness.Service.GetEventDetail(context.Background(), host.ID, eventID)
-	if err != nil {
-		t.Fatalf("GetEventDetail() after update error = %v", err)
-	}
 	scoreAfterUpdate := queryUserScore(t, participant.ID)
+	apAfterUpdate := listHostApprovedParticipants(t, harness, host.ID, eventID)
 
 	if err := harness.RatingService.DeleteParticipantRating(context.Background(), host.ID, eventID, participant.ID); err != nil {
 		t.Fatalf("DeleteParticipantRating() error = %v", err)
 	}
 
-	detailAfterDelete, err := harness.Service.GetEventDetail(context.Background(), host.ID, eventID)
-	if err != nil {
-		t.Fatalf("GetEventDetail() after delete error = %v", err)
-	}
 	scoreAfterDelete := queryUserScore(t, participant.ID)
+	apAfterDelete := listHostApprovedParticipants(t, harness, host.ID, eventID)
 
-	// then
-	requireParticipantHostRating(t, detailAfterCreate, participant.ID, 5)
-	requireParticipantUserScoreSummary(t, detailAfterCreate, participant.ID, (5.0*1+4.0*5)/6.0, 1)
+	// then (host-visible participant ratings and scores come from ListEventApprovedParticipants, not GetEventDetail)
+	requireParticipantHostRating(t, apAfterCreate, participant.ID, 5)
+	requireParticipantUserScoreSummary(t, apAfterCreate, participant.ID, (5.0*1+4.0*5)/6.0, 1)
 	if scoreAfterCreate.ParticipantRatingCount != 1 {
 		t.Fatalf("expected participant rating count 1 after create, got %d", scoreAfterCreate.ParticipantRatingCount)
 	}
 	requireApproxFloat(t, scoreAfterCreate.ParticipantScore, 5.0)
 	requireApproxFloat(t, scoreAfterCreate.FinalScore, (5.0*1+4.0*5)/6.0)
 
-	requireParticipantHostRating(t, detailAfterUpdate, participant.ID, 2)
-	requireParticipantUserScoreSummary(t, detailAfterUpdate, participant.ID, (2.0*1+4.0*5)/6.0, 1)
+	requireParticipantHostRating(t, apAfterUpdate, participant.ID, 2)
+	requireParticipantUserScoreSummary(t, apAfterUpdate, participant.ID, (2.0*1+4.0*5)/6.0, 1)
 	requireApproxFloat(t, scoreAfterUpdate.ParticipantScore, 2.0)
 	requireApproxFloat(t, scoreAfterUpdate.FinalScore, (2.0*1+4.0*5)/6.0)
 
-	requireParticipantHostRatingNil(t, detailAfterDelete, participant.ID)
-	requireParticipantUserScoreSummaryNil(t, detailAfterDelete, participant.ID)
+	requireParticipantHostRatingNil(t, apAfterDelete, participant.ID)
+	requireParticipantUserScoreSummaryNil(t, apAfterDelete, participant.ID)
 	if scoreAfterDelete.ParticipantRatingCount != 0 {
 		t.Fatalf("expected participant rating count 0 after delete, got %d", scoreAfterDelete.ParticipantRatingCount)
 	}
@@ -298,26 +289,37 @@ func findDiscoveredEvent(items []eventapp.DiscoverableEventItem, eventID uuid.UU
 	return nil
 }
 
+func listHostApprovedParticipants(t *testing.T, harness *common.EventHarness, hostID, eventID uuid.UUID) []eventapp.EventDetailApprovedParticipant {
+	t.Helper()
+
+	res, err := harness.Service.ListEventApprovedParticipants(context.Background(), hostID, eventID, eventapp.ListEventCollectionInput{})
+	if err != nil {
+		t.Fatalf("ListEventApprovedParticipants: %v", err)
+	}
+
+	return res.Items
+}
+
 func requireParticipantUserScoreSummary(
 	t *testing.T,
-	detail *eventapp.GetEventDetailResult,
+	participants []eventapp.EventDetailApprovedParticipant,
 	participantUserID uuid.UUID,
 	expectedFinalScore float64,
 	expectedRatingCount int,
 ) {
 	t.Helper()
 
-	participant := requireApprovedParticipant(t, detail, participantUserID)
+	participant := requireApprovedParticipant(t, participants, participantUserID)
 	requireApproxFloat(t, participant.User.FinalScore, expectedFinalScore)
 	if participant.User.RatingCount != expectedRatingCount {
 		t.Fatalf("expected participant rating_count %d, got %d", expectedRatingCount, participant.User.RatingCount)
 	}
 }
 
-func requireParticipantUserScoreSummaryNil(t *testing.T, detail *eventapp.GetEventDetailResult, participantUserID uuid.UUID) {
+func requireParticipantUserScoreSummaryNil(t *testing.T, participants []eventapp.EventDetailApprovedParticipant, participantUserID uuid.UUID) {
 	t.Helper()
 
-	participant := requireApprovedParticipant(t, detail, participantUserID)
+	participant := requireApprovedParticipant(t, participants, participantUserID)
 	if participant.User.FinalScore != nil {
 		t.Fatalf("expected nil participant final_score, got %v", participant.User.FinalScore)
 	}
@@ -326,10 +328,10 @@ func requireParticipantUserScoreSummaryNil(t *testing.T, detail *eventapp.GetEve
 	}
 }
 
-func requireParticipantHostRating(t *testing.T, detail *eventapp.GetEventDetailResult, participantUserID uuid.UUID, expectedRating int) {
+func requireParticipantHostRating(t *testing.T, participants []eventapp.EventDetailApprovedParticipant, participantUserID uuid.UUID, expectedRating int) {
 	t.Helper()
 
-	participant := requireApprovedParticipant(t, detail, participantUserID)
+	participant := requireApprovedParticipant(t, participants, participantUserID)
 	if participant.HostRating == nil {
 		t.Fatalf("expected host_rating for participant %s", participantUserID)
 	}
@@ -338,10 +340,10 @@ func requireParticipantHostRating(t *testing.T, detail *eventapp.GetEventDetailR
 	}
 }
 
-func requireParticipantHostRatingNil(t *testing.T, detail *eventapp.GetEventDetailResult, participantUserID uuid.UUID) {
+func requireParticipantHostRatingNil(t *testing.T, participants []eventapp.EventDetailApprovedParticipant, participantUserID uuid.UUID) {
 	t.Helper()
 
-	participant := requireApprovedParticipant(t, detail, participantUserID)
+	participant := requireApprovedParticipant(t, participants, participantUserID)
 	if participant.HostRating != nil {
 		t.Fatalf("expected nil host_rating for participant %s, got %+v", participantUserID, participant.HostRating)
 	}
@@ -349,16 +351,12 @@ func requireParticipantHostRatingNil(t *testing.T, detail *eventapp.GetEventDeta
 
 func requireApprovedParticipant(
 	t *testing.T,
-	detail *eventapp.GetEventDetailResult,
+	participants []eventapp.EventDetailApprovedParticipant,
 	participantUserID uuid.UUID,
 ) eventapp.EventDetailApprovedParticipant {
 	t.Helper()
 
-	if detail.HostContext == nil {
-		t.Fatal("expected host_context")
-	}
-
-	for _, participant := range detail.HostContext.ApprovedParticipants {
+	for _, participant := range participants {
 		if participant.User.ID == participantUserID.String() {
 			return participant
 		}

@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { EventDetail, ParticipationStatus } from '@/models/event';
+import {
+  EventDetail,
+  EventDetailApprovedParticipant,
+  EventDetailPendingJoinRequest,
+  EventHostContextSummary,
+  ParticipationStatus,
+} from '@/models/event';
 import {
   getEventDetail,
+  getEventHostContextSummary,
   joinEvent,
   leaveEvent,
   requestJoinEvent,
+  listEventApprovedParticipants,
+  listEventPendingJoinRequests,
   approveJoinRequest,
   rejectJoinRequest,
   cancelEvent,
@@ -25,6 +34,13 @@ export type ActionState =
 
 export interface EventDetailViewModel {
   event: EventDetail | null;
+  hostContextSummary: EventHostContextSummary | null;
+  approvedParticipants: EventDetailApprovedParticipant[];
+  pendingJoinRequests: EventDetailPendingJoinRequest[];
+  approvedParticipantsLoading: boolean;
+  pendingJoinRequestsLoading: boolean;
+  approvedParticipantsHasNext: boolean;
+  pendingJoinRequestsHasNext: boolean;
   isLoading: boolean;
   apiError: string | null;
   actionError: string | null;
@@ -52,6 +68,8 @@ export interface EventDetailViewModel {
   setShowRequestsModal: (val: boolean) => void;
   showAttendeesModal: boolean;
   setShowAttendeesModal: (val: boolean) => void;
+  loadMoreApprovedParticipants: () => Promise<void>;
+  loadMorePendingJoinRequests: () => Promise<void>;
   handleApproveRequest: (joinRequestId: string) => Promise<void>;
   handleRejectRequest: (joinRequestId: string) => Promise<void>;
   handleCancelEvent: () => Promise<void>;
@@ -99,9 +117,19 @@ export function resolveConstraintViolation(
 }
 
 export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
+  const hostCollectionPageSize = 25;
   const { token, user } = useAuth();
 
   const [event, setEvent] = useState<EventDetail | null>(null);
+  const [hostContextSummary, setHostContextSummary] = useState<EventHostContextSummary | null>(null);
+  const [approvedParticipants, setApprovedParticipants] = useState<EventDetailApprovedParticipant[]>([]);
+  const [approvedParticipantsLoading, setApprovedParticipantsLoading] = useState(false);
+  const [approvedParticipantsNextCursor, setApprovedParticipantsNextCursor] = useState<string | null>(null);
+  const [approvedParticipantsHasNext, setApprovedParticipantsHasNext] = useState(false);
+  const [pendingJoinRequests, setPendingJoinRequests] = useState<EventDetailPendingJoinRequest[]>([]);
+  const [pendingJoinRequestsLoading, setPendingJoinRequestsLoading] = useState(false);
+  const [pendingJoinRequestsNextCursor, setPendingJoinRequestsNextCursor] = useState<string | null>(null);
+  const [pendingJoinRequestsHasNext, setPendingJoinRequestsHasNext] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -142,6 +170,55 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     [event, user?.gender, user?.birth_date],
   );
 
+  const resetHostManagement = useCallback(() => {
+    setHostContextSummary(null);
+    setApprovedParticipants([]);
+    setApprovedParticipantsNextCursor(null);
+    setApprovedParticipantsHasNext(false);
+    setPendingJoinRequests([]);
+    setPendingJoinRequestsNextCursor(null);
+    setPendingJoinRequestsHasNext(false);
+  }, []);
+
+  const refreshHostContextSummary = useCallback(async () => {
+    if (!token) return null;
+    const summary = await getEventHostContextSummary(eventId, token);
+    setHostContextSummary(summary);
+    return summary;
+  }, [eventId, token]);
+
+  const refreshApprovedParticipants = useCallback(async (cursor?: string | null, append = false) => {
+    if (!token) return;
+    setApprovedParticipantsLoading(true);
+    try {
+      const response = await listEventApprovedParticipants(eventId, token, {
+        limit: hostCollectionPageSize,
+        cursor,
+      });
+      setApprovedParticipants((prev) => append ? [...prev, ...response.items] : response.items);
+      setApprovedParticipantsNextCursor(response.page_info.next_cursor ?? null);
+      setApprovedParticipantsHasNext(response.page_info.has_next);
+    } finally {
+      setApprovedParticipantsLoading(false);
+    }
+  }, [eventId, token]);
+
+  const refreshPendingJoinRequests = useCallback(async (cursor?: string | null, append = false) => {
+    if (!token) return;
+    setPendingJoinRequestsLoading(true);
+    try {
+      const response = await listEventPendingJoinRequests(eventId, token, {
+        limit: hostCollectionPageSize,
+        cursor,
+      });
+      setPendingJoinRequests((prev) => append ? [...prev, ...response.items] : response.items);
+      setPendingJoinRequestsNextCursor(response.page_info.next_cursor ?? null);
+      setPendingJoinRequestsHasNext(response.page_info.has_next);
+    } finally {
+      setPendingJoinRequestsLoading(false);
+    }
+  }, [eventId, token]);
+
   const fetchEvent = useCallback(async (silent = false) => {
     if (!token) {
       setApiError('You must be logged in to view this event.');
@@ -151,22 +228,36 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
 
     if (!silent) setIsLoading(true);
     setApiError(null);
+    resetHostManagement();
 
     try {
       const data = await getEventDetail(eventId, token);
       setEvent(data);
       setIsFavorited(data.viewer_context.is_favorited);
       setParticipationStatus(data.viewer_context.participation_status);
+      if (data.viewer_context.is_host) {
+        void refreshHostContextSummary();
+      }
     } catch {
       if (!silent) setApiError('Failed to load event details. Please try again.');
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, [eventId, token]);
+  }, [eventId, token, resetHostManagement, refreshHostContextSummary]);
 
   useEffect(() => {
     void fetchEvent();
   }, [fetchEvent]);
+
+  useEffect(() => {
+    if (!showAttendeesModal || !event?.viewer_context.is_host || approvedParticipants.length > 0) return;
+    void refreshApprovedParticipants();
+  }, [approvedParticipants.length, event?.viewer_context.is_host, refreshApprovedParticipants, showAttendeesModal]);
+
+  useEffect(() => {
+    if (!showRequestsModal || !event?.viewer_context.is_host || pendingJoinRequests.length > 0) return;
+    void refreshPendingJoinRequests();
+  }, [event?.viewer_context.is_host, pendingJoinRequests.length, refreshPendingJoinRequests, showRequestsModal]);
 
   const handleJoin = useCallback(async () => {
     if (!token || !event) return;
@@ -273,7 +364,12 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (!token || !event) return;
       try {
         await approveJoinRequest(event.id, joinRequestId, token);
-        await fetchEvent(true);
+        await Promise.all([
+          fetchEvent(true),
+          refreshHostContextSummary(),
+          refreshApprovedParticipants(undefined, false),
+          refreshPendingJoinRequests(undefined, false),
+        ]);
       } catch (err: unknown) {
         if (err && typeof err === 'object' && 'message' in err) {
           setActionError((err as { message: string }).message);
@@ -282,7 +378,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         }
       }
     },
-    [token, event, fetchEvent],
+    [token, event, fetchEvent, refreshApprovedParticipants, refreshHostContextSummary, refreshPendingJoinRequests],
   );
 
   const handleRejectRequest = useCallback(
@@ -290,7 +386,11 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (!token || !event) return;
       try {
         await rejectJoinRequest(event.id, joinRequestId, token);
-        await fetchEvent(true);
+        await Promise.all([
+          fetchEvent(true),
+          refreshHostContextSummary(),
+          refreshPendingJoinRequests(undefined, false),
+        ]);
       } catch (err: unknown) {
         if (err && typeof err === 'object' && 'message' in err) {
           setActionError((err as { message: string }).message);
@@ -299,7 +399,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         }
       }
     },
-    [token, event, fetchEvent],
+    [token, event, fetchEvent, refreshHostContextSummary, refreshPendingJoinRequests],
   );
 
   const handleCancelEvent = useCallback(async () => {
@@ -331,8 +431,35 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     void fetchEvent();
   }, [fetchEvent]);
 
+  const loadMoreApprovedParticipants = useCallback(async () => {
+    if (!approvedParticipantsHasNext || !approvedParticipantsNextCursor || approvedParticipantsLoading) return;
+    await refreshApprovedParticipants(approvedParticipantsNextCursor, true);
+  }, [
+    approvedParticipantsHasNext,
+    approvedParticipantsLoading,
+    approvedParticipantsNextCursor,
+    refreshApprovedParticipants,
+  ]);
+
+  const loadMorePendingJoinRequests = useCallback(async () => {
+    if (!pendingJoinRequestsHasNext || !pendingJoinRequestsNextCursor || pendingJoinRequestsLoading) return;
+    await refreshPendingJoinRequests(pendingJoinRequestsNextCursor, true);
+  }, [
+    pendingJoinRequestsHasNext,
+    pendingJoinRequestsLoading,
+    pendingJoinRequestsNextCursor,
+    refreshPendingJoinRequests,
+  ]);
+
   return {
     event,
+    hostContextSummary,
+    approvedParticipants,
+    pendingJoinRequests,
+    approvedParticipantsLoading,
+    pendingJoinRequestsLoading,
+    approvedParticipantsHasNext,
+    pendingJoinRequestsHasNext,
     isLoading,
     apiError,
     actionError,
@@ -356,6 +483,8 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     setShowRequestsModal,
     showAttendeesModal,
     setShowAttendeesModal,
+    loadMoreApprovedParticipants,
+    loadMorePendingJoinRequests,
     handleApproveRequest,
     handleRejectRequest,
     handleCancelEvent,

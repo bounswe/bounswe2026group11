@@ -50,6 +50,9 @@ const mockGetEventDetail = jest.mocked(eventService.getEventDetail);
 const mockJoinEvent = jest.mocked(eventService.joinEvent);
 const mockLeaveEvent = jest.mocked(eventService.leaveEvent);
 const mockRequestJoinEvent = jest.mocked(eventService.requestJoinEvent);
+const mockGetEventHostContextSummary = jest.mocked(eventService.getEventHostContextSummary);
+const mockListEventApprovedParticipants = jest.mocked(eventService.listEventApprovedParticipants);
+const mockListEventPendingJoinRequests = jest.mocked(eventService.listEventPendingJoinRequests);
 const mockApproveJoinRequest = jest.mocked(eventService.approveJoinRequest);
 const mockRejectJoinRequest = jest.mocked(eventService.rejectJoinRequest);
 const mockCancelEvent = jest.mocked(eventService.cancelEvent);
@@ -293,6 +296,19 @@ describe('useEventDetailViewModel', () => {
     mockJoinEvent.mockResolvedValue(joinResponseFixture);
     mockLeaveEvent.mockResolvedValue(leaveEventResponseFixture);
     mockRequestJoinEvent.mockResolvedValue(requestJoinResponseFixture);
+    mockGetEventHostContextSummary.mockResolvedValue({
+      approved_participant_count: 1,
+      pending_join_request_count: 1,
+      invitation_count: 0,
+    });
+    mockListEventApprovedParticipants.mockResolvedValue({
+      items: hostedEventFixture.host_context?.approved_participants ?? [],
+      page_info: { next_cursor: null, has_next: false },
+    });
+    mockListEventPendingJoinRequests.mockResolvedValue({
+      items: hostedEventFixture.host_context?.pending_join_requests ?? [],
+      page_info: { next_cursor: null, has_next: false },
+    });
     mockApproveJoinRequest.mockResolvedValue(undefined);
     mockRejectJoinRequest.mockResolvedValue(undefined);
     mockCancelEvent.mockResolvedValue(undefined);

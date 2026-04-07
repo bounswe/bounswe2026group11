@@ -46,8 +46,9 @@ paths:
         - `viewer_event_rating` returns the authenticated participant's current rating for the event, if one exists.
         - `viewer_context` is always present. For unauthenticated callers, `participation_status`
           is `NONE` and `is_favorited` is `false`.
-        - `host_context` is included only when the authenticated user is the event host; approved participants may include a `host_rating`.
-        - `host_context.*.user` includes the managed user's cached `final_score` and total `rating_count`.
+        - Host management collections are no longer embedded in this response. Hosts should use
+          `GET /events/{id}/host-context`, `GET /events/{id}/participants`,
+          `GET /events/{id}/join-requests`, and `GET /events/{id}/invitations`.
       operationId: getEventDetail
       security:
         - bearerAuth: []
@@ -172,52 +173,6 @@ paths:
                       is_host: true
                       is_favorited: false
                       participation_status: NONE
-                    host_context:
-                      approved_participants:
-                        - participation_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                          status: APPROVED
-                          created_at: "2026-03-26T13:00:00+03:00"
-                          updated_at: "2026-03-26T13:00:00+03:00"
-                          host_rating:
-                            id: 8395efb1-053b-4d14-8da5-ded573efbf5d
-                            rating: 4
-                            message: Reliable participant.
-                            created_at: "2026-05-02T12:15:00+03:00"
-                            updated_at: "2026-05-02T12:15:00+03:00"
-                          user:
-                            id: 6a5d08d6-b9f2-49c8-baea-0f39c34082f8
-                            username: approved_user
-                            display_name: Approved User
-                            avatar_url: https://example.com/approved.png
-                            final_score: 4.4
-                            rating_count: 5
-                      pending_join_requests:
-                        - join_request_id: b2c3d4e5-f6a7-8901-bcde-f01234567890
-                          status: PENDING
-                          message: I have attended similar events before.
-                          created_at: "2026-03-26T14:00:00+03:00"
-                          updated_at: "2026-03-26T14:00:00+03:00"
-                          user:
-                            id: 48095dc7-6dc1-4479-955f-70ce45e0ef64
-                            username: pending_user
-                            display_name: Pending User
-                            avatar_url: https://example.com/pending.png
-                            final_score: 3.8
-                            rating_count: 2
-                      invitations:
-                        - invitation_id: c3d4e5f6-a7b8-9012-cdef-012345678901
-                          status: ACCEPTED
-                          message: Join us if you are available.
-                          expires_at: "2026-04-30T23:59:59+03:00"
-                          created_at: "2026-03-26T15:00:00+03:00"
-                          updated_at: "2026-03-26T15:00:00+03:00"
-                          user:
-                            id: 27b3b93d-5f4c-4958-b0e1-0d4df6fc5c02
-                            username: invited_user
-                            display_name: Invited User
-                            avatar_url: https://example.com/invited.png
-                            final_score: 4.1
-                            rating_count: 6
         '400':
           description: Invalid event ID format.
           content:
@@ -252,6 +207,194 @@ paths:
                       message: The requested event does not exist.
         '500':
           description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/host-context:
+    get:
+      tags: [Events]
+      summary: Get host management summary
+      description: |
+        Returns host-only management counters for the event without loading the underlying
+        participant, join-request, or invitation collections.
+      operationId: getEventHostContextSummary
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Host management summary returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventHostContextSummaryResponse'
+        '400':
+          description: Invalid event id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: event_host_management_not_allowed
+                  message: Only the event host can access this management resource.
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/participants:
+    get:
+      tags: [Events]
+      summary: List approved participants for a hosted event
+      description: |
+        Returns a cursor-paginated list of approved participants visible only to the event host.
+      operationId: listEventApprovedParticipants
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventIdParam'
+        - $ref: '#/components/parameters/EventCollectionLimitParam'
+        - $ref: '#/components/parameters/EventCollectionCursorParam'
+      responses:
+        '200':
+          description: Approved participants returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventApprovedParticipantsResponse'
+        '400':
+          description: Invalid event id or pagination cursor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/join-requests:
+    get:
+      tags: [Events]
+      summary: List pending join requests for a hosted event
+      description: |
+        Returns a cursor-paginated list of pending join requests visible only to the event host.
+      operationId: listEventPendingJoinRequests
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventIdParam'
+        - $ref: '#/components/parameters/EventCollectionLimitParam'
+        - $ref: '#/components/parameters/EventCollectionCursorParam'
+      responses:
+        '200':
+          description: Pending join requests returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventPendingJoinRequestsResponse'
+        '400':
+          description: Invalid event id or pagination cursor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/invitations:
+    get:
+      tags: [Events]
+      summary: List invitations for a hosted event
+      description: |
+        Returns a cursor-paginated list of invitations visible only to the event host.
+      operationId: listEventInvitations
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventIdParam'
+        - $ref: '#/components/parameters/EventCollectionLimitParam'
+        - $ref: '#/components/parameters/EventCollectionCursorParam'
+      responses:
+        '200':
+          description: Invitations returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventInvitationsResponse'
+        '400':
+          description: Invalid event id or pagination cursor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
           content:
             application/json:
               schema:
@@ -1759,6 +1902,31 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  parameters:
+    EventIdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID of the event.
+    EventCollectionLimitParam:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+      description: Maximum number of items to return. Defaults to `25` when omitted.
+    EventCollectionCursorParam:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Opaque cursor returned by the previous page of the same collection.
   schemas:
     CreateEventRequest:
       oneOf:
@@ -2180,9 +2348,69 @@ components:
             - type: "null"
         viewer_context:
           $ref: '#/components/schemas/EventDetailViewerContext'
-        host_context:
-          $ref: '#/components/schemas/EventDetailHostContext'
-          description: Present only when the authenticated user is the event host.
+
+    EventHostContextSummaryResponse:
+      type: object
+      additionalProperties: false
+      required: [approved_participant_count, pending_join_request_count, invitation_count]
+      properties:
+        approved_participant_count:
+          type: integer
+          minimum: 0
+        pending_join_request_count:
+          type: integer
+          minimum: 0
+        invitation_count:
+          type: integer
+          minimum: 0
+
+    EventCollectionPageInfo:
+      type: object
+      additionalProperties: false
+      required: [next_cursor, has_next]
+      properties:
+        next_cursor:
+          type:
+            - string
+            - "null"
+        has_next:
+          type: boolean
+
+    EventApprovedParticipantsResponse:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventDetailApprovedParticipant'
+        page_info:
+          $ref: '#/components/schemas/EventCollectionPageInfo'
+
+    EventPendingJoinRequestsResponse:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventDetailPendingJoinRequest'
+        page_info:
+          $ref: '#/components/schemas/EventCollectionPageInfo'
+
+    EventInvitationsResponse:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventDetailInvitation'
+        page_info:
+          $ref: '#/components/schemas/EventCollectionPageInfo'
 
     EventDetailCategory:
       type: object

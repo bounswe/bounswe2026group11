@@ -31,6 +31,10 @@ func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.
 	group := router.Group("/events")
 	group.Get("/", optionalAuth, handler.DiscoverEvents)
 	group.Get("/:id", optionalAuth, handler.GetEventDetail)
+	group.Get("/:id/host-context", auth, handler.GetEventHostContextSummary)
+	group.Get("/:id/participants", auth, handler.ListEventApprovedParticipants)
+	group.Get("/:id/join-requests", auth, handler.ListEventPendingJoinRequests)
+	group.Get("/:id/invitations", auth, handler.ListEventInvitations)
 	group.Post("/", auth, handler.CreateEvent)
 	group.Post("/:id/join", auth, handler.JoinEvent)
 	group.Patch("/:id/leave", auth, handler.LeaveEvent)
@@ -68,6 +72,85 @@ func (h *EventHandler) GetEventDetail(c *fiber.Ctx) error {
 
 	userID := callerID(c)
 	result, err := h.service.GetEventDetail(c.UserContext(), userID, eventID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
+}
+
+// GetEventHostContextSummary handles GET /events/:id/host-context.
+func (h *EventHandler) GetEventHostContextSummary(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.GetEventHostContextSummary(c.UserContext(), claims.UserID, eventID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
+}
+
+// ListEventApprovedParticipants handles GET /events/:id/participants.
+func (h *EventHandler) ListEventApprovedParticipants(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	input, errs := parseEventCollectionInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.ListEventApprovedParticipants(c.UserContext(), claims.UserID, eventID, input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
+}
+
+// ListEventPendingJoinRequests handles GET /events/:id/join-requests.
+func (h *EventHandler) ListEventPendingJoinRequests(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	input, errs := parseEventCollectionInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.ListEventPendingJoinRequests(c.UserContext(), claims.UserID, eventID, input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	return c.JSON(result)
+}
+
+// ListEventInvitations handles GET /events/:id/invitations.
+func (h *EventHandler) ListEventInvitations(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	input, errs := parseEventCollectionInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.ListEventInvitations(c.UserContext(), claims.UserID, eventID, input)
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
@@ -454,6 +537,23 @@ func parseDiscoverEventsInput(c *fiber.Ctx) (event.DiscoverEventsInput, map[stri
 		} else {
 			input.SortBy = &sortBy
 		}
+	}
+
+	if rawCursor := strings.TrimSpace(c.Query("cursor")); rawCursor != "" {
+		input.Cursor = &rawCursor
+	}
+
+	return input, errs
+}
+
+func parseEventCollectionInput(c *fiber.Ctx) (event.ListEventCollectionInput, map[string]string) {
+	input := event.ListEventCollectionInput{}
+	errs := make(map[string]string)
+
+	if limit, ok, msg := parseOptionalIntQuery(c, "limit"); msg != "" {
+		errs["limit"] = msg
+	} else if ok {
+		input.Limit = &limit
 	}
 
 	if rawCursor := strings.TrimSpace(c.Query("cursor")); rawCursor != "" {
