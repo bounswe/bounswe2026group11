@@ -142,17 +142,25 @@ function JoinActionSection({
   event,
   joinLoading,
   joinError,
+  leaveLoading,
+  leaveError,
   onJoin,
+  onLeave,
   onRequestJoin,
   onDismissError,
+  onDismissLeaveError,
   isAuthenticated,
 }: {
   event: EventDetailResponse;
   joinLoading: boolean;
   joinError: string | null;
+  leaveLoading: boolean;
+  leaveError: string | null;
   onJoin: () => void;
+  onLeave: () => void;
   onRequestJoin: (message?: string) => void;
   onDismissError: () => void;
+  onDismissLeaveError: () => void;
   isAuthenticated: boolean;
 }) {
   const [requestMessage, setRequestMessage] = useState('');
@@ -164,6 +172,7 @@ function JoinActionSection({
 
   // Already participating states
   if (ctx.participation_status === 'JOINED') {
+    const isCompletedOrCanceled = event.status === 'COMPLETED' || event.status === 'CANCELED';
     const joinedBannerClass = event.status === 'COMPLETED'
       ? 'ed-participation-attended'
       : 'ed-participation-joined';
@@ -176,6 +185,28 @@ function JoinActionSection({
         <div className={`ed-participation-banner ${joinedBannerClass}`}>
           {joinedBannerText}
         </div>
+        {!isCompletedOrCanceled && (
+          <div className="ed-leave-action">
+            {leaveError && (
+              <div className="ed-join-error">
+                <span>{leaveError}</span>
+                <button type="button" className="ed-join-error-dismiss" onClick={onDismissLeaveError}>&times;</button>
+              </div>
+            )}
+            <button
+              type="button"
+              className="ed-leave-btn"
+              onClick={() => {
+                if (window.confirm('Are you sure you want to leave this event?')) {
+                  onLeave();
+                }
+              }}
+              disabled={leaveLoading}
+            >
+              {leaveLoading ? <span className="spinner" /> : 'Leave Event'}
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -739,15 +770,19 @@ function EventContent({
   event,
   joinLoading,
   joinError,
+  leaveLoading,
+  leaveError,
   viewerRatingLoading,
   viewerRatingError,
   participantRatingLoadingId,
   participantRatingError,
   onJoin,
+  onLeave,
   onRequestJoin,
   onViewerRatingSubmit,
   onParticipantRatingSubmit,
   onDismissError,
+  onDismissLeaveError,
   onDismissViewerRatingError,
   onDismissParticipantRatingError,
   moderatingId,
@@ -785,15 +820,19 @@ function EventContent({
   event: EventDetailResponse;
   joinLoading: boolean;
   joinError: string | null;
+  leaveLoading: boolean;
+  leaveError: string | null;
   viewerRatingLoading: boolean;
   viewerRatingError: string | null;
   participantRatingLoadingId: string | null;
   participantRatingError: { participantUserId: string; message: string } | null;
   onJoin: () => void;
+  onLeave: () => void;
   onRequestJoin: (message?: string) => void;
   onViewerRatingSubmit: (rating: number, message?: string) => void;
   onParticipantRatingSubmit: (participantUserId: string, rating: number, message?: string) => void;
   onDismissError: () => void;
+  onDismissLeaveError: () => void;
   onDismissViewerRatingError: () => void;
   onDismissParticipantRatingError: () => void;
   moderatingId: string | null;
@@ -952,9 +991,13 @@ function EventContent({
         event={event}
         joinLoading={joinLoading}
         joinError={joinError}
+        leaveLoading={leaveLoading}
+        leaveError={leaveError}
         onJoin={onJoin}
+        onLeave={onLeave}
         onRequestJoin={onRequestJoin}
         onDismissError={onDismissError}
+        onDismissLeaveError={onDismissLeaveError}
         isAuthenticated={isAuthenticated}
       />
 
@@ -1354,15 +1397,19 @@ export default function EventDetailPage() {
       onDismissCoverImageSuccess={vm.dismissCoverImageSuccess}
       joinLoading={vm.joinLoading}
       joinError={vm.joinError}
+      leaveLoading={vm.leaveLoading}
+      leaveError={vm.leaveError}
       viewerRatingLoading={vm.viewerRatingLoading}
       viewerRatingError={vm.viewerRatingError}
       participantRatingLoadingId={vm.participantRatingLoadingId}
       participantRatingError={vm.participantRatingError}
       onJoin={vm.handleJoin}
+      onLeave={vm.handleLeave}
       onRequestJoin={vm.handleRequestJoin}
       onViewerRatingSubmit={vm.handleViewerRatingSubmit}
       onParticipantRatingSubmit={vm.handleParticipantRatingSubmit}
       onDismissError={vm.dismissJoinError}
+      onDismissLeaveError={vm.dismissLeaveError}
       onDismissViewerRatingError={vm.dismissViewerRatingError}
       onDismissParticipantRatingError={vm.dismissParticipantRatingError}
       moderatingId={vm.moderatingId}
