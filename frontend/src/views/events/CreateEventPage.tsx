@@ -29,11 +29,13 @@ const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '
 function TimePicker({
   value,
   onChange,
+  onBlur,
   hasError,
   disabled,
 }: {
   value: string;
   onChange: (val: string) => void;
+  onBlur?: () => void;
   hasError?: boolean;
   disabled?: boolean;
 }) {
@@ -107,6 +109,7 @@ function TimePicker({
     } else {
       setInputValue('');
     }
+    onBlur?.();
   };
 
   return (
@@ -175,6 +178,10 @@ function TimePicker({
       )}
     </div>
   );
+}
+
+function RequiredMark() {
+  return <span className="ce-required-mark" aria-hidden>*</span>;
 }
 
 function CreateEventForm() {
@@ -246,7 +253,7 @@ function CreateEventForm() {
         {/* Title */}
         <div className="field-group">
           <label className="field-label" htmlFor="event-title">
-            Title
+            Title <RequiredMark />
           </label>
           <input
             id="event-title"
@@ -255,7 +262,11 @@ function CreateEventForm() {
             placeholder="Give your event a catchy title"
             maxLength={60}
             value={vm.form.title}
-            onChange={(e) => vm.updateField('title', e.target.value)}
+            onChange={(e) => {
+              vm.touchField('title');
+              vm.updateField('title', e.target.value);
+            }}
+            onBlur={() => vm.touchField('title')}
             disabled={busy}
           />
           <div className="ce-char-count">
@@ -269,7 +280,7 @@ function CreateEventForm() {
         {/* Description */}
         <div className="field-group">
           <label className="field-label" htmlFor="event-desc">
-            Description
+            Description <RequiredMark />
           </label>
           <textarea
             id="event-desc"
@@ -278,7 +289,11 @@ function CreateEventForm() {
             maxLength={600}
             rows={4}
             value={vm.form.description}
-            onChange={(e) => vm.updateField('description', e.target.value)}
+            onChange={(e) => {
+              vm.touchField('description');
+              vm.updateField('description', e.target.value);
+            }}
+            onBlur={() => vm.touchField('description')}
             disabled={busy}
           />
           <div className="ce-char-count">
@@ -291,14 +306,17 @@ function CreateEventForm() {
 
         {/* Category */}
         <div className="field-group">
-          <label className="field-label">Category</label>
+          <label className="field-label">Category <RequiredMark /></label>
           <div className="ce-category-grid">
             {vm.categories.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
                 className={`ce-category-chip ${vm.form.categoryId === cat.id ? 'selected' : ''}`}
-                onClick={() => vm.updateField('categoryId', cat.id)}
+                onClick={() => {
+                  vm.touchField('categoryId');
+                  vm.updateField('categoryId', cat.id);
+                }}
                 disabled={busy}
               >
                 {cat.name}
@@ -313,7 +331,7 @@ function CreateEventForm() {
         {/* Event Image */}
         <div className="field-group">
           <label className="field-label">
-            Event Image <span className="optional">(optional)</span>
+            Event Image <RequiredMark />
           </label>
           <input
             ref={fileInputRef}
@@ -347,12 +365,15 @@ function CreateEventForm() {
               Upload Image
             </button>
           )}
+          {vm.errors.image && (
+            <p className="field-error">{vm.errors.image}</p>
+          )}
         </div>
 
         {/* Location */}
         <div className="field-group">
           <label className="field-label" htmlFor="event-location">
-            Location
+            Location <RequiredMark />
           </label>
           <div className="ce-location-wrapper">
             <input
@@ -362,6 +383,7 @@ function CreateEventForm() {
               placeholder="Search for a location..."
               value={vm.form.locationQuery}
               onChange={(e) => vm.handleLocationSearch(e.target.value)}
+              onBlur={() => vm.touchField('location')}
               disabled={busy}
             />
             {vm.locationSearching && (
@@ -395,14 +417,18 @@ function CreateEventForm() {
         <div className="ce-row">
           <div className="field-group ce-flex-1">
             <label className="field-label" htmlFor="start-date">
-              Start Date
+              Start Date <RequiredMark />
             </label>
             <input
               id="start-date"
               className={`field-input ${vm.errors.startDate ? 'has-error' : ''}`}
               type="date"
               value={vm.form.startDate}
-              onChange={(e) => vm.updateField('startDate', e.target.value)}
+              onChange={(e) => {
+                vm.touchField('startDate');
+                vm.updateField('startDate', e.target.value);
+              }}
+              onBlur={() => vm.touchField('startDate')}
               disabled={busy}
             />
             {vm.errors.startDate && (
@@ -410,10 +436,14 @@ function CreateEventForm() {
             )}
           </div>
           <div className="field-group ce-flex-1">
-            <label className="field-label">Start Time</label>
+            <label className="field-label">Start Time <RequiredMark /></label>
             <TimePicker
               value={vm.form.startTime}
-              onChange={(val) => vm.updateField('startTime', val)}
+              onChange={(val) => {
+                vm.touchField('startTime');
+                vm.updateField('startTime', val);
+              }}
+              onBlur={() => vm.touchField('startTime')}
               hasError={!!vm.errors.startTime}
               disabled={busy}
             />
@@ -433,7 +463,11 @@ function CreateEventForm() {
               className={`field-input ${vm.errors.endDate ? 'has-error' : ''}`}
               type="date"
               value={vm.form.endDate}
-              onChange={(e) => vm.updateField('endDate', e.target.value)}
+              onChange={(e) => {
+                vm.touchField('endDate');
+                vm.updateField('endDate', e.target.value);
+              }}
+              onBlur={() => vm.touchField('endDate')}
               disabled={busy}
             />
             {vm.errors.endDate && (
@@ -446,7 +480,11 @@ function CreateEventForm() {
             </label>
             <TimePicker
               value={vm.form.endTime}
-              onChange={(val) => vm.updateField('endTime', val)}
+              onChange={(val) => {
+                vm.touchField('endTime');
+                vm.updateField('endTime', val);
+              }}
+              onBlur={() => vm.touchField('endTime')}
               hasError={!!vm.errors.endTime}
               disabled={busy}
             />

@@ -21,6 +21,11 @@
   flex-direction: column;
 }
 
+.ce-required-mark {
+  color: #111827;
+  font-weight: 700;
+}
+
 /* Success banner */
 .success-banner {
   background-color: #f0fdf4;

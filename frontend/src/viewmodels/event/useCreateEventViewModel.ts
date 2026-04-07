@@ -61,6 +61,7 @@ export interface CreateEventFormData {
 }
 
 export interface CreateEventFormErrors {
+  image?: string | null;
   title?: string | null;
   description?: string | null;
   categoryId?: string | null;
@@ -74,6 +75,8 @@ export interface CreateEventFormErrors {
   minimumAge?: string | null;
   maximumAge?: string | null;
 }
+
+type CreateEventTouchedFields = Partial<Record<keyof CreateEventFormErrors, boolean>>;
 
 const INITIAL: CreateEventFormData = {
   title: '',
@@ -112,6 +115,12 @@ function toISODateTime(date: string, time: string): string | null {
   }
 }
 
+function toDateOnly(date: string): Date | null {
+  if (!date) return null;
+  const dt = new Date(`${date}T00:00:00`);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
 function validateForm(form: CreateEventFormData): CreateEventFormErrors {
   const errors: CreateEventFormErrors = {};
 
@@ -135,6 +144,10 @@ function validateForm(form: CreateEventFormData): CreateEventFormErrors {
     errors.categoryId = 'Please select a category.';
   }
 
+  if (!form.imageFile) {
+    errors.image = 'Event image is required.';
+  }
+
   if (form.lat === null || form.lon === null) {
     errors.location = 'Please search and select a location.';
   }
@@ -146,21 +159,60 @@ function validateForm(form: CreateEventFormData): CreateEventFormErrors {
     errors.startTime = 'Start time is required.';
   }
 
-  const startISO = toISODateTime(form.startDate, form.startTime);
-  if (form.startDate && form.startTime && !startISO) {
-    errors.startDate = 'Invalid start date/time.';
-  } else if (startISO && new Date(startISO) <= new Date()) {
-    errors.startDate = 'Start time must be in the future.';
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const startDateOnly = form.startDate ? toDateOnly(form.startDate) : null;
+  if (form.startDate && !startDateOnly) {
+    errors.startDate = 'Invalid start date.';
+  } else if (startDateOnly && startDateOnly < today) {
+    errors.startDate = 'Start date must be today or later.';
+  }
+
+  const startISO = !errors.startDate && form.startDate && form.startTime
+    ? toISODateTime(form.startDate, form.startTime)
+    : null;
+
+  if (!errors.startDate && form.startDate && form.startTime && !startISO) {
+    errors.startTime = 'Invalid start time.';
+  } else if (
+    !errors.startDate
+    && startDateOnly
+    && startDateOnly.getTime() === today.getTime()
+    && startISO
+    && new Date(startISO) <= now
+  ) {
+    errors.startTime = 'Start time must be in the future.';
   }
 
   if (form.endDate || form.endTime) {
     if (!form.endDate) errors.endDate = 'End date is required if end time is set.';
     if (!form.endTime) errors.endTime = 'End time is required if end date is set.';
-    const endISO = toISODateTime(form.endDate, form.endTime);
-    if (form.endDate && form.endTime && !endISO) {
-      errors.endDate = 'Invalid end date/time.';
-    } else if (startISO && endISO && new Date(endISO) <= new Date(startISO)) {
-      errors.endDate = 'End time must be after start time.';
+
+    const endDateOnly = form.endDate ? toDateOnly(form.endDate) : null;
+    if (form.endDate && !endDateOnly) {
+      errors.endDate = 'Invalid end date.';
+    } else if (!errors.startDate && startDateOnly && endDateOnly && endDateOnly < startDateOnly) {
+      errors.endDate = 'End date must be on or after start date.';
+    }
+
+    const endISO = !errors.endDate && form.endDate && form.endTime
+      ? toISODateTime(form.endDate, form.endTime)
+      : null;
+
+    if (!errors.endDate && form.endDate && form.endTime && !endISO) {
+      errors.endTime = 'Invalid end time.';
+    } else if (
+      !errors.endDate
+      && !errors.startDate
+      && startDateOnly
+      && endDateOnly
+      && startISO
+      && endISO
+      && endDateOnly.getTime() === startDateOnly.getTime()
+      && new Date(endISO) <= new Date(startISO)
+    ) {
+      errors.endTime = 'End time must be after start time.';
     }
   }
 
@@ -196,6 +248,8 @@ function validateForm(form: CreateEventFormData): CreateEventFormErrors {
 export function useCreateEventViewModel() {
   const [form, setForm] = useState<CreateEventFormData>(INITIAL);
   const [errors, setErrors] = useState<CreateEventFormErrors>({});
+  const [touched, setTouched] = useState<CreateEventTouchedFields>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -240,17 +294,48 @@ export function useCreateEventViewModel() {
       .catch(() => {});
   }, []);
 
+  const getVisibleErrors = useCallback(
+    (nextForm: CreateEventFormData, nextTouched: CreateEventTouchedFields, forceAll = false) => {
+      const validationErrors = validateForm(nextForm);
+      if (forceAll) return validationErrors;
+
+      const visibleErrors: CreateEventFormErrors = {};
+      (Object.keys(validationErrors) as (keyof CreateEventFormErrors)[]).forEach((key) => {
+        if (nextTouched[key]) {
+          visibleErrors[key] = validationErrors[key];
+        }
+      });
+      return visibleErrors;
+    },
+    [],
+  );
+
   const updateField = useCallback(
     <K extends keyof CreateEventFormData>(field: K, value: CreateEventFormData[K]) => {
-      setForm((prev) => ({ ...prev, [field]: value }));
-      setErrors((prev) => ({ ...prev, [field]: null }));
+      setForm((prev) => {
+        const nextForm = { ...prev, [field]: value };
+        setErrors(getVisibleErrors(nextForm, touched, submitAttempted));
+        return nextForm;
+      });
       setApiError(null);
       setImageError(null);
       setSuccessMessage(null);
       clearImageUploadSuccessToast();
       setCoverImageUploadedForLastCreate(false);
     },
-    [clearImageUploadSuccessToast],
+    [clearImageUploadSuccessToast, getVisibleErrors, submitAttempted, touched],
+  );
+
+  const touchField = useCallback(
+    (field: keyof CreateEventFormErrors) => {
+      setTouched((prev) => {
+        if (prev[field]) return prev;
+        const nextTouched = { ...prev, [field]: true };
+        setErrors(getVisibleErrors(form, nextTouched, submitAttempted));
+        return nextTouched;
+      });
+    },
+    [form, getVisibleErrors, submitAttempted],
   );
 
   const handleLocationSearch = useCallback((query: string) => {
@@ -277,16 +362,19 @@ export function useCreateEventViewModel() {
   }, [updateField]);
 
   const selectLocation = useCallback((suggestion: LocationSuggestion) => {
-    setForm((prev) => ({
-      ...prev,
-      locationQuery: suggestion.display_name,
-      address: suggestion.display_name,
-      lat: parseFloat(suggestion.lat),
-      lon: parseFloat(suggestion.lon),
-    }));
+    setForm((prev) => {
+      const nextForm = {
+        ...prev,
+        locationQuery: suggestion.display_name,
+        address: suggestion.display_name,
+        lat: parseFloat(suggestion.lat),
+        lon: parseFloat(suggestion.lon),
+      };
+      setErrors(getVisibleErrors(nextForm, touched, submitAttempted));
+      return nextForm;
+    });
     setLocationResults([]);
-    setErrors((prev) => ({ ...prev, location: null }));
-  }, []);
+  }, [getVisibleErrors, submitAttempted, touched]);
 
   const addTag = useCallback(() => {
     setForm((prev) => {
@@ -327,21 +415,45 @@ export function useCreateEventViewModel() {
       revokeImagePreviewUrl();
       setImageError(null);
       if (!file) {
-        setForm((prev) => ({ ...prev, imageFile: null, imagePreview: '' }));
+        setTouched((prev) => {
+          const nextTouched = { ...prev, image: true };
+          setForm((currentForm) => {
+            const nextForm = { ...currentForm, imageFile: null, imagePreview: '' };
+            setErrors(getVisibleErrors(nextForm, nextTouched, submitAttempted));
+            return nextForm;
+          });
+          return nextTouched;
+        });
         return;
       }
       const url = URL.createObjectURL(file);
       imagePreviewBlobUrlRef.current = url;
-      setForm((prev) => ({ ...prev, imageFile: file, imagePreview: url }));
+      setTouched((prev) => {
+        const nextTouched = { ...prev, image: true };
+        setForm((currentForm) => {
+          const nextForm = { ...currentForm, imageFile: file, imagePreview: url };
+          setErrors(getVisibleErrors(nextForm, nextTouched, submitAttempted));
+          return nextForm;
+        });
+        return nextTouched;
+      });
     },
-    [revokeImagePreviewUrl],
+    [getVisibleErrors, revokeImagePreviewUrl, submitAttempted],
   );
 
   const removeImage = useCallback(() => {
     revokeImagePreviewUrl();
     setImageError(null);
-    setForm((prev) => ({ ...prev, imageFile: null, imagePreview: '' }));
-  }, [revokeImagePreviewUrl]);
+    setTouched((prev) => {
+      const nextTouched = { ...prev, image: true };
+      setForm((currentForm) => {
+        const nextForm = { ...currentForm, imageFile: null, imagePreview: '' };
+        setErrors(getVisibleErrors(nextForm, nextTouched, submitAttempted));
+        return nextForm;
+      });
+      return nextTouched;
+    });
+  }, [getVisibleErrors, revokeImagePreviewUrl, submitAttempted]);
 
   const removeConstraint = useCallback((index: number) => {
     setForm((prev) => ({
@@ -352,6 +464,7 @@ export function useCreateEventViewModel() {
 
   const handleSubmit = useCallback(
     async (token: string): Promise<CreateEventResponse | null> => {
+      setSubmitAttempted(true);
       const validationErrors = validateForm(form);
       const hasErrors = Object.values(validationErrors).some((e) => e != null);
       if (hasErrors) {
@@ -463,6 +576,7 @@ export function useCreateEventViewModel() {
     categories,
     locationResults,
     locationSearching,
+    touchField,
     updateField,
     handleLocationSearch,
     selectLocation,
