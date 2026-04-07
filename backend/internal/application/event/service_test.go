@@ -40,11 +40,16 @@ type fakeEventRepo struct {
 	favoriteRecords    []FavoriteEventRecord
 	discoverRecords    []DiscoverableEventRecord
 	detailRecord       *EventDetailRecord
+	hostSummaryRecord  *EventHostContextSummaryRecord
+	participantRecords []EventDetailApprovedParticipantRecord
+	joinRequestRecords []EventDetailPendingJoinRequestRecord
+	invitationRecords  []EventDetailInvitationRecord
 	discoverCallCount  int
 	lastDiscoverUserID uuid.UUID
 	lastDiscoverParams DiscoverEventsParams
 	lastDetailUserID   uuid.UUID
 	lastDetailEventID  uuid.UUID
+	lastCollectionPage EventCollectionPageParams
 	lastCancelCtx      context.Context
 	lastCancelCount    int
 }
@@ -86,6 +91,52 @@ func (r *fakeEventRepo) GetEventDetail(_ context.Context, userID, eventID uuid.U
 		return r.detailRecord, nil
 	}
 	return nil, domain.ErrNotFound
+}
+
+func (r *fakeEventRepo) GetEventHostContextSummary(_ context.Context, _ uuid.UUID) (*EventHostContextSummaryRecord, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	if r.hostSummaryRecord != nil {
+		return r.hostSummaryRecord, nil
+	}
+	return &EventHostContextSummaryRecord{}, nil
+}
+
+func (r *fakeEventRepo) ListEventApprovedParticipants(
+	_ context.Context,
+	_ uuid.UUID,
+	params EventCollectionPageParams,
+) ([]EventDetailApprovedParticipantRecord, error) {
+	r.lastCollectionPage = params
+	if r.err != nil {
+		return nil, r.err
+	}
+	return r.participantRecords, nil
+}
+
+func (r *fakeEventRepo) ListEventPendingJoinRequests(
+	_ context.Context,
+	_ uuid.UUID,
+	params EventCollectionPageParams,
+) ([]EventDetailPendingJoinRequestRecord, error) {
+	r.lastCollectionPage = params
+	if r.err != nil {
+		return nil, r.err
+	}
+	return r.joinRequestRecords, nil
+}
+
+func (r *fakeEventRepo) ListEventInvitations(
+	_ context.Context,
+	_ uuid.UUID,
+	params EventCollectionPageParams,
+) ([]EventDetailInvitationRecord, error) {
+	r.lastCollectionPage = params
+	if r.err != nil {
+		return nil, r.err
+	}
+	return r.invitationRecords, nil
 }
 
 func (r *fakeEventRepo) TransitionEventStatuses(_ context.Context) error {
@@ -310,7 +361,9 @@ func (s *fakeJoinRequestService) RejectJoinRequest(
 }
 
 func newTestEventService() (*Service, *fakeEventRepo, *fakeParticipationService, *fakeJoinRequestService) {
-	eventRepo := &fakeEventRepo{}
+	eventRepo := &fakeEventRepo{
+		events: make(map[uuid.UUID]*domain.Event),
+	}
 	participationService := &fakeParticipationService{}
 	joinRequestService := &fakeJoinRequestService{}
 	return NewService(eventRepo, participationService, joinRequestService, &fakeUnitOfWork{}), eventRepo, participationService, joinRequestService
@@ -471,9 +524,6 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 	if result.Status != string(domain.EventStatusCanceled) {
 		t.Fatalf("expected status %q, got %q", domain.EventStatusCanceled, result.Status)
 	}
-	if result.HostContext != nil {
-		t.Fatal("expected non-host result to omit host_context")
-	}
 	if result.HostScore.FinalScore == nil || *result.HostScore.FinalScore != hostFinalScore {
 		t.Fatalf("expected host final score %v, got %v", hostFinalScore, result.HostScore.FinalScore)
 	}
@@ -494,74 +544,105 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 	}
 }
 
-func TestGetEventDetailIncludesHostContextForHostViewer(t *testing.T) {
+func TestGetEventHostContextSummaryRequiresHost(t *testing.T) {
 	// given
 	svc, eventRepo, _, _ := newTestEventService()
-	hostRatingMessage := "Reliable participant."
-	eventRepo.detailRecord = &EventDetailRecord{
-		ID:           uuid.New(),
-		Title:        "Hosted Event",
-		PrivacyLevel: domain.PrivacyPublic,
-		Status:       domain.EventStatusCompleted,
-		StartTime:    time.Now().UTC().Add(24 * time.Hour),
-		Host: EventDetailPersonRecord{
-			ID:       uuid.New(),
-			Username: "host_user",
-		},
-		Location: EventDetailLocationRecord{
-			Type: domain.LocationPoint,
-			Point: &domain.GeoPoint{
-				Lat: 40,
-				Lon: 29,
-			},
-		},
-		Tags:        []string{},
-		Constraints: []EventDetailConstraintRecord{},
-		ViewerContext: EventDetailViewerContextRecord{
-			IsHost:              true,
-			IsFavorited:         false,
-			ParticipationStatus: domain.EventDetailParticipationStatusNone,
-		},
-		HostContext: &EventDetailHostContextRecord{
-			ApprovedParticipants: []EventDetailApprovedParticipantRecord{
-				{
-					ParticipationID: uuid.New(),
-					Status:          domain.ParticipationStatusApproved,
-					CreatedAt:       time.Now().UTC().Add(-time.Hour),
-					UpdatedAt:       time.Now().UTC(),
-					User: EventDetailHostContextUserRecord{
-						ID:       uuid.New(),
-						Username: "participant_user",
-					},
-					HostRating: &EventDetailRatingRecord{
-						ID:        uuid.New(),
-						Rating:    4,
-						Message:   &hostRatingMessage,
-						CreatedAt: time.Now().UTC().Add(-30 * time.Minute),
-						UpdatedAt: time.Now().UTC(),
-					},
-				},
-			},
-			PendingJoinRequests: []EventDetailPendingJoinRequestRecord{},
-			Invitations:         []EventDetailInvitationRecord{},
-		},
+	eventID := uuid.New()
+	hostID := uuid.New()
+	eventRepo.events[eventID] = &domain.Event{ID: eventID, HostID: hostID}
+
+	// when
+	_, err := svc.GetEventHostContextSummary(context.Background(), uuid.New(), eventID)
+
+	// then
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("expected *domain.AppError, got %T", err)
+	}
+	if appErr.Code != domain.ErrorCodeEventHostManagementNotAllowed {
+		t.Fatalf("expected error code %q, got %q", domain.ErrorCodeEventHostManagementNotAllowed, appErr.Code)
+	}
+}
+
+func TestGetEventHostContextSummaryReturnsCountsForHost(t *testing.T) {
+	// given
+	svc, eventRepo, _, _ := newTestEventService()
+	eventID := uuid.New()
+	hostID := uuid.New()
+	eventRepo.events[eventID] = &domain.Event{ID: eventID, HostID: hostID}
+	eventRepo.hostSummaryRecord = &EventHostContextSummaryRecord{
+		ApprovedParticipantCount: 8,
+		PendingJoinRequestCount:  3,
+		InvitationCount:          5,
 	}
 
 	// when
-	result, err := svc.GetEventDetail(context.Background(), uuid.New(), uuid.New())
+	result, err := svc.GetEventHostContextSummary(context.Background(), hostID, eventID)
 
 	// then
 	if err != nil {
-		t.Fatalf("GetEventDetail() error = %v", err)
+		t.Fatalf("GetEventHostContextSummary() error = %v", err)
 	}
-	if result.HostContext == nil {
-		t.Fatal("expected host_context for host viewer")
+	if result.ApprovedParticipantCount != 8 || result.PendingJoinRequestCount != 3 || result.InvitationCount != 5 {
+		t.Fatalf("unexpected host summary: %+v", result)
 	}
-	if len(result.HostContext.ApprovedParticipants) != 1 {
-		t.Fatalf("expected 1 approved participant, got %d", len(result.HostContext.ApprovedParticipants))
+}
+
+func TestListEventApprovedParticipantsBuildsCursorPage(t *testing.T) {
+	// given
+	svc, eventRepo, _, _ := newTestEventService()
+	eventID := uuid.New()
+	hostID := uuid.New()
+	participantID := uuid.New()
+	eventRepo.events[eventID] = &domain.Event{ID: eventID, HostID: hostID}
+	now := time.Now().UTC()
+	eventRepo.participantRecords = []EventDetailApprovedParticipantRecord{
+		{
+			ParticipationID: participantID,
+			Status:          domain.ParticipationStatusApproved,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+			User: EventDetailHostContextUserRecord{
+				ID:       uuid.New(),
+				Username: "participant_user",
+			},
+		},
+		{
+			ParticipationID: uuid.New(),
+			Status:          domain.ParticipationStatusApproved,
+			CreatedAt:       now.Add(time.Minute),
+			UpdatedAt:       now.Add(time.Minute),
+			User: EventDetailHostContextUserRecord{
+				ID:       uuid.New(),
+				Username: "second_user",
+			},
+		},
 	}
-	if result.HostContext.ApprovedParticipants[0].HostRating == nil || result.HostContext.ApprovedParticipants[0].HostRating.Rating != 4 {
-		t.Fatalf("expected participant host_rating to be mapped, got %+v", result.HostContext.ApprovedParticipants[0].HostRating)
+	limit := 1
+
+	// when
+	result, err := svc.ListEventApprovedParticipants(context.Background(), hostID, eventID, ListEventCollectionInput{
+		Limit: &limit,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("ListEventApprovedParticipants() error = %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected 1 participant, got %d", len(result.Items))
+	}
+	if result.Items[0].ParticipationID != participantID.String() {
+		t.Fatalf("expected first participant id %s, got %s", participantID, result.Items[0].ParticipationID)
+	}
+	if !result.PageInfo.HasNext || result.PageInfo.NextCursor == nil {
+		t.Fatalf("expected next cursor, got %+v", result.PageInfo)
+	}
+	if eventRepo.lastCollectionPage.Limit != 1 {
+		t.Fatalf("expected repo limit 1, got %d", eventRepo.lastCollectionPage.Limit)
+	}
+	if eventRepo.lastCollectionPage.RepositoryFetchLimit != 2 {
+		t.Fatalf("expected repo fetch limit 2, got %d", eventRepo.lastCollectionPage.RepositoryFetchLimit)
 	}
 }
 

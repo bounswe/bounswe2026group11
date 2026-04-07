@@ -378,7 +378,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         </View>
 
         {/* Host Management */}
-        {vm.event.viewer_context.is_host && vm.event.host_context && (
+        {vm.event.viewer_context.is_host && (
           <>
             <View style={styles.divider} />
             <View style={styles.section}>
@@ -390,7 +390,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 >
                   <Feather name="users" size={18} color="#111827" />
                   <Text style={styles.hostActionText}>
-                    Attendees ({vm.event.host_context.approved_participants.length})
+                    Attendees ({vm.hostContextSummary?.approved_participant_count ?? vm.approvedParticipants.length})
                   </Text>
                 </TouchableOpacity>
 
@@ -401,7 +401,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   >
                     <Feather name="mail" size={18} color="#FFFFFF" />
                     <Text style={styles.hostActionTextWhite}>
-                      Pending Requests ({vm.event.host_context.pending_join_requests.length})
+                      Pending Requests ({vm.hostContextSummary?.pending_join_request_count ?? vm.pendingJoinRequests.length})
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -587,18 +587,24 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       </Modal>
 
       {/* Host Modals */}
-      {vm.event.viewer_context.is_host && vm.event.host_context && (
+      {vm.event.viewer_context.is_host && (
         <>
           <JoinRequestsModal
             visible={vm.showRequestsModal}
-            requests={vm.event.host_context.pending_join_requests}
+            requests={vm.pendingJoinRequests}
+            loading={vm.pendingJoinRequestsLoading}
+            hasMore={vm.pendingJoinRequestsHasNext}
+            onLoadMore={() => void vm.loadMorePendingJoinRequests()}
             onClose={() => vm.setShowRequestsModal(false)}
             onApprove={vm.handleApproveRequest}
             onReject={vm.handleRejectRequest}
           />
           <ParticipantListModal
             visible={vm.showAttendeesModal}
-            participants={vm.event.host_context.approved_participants}
+            participants={vm.approvedParticipants}
+            loading={vm.approvedParticipantsLoading}
+            hasMore={vm.approvedParticipantsHasNext}
+            onLoadMore={() => void vm.loadMoreApprovedParticipants()}
             onClose={() => vm.setShowAttendeesModal(false)}
           />
         </>

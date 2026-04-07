@@ -16,6 +16,9 @@ import { EventDetailPendingJoinRequest } from '@/models/event';
 interface JoinRequestsModalProps {
   visible: boolean;
   requests: EventDetailPendingJoinRequest[];
+  loading: boolean;
+  hasMore: boolean;
+  onLoadMore: () => void;
   onClose: () => void;
   onApprove: (joinRequestId: string) => void;
   onReject: (joinRequestId: string) => void;
@@ -24,6 +27,9 @@ interface JoinRequestsModalProps {
 export default function JoinRequestsModal({
   visible,
   requests,
+  loading,
+  hasMore,
+  onLoadMore,
   onClose,
   onApprove,
   onReject,
@@ -137,7 +143,14 @@ export default function JoinRequestsModal({
               </View>
             )}
             ListEmptyComponent={
-              <Text style={styles.empty}>No pending requests.</Text>
+              <Text style={styles.empty}>{loading ? 'Loading requests...' : 'No pending requests.'}</Text>
+            }
+            ListFooterComponent={
+              hasMore ? (
+                <TouchableOpacity style={styles.loadMoreBtn} onPress={onLoadMore}>
+                  <Text style={styles.loadMoreText}>Load more</Text>
+                </TouchableOpacity>
+              ) : null
             }
           />
         </Animated.View>
@@ -250,5 +263,17 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 32,
     fontSize: 15,
+  },
+  loadMoreBtn: {
+    marginTop: 16,
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+  },
+  loadMoreText: {
+    color: '#2563EB',
+    fontWeight: '600',
   },
 });

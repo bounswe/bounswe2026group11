@@ -20,10 +20,18 @@ type stubEventService struct {
 	result                   *event.CreateEventResult
 	discoverResult           *event.DiscoverEventsResult
 	detailResult             *event.GetEventDetailResult
+	hostContextSummaryResult *event.EventHostContextSummary
+	participantsResult       *event.ListEventApprovedParticipantsResult
+	joinRequestsResult       *event.ListEventPendingJoinRequestsResult
+	invitationsResult        *event.ListEventInvitationsResult
 	err                      error
 	callCount                int
 	discoverCallCount        int
 	detailCallCount          int
+	hostContextCallCount     int
+	participantsCallCount    int
+	joinRequestsCallCount    int
+	invitationsCallCount     int
 	leaveCallCount           int
 	requestJoinCallCount     int
 	approveJoinCallCount     int
@@ -37,6 +45,8 @@ type stubEventService struct {
 	lastApproveJoinRequestID uuid.UUID
 	lastRejectJoinEventID    uuid.UUID
 	lastRejectJoinRequestID  uuid.UUID
+	lastCollectionEventID    uuid.UUID
+	lastCollectionInput      event.ListEventCollectionInput
 }
 
 func (s *stubEventService) CreateEvent(_ context.Context, _ uuid.UUID, input event.CreateEventInput) (*event.CreateEventResult, error) {
@@ -109,6 +119,81 @@ func (s *stubEventService) GetEventDetail(_ context.Context, _, eventID uuid.UUI
 			IsFavorited:         false,
 			ParticipationStatus: string(domain.EventDetailParticipationStatusNone),
 		},
+	}, nil
+}
+
+func (s *stubEventService) GetEventHostContextSummary(_ context.Context, _, eventID uuid.UUID) (*event.EventHostContextSummary, error) {
+	s.hostContextCallCount++
+	s.lastCollectionEventID = eventID
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.hostContextSummaryResult != nil {
+		return s.hostContextSummaryResult, nil
+	}
+	return &event.EventHostContextSummary{}, nil
+}
+
+func (s *stubEventService) ListEventApprovedParticipants(
+	_ context.Context,
+	_,
+	eventID uuid.UUID,
+	input event.ListEventCollectionInput,
+) (*event.ListEventApprovedParticipantsResult, error) {
+	s.participantsCallCount++
+	s.lastCollectionEventID = eventID
+	s.lastCollectionInput = input
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.participantsResult != nil {
+		return s.participantsResult, nil
+	}
+	return &event.ListEventApprovedParticipantsResult{
+		Items:    []event.EventDetailApprovedParticipant{},
+		PageInfo: event.EventCollectionPageInfo{HasNext: false},
+	}, nil
+}
+
+func (s *stubEventService) ListEventPendingJoinRequests(
+	_ context.Context,
+	_,
+	eventID uuid.UUID,
+	input event.ListEventCollectionInput,
+) (*event.ListEventPendingJoinRequestsResult, error) {
+	s.joinRequestsCallCount++
+	s.lastCollectionEventID = eventID
+	s.lastCollectionInput = input
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.joinRequestsResult != nil {
+		return s.joinRequestsResult, nil
+	}
+	return &event.ListEventPendingJoinRequestsResult{
+		Items:    []event.EventDetailPendingJoinRequest{},
+		PageInfo: event.EventCollectionPageInfo{HasNext: false},
+	}, nil
+}
+
+func (s *stubEventService) ListEventInvitations(
+	_ context.Context,
+	_,
+	eventID uuid.UUID,
+	input event.ListEventCollectionInput,
+) (*event.ListEventInvitationsResult, error) {
+	s.invitationsCallCount++
+	s.lastCollectionEventID = eventID
+	s.lastCollectionInput = input
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.invitationsResult != nil {
+		return s.invitationsResult, nil
+	}
+	return &event.ListEventInvitationsResult{
+		Items:    []event.EventDetailInvitation{},
+		PageInfo: event.EventCollectionPageInfo{HasNext: false},
 	}, nil
 }
 
@@ -617,6 +702,76 @@ func TestGetEventDetailWithInvalidTokenReturns401(t *testing.T) {
 	// then
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("expected status %d, got %d", fiber.StatusUnauthorized, resp.StatusCode)
+	}
+}
+
+func TestGetEventHostContextSummaryReturns200(t *testing.T) {
+	svc := &stubEventService{
+		hostContextSummaryResult: &event.EventHostContextSummary{
+			ApprovedParticipantCount: 3,
+			PendingJoinRequestCount:  2,
+			InvitationCount:          1,
+		},
+	}
+	app := newEventTestApp(svc, authedVerifier())
+	eventID := uuid.New()
+
+	req := httptest.NewRequest(fiber.MethodGet, "/events/"+eventID.String()+"/host-context", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if svc.hostContextCallCount != 1 {
+		t.Fatalf("expected host context service to be called once, got %d", svc.hostContextCallCount)
+	}
+}
+
+func TestListEventApprovedParticipantsPassesPagination(t *testing.T) {
+	svc := &stubEventService{
+		participantsResult: &event.ListEventApprovedParticipantsResult{
+			Items: []event.EventDetailApprovedParticipant{},
+			PageInfo: event.EventCollectionPageInfo{
+				HasNext: false,
+			},
+		},
+	}
+	app := newEventTestApp(svc, authedVerifier())
+	eventID := uuid.New()
+
+	req := httptest.NewRequest(
+		fiber.MethodGet,
+		"/events/"+eventID.String()+"/participants?limit=10&cursor=opaque-cursor",
+		nil,
+	)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if svc.participantsCallCount != 1 {
+		t.Fatalf("expected participants service to be called once, got %d", svc.participantsCallCount)
+	}
+	if svc.lastCollectionEventID != eventID {
+		t.Fatalf("expected participants event id %s, got %s", eventID, svc.lastCollectionEventID)
+	}
+	if svc.lastCollectionInput.Limit == nil || *svc.lastCollectionInput.Limit != 10 {
+		t.Fatalf("expected limit 10, got %+v", svc.lastCollectionInput.Limit)
+	}
+	if svc.lastCollectionInput.Cursor == nil || *svc.lastCollectionInput.Cursor != "opaque-cursor" {
+		t.Fatalf("expected cursor %q, got %+v", "opaque-cursor", svc.lastCollectionInput.Cursor)
 	}
 }
 

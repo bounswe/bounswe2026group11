@@ -68,7 +68,6 @@ function makeBaseEvent(): EventDetailResponse {
       is_favorited: false,
       participation_status: 'JOINED',
     },
-    host_context: null,
   };
 }
 
@@ -87,6 +86,17 @@ function makeReadyViewModel(event: EventDetailResponse) {
     event,
     status: 'ready' as const,
     errorMessage: null,
+    hostContextSummary: null,
+    hostContextLoading: false,
+    approvedParticipants: [],
+    approvedParticipantsLoading: false,
+    approvedParticipantsHasNext: false,
+    pendingJoinRequests: [],
+    pendingJoinRequestsLoading: false,
+    pendingJoinRequestsHasNext: false,
+    invitations: [],
+    invitationsLoading: false,
+    invitationsHasNext: false,
     joinLoading: false,
     joinError: null,
     viewerRatingLoading: false,
@@ -116,6 +126,9 @@ function makeReadyViewModel(event: EventDetailResponse) {
     handleCoverImageUpload: vi.fn(),
     dismissCoverImageError: vi.fn(),
     dismissCoverImageSuccess: vi.fn(),
+    loadMoreApprovedParticipants: vi.fn(),
+    loadMorePendingJoinRequests: vi.fn(),
+    loadMoreInvitations: vi.fn(),
   };
 }
 
@@ -159,35 +172,37 @@ describe('EventDetailPage ratings', () => {
       is_favorited: false,
       participation_status: 'NONE',
     };
-    event.host_context = {
-      approved_participants: [
-        {
-          participation_id: 'participation-1',
-          status: 'APPROVED',
-          created_at: '2026-03-28T10:00:00Z',
-          updated_at: '2026-03-28T10:00:00Z',
-          host_rating: {
-            id: 'participant-rating-1',
-            rating: 4,
-            message: 'Reliable and easy to coordinate with.',
-            created_at: '2026-04-02T10:00:00Z',
-            updated_at: '2026-04-02T10:00:00Z',
-          },
-          user: {
-            id: 'participant-1',
-            username: 'participant',
-            display_name: 'Approved User',
-            avatar_url: null,
-            final_score: 4.3,
-            rating_count: 5,
-          },
-        },
-      ],
-      pending_join_requests: [],
-      invitations: [],
+    const vm = makeReadyViewModel(event);
+    vm.hostContextSummary = {
+      approved_participant_count: 1,
+      pending_join_request_count: 0,
+      invitation_count: 0,
     };
+    vm.approvedParticipants = [
+      {
+        participation_id: 'participation-1',
+        status: 'APPROVED',
+        created_at: '2026-03-28T10:00:00Z',
+        updated_at: '2026-03-28T10:00:00Z',
+        host_rating: {
+          id: 'participant-rating-1',
+          rating: 4,
+          message: 'Reliable and easy to coordinate with.',
+          created_at: '2026-04-02T10:00:00Z',
+          updated_at: '2026-04-02T10:00:00Z',
+        },
+        user: {
+          id: 'participant-1',
+          username: 'participant',
+          display_name: 'Approved User',
+          avatar_url: null,
+          final_score: 4.3,
+          rating_count: 5,
+        },
+      },
+    ];
 
-    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+    mockUseEventDetailViewModel.mockReturnValue(vm);
 
     renderPage();
 

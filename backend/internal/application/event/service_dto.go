@@ -199,11 +199,31 @@ type EventDetailViewerContext struct {
 	ParticipationStatus string `json:"participation_status"`
 }
 
+// EventHostContextSummary exposes host-only management counters without loading
+// the full management collections into the base event detail payload.
+type EventHostContextSummary struct {
+	ApprovedParticipantCount int `json:"approved_participant_count"`
+	PendingJoinRequestCount  int `json:"pending_join_request_count"`
+	InvitationCount          int `json:"invitation_count"`
+}
+
+// EventCollectionPageInfo contains cursor pagination metadata for host-only collections.
+type EventCollectionPageInfo struct {
+	NextCursor *string `json:"next_cursor"`
+	HasNext    bool    `json:"has_next"`
+}
+
 // EventDetailHostContext contains host-only management lists.
 type EventDetailHostContext struct {
 	ApprovedParticipants []EventDetailApprovedParticipant `json:"approved_participants"`
 	PendingJoinRequests  []EventDetailPendingJoinRequest  `json:"pending_join_requests"`
 	Invitations          []EventDetailInvitation          `json:"invitations"`
+}
+
+// ListEventCollectionInput is the shared cursor-pagination input for host-only event collections.
+type ListEventCollectionInput struct {
+	Limit  *int
+	Cursor *string
 }
 
 // EventDetailApprovedParticipant is returned only to the host.
@@ -235,6 +255,24 @@ type EventDetailInvitation struct {
 	CreatedAt    time.Time                  `json:"created_at"`
 	UpdatedAt    time.Time                  `json:"updated_at"`
 	User         EventDetailHostContextUser `json:"user"`
+}
+
+// ListEventApprovedParticipantsResult returns a paginated host-only participant collection.
+type ListEventApprovedParticipantsResult struct {
+	Items    []EventDetailApprovedParticipant `json:"items"`
+	PageInfo EventCollectionPageInfo          `json:"page_info"`
+}
+
+// ListEventPendingJoinRequestsResult returns a paginated host-only join-request collection.
+type ListEventPendingJoinRequestsResult struct {
+	Items    []EventDetailPendingJoinRequest `json:"items"`
+	PageInfo EventCollectionPageInfo         `json:"page_info"`
+}
+
+// ListEventInvitationsResult returns a paginated host-only invitation collection.
+type ListEventInvitationsResult struct {
+	Items    []EventDetailInvitation `json:"items"`
+	PageInfo EventCollectionPageInfo `json:"page_info"`
 }
 
 // FavoriteEventItem is the compact event summary returned by the favorites list.

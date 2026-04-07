@@ -19,6 +19,10 @@ type Repository interface {
 	CreateEvent(ctx context.Context, params CreateEventParams) (*domain.Event, error)
 	ListDiscoverableEvents(ctx context.Context, userID uuid.UUID, params DiscoverEventsParams) ([]DiscoverableEventRecord, error)
 	GetEventDetail(ctx context.Context, userID, eventID uuid.UUID) (*EventDetailRecord, error)
+	GetEventHostContextSummary(ctx context.Context, eventID uuid.UUID) (*EventHostContextSummaryRecord, error)
+	ListEventApprovedParticipants(ctx context.Context, eventID uuid.UUID, params EventCollectionPageParams) ([]EventDetailApprovedParticipantRecord, error)
+	ListEventPendingJoinRequests(ctx context.Context, eventID uuid.UUID, params EventCollectionPageParams) ([]EventDetailPendingJoinRequestRecord, error)
+	ListEventInvitations(ctx context.Context, eventID uuid.UUID, params EventCollectionPageParams) ([]EventDetailInvitationRecord, error)
 	GetEventByID(ctx context.Context, eventID uuid.UUID) (*domain.Event, error)
 	TransitionEventStatuses(ctx context.Context) error
 	CancelEvent(ctx context.Context, eventID uuid.UUID, canceledApprovedParticipantCount int) error

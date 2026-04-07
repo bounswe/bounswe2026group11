@@ -5,15 +5,20 @@ import type { EventDetailResponse } from '@/models/event';
 import { useEventDetailViewModel } from './useEventDetailViewModel';
 
 const mockGetEventDetail = vi.fn();
+const mockGetEventHostContextSummary = vi.fn();
 const mockAddFavorite = vi.fn();
 const mockRemoveFavorite = vi.fn();
 
 vi.mock('@/services/eventService', () => ({
   getEventDetail: (...args: unknown[]) => mockGetEventDetail(...args),
+  getEventHostContextSummary: (...args: unknown[]) => mockGetEventHostContextSummary(...args),
   getEventImageUploadUrl: vi.fn(),
   confirmEventImageUpload: vi.fn(),
   joinEvent: vi.fn(),
   requestJoinEvent: vi.fn(),
+  listEventApprovedParticipants: vi.fn(),
+  listEventPendingJoinRequests: vi.fn(),
+  listEventInvitations: vi.fn(),
   approveJoinRequest: vi.fn(),
   rejectJoinRequest: vi.fn(),
   cancelEvent: vi.fn(),
@@ -75,7 +80,6 @@ function makeEvent(overrides: Partial<EventDetailResponse> = {}): EventDetailRes
       is_favorited: false,
       participation_status: 'JOINED',
     },
-    host_context: null,
     ...overrides,
   };
 }
@@ -83,6 +87,11 @@ function makeEvent(overrides: Partial<EventDetailResponse> = {}): EventDetailRes
 describe('useEventDetailViewModel favorites', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetEventHostContextSummary.mockResolvedValue({
+      approved_participant_count: 0,
+      pending_join_request_count: 0,
+      invitation_count: 0,
+    });
     mockAddFavorite.mockResolvedValue(undefined);
     mockRemoveFavorite.mockResolvedValue(undefined);
   });

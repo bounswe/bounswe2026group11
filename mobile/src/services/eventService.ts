@@ -4,6 +4,7 @@ import {
   CreateEventRequest,
   CreateEventResponse,
   EventDetail,
+  EventHostContextSummary,
   JoinEventResponse,
   LeaveEventResponse,
   LocationSuggestion,
@@ -17,6 +18,9 @@ import {
   RequestJoinRequest,
   RequestJoinResponse,
   ImageUploadInitResponse,
+  EventApprovedParticipantsResponse,
+  EventPendingJoinRequestsResponse,
+  EventInvitationsResponse,
 } from '@/models/event';
 
 
@@ -52,6 +56,54 @@ export async function getEventDetail(
   token: string,
 ): Promise<EventDetail> {
   return apiGetAuth<EventDetail>(`/events/${id}`, token);
+}
+
+function buildCollectionPath(id: string, resource: string, limit?: number, cursor?: string | null) {
+  const params = new URLSearchParams();
+  if (limit != null) params.set('limit', String(limit));
+  if (cursor) params.set('cursor', cursor);
+  const query = params.toString();
+  return query === '' ? `/events/${id}/${resource}` : `/events/${id}/${resource}?${query}`;
+}
+
+export async function getEventHostContextSummary(
+  id: string,
+  token: string,
+): Promise<EventHostContextSummary> {
+  return apiGetAuth<EventHostContextSummary>(`/events/${id}/host-context`, token);
+}
+
+export async function listEventApprovedParticipants(
+  id: string,
+  token: string,
+  options: { limit?: number; cursor?: string | null } = {},
+): Promise<EventApprovedParticipantsResponse> {
+  return apiGetAuth<EventApprovedParticipantsResponse>(
+    buildCollectionPath(id, 'participants', options.limit, options.cursor),
+    token,
+  );
+}
+
+export async function listEventPendingJoinRequests(
+  id: string,
+  token: string,
+  options: { limit?: number; cursor?: string | null } = {},
+): Promise<EventPendingJoinRequestsResponse> {
+  return apiGetAuth<EventPendingJoinRequestsResponse>(
+    buildCollectionPath(id, 'join-requests', options.limit, options.cursor),
+    token,
+  );
+}
+
+export async function listEventInvitations(
+  id: string,
+  token: string,
+  options: { limit?: number; cursor?: string | null } = {},
+): Promise<EventInvitationsResponse> {
+  return apiGetAuth<EventInvitationsResponse>(
+    buildCollectionPath(id, 'invitations', options.limit, options.cursor),
+    token,
+  );
 }
 
 export async function joinEvent(

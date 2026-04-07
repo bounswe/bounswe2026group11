@@ -83,6 +83,27 @@ type DiscoverEventsCursor struct {
 	RelevanceScore    *float64                  `json:"relevance_score,omitempty"`
 }
 
+// EventCollectionPageParams carries shared cursor pagination data for host-only event collections.
+type EventCollectionPageParams struct {
+	Limit                int
+	CursorToken          string
+	RepositoryFetchLimit int
+	DecodedCursor        *EventCollectionCursor
+}
+
+// EventCollectionCursor is the opaque keyset cursor payload for host-only collections ordered by created_at and id.
+type EventCollectionCursor struct {
+	CreatedAt time.Time `json:"created_at"`
+	EntityID  uuid.UUID `json:"entity_id"`
+}
+
+// EventHostContextSummaryRecord contains host-only management counters without loading full collections.
+type EventHostContextSummaryRecord struct {
+	ApprovedParticipantCount int
+	PendingJoinRequestCount  int
+	InvitationCount          int
+}
+
 // FavoriteEventRecord is the repository-level projection for favorite event listings.
 type FavoriteEventRecord struct {
 	ID              uuid.UUID
