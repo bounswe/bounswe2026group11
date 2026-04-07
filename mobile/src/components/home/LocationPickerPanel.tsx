@@ -1,9 +1,9 @@
 import React from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,6 +14,13 @@ import { Feather } from '@expo/vector-icons';
 import { LocationSuggestion } from '@/models/event';
 import { formatEventLocation } from '@/utils/eventLocation';
 
+interface SavedLocationOption {
+  id: string;
+  title: string;
+  subtitle: string;
+  suggestion: LocationSuggestion;
+}
+
 interface LocationPickerPanelProps {
   visible: boolean;
   query: string;
@@ -21,11 +28,77 @@ interface LocationPickerPanelProps {
   isSearching: boolean;
   selectedLocation: LocationSuggestion | null;
   anchorTop: number;
+  defaultOption: {
+    title: string;
+    subtitle: string;
+    suggestion: LocationSuggestion | null;
+    isLoading: boolean;
+  };
+  favoriteOptions: SavedLocationOption[];
+  isLoadingFavoriteLocations: boolean;
+  favoriteLocationsError: string | null;
   onClose: () => void;
   onReset: () => void;
+  onRetryFavoriteLocations: () => void;
   onChangeQuery: (value: string) => void;
+  onSelectSavedLocation: (suggestion: LocationSuggestion) => void;
   onSelectSuggestion: (suggestion: LocationSuggestion) => void;
   onApply: () => void;
+}
+
+function isSelectedLocation(
+  selectedLocation: LocationSuggestion | null,
+  suggestion: LocationSuggestion | null,
+): boolean {
+  if (!selectedLocation || !suggestion) {
+    return false;
+  }
+
+  return (
+    selectedLocation.lat === suggestion.lat &&
+    selectedLocation.lon === suggestion.lon
+  );
+}
+
+function SavedLocationCard({
+  title,
+  subtitle,
+  iconName,
+  isSelected,
+  isDisabled = false,
+  onPress,
+}: {
+  title: string;
+  subtitle: string;
+  iconName: React.ComponentProps<typeof Feather>['name'];
+  isSelected: boolean;
+  isDisabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[
+        styles.savedOptionCard,
+        isSelected && styles.savedOptionCardSelected,
+        isDisabled && styles.savedOptionCardDisabled,
+      ]}
+      onPress={onPress}
+      disabled={isDisabled}
+      activeOpacity={0.85}
+    >
+      <Feather
+        name={isSelected ? 'check-circle' : iconName}
+        size={18}
+        color={isSelected ? '#111827' : '#6B7280'}
+      />
+      <View style={styles.savedOptionContent}>
+        <Text style={styles.savedOptionTitle}>{title}</Text>
+        <Text style={styles.savedOptionSubtitle} numberOfLines={2}>
+          {subtitle}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
 }
 
 export default function LocationPickerPanel({
@@ -35,14 +108,26 @@ export default function LocationPickerPanel({
   isSearching,
   selectedLocation,
   anchorTop,
+  defaultOption,
+  favoriteOptions,
+  isLoadingFavoriteLocations,
+  favoriteLocationsError,
   onClose,
   onReset,
+  onRetryFavoriteLocations,
   onChangeQuery,
+  onSelectSavedLocation,
   onSelectSuggestion,
   onApply,
 }: LocationPickerPanelProps) {
-  const actionLabel =
-    query.trim().length === 0 ? 'Use Default Location' : 'Choose Location';
+  const trimmedQuery = query.trim();
+  const isSearchMode = trimmedQuery.length > 0;
+  const searchStateText =
+    trimmedQuery.length < 2
+      ? 'Type at least 2 characters.'
+      : 'No locations found.';
+
+  const canApply = Boolean(selectedLocation);
 
   return (
     <Modal
@@ -92,56 +177,128 @@ export default function LocationPickerPanel({
           </View>
 
           <View style={styles.listWrapper}>
-            {isSearching ? (
-              <View style={styles.centered}>
-                <ActivityIndicator size="small" color="#111827" />
-              </View>
-            ) : (
-              <FlatList
-                data={suggestions}
-                keyExtractor={(item, index) => `${item.lat}-${item.lon}-${index}`}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-                renderItem={({ item }) => {
-                  const isSelected =
-                    selectedLocation?.lat === item.lat &&
-                    selectedLocation?.lon === item.lon;
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.listContent}
+            >
+              {isSearchMode ? (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Search Results</Text>
 
-                  return (
-                    <TouchableOpacity
-                      style={[styles.item, isSelected && styles.itemSelected]}
-                      onPress={() => onSelectSuggestion(item)}
-                      activeOpacity={0.85}
-                    >
-                      <Feather
-                        name={isSelected ? 'check-circle' : 'map-pin'}
-                        size={18}
-                        color={isSelected ? '#111827' : '#6B7280'}
-                      />
-                      <Text style={styles.itemText} numberOfLines={2}>
-                        {formatEventLocation(item.display_name)}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }}
-                ListEmptyComponent={
-                  selectedLocation ? null : query.trim().length >= 2 ? (
-                    <Text style={styles.emptyText}>No locations found.</Text>
+                  {isSearching ? (
+                    <View style={styles.inlineStatusRow}>
+                      <ActivityIndicator size="small" color="#111827" />
+                      <Text style={styles.inlineStatusText}>Searching locations...</Text>
+                    </View>
+                  ) : suggestions.length > 0 ? (
+                    suggestions.map((item, index) => {
+                      const isSelected = isSelectedLocation(selectedLocation, item);
+
+                      return (
+                        <TouchableOpacity
+                          key={`${item.lat}-${item.lon}-${index}`}
+                          style={[styles.searchResultItem, isSelected && styles.savedOptionCardSelected]}
+                          onPress={() => onSelectSuggestion(item)}
+                          activeOpacity={0.85}
+                        >
+                          <Feather
+                            name={isSelected ? 'check-circle' : 'map-pin'}
+                            size={18}
+                            color={isSelected ? '#111827' : '#6B7280'}
+                          />
+                          <Text style={styles.searchResultText} numberOfLines={2}>
+                            {formatEventLocation(item.display_name)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })
                   ) : (
-                    <Text style={styles.emptyText}>Type at least 2 characters.</Text>
-                  )
-                }
-                contentContainerStyle={styles.listContent}
-              />
-            )}
+                    <Text style={styles.emptyText}>{searchStateText}</Text>
+                  )}
+                </View>
+              ) : (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Ready To Use</Text>
+
+                  <SavedLocationCard
+                    title={defaultOption.title}
+                    subtitle={defaultOption.subtitle}
+                    iconName={defaultOption.isLoading ? 'loader' : 'home'}
+                    isSelected={isSelectedLocation(
+                      selectedLocation,
+                      defaultOption.suggestion,
+                    )}
+                    isDisabled={defaultOption.isLoading || !defaultOption.suggestion}
+                    onPress={() => {
+                      if (defaultOption.suggestion) {
+                        onSelectSavedLocation(defaultOption.suggestion);
+                      }
+                    }}
+                  />
+
+                  <View style={styles.favoriteHeaderRow}>
+                    <Text style={styles.favoriteSectionTitle}>Favorite Locations</Text>
+                    <Text style={styles.favoriteCountText}>
+                      {favoriteOptions.length} / 3
+                    </Text>
+                  </View>
+
+                  {isLoadingFavoriteLocations ? (
+                    <View style={styles.inlineStatusRow}>
+                      <ActivityIndicator size="small" color="#111827" />
+                      <Text style={styles.inlineStatusText}>
+                        Loading favorite locations...
+                      </Text>
+                    </View>
+                  ) : favoriteLocationsError ? (
+                    <View style={styles.messageCard}>
+                      <Text style={styles.messageTitle}>
+                        Unable to load favorite locations
+                      </Text>
+                      <Text style={styles.messageText}>{favoriteLocationsError}</Text>
+                      <TouchableOpacity
+                        style={styles.retryButton}
+                        onPress={onRetryFavoriteLocations}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={styles.retryButtonText}>Retry</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : favoriteOptions.length === 0 ? (
+                    <Text style={styles.emptyText}>
+                      No favorite locations saved yet.
+                    </Text>
+                  ) : (
+                    favoriteOptions.map((option) => (
+                      <SavedLocationCard
+                        key={option.id}
+                        title={option.title}
+                        subtitle={option.subtitle}
+                        iconName="star"
+                        isSelected={isSelectedLocation(
+                          selectedLocation,
+                          option.suggestion,
+                        )}
+                        onPress={() => onSelectSavedLocation(option.suggestion)}
+                      />
+                    ))
+                  )}
+                </View>
+              )}
+            </ScrollView>
           </View>
 
           <TouchableOpacity
-            style={styles.applyButton}
+            style={[
+              styles.applyButton,
+              !canApply && styles.applyButtonDisabled,
+            ]}
             onPress={onApply}
             activeOpacity={0.85}
+            disabled={!canApply}
           >
-            <Text style={styles.applyButtonText}>{actionLabel}</Text>
+            <Text style={styles.applyButtonText}>Apply Location</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -216,18 +373,24 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   listWrapper: {
-    maxHeight: 220,
-    minHeight: 80,
-  },
-  centered: {
-    minHeight: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
+    maxHeight: 320,
+    minHeight: 180,
   },
   listContent: {
     paddingBottom: 4,
   },
-  item: {
+  section: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 10,
+  },
+  savedOptionCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 12,
@@ -238,11 +401,105 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  itemSelected: {
+  savedOptionCardSelected: {
     borderColor: '#111827',
     backgroundColor: '#F9FAFB',
   },
-  itemText: {
+  savedOptionCardDisabled: {
+    opacity: 0.6,
+  },
+  savedOptionContent: {
+    flex: 1,
+  },
+  savedOptionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  savedOptionSubtitle: {
+    fontSize: 13,
+    color: '#4B5563',
+    lineHeight: 18,
+  },
+  favoriteHeaderRow: {
+    marginTop: 6,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  favoriteSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  favoriteCountText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  inlineStatusRow: {
+    minHeight: 56,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 12,
+  },
+  inlineStatusText: {
+    fontSize: 14,
+    color: '#4B5563',
+  },
+  messageCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    backgroundColor: '#FEF2F2',
+    padding: 12,
+  },
+  messageTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#991B1B',
+    marginBottom: 4,
+  },
+  messageText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#B91C1C',
+  },
+  retryButton: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  retryButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#991B1B',
+  },
+  searchResultItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  searchResultText: {
     flex: 1,
     fontSize: 14,
     color: '#111827',
@@ -252,15 +509,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#6B7280',
     fontSize: 14,
-    marginTop: 20,
+    lineHeight: 20,
+    paddingVertical: 12,
   },
   applyButton: {
-    marginTop: 12,
     height: 52,
     borderRadius: 16,
     backgroundColor: '#111827',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  applyButtonDisabled: {
+    backgroundColor: '#9CA3AF',
   },
   applyButtonText: {
     fontSize: 15,

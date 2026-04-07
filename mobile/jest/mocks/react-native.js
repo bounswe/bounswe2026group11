@@ -34,6 +34,7 @@ const REACT_NATIVE_ONLY_PROPS = new Set([
   'delayPressOut',
   'hitSlop',
   'horizontal',
+  'keyboardType',
   'nestedScrollEnabled',
   'overScrollMode',
   'pressRetentionOffset',
@@ -46,6 +47,7 @@ const REACT_NATIVE_ONLY_PROPS = new Set([
   'shouldRasterizeIOS',
   'snapToAlignment',
   'snapToInterval',
+  'textContentType',
   'tvParallaxProperties',
 ]);
 
