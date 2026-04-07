@@ -5,7 +5,15 @@ export interface EventSummary {
   end_time?: string;
   status: string;
   category?: string;
-  image_url?: string;
+  category_name?: string;
+  image_url?: string | null;
+  location_address?: string | null;
+  privacy_level?: 'PUBLIC' | 'PROTECTED' | 'PRIVATE';
+  approved_participant_count?: number;
+  host_score?: {
+    final_score: number | null;
+    hosted_event_rating_count: number;
+  };
 }
 
 export interface UserProfile {

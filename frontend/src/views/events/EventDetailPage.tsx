@@ -679,9 +679,7 @@ function HostParticipantRatingItem({
                 <span className="ed-participant-rating-message">"{existingRating.message}"</span>
               )}
             </>
-          ) : (
-            <span className="ed-participant-rating-empty">No host rating yet</span>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -1035,12 +1033,6 @@ function EventContent({
           </div>
           <span className="ed-metric-label">Participant{event.approved_participant_count !== 1 ? 's' : ''}</span>
         </div>
-        {event.viewer_context.is_host && (
-          <div className="ed-metric">
-            <span className="ed-metric-value">{event.pending_participant_count}</span>
-            <span className="ed-metric-label">Pending</span>
-          </div>
-        )}
         <div className="ed-metric">
           <div className="ed-metric-topline">
             <span className="ed-metric-emote" aria-hidden><SavesMetricIcon /></span>
