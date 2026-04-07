@@ -138,11 +138,20 @@ export default function AppShell() {
         </div>
       </header>
 
-      {menuOpen && <div className="shell-overlay" onClick={closeMobileMenu} />}
+      <div
+        className={`shell-overlay ${menuOpen ? 'visible' : ''}`}
+        onClick={closeMobileMenu}
+      />
 
       <main className="shell-main">
         <Outlet />
       </main>
+
+      {isLoggedIn && (
+        <NavLink to="/events/create" className="shell-fab" aria-label="Create Event">
+          +
+        </NavLink>
+      )}
     </div>
   );
 }

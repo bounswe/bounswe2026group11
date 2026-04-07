@@ -3,6 +3,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 /* Header */
@@ -11,7 +12,7 @@
   border-bottom: 1px solid #e5e7eb;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 200;
 }
 
 .shell-header-inner {
@@ -237,6 +238,11 @@
   display: none;
 }
 
+/* Floating action button (hidden on desktop) */
+.shell-fab {
+  display: none;
+}
+
 /* Main content */
 .shell-main {
   flex: 1;
@@ -249,27 +255,34 @@
 /* Responsive */
 @media (max-width: 768px) {
   .shell-nav {
-    display: none;
     flex-direction: column;
     position: fixed;
     top: 64px;
-    left: 0;
     right: 0;
+    width: 280px;
     bottom: 0;
     background: #ffffff;
     padding: 16px;
     gap: 4px;
     z-index: 150;
     overflow-y: auto;
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
+    visibility: hidden;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: transform 0.25s ease, opacity 0.25s ease, visibility 0.25s;
   }
 
   .shell-nav.open {
-    display: flex;
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(0);
   }
 
   .shell-nav-link {
     padding: 14px 16px;
     font-size: 16px;
+    border-radius: 10px;
   }
 
   .shell-hamburger {
@@ -281,16 +294,96 @@
   }
 
   .shell-overlay {
-    display: block;
     position: fixed;
     inset: 0;
     top: 64px;
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0);
     z-index: 140;
+    transition: background 0.25s ease;
+    pointer-events: none;
+  }
+
+  .shell-overlay.visible {
+    display: block;
+    background: rgba(0, 0, 0, 0.3);
+    pointer-events: auto;
   }
 
   .shell-main {
     padding: 20px 16px;
+    padding-bottom: 90px;
+  }
+
+  /* Hide header create button on mobile */
+  .shell-create-btn {
+    display: none;
+  }
+
+  /* Show floating action button on mobile */
+  .shell-fab {
+    display: flex;
+    position: fixed;
+    bottom: 24px;
+    right: 20px;
+    z-index: 90;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    font-size: 28px;
+    font-weight: 300;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+    text-decoration: none;
+  }
+
+  .shell-fab:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 24px rgba(37, 99, 235, 0.5);
+  }
+
+  .shell-fab:active {
+    transform: scale(0.96);
+  }
+
+  .shell-header-inner {
+    padding: 0 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .shell-logo {
+    font-size: 15px;
+  }
+
+  .shell-main {
+    padding: 16px 12px;
+    padding-bottom: 84px;
+  }
+
+  .shell-header-inner {
+    height: 56px;
+  }
+
+  .shell-nav {
+    top: 56px;
+  }
+
+  .shell-overlay.visible {
+    top: 56px;
+  }
+
+  .shell-fab {
+    bottom: 20px;
+    right: 16px;
+    width: 52px;
+    height: 52px;
+    font-size: 26px;
   }
 }
 

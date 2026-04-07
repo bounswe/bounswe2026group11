@@ -1343,4 +1343,29 @@
   .ed-inline-rating-editor {
     margin-left: 0;
   }
+
+  .ed-page {
+    padding: 0 4px;
+  }
+
+  .ed-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ed-modal {
+    padding: 20px;
+    margin: 12px;
+  }
+
+  .ed-modal-overlay {
+    padding: 12px;
+  }
+
+  .ed-section-title {
+    font-size: 16px;
+  }
+
+  .ed-description {
+    font-size: 14px;
+  }
 }
