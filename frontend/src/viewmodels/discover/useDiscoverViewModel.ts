@@ -151,6 +151,7 @@ export function useDiscoverViewModel(token: string | null) {
   const [defaultProfileLocation, setDefaultProfileLocation] = useState<LocationSuggestion | null>(null);
   const [favoriteLocations, setFavoriteLocations] = useState<FavoriteLocation[]>([]);
   const [hasBrowserLocation, setHasBrowserLocation] = useState(false);
+  const [browserLocationPermissionDenied, setBrowserLocationPermissionDenied] = useState(false);
   const [browserLocationError, setBrowserLocationError] = useState<string | null>(null);
   const [locationPromptDismissed, setLocationPromptDismissed] = useState(
     () =>
@@ -180,19 +181,20 @@ export function useDiscoverViewModel(token: string | null) {
     let cancelled = false;
     setLocationReady(false);
     setHasBrowserLocation(false);
+    setBrowserLocationPermissionDenied(false);
     setBrowserLocationError(null);
 
-    const geolocationSuggestion = (): Promise<LocationSuggestion | null> =>
+    const geolocationSuggestion = (): Promise<{ suggestion: LocationSuggestion | null; denied: boolean }> =>
       new Promise((resolve) => {
         if (!navigator.geolocation) {
-          resolve(null);
+          resolve({ suggestion: null, denied: false });
           return;
         }
         let settled = false;
-        const finish = (v: LocationSuggestion | null) => {
+        const finish = (suggestion: LocationSuggestion | null, denied = false) => {
           if (settled) return;
           settled = true;
-          resolve(v);
+          resolve({ suggestion, denied });
         };
         const hardTimeout = window.setTimeout(() => finish(null), GEO_AUTO_ATTEMPT_MAX_MS);
         navigator.geolocation.getCurrentPosition(
@@ -200,9 +202,9 @@ export function useDiscoverViewModel(token: string | null) {
             window.clearTimeout(hardTimeout);
             finish(buildBrowserLocationSuggestion(pos));
           },
-          () => {
+          (err) => {
             window.clearTimeout(hardTimeout);
-            finish(null);
+            finish(null, err.code === err.PERMISSION_DENIED);
           },
           { timeout: 10000, maximumAge: 0, enableHighAccuracy: false },
         );
@@ -231,8 +233,12 @@ export function useDiscoverViewModel(token: string | null) {
         }
       }
 
-      const browserSuggestion = await geoPromise;
+      const { suggestion: browserSuggestion, denied } = await geoPromise;
       if (cancelled) return;
+
+      if (denied) {
+        setBrowserLocationPermissionDenied(true);
+      }
 
       if (browserSuggestion) {
         browserLocation.current = browserSuggestion;
@@ -273,6 +279,9 @@ export function useDiscoverViewModel(token: string | null) {
         setBrowserLocationRequestPending(false);
       },
       (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          setBrowserLocationPermissionDenied(true);
+        }
         setBrowserLocationError(getBrowserLocationErrorMessage(error));
         setBrowserLocationRequestPending(false);
       },
@@ -413,12 +422,17 @@ export function useDiscoverViewModel(token: string | null) {
   }, [defaultProfileLocation, selectedLocation]);
 
   const handleLocationButtonClick = useCallback(() => {
-    if (!hasBrowserLocation && typeof navigator !== 'undefined' && !!navigator.geolocation) {
+    if (
+      !hasBrowserLocation &&
+      !browserLocationPermissionDenied &&
+      typeof navigator !== 'undefined' &&
+      !!navigator.geolocation
+    ) {
       requestBrowserLocation();
       return;
     }
     openLocationModal();
-  }, [hasBrowserLocation, openLocationModal, requestBrowserLocation]);
+  }, [hasBrowserLocation, browserLocationPermissionDenied, openLocationModal, requestBrowserLocation]);
 
   const closeLocationModal = useCallback(() => {
     setPendingLocation(null);

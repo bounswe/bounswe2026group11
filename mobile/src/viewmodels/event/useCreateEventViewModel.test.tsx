@@ -32,6 +32,7 @@ const mockCreateEvent = jest.mocked(eventService.createEvent);
 const mockGetEventImageUploadUrl = jest.mocked(eventService.getEventImageUploadUrl);
 const mockUploadFileToPresignedUrl = jest.mocked(eventService.uploadFileToPresignedUrl);
 const mockConfirmEventImageUpload = jest.mocked(eventService.confirmEventImageUpload);
+const mockSearchLocation = jest.mocked(eventService.searchLocation);
 const mockRequestMediaLibraryPermissionsAsync =
   ImagePicker.requestMediaLibraryPermissionsAsync as jest.MockedFunction<any>;
 const mockLaunchImageLibraryAsync =
@@ -108,14 +109,26 @@ const uploadInitFixture = {
 
 describe('useCreateEventViewModel', () => {
   beforeEach(() => {
+    jest.useFakeTimers();
     jest.clearAllMocks();
     mockCreateEvent.mockResolvedValue(responseFixture);
     mockGetEventImageUploadUrl.mockResolvedValue(uploadInitFixture as any);
     mockUploadFileToPresignedUrl.mockResolvedValue(undefined);
     mockConfirmEventImageUpload.mockResolvedValue(undefined);
+    mockSearchLocation.mockResolvedValue([
+      {
+        display_name: 'Kadikoy, Istanbul, Turkiye',
+        lat: '40.9909',
+        lon: '29.0293',
+      },
+    ]);
     mockRequestMediaLibraryPermissionsAsync.mockResolvedValue({ status: 'granted' } as any);
     mockLaunchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: [] } as any);
     mockManipulateAsync.mockResolvedValue({ uri: 'file:///mock-manipulated.jpg' } as any);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   // ─── Initial state ───
@@ -805,6 +818,27 @@ describe('useCreateEventViewModel', () => {
 
   // ─── Location ───
   describe('location', () => {
+    it('searches location suggestions with debounce', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+
+      act(() => {
+        result.current.handleLocationSearch('Kadikoy');
+      });
+
+      await act(async () => {
+        jest.advanceTimersByTime(400);
+      });
+
+      expect(mockSearchLocation).toHaveBeenCalledWith('Kadikoy');
+      expect(result.current.locationSuggestions).toEqual([
+        {
+          display_name: 'Kadikoy, Istanbul, Turkiye',
+          lat: '40.9909',
+          lon: '29.0293',
+        },
+      ]);
+    });
+
     it('selects a location from suggestions', async () => {
       const { result } = renderHook(() => useCreateEventViewModel());
       await act(async () => {

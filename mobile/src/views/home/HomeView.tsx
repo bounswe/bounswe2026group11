@@ -106,6 +106,7 @@ export default function HomeView() {
         onChangeStartDate={vm.updateDraftStartDate}
         onChangeEndDate={vm.updateDraftEndDate}
         onChangeRadius={vm.updateDraftRadiusKm}
+        onChangeSortBy={vm.updateDraftSortBy}
       />
 
       <LocationPickerPanel

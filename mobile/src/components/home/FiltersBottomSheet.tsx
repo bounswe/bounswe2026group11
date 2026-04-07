@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import {
+  DiscoverEventsSortBy,
   EventCategory,
   HomeFilterPrivacyLevel,
   HomeFiltersDraft,
@@ -37,11 +38,21 @@ interface FiltersBottomSheetProps {
   onChangeStartDate: (value: string) => void;
   onChangeEndDate: (value: string) => void;
   onChangeRadius: (value: number) => void;
+  onChangeSortBy: (
+    value: Extract<DiscoverEventsSortBy, 'START_TIME' | 'DISTANCE'>,
+  ) => void;
 }
 
 const CATEGORY_PREVIEW_COUNT = 6;
 const SWIPE_CLOSE_THRESHOLD = 80;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SORT_OPTIONS: Array<{
+  label: string;
+  value: Extract<DiscoverEventsSortBy, 'START_TIME' | 'DISTANCE'>;
+}> = [
+  { label: 'Soonest', value: 'START_TIME' },
+  { label: 'Nearest', value: 'DISTANCE' },
+];
 
 function formatDigitsToDate(digits: string): string {
   if (digits.length === 0) return '';
@@ -77,6 +88,7 @@ export default function FiltersBottomSheet({
   onChangeStartDate,
   onChangeEndDate,
   onChangeRadius,
+  onChangeSortBy,
 }: FiltersBottomSheetProps) {
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const [activePicker, setActivePicker] = useState<'start' | 'end' | null>(
@@ -289,6 +301,34 @@ export default function FiltersBottomSheet({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
+              <Text style={styles.sectionTitle}>Sort by</Text>
+              <View style={styles.row}>
+                {SORT_OPTIONS.map((option) => {
+                  const isSelected = draftFilters.sortBy === option.value;
+
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.optionButton,
+                        isSelected && styles.selectedOptionButton,
+                      ]}
+                      onPress={() => onChangeSortBy(option.value)}
+                      activeOpacity={0.85}
+                    >
+                      <Text
+                        style={[
+                          styles.optionButtonText,
+                          isSelected && styles.selectedOptionButtonText,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
               <Text style={styles.sectionTitle}>Categories</Text>
               <View style={styles.categoryWrap}>
                 {visibleCategories.map((category) => {

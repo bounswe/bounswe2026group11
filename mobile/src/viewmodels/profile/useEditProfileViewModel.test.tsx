@@ -193,6 +193,37 @@ describe('useEditProfileViewModel', () => {
     expect(result.current.locationQuery).toBe('Kadikoy, Istanbul, Turkiye');
   });
 
+  it('saves the raw display_name of a detailed location selection', async () => {
+    const { result } = await renderEditProfileViewModel();
+
+    act(() => {
+      result.current.selectLocationSuggestion({
+        display_name:
+          'Boğaziçi Üniversitesi 4.Kuzey Yurdu, Hisar Üstü, Sarıyer, İstanbul, Türkiye',
+        lat: '41.0845',
+        lon: '29.0506',
+      });
+    });
+
+    const rawAddress = 'Boğaziçi Üniversitesi 4.Kuzey Yurdu, Hisar Üstü, Sarıyer, İstanbul, Türkiye';
+
+    expect(result.current.formData.defaultLocationAddress).toBe(rawAddress);
+    expect(result.current.locationQuery).toBe(rawAddress);
+
+    await act(async () => {
+      await result.current.handleSave();
+    });
+
+    expect(mockUpdateMyProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        default_location_address: rawAddress,
+        default_location_lat: 41.0845,
+        default_location_lon: 29.0506,
+      }),
+      'test-token',
+    );
+  });
+
   it('clears the selected default location', async () => {
     const { result } = await renderEditProfileViewModel();
 

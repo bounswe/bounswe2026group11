@@ -14,6 +14,7 @@ module.exports = {
     '^expo-image-manipulator$': '<rootDir>/jest/mocks/expo-image-manipulator.js',
     '^expo-location$': '<rootDir>/jest/mocks/expo-location.js',
     '^expo-secure-store$': '<rootDir>/jest/mocks/expo-secure-store.js',
+    '^react-native-svg$': '<rootDir>/jest/mocks/react-native-svg.js',
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   clearMocks: true,

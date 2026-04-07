@@ -112,6 +112,20 @@ const page2Fixture: PaginatedEventsResponse = {
   },
 };
 
+const defaultFallbackListEventsQuery = {
+  lat: 41.0422,
+  lon: 29.0083,
+  radius_meters: 10000,
+  q: undefined,
+  category_ids: undefined,
+  privacy_levels: undefined,
+  start_from: undefined,
+  start_to: undefined,
+  sort_by: 'START_TIME',
+  limit: 2,
+  cursor: undefined,
+};
+
 describe('useHomeViewModel', () => {
     beforeEach(() => {
     jest.clearAllMocks();
@@ -124,8 +138,8 @@ describe('useHomeViewModel', () => {
           id: 'favorite-2',
           name: 'Gym',
           address: 'Besiktas, Istanbul, Turkiye',
-          lat: 41.0422,
-          lon: 29.0083,
+          lat: 41.0430,
+          lon: 29.0095,
         },
         {
           id: 'favorite-1',
@@ -161,8 +175,8 @@ describe('useHomeViewModel', () => {
       },
       {
         display_name: 'Besiktas, Istanbul, Turkiye',
-        lat: '41.0422',
-        lon: '29.0083',
+        lat: '41.0430',
+        lon: '29.0095',
       },
     ]);
   });
@@ -178,18 +192,7 @@ describe('useHomeViewModel', () => {
 
     expect(mockListCategories).toHaveBeenCalledTimes(1);
     expect(mockListEvents).toHaveBeenCalledWith(
-      {
-        lat: 41.0082,
-        lon: 28.9784,
-        radius_meters: 10000,
-        q: undefined,
-        category_ids: undefined,
-        privacy_levels: undefined,
-        start_from: undefined,
-        start_to: undefined,
-        limit: 2,
-        cursor: undefined,
-      },
+      defaultFallbackListEventsQuery,
       'mock-token',
     );
 
@@ -198,7 +201,12 @@ describe('useHomeViewModel', () => {
     expect(result.current.hasMore).toBe(true);
   });
 
-  it('uses profile default location when available', async () => {
+  it('prefers the live location over the profile default when both are available', async () => {
+    mockGetCurrentLocationSuggestion.mockResolvedValueOnce({
+      display_name: 'Moda, Kadikoy, Istanbul, Turkiye',
+      lat: '40.9869',
+      lon: '29.0287',
+    });
     mockGetMyProfile.mockResolvedValueOnce({
       id: 'user-1',
       username: 'mock',
@@ -222,6 +230,45 @@ describe('useHomeViewModel', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
+    expect(result.current.defaultLocationOption.subtitle).toBe(
+      'Current location: Moda, Kadikoy, Istanbul, Turkiye',
+    );
+    expect(result.current.defaultLocationOption.isLoading).toBe(false);
+    expect(mockListEvents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lat: 40.9869,
+        lon: 29.0287,
+      }),
+      'mock-token',
+    );
+    expect(result.current.locationLabel).toBe('Moda, Kadikoy');
+  });
+
+  it('uses the profile default location when live location is unavailable', async () => {
+    mockGetMyProfile.mockResolvedValueOnce({
+      id: 'user-1',
+      username: 'mock',
+      email: 'mock@example.com',
+      phone_number: null,
+      gender: null,
+      birth_date: null,
+      email_verified: true,
+      status: 'active',
+      default_location_address: 'Kadikoy, Istanbul, Turkiye',
+      default_location_lat: 40.9909,
+      default_location_lon: 29.0293,
+      display_name: null,
+      bio: null,
+      avatar_url: null,
+    });
+
+    const { result } = renderHook(() => useHomeViewModel());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(mockGetCurrentLocationSuggestion).toHaveBeenCalledTimes(1);
     expect(result.current.defaultLocationOption.subtitle).toBe(
       'Kadikoy, Istanbul, Turkiye',
     );
@@ -288,6 +335,7 @@ describe('useHomeViewModel', () => {
     });
 
     expect(mockGetCurrentLocationSuggestion).toHaveBeenCalledTimes(1);
+    expect(mockGetMyProfile).not.toHaveBeenCalled();
     expect(mockListEvents).toHaveBeenCalledWith(
       expect.objectContaining({
         lat: 40.9869,
@@ -322,8 +370,8 @@ describe('useHomeViewModel', () => {
           id: 'favorite-2',
           name: 'Gym',
           address: 'Besiktas, Istanbul, Turkiye',
-          lat: 41.0422,
-          lon: 29.0083,
+          lat: 41.0430,
+          lon: 29.0095,
         },
         {
           id: 'favorite-1',
@@ -388,18 +436,7 @@ describe('useHomeViewModel', () => {
     });
 
     expect(mockListEvents).toHaveBeenLastCalledWith(
-      {
-        lat: 41.0082,
-        lon: 28.9784,
-        radius_meters: 10000,
-        q: undefined,
-        category_ids: undefined,
-        privacy_levels: undefined,
-        start_from: undefined,
-        start_to: undefined,
-        limit: 2,
-        cursor: undefined,
-      },
+      defaultFallbackListEventsQuery,
       'mock-token',
     );
 
@@ -422,15 +459,7 @@ describe('useHomeViewModel', () => {
 
     expect(mockListEvents).toHaveBeenLastCalledWith(
       {
-        lat: 41.0082,
-        lon: 28.9784,
-        radius_meters: 10000,
-        q: undefined,
-        category_ids: undefined,
-        privacy_levels: undefined,
-        start_from: undefined,
-        start_to: undefined,
-        limit: 2,
+        ...defaultFallbackListEventsQuery,
         cursor: 'cursor-2',
       },
       'mock-token',
@@ -513,6 +542,53 @@ describe('useHomeViewModel', () => {
       });
 
       expect(mockListEvents).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses START_TIME as the default sort order', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.filterDraft.sortBy).toBe('START_TIME');
+      expect(mockListEvents).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sort_by: 'START_TIME',
+        }),
+        'mock-token',
+      );
+    });
+
+    it('applies DISTANCE sorting to the discovery request', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      act(() => {
+        result.current.updateDraftSortBy('DISTANCE');
+      });
+
+      expect(result.current.filterDraft.sortBy).toBe('DISTANCE');
+
+      act(() => {
+        result.current.applyFilterDraft();
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            sort_by: 'DISTANCE',
+          }),
+          'mock-token',
+        );
+      });
     });
 
     it('applies privacy and radius filters to discovery request', async () => {
@@ -817,6 +893,7 @@ describe('useHomeViewModel', () => {
       });
 
       act(() => {
+        result.current.updateDraftSortBy('DISTANCE');
         result.current.toggleDraftPrivacy('PROTECTED');
         result.current.updateDraftStartDate('10.04.2099');
         result.current.updateDraftEndDate('20.04.2099');
@@ -824,6 +901,7 @@ describe('useHomeViewModel', () => {
       });
 
       await waitFor(() => {
+        expect(result.current.filterDraft.sortBy).toBe('DISTANCE');
         expect(result.current.filterDraft.privacyLevels).toEqual(['PROTECTED']);
         expect(result.current.filterDraft.startDate).toBe('10.04.2099');
         expect(result.current.filterDraft.endDate).toBe('20.04.2099');
@@ -843,6 +921,7 @@ describe('useHomeViewModel', () => {
         startDate: '',
         endDate: '',
         radiusKm: 10,
+        sortBy: 'START_TIME',
       });
 
       expect(mockListEvents.mock.calls.length).toBe(initialCallCount);
@@ -880,6 +959,62 @@ describe('useHomeViewModel', () => {
       });
 
       expect(result.current.filterError).toBeNull();
+    });
+
+    it('keeps the applied sort order during load more and silent refresh', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.openFilterModal();
+      });
+
+      act(() => {
+        result.current.updateDraftSortBy('DISTANCE');
+      });
+
+      act(() => {
+        result.current.applyFilterDraft();
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            sort_by: 'DISTANCE',
+          }),
+          'mock-token',
+        );
+      });
+
+      mockListEvents.mockResolvedValueOnce(page2Fixture);
+
+      await act(async () => {
+        await result.current.loadMoreEvents();
+      });
+
+      expect(mockListEvents).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          sort_by: 'DISTANCE',
+          cursor: 'cursor-2',
+        }),
+        'mock-token',
+      );
+
+      mockListEvents.mockResolvedValueOnce(page1Fixture);
+
+      await act(async () => {
+        await result.current.silentRefresh();
+      });
+
+      expect(mockListEvents).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          sort_by: 'DISTANCE',
+        }),
+        'mock-token',
+      );
     });
   });
     describe('location picker', () => {
@@ -1046,15 +1181,15 @@ describe('useHomeViewModel', () => {
       await waitFor(() => {
         expect(mockListEvents).toHaveBeenLastCalledWith(
           expect.objectContaining({
-            lat: 41.0082,
-            lon: 28.9784,
+            lat: 41.0422,
+            lon: 29.0083,
           }),
           'mock-token',
         );
       });
 
       expect(result.current.isLocationModalOpen).toBe(false);
-      expect(result.current.locationLabel).toBe('Istanbul');
+      expect(result.current.locationLabel).toBe('Beşiktaş, Istanbul');
     });
 
     it('applies a saved favorite location after it is selected', async () => {
@@ -1089,8 +1224,8 @@ describe('useHomeViewModel', () => {
       await waitFor(() => {
         expect(mockListEvents).toHaveBeenLastCalledWith(
           expect.objectContaining({
-            lat: 41.0422,
-            lon: 29.0083,
+            lat: 41.0430,
+            lon: 29.0095,
           }),
           'mock-token',
         );
@@ -1139,8 +1274,8 @@ describe('useHomeViewModel', () => {
       expect(secondRender.result.current.locationLabel).toBe('Besiktas, Istanbul');
       expect(mockListEvents).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          lat: 41.0422,
-          lon: 29.0083,
+          lat: 41.0430,
+          lon: 29.0095,
         }),
         'mock-token',
       );
@@ -1184,8 +1319,8 @@ describe('useHomeViewModel', () => {
       expect(result.current.locationLabel).toBe('Besiktas, Istanbul');
       expect(mockListEvents).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          lat: 41.0422,
-          lon: 29.0083,
+          lat: 41.0430,
+          lon: 29.0095,
         }),
         'mock-token',
       );
@@ -1226,8 +1361,8 @@ describe('useHomeViewModel', () => {
       act(() => {
         result.current.selectLocationSuggestion({
           display_name: 'Besiktas, Istanbul, Turkiye',
-          lat: '41.0422',
-          lon: '29.0083',
+          lat: '41.0430',
+          lon: '29.0095',
         });
       });
 
