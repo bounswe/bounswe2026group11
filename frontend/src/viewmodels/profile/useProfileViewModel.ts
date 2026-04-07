@@ -1,16 +1,20 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserProfile, UpdateProfileRequest } from '../../models/profile';
+import { EventSummary, UserProfile, UpdateProfileRequest } from '../../models/profile';
 import { profileService } from '../../services/profileService';
 import { prepareAvatarBlobs } from '../../utils/imageResize';
 import { searchLocation } from '@/services/eventService';
 import type { LocationSuggestion } from '@/models/event';
+import { shouldShowProfileEvent } from '@/utils/eventStatus';
+import { formatEventLocation } from '@/utils/eventLocation';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
 export function useProfileViewModel(token: string | null) {
   const { setProfileSummary } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [hostedEvents, setHostedEvents] = useState<EventSummary[]>([]);
+  const [attendedEvents, setAttendedEvents] = useState<EventSummary[]>([]);
 
   // UI states
   const [isLoading, setIsLoading] = useState(true);
@@ -39,22 +43,38 @@ export function useProfileViewModel(token: string | null) {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await profileService.getMyProfile(token);
+      const [data, hosted, upcoming, completed, canceled] = await Promise.all([
+        profileService.getMyProfile(token),
+        profileService.getHostedEvents(token),
+        profileService.getUpcomingEvents(token),
+        profileService.getCompletedEvents(token),
+        profileService.getCanceledEvents(token),
+      ]);
       setProfile(data);
       setDisplayName(data.display_name || '');
       setBio(data.bio || '');
       setSelectedLocation(
         data.default_location_address
-          ? { address: data.default_location_address, lat: data.default_location_lat!, lon: data.default_location_lon! }
+          ? { address: formatEventLocation(data.default_location_address), lat: data.default_location_lat!, lon: data.default_location_lon! }
           : null,
       );
       setLocationQuery('');
       setLocationCleared(false);
+      const visibleHosted = hosted.filter((event) => shouldShowProfileEvent(event.status));
+      const hostedIds = new Set(hosted.map((event) => event.id));
+      const mergedAttended = [...upcoming, ...completed, ...canceled]
+        .filter((event, index, arr) => arr.findIndex((candidate) => candidate.id === event.id) === index)
+        .filter((event) => !hostedIds.has(event.id))
+        .filter((event) => shouldShowProfileEvent(event.status));
+      setHostedEvents(visibleHosted);
+      setAttendedEvents(mergedAttended);
       setProfileSummary({
         avatarUrl: data.avatar_url ?? null,
         displayName: data.display_name ?? null,
       });
     } catch (err: unknown) {
+      setHostedEvents([]);
+      setAttendedEvents([]);
       setError(err instanceof Error ? err.message : 'Failed to load profile');
     } finally {
       setIsLoading(false);
@@ -97,11 +117,11 @@ export function useProfileViewModel(token: string | null) {
 
   const selectLocation = useCallback((suggestion: LocationSuggestion) => {
     setSelectedLocation({
-      address: suggestion.display_name,
+      address: formatEventLocation(suggestion.display_name),
       lat: parseFloat(suggestion.lat),
       lon: parseFloat(suggestion.lon),
     });
-    setLocationQuery('');
+    setLocationQuery(formatEventLocation(suggestion.display_name));
     setLocationSuggestions([]);
     setLocationCleared(false);
   }, []);
@@ -128,7 +148,7 @@ export function useProfileViewModel(token: string | null) {
       setAvatarPreview(null);
       setSelectedLocation(
         profile?.default_location_address
-          ? { address: profile.default_location_address, lat: profile.default_location_lat!, lon: profile.default_location_lon! }
+          ? { address: formatEventLocation(profile.default_location_address), lat: profile.default_location_lat!, lon: profile.default_location_lon! }
           : null,
       );
       setLocationQuery('');
@@ -212,6 +232,8 @@ export function useProfileViewModel(token: string | null) {
 
   return {
     profile,
+    hostedEvents,
+    attendedEvents,
     isLoading,
     isEditing,
     isSaving,

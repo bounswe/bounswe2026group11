@@ -3,8 +3,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMyEventsViewModel, type MyEventsTab } from '@/viewmodels/event/useMyEventsViewModel';
 import type { EventSummary } from '@/models/profile';
 import { EventCoverImage } from '@/components/EventCoverImage';
-import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/utils/eventStatus';
+import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import '@/styles/my-events.css';
+import '@/styles/discover.css';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -12,7 +13,6 @@ function formatDate(iso: string): string {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
   });
 }
 
@@ -25,46 +25,55 @@ function formatTime(iso: string): string {
   });
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const lifecycle = getEventLifecyclePresentation(status);
-  if (lifecycle) {
-    const cls = lifecycle.variant === 'upcoming'
-      ? 'me-status-upcoming'
-      : 'me-status-in-progress';
-
-    return <span className={`me-status-badge ${cls}`}>{lifecycle.label}</span>;
-  }
-
-  const presentation = getEventStatusPresentation(status);
-  const cls = presentation.tone === 'active'
-    ? 'me-status-active'
-    : presentation.tone === 'canceled'
-      ? 'me-status-canceled'
-      : 'me-status-completed';
-
-  return <span className={`me-status-badge ${cls}`}>{presentation.label}</span>;
-}
-
 function EventCard({ event }: { event: EventSummary }) {
+  const lifecycle = getEventLifecyclePresentation(event.status);
+  const category = event.category_name ?? event.category;
+
   return (
-    <Link to={`/events/${event.id}`} className="me-card">
-      <div className="me-card-image-wrapper">
+    <Link to={`/events/${event.id}`} className="dc-card">
+      <div className="dc-card-image-wrapper">
         <EventCoverImage
           src={event.image_url}
           alt={event.title}
-          imgClassName="me-card-image"
+          imgClassName="dc-card-image"
           variant="card"
         />
+        {lifecycle && (
+          <span
+            className={`dc-lifecycle-badge ${
+              lifecycle.variant === 'upcoming' ? 'dc-lifecycle-upcoming' : 'dc-lifecycle-in-progress'
+            }`}
+          >
+            {lifecycle.label}
+          </span>
+        )}
+        {event.privacy_level && event.privacy_level !== 'PRIVATE' && (
+          <span className={`dc-privacy-badge dc-privacy-${event.privacy_level.toLowerCase()}`}>
+            {event.privacy_level === 'PUBLIC' ? 'Public' : 'Protected'}
+          </span>
+        )}
       </div>
-      <div className="me-card-body">
-        <div className="me-card-top">
-          {event.category && <span className="me-card-category">{event.category}</span>}
-          <StatusBadge status={event.status} />
+      <div className="dc-card-body">
+        <div className="dc-card-meta">
+          {category && <span className="dc-card-category">{category}</span>}
+          <span className="dc-card-date">
+            {formatDate(event.start_time)} &middot; {formatTime(event.start_time)}
+          </span>
         </div>
-        <h3 className="me-card-title">{event.title}</h3>
-        <p className="me-card-date">
-          {formatDate(event.start_time)} &middot; {formatTime(event.start_time)}
-        </p>
+        <h3 className="dc-card-title">{event.title}</h3>
+        {event.location_address && (
+          <p className="dc-card-location">{event.location_address}</p>
+        )}
+        <div className="dc-card-footer">
+          <span className="dc-card-participants">
+            {event.approved_participant_count ?? 0} participant{event.approved_participant_count === 1 ? '' : 's'}
+          </span>
+          {event.host_score?.final_score != null && (
+            <span className="dc-card-score">
+              {'★'} {event.host_score.final_score.toFixed(1)}
+            </span>
+          )}
+        </div>
       </div>
     </Link>
   );

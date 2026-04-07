@@ -4,6 +4,7 @@ import { searchLocation } from '@/services/eventService';
 import type { FavoriteLocation } from '@/models/profile';
 import type { LocationSuggestion } from '@/models/event';
 import { ApiError } from '@/services/api';
+import { formatEventLocation } from '@/utils/eventLocation';
 
 const MAX_LOCATIONS = 3;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -72,7 +73,7 @@ export function useFavoriteLocationsViewModel(token: string | null) {
 
   const selectSuggestion = useCallback((suggestion: LocationSuggestion) => {
     setSelectedSuggestion(suggestion);
-    setAddQuery(suggestion.display_name);
+    setAddQuery(formatEventLocation(suggestion.display_name));
     setAddSuggestions([]);
   }, []);
 
@@ -97,7 +98,7 @@ export function useFavoriteLocationsViewModel(token: string | null) {
     try {
       await profileService.createFavoriteLocation({
         name: addName.trim(),
-        address: selectedSuggestion.display_name,
+        address: formatEventLocation(selectedSuggestion.display_name),
         lat: parseFloat(selectedSuggestion.lat),
         lon: parseFloat(selectedSuggestion.lon),
       }, token);
