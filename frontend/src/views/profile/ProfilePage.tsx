@@ -23,6 +23,14 @@ export default function ProfilePage() {
     handleFileChange,
     handleEditToggle,
     handleSave,
+    locationQuery,
+    handleLocationSearch,
+    locationSuggestions,
+    selectedLocation,
+    selectLocation,
+    clearLocation,
+    isSearchingLocation,
+    locationCleared,
   } = useProfileViewModel(token);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +127,14 @@ export default function ProfilePage() {
             <label>Bio</label>
             {profile.bio ? <p>{profile.bio}</p> : <p className="empty-state">No bio provided</p>}
           </div>
+          <div className="info-group">
+            <label>Default Location</label>
+            {profile.default_location_address ? (
+              <p>{profile.default_location_address}</p>
+            ) : (
+              <p className="empty-state">No default location set</p>
+            )}
+          </div>
         </div>
       ) : (
         <div className="profile-form">
@@ -180,6 +196,51 @@ export default function ProfilePage() {
               />
             </div>
 
+            <div className="form-group">
+              <label>Default Location</label>
+              {(selectedLocation && !locationCleared) ? (
+                <div className="profile-location-selected">
+                  <span className="profile-location-address">{selectedLocation.address}</span>
+                  <button
+                    type="button"
+                    className="profile-location-clear"
+                    onClick={clearLocation}
+                    disabled={isSaving}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="profile-location-search">
+                  <input
+                    type="text"
+                    placeholder="Search for an address..."
+                    value={locationQuery}
+                    onChange={(e) => handleLocationSearch(e.target.value)}
+                    disabled={isSaving}
+                  />
+                  {isSearchingLocation && (
+                    <span className="profile-location-searching">Searching...</span>
+                  )}
+                  {locationSuggestions.length > 0 && (
+                    <ul className="profile-location-suggestions">
+                      {locationSuggestions.map((s, i) => (
+                        <li key={i}>
+                          <button
+                            type="button"
+                            className="profile-location-suggestion-item"
+                            onClick={() => selectLocation(s)}
+                          >
+                            {s.display_name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="form-actions">
               <button
                 type="button"
@@ -195,7 +256,9 @@ export default function ProfilePage() {
                 disabled={isSaving || (
                   !avatarPreview &&
                   displayName === (profile.display_name ?? '') &&
-                  bio === (profile.bio ?? '')
+                  bio === (profile.bio ?? '') &&
+                  !locationCleared &&
+                  (selectedLocation?.address ?? '') === (profile.default_location_address ?? '')
                 )}
               >
                 {isSaving ? 'Saving...' : 'Save Profile'}
