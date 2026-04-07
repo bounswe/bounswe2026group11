@@ -5,7 +5,7 @@ import { useFavoritesViewModel } from '@/viewmodels/favorites/useFavoritesViewMo
 import FavoriteLocationsTab from './FavoriteLocationsTab';
 import type { FavoriteEventItem } from '@/models/event';
 import { EventCoverImage } from '@/components/EventCoverImage';
-import { getEventStatusPresentation } from '@/utils/eventStatus';
+import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/utils/eventStatus';
 import '@/styles/my-events.css';
 import '@/styles/favorites.css';
 
@@ -31,6 +31,15 @@ function formatTime(iso: string): string {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const lifecycle = getEventLifecyclePresentation(status);
+  if (lifecycle) {
+    const cls = lifecycle.variant === 'upcoming'
+      ? 'me-status-upcoming'
+      : 'me-status-in-progress';
+
+    return <span className={`me-status-badge ${cls}`}>{lifecycle.label}</span>;
+  }
+
   const presentation = getEventStatusPresentation(status);
   const cls = presentation.tone === 'active'
     ? 'me-status-active'
