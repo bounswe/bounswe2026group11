@@ -1,4 +1,4 @@
-import { apiGet, apiGetAuth, apiPostAuth, apiPatchAuth } from '@/services/api';
+import { apiGet, apiGetAuth, apiPostAuth, apiPatchAuth, apiPutAuth } from '@/services/api';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
   CreateEventRequest,
@@ -21,6 +21,8 @@ import {
   EventApprovedParticipantsResponse,
   EventPendingJoinRequestsResponse,
   EventInvitationsResponse,
+  RatingWriteRequest,
+  RatingResponse,
 } from '@/models/event';
 
 
@@ -157,6 +159,27 @@ export async function cancelEvent(
   token: string,
 ): Promise<any> {
   return apiPatchAuth<any>(`/events/${eventId}/cancel`, {}, token);
+}
+
+export async function upsertEventRating(
+  eventId: string,
+  request: RatingWriteRequest,
+  token: string,
+): Promise<RatingResponse> {
+  return apiPutAuth<RatingResponse>(`/events/${eventId}/rating`, request, token);
+}
+
+export async function upsertParticipantRating(
+  eventId: string,
+  participantUserId: string,
+  request: RatingWriteRequest,
+  token: string,
+): Promise<RatingResponse> {
+  return apiPutAuth<RatingResponse>(
+    `/events/${eventId}/participants/${participantUserId}/rating`,
+    request,
+    token,
+  );
 }
 
 export async function searchLocation(

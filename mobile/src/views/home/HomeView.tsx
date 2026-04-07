@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -20,15 +20,20 @@ import LocationPickerPanel from '@/components/home/LocationPickerPanel';
 export default function HomeView() {
   const vm = useHomeViewModel();
   const hasMountedRef = useRef(false);
+  const silentRefreshRef = useRef(vm.silentRefresh);
+
+  useEffect(() => {
+    silentRefreshRef.current = vm.silentRefresh;
+  }, [vm.silentRefresh]);
 
   useFocusEffect(
     useCallback(() => {
       if (hasMountedRef.current) {
-        void vm.silentRefresh();
+        void silentRefreshRef.current();
       } else {
         hasMountedRef.current = true;
       }
-    }, [vm.silentRefresh]),
+    }, []),
   );
 
   const locationButtonRef = useRef<any>(null);

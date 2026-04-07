@@ -17,9 +17,12 @@ import {
   approveJoinRequest,
   rejectJoinRequest,
   cancelEvent,
+  upsertEventRating,
+  upsertParticipantRating,
 } from '@/services/eventService';
 import { addFavorite, removeFavorite } from '@/services/favoriteService';
 import { useAuth } from '@/contexts/AuthContext';
+import { ApiError } from '@/services/api';
 
 export type ActionState =
   | 'idle'
@@ -49,6 +52,10 @@ export interface EventDetailViewModel {
   participationStatus: ParticipationStatus | null;
   isQuotaFull: boolean;
   constraintViolation: string | null;
+  viewerRatingLoading: boolean;
+  viewerRatingError: string | null;
+  participantRatingLoadingId: string | null;
+  participantRatingError: { participantUserId: string; message: string } | null;
 
   showJoinRequestModal: boolean;
   joinRequestMessage: string;
@@ -62,6 +69,10 @@ export interface EventDetailViewModel {
   handleLeaveEvent: () => Promise<void>;
   handleRequestJoin: () => Promise<void>;
   handleToggleFavorite: () => Promise<void>;
+  handleViewerRatingSubmit: (rating: number, message?: string) => Promise<void>;
+  handleParticipantRatingSubmit: (participantUserId: string, rating: number, message?: string) => Promise<void>;
+  dismissViewerRatingError: () => void;
+  dismissParticipantRatingError: () => void;
   retry: () => void;
 
   showRequestsModal: boolean;
@@ -73,6 +84,22 @@ export interface EventDetailViewModel {
   handleApproveRequest: (joinRequestId: string) => Promise<void>;
   handleRejectRequest: (joinRequestId: string) => Promise<void>;
   handleCancelEvent: () => Promise<void>;
+}
+
+function mapRatingError(err: ApiError, fallback: string): string {
+  const errorMap: Record<string, string> = {
+    rating_not_allowed: 'You are not allowed to submit a rating for this event.',
+    rating_window_closed: 'The 7-day rating window has already closed.',
+    host_cannot_rate_self: 'Hosts cannot rate themselves.',
+  };
+
+  if (err.code === 'validation_error') {
+    const ratingMessage = err.details?.rating;
+    const feedbackMessage = err.details?.message;
+    return feedbackMessage ?? ratingMessage ?? err.message;
+  }
+
+  return errorMap[err.code] ?? err.message ?? fallback;
 }
 
 function computeAgeFromBirthDate(birthDate: string): number {
@@ -134,6 +161,10 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
   const [apiError, setApiError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionState, setActionState] = useState<ActionState>('idle');
+  const [viewerRatingLoading, setViewerRatingLoading] = useState(false);
+  const [viewerRatingError, setViewerRatingError] = useState<string | null>(null);
+  const [participantRatingLoadingId, setParticipantRatingLoadingId] = useState<string | null>(null);
+  const [participantRatingError, setParticipantRatingError] = useState<{ participantUserId: string; message: string } | null>(null);
 
   const [isFavorited, setIsFavorited] = useState(false);
   const [participationStatus, setParticipationStatus] =
@@ -370,6 +401,61 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     }
   }, [token, event, isFavorited]);
 
+  const handleViewerRatingSubmit = useCallback(async (rating: number, message?: string) => {
+    if (!token || !event) return;
+
+    setViewerRatingLoading(true);
+    setViewerRatingError(null);
+
+    try {
+      await upsertEventRating(event.id, { rating, message: message?.trim() || null }, token);
+      await fetchEvent(true);
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        setViewerRatingError(mapRatingError(err, 'Failed to save your rating. Please try again.'));
+      } else {
+        setViewerRatingError('Failed to save your rating. Please try again.');
+      }
+    } finally {
+      setViewerRatingLoading(false);
+    }
+  }, [token, event, fetchEvent]);
+
+  const handleParticipantRatingSubmit = useCallback(async (
+    participantUserId: string,
+    rating: number,
+    message?: string,
+  ) => {
+    if (!token || !event) return;
+
+    setParticipantRatingLoadingId(participantUserId);
+    setParticipantRatingError(null);
+
+    try {
+      await upsertParticipantRating(
+        event.id,
+        participantUserId,
+        { rating, message: message?.trim() || null },
+        token,
+      );
+      await Promise.all([fetchEvent(true), refreshApprovedParticipants(undefined, false)]);
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        setParticipantRatingError({
+          participantUserId,
+          message: mapRatingError(err, 'Failed to save the participant rating. Please try again.'),
+        });
+      } else {
+        setParticipantRatingError({
+          participantUserId,
+          message: 'Failed to save the participant rating. Please try again.',
+        });
+      }
+    } finally {
+      setParticipantRatingLoadingId(null);
+    }
+  }, [token, event, fetchEvent, refreshApprovedParticipants]);
+
   const handleApproveRequest = useCallback(
     async (joinRequestId: string) => {
       if (!token || !event) return;
@@ -442,6 +528,9 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     void fetchEvent();
   }, [fetchEvent]);
 
+  const dismissViewerRatingError = useCallback(() => setViewerRatingError(null), []);
+  const dismissParticipantRatingError = useCallback(() => setParticipantRatingError(null), []);
+
   const loadMoreApprovedParticipants = useCallback(async () => {
     if (!approvedParticipantsHasNext || !approvedParticipantsNextCursor || approvedParticipantsLoading) return;
     await refreshApprovedParticipants(approvedParticipantsNextCursor, true);
@@ -478,6 +567,10 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     isFavorited,
     participationStatus,
     isQuotaFull,
+    viewerRatingLoading,
+    viewerRatingError,
+    participantRatingLoadingId,
+    participantRatingError,
     canLeave,
     constraintViolation,
     showJoinRequestModal,
@@ -489,6 +582,10 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     handleLeaveEvent,
     handleRequestJoin,
     handleToggleFavorite,
+    handleViewerRatingSubmit,
+    handleParticipantRatingSubmit,
+    dismissViewerRatingError,
+    dismissParticipantRatingError,
     retry,
     showRequestsModal,
     setShowRequestsModal,

@@ -566,8 +566,8 @@ export function useHomeViewModel(): HomeViewModel {
         const combinedCategoryIds =
           selectedCategoryId != null
             ? Array.from(
-                new Set([selectedCategoryId, ...appliedFilters.categoryIds]),
-              )
+              new Set([selectedCategoryId, ...appliedFilters.categoryIds]),
+            )
             : appliedFilters.categoryIds;
 
         const response = await listEvents(
@@ -915,8 +915,8 @@ export function useHomeViewModel(): HomeViewModel {
       const combinedCategoryIds =
         selectedCategoryId != null
           ? Array.from(
-              new Set([selectedCategoryId, ...appliedFilters.categoryIds]),
-            )
+            new Set([selectedCategoryId, ...appliedFilters.categoryIds]),
+          )
           : appliedFilters.categoryIds;
 
       const response = await listEvents(
