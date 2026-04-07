@@ -34,6 +34,34 @@ export interface UpdateProfileRequest {
   default_location_lon?: number | null;
 }
 
+/* ── Favorite Locations ── */
+
+export interface FavoriteLocation {
+  id: string;
+  name: string;
+  address: string;
+  lat: number;
+  lon: number;
+}
+
+export interface FavoriteLocationsResponse {
+  items: FavoriteLocation[];
+}
+
+export interface CreateFavoriteLocationRequest {
+  name: string;
+  address: string;
+  lat: number;
+  lon: number;
+}
+
+export interface UpdateFavoriteLocationRequest {
+  name?: string;
+  address?: string;
+  lat?: number;
+  lon?: number;
+}
+
 export interface ImageUploadInstruction {
   variant: 'ORIGINAL' | 'SMALL';
   method: 'PUT';

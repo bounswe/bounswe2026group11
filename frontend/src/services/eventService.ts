@@ -140,6 +140,13 @@ export function joinEvent(
   return apiPostAuth<JoinEventResponse>(`/events/${eventId}/join`, {}, token);
 }
 
+export function leaveEvent(
+  eventId: string,
+  token: string,
+): Promise<void> {
+  return apiPatchAuth<void>(`/events/${eventId}/leave`, {}, token);
+}
+
 export function requestJoinEvent(
   eventId: string,
   token: string,

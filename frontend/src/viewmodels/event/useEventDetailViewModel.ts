@@ -16,6 +16,7 @@ import {
   removeFavorite,
   upsertEventRating,
   upsertParticipantRating,
+  leaveEvent,
 } from '@/services/eventService';
 import type {
   EventDetailApprovedParticipant,
@@ -50,6 +51,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   const [invitationsHasNext, setInvitationsHasNext] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [leaveLoading, setLeaveLoading] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
   const [viewerRatingLoading, setViewerRatingLoading] = useState(false);
   const [viewerRatingError, setViewerRatingError] = useState<string | null>(null);
   const [participantRatingLoadingId, setParticipantRatingLoadingId] = useState<string | null>(null);
@@ -229,6 +232,25 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
       }
     } finally {
       setJoinLoading(false);
+    }
+  }, [eventId, token, refreshEventDetail]);
+
+  const handleLeave = useCallback(async () => {
+    if (!eventId || !token) return;
+    setLeaveLoading(true);
+    setLeaveError(null);
+
+    try {
+      await leaveEvent(eventId, token);
+      await refreshEventDetail();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setLeaveError(err.message);
+      } else {
+        setLeaveError('Failed to leave event. Please try again.');
+      }
+    } finally {
+      setLeaveLoading(false);
     }
   }, [eventId, token, refreshEventDetail]);
 
@@ -455,6 +477,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   }, [eventId, token, refreshEventDetail, mapRatingError, refreshApprovedParticipants]);
 
   const dismissJoinError = useCallback(() => setJoinError(null), []);
+  const dismissLeaveError = useCallback(() => setLeaveError(null), []);
   const dismissModerateError = useCallback(() => setModerateError(null), []);
   const dismissCancelError = useCallback(() => setCancelError(null), []);
   const dismissViewerRatingError = useCallback(() => setViewerRatingError(null), []);
@@ -554,6 +577,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     invitationsHasNext,
     joinLoading,
     joinError,
+    leaveLoading,
+    leaveError,
     viewerRatingLoading,
     viewerRatingError,
     participantRatingLoadingId,
@@ -566,6 +591,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     handleFavoriteToggle,
     retry: fetchDetail,
     handleJoin,
+    handleLeave,
     handleRequestJoin,
     handleViewerRatingSubmit,
     handleParticipantRatingSubmit,
@@ -573,6 +599,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     handleReject,
     handleCancel,
     dismissJoinError,
+    dismissLeaveError,
     dismissViewerRatingError,
     dismissParticipantRatingError,
     dismissModerateError,

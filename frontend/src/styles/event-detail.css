@@ -503,6 +503,40 @@
   border: 1px solid #bfdbfe;
 }
 
+.ed-leave-action {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ed-leave-btn {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background-color: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ed-leave-btn:hover:not(:disabled) {
+  background-color: #fca5a5;
+  border-color: #f87171;
+  color: #991b1b;
+}
+
+.ed-leave-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Rating banner */
 .ed-rating-banner {
   padding: 12px 16px;
