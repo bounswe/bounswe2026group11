@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import {
   useEditProfileViewModel,
@@ -68,8 +68,7 @@ export default function EditProfileView() {
   const handleSave = async () => {
     const success = await vm.handleSave();
     if (success) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      router.back();
+      router.replace('/(tabs)/profile' as Href);
     }
   };
 

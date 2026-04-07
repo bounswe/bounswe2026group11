@@ -2,15 +2,20 @@
  * @jest-environment jsdom
  */
 import { renderHook, act, waitFor } from '@testing-library/react';
+import * as deviceLocationService from '@/services/deviceLocationService';
 import * as eventService from '@/services/eventService';
+import * as favoriteService from '@/services/favoriteService';
 import * as profileService from '@/services/profileService';
 import type {
   ListCategoriesResponse,
   PaginatedEventsResponse,
 } from '@/models/event';
+import { __resetHomeLocationSelectionStoreForTests } from '@/services/homeLocationSelectionStore';
 import { useHomeViewModel } from './useHomeViewModel';
 
+jest.mock('@/services/deviceLocationService');
 jest.mock('@/services/eventService');
+jest.mock('@/services/favoriteService');
 jest.mock('@/services/profileService');
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
@@ -21,9 +26,13 @@ jest.mock('@/contexts/AuthContext', () => ({
   }),
 }));
 
+const mockGetCurrentLocationSuggestion = jest.mocked(
+  deviceLocationService.getCurrentLocationSuggestion,
+);
 const mockListEvents = jest.mocked(eventService.listEvents);
 const mockListCategories = jest.mocked(eventService.listCategories);
 const mockSearchLocation = jest.mocked(eventService.searchLocation);
+const mockListFavoriteLocations = jest.mocked(favoriteService.listFavoriteLocations);
 const mockGetMyProfile = jest.mocked(profileService.getMyProfile);
 
 const categoriesFixture: ListCategoriesResponse = {
@@ -106,8 +115,27 @@ const page2Fixture: PaginatedEventsResponse = {
 describe('useHomeViewModel', () => {
     beforeEach(() => {
     jest.clearAllMocks();
+    __resetHomeLocationSelectionStoreForTests();
     mockListCategories.mockResolvedValue(categoriesFixture);
     mockListEvents.mockResolvedValue(page1Fixture);
+    mockListFavoriteLocations.mockResolvedValue({
+      items: [
+        {
+          id: 'favorite-2',
+          name: 'Gym',
+          address: 'Besiktas, Istanbul, Turkiye',
+          lat: 41.0422,
+          lon: 29.0083,
+        },
+        {
+          id: 'favorite-1',
+          name: 'Home',
+          address: 'Kadikoy, Istanbul, Turkiye',
+          lat: 40.9909,
+          lon: 29.0293,
+        },
+      ],
+    });
     mockGetMyProfile.mockResolvedValue({
       id: 'user-1',
       username: 'mock',
@@ -124,6 +152,7 @@ describe('useHomeViewModel', () => {
       bio: null,
       avatar_url: null,
     });
+    mockGetCurrentLocationSuggestion.mockResolvedValue(null);
     mockSearchLocation.mockResolvedValue([
       {
         display_name: 'Kadikoy, Istanbul, Turkiye',
@@ -193,6 +222,10 @@ describe('useHomeViewModel', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
+    expect(result.current.defaultLocationOption.subtitle).toBe(
+      'Kadikoy, Istanbul, Turkiye',
+    );
+    expect(result.current.defaultLocationOption.isLoading).toBe(false);
     expect(mockListEvents).toHaveBeenCalledWith(
       expect.objectContaining({
         lat: 40.9909,
@@ -201,6 +234,118 @@ describe('useHomeViewModel', () => {
       'mock-token',
     );
     expect(result.current.locationLabel).toContain('Kadikoy');
+  });
+
+  it('keeps showing the resolved default location after silent refresh', async () => {
+    const profileDefault = {
+      id: 'user-1',
+      username: 'mock',
+      email: 'mock@example.com',
+      phone_number: null,
+      gender: null,
+      birth_date: null,
+      email_verified: true,
+      status: 'active',
+      default_location_address: 'Kadikoy, Istanbul, Turkiye',
+      default_location_lat: 40.9909,
+      default_location_lon: 29.0293,
+      display_name: null,
+      bio: null,
+      avatar_url: null,
+    };
+
+    mockGetMyProfile
+      .mockResolvedValueOnce(profileDefault)
+      .mockResolvedValue(profileDefault);
+
+    const { result } = renderHook(() => useHomeViewModel());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.silentRefresh();
+    });
+
+    expect(result.current.defaultLocationOption.subtitle).toBe(
+      'Kadikoy, Istanbul, Turkiye',
+    );
+    expect(result.current.defaultLocationOption.isLoading).toBe(false);
+  });
+
+  it('requests the live location when no profile default exists and uses it when available', async () => {
+    mockGetCurrentLocationSuggestion.mockResolvedValueOnce({
+      display_name: 'Moda, Kadikoy, Istanbul, Turkiye',
+      lat: '40.9869',
+      lon: '29.0287',
+    });
+
+    const { result } = renderHook(() => useHomeViewModel());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(mockGetCurrentLocationSuggestion).toHaveBeenCalledTimes(1);
+    expect(mockListEvents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lat: 40.9869,
+        lon: 29.0287,
+      }),
+      'mock-token',
+    );
+    expect(result.current.locationLabel).toBe('Moda, Kadikoy');
+    expect(result.current.defaultLocationOption.subtitle).toContain(
+      'Current location:',
+    );
+  });
+
+  it('loads favorite location options alphabetically and limits them to three items', async () => {
+    mockListFavoriteLocations.mockResolvedValueOnce({
+      items: [
+        {
+          id: 'favorite-3',
+          name: 'Office',
+          address: 'Levent, Istanbul, Turkiye',
+          lat: 41.0827,
+          lon: 29.0112,
+        },
+        {
+          id: 'favorite-4',
+          name: 'Airport',
+          address: 'Arnavutkoy, Istanbul, Turkiye',
+          lat: 41.2753,
+          lon: 28.7519,
+        },
+        {
+          id: 'favorite-2',
+          name: 'Gym',
+          address: 'Besiktas, Istanbul, Turkiye',
+          lat: 41.0422,
+          lon: 29.0083,
+        },
+        {
+          id: 'favorite-1',
+          name: 'Home',
+          address: 'Kadikoy, Istanbul, Turkiye',
+          lat: 40.9909,
+          lon: 29.0293,
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useHomeViewModel());
+
+    await waitFor(() => {
+      expect(result.current.isLoadingFavoriteLocations).toBe(false);
+    });
+
+    expect(result.current.favoriteLocationOptions.map((option) => option.title)).toEqual([
+      'Airport',
+      'Gym',
+      'Home',
+    ]);
   });
 
   it('updates search text', async () => {
@@ -752,6 +897,8 @@ describe('useHomeViewModel', () => {
       });
 
       expect(result.current.isLocationModalOpen).toBe(true);
+      expect(result.current.locationQuery).toBe('');
+      expect(result.current.pendingLocation).toBeNull();
 
       act(() => {
         result.current.closeLocationModal();
@@ -825,7 +972,7 @@ describe('useHomeViewModel', () => {
       expect(result.current.locationLabel).toBe('Kadikoy, Istanbul');
     });
 
-  it('resets location draft and keeps location modal open', async () => {
+    it('resets location draft and keeps location modal open', async () => {
       const { result } = renderHook(() => useHomeViewModel());
 
       await waitFor(() => {
@@ -853,12 +1000,14 @@ describe('useHomeViewModel', () => {
       expect(result.current.locationQuery).toBe('');
     });
 
-    it('applies system default location when no profile default exists', async () => {
+    it('applies the hardcoded fallback location only after the user explicitly selects it', async () => {
       const { result } = renderHook(() => useHomeViewModel());
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
+
+      expect(mockGetCurrentLocationSuggestion).toHaveBeenCalledTimes(1);
 
       act(() => {
         result.current.openLocationModal();
@@ -885,7 +1034,9 @@ describe('useHomeViewModel', () => {
       });
 
       act(() => {
-        result.current.resetLocationDraft();
+        result.current.selectSavedLocationOption(
+          result.current.defaultLocationOption.suggestion!,
+        );
       });
 
       act(() => {
@@ -904,6 +1055,140 @@ describe('useHomeViewModel', () => {
 
       expect(result.current.isLocationModalOpen).toBe(false);
       expect(result.current.locationLabel).toBe('Istanbul');
+    });
+
+    it('applies a saved favorite location after it is selected', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await waitFor(() => {
+        expect(result.current.favoriteLocationOptions).toHaveLength(2);
+      });
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      act(() => {
+        result.current.selectSavedLocationOption(
+          result.current.favoriteLocationOptions[0].suggestion,
+        );
+      });
+
+      expect(result.current.pendingLocation?.display_name).toBe(
+        'Besiktas, Istanbul, Turkiye',
+      );
+
+      act(() => {
+        result.current.applySelectedLocation();
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            lat: 41.0422,
+            lon: 29.0083,
+          }),
+          'mock-token',
+        );
+      });
+
+      expect(result.current.locationLabel).toBe('Besiktas, Istanbul');
+    });
+
+    it('keeps the applied custom location after the hook remounts', async () => {
+      const firstRender = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(firstRender.result.current.isLoading).toBe(false);
+      });
+
+      await waitFor(() => {
+        expect(firstRender.result.current.favoriteLocationOptions).toHaveLength(2);
+      });
+
+      act(() => {
+        firstRender.result.current.openLocationModal();
+      });
+
+      act(() => {
+        firstRender.result.current.selectSavedLocationOption(
+          firstRender.result.current.favoriteLocationOptions[0].suggestion,
+        );
+      });
+
+      act(() => {
+        firstRender.result.current.applySelectedLocation();
+      });
+
+      await waitFor(() => {
+        expect(firstRender.result.current.locationLabel).toBe('Besiktas, Istanbul');
+      });
+
+      firstRender.unmount();
+
+      const secondRender = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(secondRender.result.current.isLoading).toBe(false);
+      });
+
+      expect(secondRender.result.current.locationLabel).toBe('Besiktas, Istanbul');
+      expect(mockListEvents).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          lat: 41.0422,
+          lon: 29.0083,
+        }),
+        'mock-token',
+      );
+    });
+
+    it('keeps the applied custom location during silent refresh', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await waitFor(() => {
+        expect(result.current.favoriteLocationOptions).toHaveLength(2);
+      });
+
+      act(() => {
+        result.current.openLocationModal();
+      });
+
+      act(() => {
+        result.current.selectSavedLocationOption(
+          result.current.favoriteLocationOptions[0].suggestion,
+        );
+      });
+
+      act(() => {
+        result.current.applySelectedLocation();
+      });
+
+      await waitFor(() => {
+        expect(result.current.locationLabel).toBe('Besiktas, Istanbul');
+      });
+
+      mockListEvents.mockResolvedValueOnce(page1Fixture);
+
+      await act(async () => {
+        await result.current.silentRefresh();
+      });
+
+      expect(result.current.locationLabel).toBe('Besiktas, Istanbul');
+      expect(mockListEvents).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          lat: 41.0422,
+          lon: 29.0083,
+        }),
+        'mock-token',
+      );
     });
 
     it('returns to the user profile default location after resetting a temporary location', async () => {
@@ -958,16 +1243,21 @@ describe('useHomeViewModel', () => {
         result.current.openLocationModal();
       });
 
-      expect(result.current.locationQuery).toBe('Besiktas, Istanbul, Turkiye');
+      expect(result.current.locationQuery).toBe('');
+      expect(result.current.pendingLocation).toBeNull();
 
       act(() => {
         result.current.resetLocationDraft();
       });
 
-      expect(result.current.pendingLocation?.display_name).toBe(
-        'Kadikoy, Istanbul, Turkiye',
-      );
+      expect(result.current.pendingLocation).toBeNull();
       expect(result.current.locationQuery).toBe('');
+
+      act(() => {
+        result.current.selectSavedLocationOption(
+          result.current.defaultLocationOption.suggestion!,
+        );
+      });
 
       act(() => {
         result.current.applySelectedLocation();

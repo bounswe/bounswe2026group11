@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef,useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   EventCategory,
   EventSummary,
@@ -6,22 +6,32 @@ import {
   HomeFiltersDraft,
   LocationSuggestion,
 } from '@/models/event';
+import { FavoriteLocation } from '@/models/favorite';
+import { ApiError } from '@/services/api';
+import { getCurrentLocationSuggestion } from '@/services/deviceLocationService';
 import { listCategories, listEvents, searchLocation } from '@/services/eventService';
+import { listFavoriteLocations } from '@/services/favoriteService';
+import {
+  getHomeLocationSelection,
+  setHomeLocationSelection,
+} from '@/services/homeLocationSelectionStore';
 import { getMyProfile } from '@/services/profileService';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { useAuth } from '@/contexts/AuthContext';
 
 const PAGE_SIZE = 2;
-
-function excludeInProgressEvents(items: EventSummary[]): EventSummary[] {
-  return items.filter((e) => e.status !== 'IN_PROGRESS');
-}
+const MAX_FAVORITE_LOCATION_OPTIONS = 3;
 
 const DEFAULT_LOCATION = {
   lat: 41.0082,
   lon: 28.9784,
 };
 const DEFAULT_LOCATION_LABEL = 'Istanbul';
+const FALLBACK_LOCATION: LocationSuggestion = {
+  display_name: DEFAULT_LOCATION_LABEL,
+  lat: String(DEFAULT_LOCATION.lat),
+  lon: String(DEFAULT_LOCATION.lon),
+};
 
 const DEFAULT_FILTERS: HomeFiltersDraft = {
   categoryIds: [],
@@ -30,6 +40,19 @@ const DEFAULT_FILTERS: HomeFiltersDraft = {
   endDate: '',
   radiusKm: 10,
 };
+
+type DefaultLocationSource = 'PROFILE' | 'LIVE' | 'FALLBACK';
+
+interface HomeLocationOption {
+  id: string;
+  title: string;
+  subtitle: string;
+  suggestion: LocationSuggestion;
+}
+
+function excludeInProgressEvents(items: EventSummary[]): EventSummary[] {
+  return items.filter((e) => e.status !== 'IN_PROGRESS');
+}
 
 function profileToSelectedLocation(profile: {
   default_location_address: string | null;
@@ -49,6 +72,60 @@ function profileToSelectedLocation(profile: {
     lat: String(profile.default_location_lat),
     lon: String(profile.default_location_lon),
   };
+}
+
+function favoriteLocationToSuggestion(location: FavoriteLocation): LocationSuggestion {
+  return {
+    display_name: location.address,
+    lat: String(location.lat),
+    lon: String(location.lon),
+  };
+}
+
+function sortFavoriteLocations(locations: FavoriteLocation[]): FavoriteLocation[] {
+  return [...locations].sort((left, right) => {
+    const nameComparison = left.name.localeCompare(
+      right.name,
+      undefined,
+      { sensitivity: 'base' },
+    );
+
+    if (nameComparison !== 0) {
+      return nameComparison;
+    }
+
+    return left.id.localeCompare(right.id);
+  });
+}
+
+function getFavoriteLocationsErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.status === 401) {
+    return 'You must be logged in to view favorite locations.';
+  }
+
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  return 'Failed to load favorite locations. Please try again.';
+}
+
+function getDefaultLocationSubtitle(
+  source: DefaultLocationSource,
+  location: LocationSuggestion | null,
+  isResolving: boolean,
+): string {
+  if (!location) {
+    return isResolving ? 'Resolving your location...' : 'Location unavailable.';
+  }
+
+  if (source === 'LIVE') {
+    return location.display_name === 'Current location'
+      ? 'Using your current live location.'
+      : `Current location: ${location.display_name}`;
+  }
+
+  return location.display_name;
 }
 
 function locationsMatch(
@@ -201,7 +278,6 @@ function validateFilterDatesLive(filters: HomeFiltersDraft): string | null {
       }
     }
 
-    // User is still typing the year; only partial day/month checks above should run
     if (value.length < 10) return null;
 
     const parsed = parseStrictDate(value);
@@ -234,8 +310,6 @@ function validateFilterDatesLive(filters: HomeFiltersDraft): string | null {
   return null;
 }
 
-
-
 export interface HomeViewModel {
   locationLabel: string;
   locationQuery: string;
@@ -243,6 +317,20 @@ export interface HomeViewModel {
   isSearchingLocation: boolean;
   isLocationModalOpen: boolean;
   pendingLocation: LocationSuggestion | null;
+  defaultLocationOption: {
+    title: string;
+    subtitle: string;
+    suggestion: LocationSuggestion | null;
+    isLoading: boolean;
+  };
+  favoriteLocationOptions: Array<{
+    id: string;
+    title: string;
+    subtitle: string;
+    suggestion: LocationSuggestion;
+  }>;
+  isLoadingFavoriteLocations: boolean;
+  favoriteLocationsError: string | null;
   categories: readonly EventCategory[];
   selectedCategoryId: number | null;
   searchText: string;
@@ -273,13 +361,17 @@ export interface HomeViewModel {
   openLocationModal: () => void;
   closeLocationModal: () => void;
   updateLocationQuery: (value: string) => void;
+  selectSavedLocationOption: (suggestion: LocationSuggestion) => void;
   selectLocationSuggestion: (suggestion: LocationSuggestion) => void;
   applySelectedLocation: () => void;
   resetLocationDraft: () => void;
+  retryFavoriteLocations: () => Promise<void>;
 }
 
 export function useHomeViewModel(): HomeViewModel {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const locationSelectionScope = user?.id ?? token ?? 'anonymous';
+  const storedLocationSelection = getHomeLocationSelection(locationSelectionScope);
 
   const [categories, setCategories] = useState<EventCategory[]>([]);
   const [events, setEvents] = useState<EventSummary[]>([]);
@@ -288,17 +380,24 @@ export function useHomeViewModel(): HomeViewModel {
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<LocationSuggestion | null>(null);
-  const [defaultProfileLocation, setDefaultProfileLocation] = useState<LocationSuggestion | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<LocationSuggestion | null>(
+    storedLocationSelection.mode === 'CUSTOM'
+      ? storedLocationSelection.location
+      : null,
+  );
+  const [defaultLocation, setDefaultLocation] = useState<LocationSuggestion | null>(null);
+  const [defaultLocationSource, setDefaultLocationSource] =
+    useState<DefaultLocationSource>('FALLBACK');
   const [pendingLocation, setPendingLocation] = useState<LocationSuggestion | null>(null);
+  const [favoriteLocations, setFavoriteLocations] = useState<FavoriteLocation[]>([]);
+  const [isLoadingFavoriteLocations, setIsLoadingFavoriteLocations] = useState(true);
+  const [favoriteLocationsError, setFavoriteLocationsError] = useState<string | null>(null);
 
   const locationSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [filterError, setFilterError] = useState<string | null>(null);
   const [appliedSearchText, setAppliedSearchText] = useState('');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
-    null,
-  );
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
 
   const [appliedFilters, setAppliedFilters] =
     useState<HomeFiltersDraft>(DEFAULT_FILTERS);
@@ -313,25 +412,115 @@ export function useHomeViewModel(): HomeViewModel {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [isProfileLocationReady, setIsProfileLocationReady] = useState(false);
+  const [isLocationContextReady, setIsLocationContextReady] = useState(false);
+  const [isResolvingDefaultLocation, setIsResolvingDefaultLocation] = useState(true);
 
-  const loadProfileLocation = useCallback(async () => {
+  const syncSelectedLocationWithDefault = useCallback(
+    (resolvedDefaultLocation: LocationSuggestion) => {
+      const persistedSelection = getHomeLocationSelection(locationSelectionScope);
+
+      if (
+        persistedSelection.mode === 'CUSTOM' &&
+        persistedSelection.location
+      ) {
+        setSelectedLocation(persistedSelection.location);
+        return persistedSelection.location;
+      }
+
+      setSelectedLocation(resolvedDefaultLocation);
+      return resolvedDefaultLocation;
+    },
+    [locationSelectionScope],
+  );
+
+  const persistLocationSelection = useCallback(
+    (
+      mode: 'DEFAULT' | 'CUSTOM',
+      location: LocationSuggestion | null,
+    ) => {
+      setHomeLocationSelection(locationSelectionScope, {
+        mode,
+        location: mode === 'CUSTOM' ? location : null,
+      });
+    },
+    [locationSelectionScope],
+  );
+
+  useEffect(() => {
+    const persistedSelection = getHomeLocationSelection(locationSelectionScope);
+    setSelectedLocation(
+      persistedSelection.mode === 'CUSTOM'
+        ? persistedSelection.location
+        : null,
+    );
+  }, [locationSelectionScope]);
+
+  const resolveDefaultLocation = useCallback(async () => {
+    setIsResolvingDefaultLocation(true);
+
     if (!token) {
-      setSelectedLocation(null);
-      setIsProfileLocationReady(true);
-      return;
+      setDefaultLocation(FALLBACK_LOCATION);
+      setDefaultLocationSource('FALLBACK');
+      syncSelectedLocationWithDefault(FALLBACK_LOCATION);
+      setIsLocationContextReady(true);
+      setIsResolvingDefaultLocation(false);
+      return FALLBACK_LOCATION;
     }
 
     try {
       const profile = await getMyProfile(token);
       const profileLocation = profileToSelectedLocation(profile);
-      setDefaultProfileLocation(profileLocation);
-      setSelectedLocation(profileLocation);
+
+      if (profileLocation) {
+        setDefaultLocation(profileLocation);
+        setDefaultLocationSource('PROFILE');
+        syncSelectedLocationWithDefault(profileLocation);
+        return profileLocation;
+      }
     } catch {
-      setDefaultProfileLocation(null);
-      setSelectedLocation(null);
+      // Fall through to live-location resolution when profile lookup fails.
+    }
+
+    try {
+      const liveLocation = await getCurrentLocationSuggestion();
+
+      if (liveLocation) {
+        setDefaultLocation(liveLocation);
+        setDefaultLocationSource('LIVE');
+        syncSelectedLocationWithDefault(liveLocation);
+        return liveLocation;
+      }
+    } catch {
+      // Fall through to the hardcoded fallback location.
+    }
+
+    setDefaultLocation(FALLBACK_LOCATION);
+    setDefaultLocationSource('FALLBACK');
+    syncSelectedLocationWithDefault(FALLBACK_LOCATION);
+    return FALLBACK_LOCATION;
+  }, [syncSelectedLocationWithDefault, token]);
+
+  const fetchFavoriteLocations = useCallback(async () => {
+    if (!token) {
+      setFavoriteLocations([]);
+      setFavoriteLocationsError(null);
+      setIsLoadingFavoriteLocations(false);
+      return;
+    }
+
+    setIsLoadingFavoriteLocations(true);
+    setFavoriteLocationsError(null);
+
+    try {
+      const response = await listFavoriteLocations(token);
+      setFavoriteLocations(
+        sortFavoriteLocations(response.items).slice(0, MAX_FAVORITE_LOCATION_OPTIONS),
+      );
+    } catch (error) {
+      setFavoriteLocations([]);
+      setFavoriteLocationsError(getFavoriteLocationsErrorMessage(error));
     } finally {
-      setIsProfileLocationReady(true);
+      setIsLoadingFavoriteLocations(false);
     }
   }, [token]);
 
@@ -360,6 +549,8 @@ export function useHomeViewModel(): HomeViewModel {
         return;
       }
 
+      const activeLocation = selectedLocation ?? defaultLocation ?? FALLBACK_LOCATION;
+
       try {
         if (mode === 'initial') setIsLoading(true);
         if (mode === 'refresh') setIsRefreshing(true);
@@ -381,8 +572,8 @@ export function useHomeViewModel(): HomeViewModel {
 
         const response = await listEvents(
           {
-            lat: selectedLocation ? Number(selectedLocation.lat) : DEFAULT_LOCATION.lat,
-            lon: selectedLocation ? Number(selectedLocation.lon) : DEFAULT_LOCATION.lon,
+            lat: Number(activeLocation.lat),
+            lon: Number(activeLocation.lon),
             radius_meters: appliedFilters.radiusKm * 1000,
             q: appliedSearchText || undefined,
             category_ids:
@@ -417,7 +608,7 @@ export function useHomeViewModel(): HomeViewModel {
         if (mode === 'loadMore') setIsLoadingMore(false);
       }
     },
-    [token, appliedSearchText, selectedCategoryId, appliedFilters, selectedLocation]
+    [token, selectedLocation, defaultLocation, appliedSearchText, selectedCategoryId, appliedFilters],
   );
 
   useEffect(() => {
@@ -425,19 +616,36 @@ export function useHomeViewModel(): HomeViewModel {
   }, [loadCategories]);
 
   useEffect(() => {
-    setIsProfileLocationReady(false);
-    void loadProfileLocation();
-  }, [loadProfileLocation]);
+    let isMounted = true;
+
+    setIsLocationContextReady(false);
+    setIsResolvingDefaultLocation(true);
+
+    void resolveDefaultLocation()
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLocationContextReady(true);
+        setIsResolvingDefaultLocation(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [resolveDefaultLocation]);
 
   useEffect(() => {
-    if (!isProfileLocationReady) return;
+    void fetchFavoriteLocations();
+  }, [fetchFavoriteLocations]);
+
+  useEffect(() => {
+    if (!isLocationContextReady) return;
 
     const timeout = setTimeout(() => {
       void loadEvents('initial');
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [isProfileLocationReady, loadEvents]);
+  }, [isLocationContextReady, loadEvents]);
 
   const updateSearchText = useCallback((value: string) => {
     setSearchText(value);
@@ -448,13 +656,11 @@ export function useHomeViewModel(): HomeViewModel {
 
     const trimmed = value.trim();
 
-    // Clear search immediately when input is emptied
     if (trimmed.length === 0) {
       setAppliedSearchText('');
       return;
     }
 
-    // Only auto-search with at least 2 characters
     if (trimmed.length < 2) return;
 
     searchTimeoutRef.current = setTimeout(() => {
@@ -474,18 +680,19 @@ export function useHomeViewModel(): HomeViewModel {
   }, []);
 
   const openLocationModal = useCallback(() => {
-    setPendingLocation(selectedLocation);
-    setLocationQuery(
-      locationsMatch(selectedLocation, defaultProfileLocation)
-        ? ''
-        : selectedLocation?.display_name ?? '',
-    );
+    setPendingLocation(null);
+    setLocationQuery('');
     setLocationSuggestions([]);
     setIsSearchingLocation(false);
     setIsLocationModalOpen(true);
-  }, [defaultProfileLocation, selectedLocation]);
+  }, []);
 
   const closeLocationModal = useCallback(() => {
+    if (locationSearchTimeoutRef.current) {
+      clearTimeout(locationSearchTimeoutRef.current);
+      locationSearchTimeoutRef.current = null;
+    }
+
     setPendingLocation(null);
     setLocationQuery('');
     setLocationSuggestions([]);
@@ -521,29 +728,65 @@ export function useHomeViewModel(): HomeViewModel {
         setLocationSuggestions(results);
       } finally {
         setIsSearchingLocation(false);
+        locationSearchTimeoutRef.current = null;
       }
     }, 300);
   }, []);
 
-  const selectLocationSuggestion = useCallback((suggestion: LocationSuggestion) => {
+  const selectSavedLocationOption = useCallback((suggestion: LocationSuggestion) => {
+    if (locationSearchTimeoutRef.current) {
+      clearTimeout(locationSearchTimeoutRef.current);
+      locationSearchTimeoutRef.current = null;
+    }
+
     setPendingLocation(suggestion);
-    setLocationQuery(suggestion.display_name);
-    setLocationSuggestions([]);
-  }, []);
-
-  const applySelectedLocation = useCallback(() => {
-    setSelectedLocation(pendingLocation ?? defaultProfileLocation ?? null);
-    setLocationSuggestions([]);
-    setLocationQuery('');
-    setIsLocationModalOpen(false);
-  }, [defaultProfileLocation, pendingLocation]);
-
-  const resetLocationDraft = useCallback(() => {
-    setPendingLocation(defaultProfileLocation);
     setLocationQuery('');
     setLocationSuggestions([]);
     setIsSearchingLocation(false);
-  }, [defaultProfileLocation]);
+  }, []);
+
+  const selectLocationSuggestion = useCallback((suggestion: LocationSuggestion) => {
+    if (locationSearchTimeoutRef.current) {
+      clearTimeout(locationSearchTimeoutRef.current);
+      locationSearchTimeoutRef.current = null;
+    }
+
+    setPendingLocation(suggestion);
+    setLocationQuery(suggestion.display_name);
+    setLocationSuggestions([]);
+    setIsSearchingLocation(false);
+  }, []);
+
+  const applySelectedLocation = useCallback(() => {
+    if (!pendingLocation) {
+      return;
+    }
+
+    const nextLocation = pendingLocation ?? defaultLocation ?? FALLBACK_LOCATION;
+    const followsDefault =
+      defaultLocation != null && locationsMatch(nextLocation, defaultLocation);
+
+    persistLocationSelection(
+      followsDefault ? 'DEFAULT' : 'CUSTOM',
+      followsDefault ? null : nextLocation,
+    );
+    setSelectedLocation(nextLocation);
+    setLocationSuggestions([]);
+    setLocationQuery('');
+    setIsLocationModalOpen(false);
+  }, [defaultLocation, pendingLocation, persistLocationSelection]);
+
+  const resetLocationDraft = useCallback(() => {
+    if (locationSearchTimeoutRef.current) {
+      clearTimeout(locationSearchTimeoutRef.current);
+      locationSearchTimeoutRef.current = null;
+    }
+
+    setPendingLocation(null);
+    setLocationQuery('');
+    setLocationSuggestions([]);
+    setIsSearchingLocation(false);
+  }, []);
 
   const openFilterModal = useCallback(() => {
     setFilterDraft(appliedFilters);
@@ -652,14 +895,22 @@ export function useHomeViewModel(): HomeViewModel {
     await loadEvents('refresh');
   }, [loadEvents]);
 
+  const retryFavoriteLocations = useCallback(async () => {
+    await fetchFavoriteLocations();
+  }, [fetchFavoriteLocations]);
+
   const silentRefresh = useCallback(async () => {
     if (!token) return;
 
+    await fetchFavoriteLocations();
+
     try {
-      const profile = await getMyProfile(token);
-      const profileLocation = profileToSelectedLocation(profile);
-      setDefaultProfileLocation(profileLocation);
-      setSelectedLocation(profileLocation);
+      const refreshedDefaultLocation = await resolveDefaultLocation();
+      const persistedSelection = getHomeLocationSelection(locationSelectionScope);
+      const activeLocation =
+        persistedSelection.mode === 'CUSTOM' && persistedSelection.location
+          ? persistedSelection.location
+          : refreshedDefaultLocation;
 
       const combinedCategoryIds =
         selectedCategoryId != null
@@ -670,8 +921,8 @@ export function useHomeViewModel(): HomeViewModel {
 
       const response = await listEvents(
         {
-          lat: profileLocation ? Number(profileLocation.lat) : DEFAULT_LOCATION.lat,
-          lon: profileLocation ? Number(profileLocation.lon) : DEFAULT_LOCATION.lon,
+          lat: Number(activeLocation.lat),
+          lon: Number(activeLocation.lon),
           radius_meters: appliedFilters.radiusKm * 1000,
           q: appliedSearchText || undefined,
           category_ids:
@@ -691,14 +942,33 @@ export function useHomeViewModel(): HomeViewModel {
       setNextCursor(response.page_info.next_cursor);
       setEvents(excludeInProgressEvents(response.items));
     } catch {
-      // Silent — don't overwrite existing data on failure
+      // Silent refresh should not overwrite existing content with an error state.
+    } finally {
+      setIsResolvingDefaultLocation(false);
     }
-  }, [token, appliedSearchText, selectedCategoryId, appliedFilters]);
+  }, [
+    token,
+    fetchFavoriteLocations,
+    resolveDefaultLocation,
+    locationSelectionScope,
+    appliedSearchText,
+    selectedCategoryId,
+    appliedFilters,
+  ]);
 
-    return {
+  const favoriteLocationOptions: HomeLocationOption[] = favoriteLocations.map((location) => ({
+    id: location.id,
+    title: location.name,
+    subtitle: location.address,
+    suggestion: favoriteLocationToSuggestion(location),
+  }));
+
+  return {
     locationLabel: selectedLocation
       ? formatEventLocation(selectedLocation.display_name)
-      : DEFAULT_LOCATION_LABEL,
+      : isResolvingDefaultLocation
+        ? 'Locating...'
+        : DEFAULT_LOCATION_LABEL,
     locationQuery,
     categories,
     selectedCategoryId,
@@ -716,6 +986,19 @@ export function useHomeViewModel(): HomeViewModel {
     isSearchingLocation,
     isLocationModalOpen,
     pendingLocation,
+    defaultLocationOption: {
+      title: 'Use Default Location',
+      subtitle: getDefaultLocationSubtitle(
+        defaultLocationSource,
+        defaultLocation,
+        isResolvingDefaultLocation,
+      ),
+      suggestion: defaultLocation,
+      isLoading: isResolvingDefaultLocation && !defaultLocation,
+    },
+    favoriteLocationOptions,
+    isLoadingFavoriteLocations,
+    favoriteLocationsError,
     updateSearchText,
     submitSearch,
     selectCategory,
@@ -731,9 +1014,11 @@ export function useHomeViewModel(): HomeViewModel {
     openLocationModal,
     closeLocationModal,
     updateLocationQuery,
+    selectSavedLocationOption,
     selectLocationSuggestion,
     applySelectedLocation,
     resetLocationDraft,
+    retryFavoriteLocations,
     loadMoreEvents,
     refreshEvents,
     silentRefresh,
