@@ -197,20 +197,50 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
 
   const handleFavoriteToggle = useCallback(async () => {
     if (!eventId || !token || !event) return;
+
+    const wasFavorited = event.viewer_context.is_favorited;
+    const previousCount = event.favorite_count;
+    const nextCount = wasFavorited
+      ? Math.max(0, previousCount - 1)
+      : previousCount + 1;
+
     setFavoriteLoading(true);
+    setEvent((prev) =>
+      prev
+        ? {
+            ...prev,
+            favorite_count: nextCount,
+            viewer_context: {
+              ...prev.viewer_context,
+              is_favorited: !wasFavorited,
+            },
+          }
+        : prev,
+    );
+
     try {
-      if (event.viewer_context.is_favorited) {
+      if (wasFavorited) {
         await removeFavorite(eventId, token);
       } else {
         await addFavorite(eventId, token);
       }
-      await refreshEventDetail();
     } catch {
-      // silently fail — UI will stay in previous state
+      setEvent((prev) =>
+        prev
+          ? {
+              ...prev,
+              favorite_count: previousCount,
+              viewer_context: {
+                ...prev.viewer_context,
+                is_favorited: wasFavorited,
+              },
+            }
+          : prev,
+      );
     } finally {
       setFavoriteLoading(false);
     }
-  }, [eventId, token, event, refreshEventDetail]);
+  }, [eventId, token, event]);
 
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);

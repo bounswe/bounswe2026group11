@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	eventapp "github.com/bounswe/bounswe2026group11/backend/internal/application/event"
@@ -532,38 +533,91 @@ func (r *EventRepository) GetEventDetail(
 		return nil, err
 	}
 
-	location, err := r.loadEventDetailLocation(ctx, eventID, record.Location.Type)
-	if err != nil {
-		return nil, err
-	}
-	location.Address = record.Location.Address
-	record.Location = location
+	groupCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
 
-	tags, err := r.loadEventTags(ctx, eventID)
-	if err != nil {
-		return nil, err
-	}
-	record.Tags = tags
+	var (
+		location          eventapp.EventDetailLocationRecord
+		tags              []string
+		constraints       []eventapp.EventDetailConstraintRecord
+		viewerEventRating *eventapp.EventDetailRatingRecord
+		hostContext       *eventapp.EventDetailHostContextRecord
+		wg                sync.WaitGroup
+		firstErr          error
+		errOnce           sync.Once
+	)
 
-	constraints, err := r.loadEventConstraints(ctx, eventID)
-	if err != nil {
-		return nil, err
+	runConcurrentLoad := func(load func(context.Context) error) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := load(groupCtx); err != nil {
+				errOnce.Do(func() {
+					firstErr = err
+					cancel(err)
+				})
+			}
+		}()
 	}
-	record.Constraints = constraints
 
-	viewerEventRating, err := r.loadViewerEventRating(ctx, eventID, userID)
-	if err != nil {
-		return nil, err
-	}
-	record.ViewerEventRating = viewerEventRating
+	runConcurrentLoad(func(ctx context.Context) error {
+		loadedLocation, err := r.loadEventDetailLocation(groupCtx, eventID, record.Location.Type)
+		if err != nil {
+			return err
+		}
+		location = loadedLocation
+		return nil
+	})
+
+	runConcurrentLoad(func(ctx context.Context) error {
+		loadedTags, err := r.loadEventTags(groupCtx, eventID)
+		if err != nil {
+			return err
+		}
+		tags = loadedTags
+		return nil
+	})
+
+	runConcurrentLoad(func(ctx context.Context) error {
+		loadedConstraints, err := r.loadEventConstraints(groupCtx, eventID)
+		if err != nil {
+			return err
+		}
+		constraints = loadedConstraints
+		return nil
+	})
+
+	runConcurrentLoad(func(ctx context.Context) error {
+		loadedViewerEventRating, err := r.loadViewerEventRating(groupCtx, eventID, userID)
+		if err != nil {
+			return err
+		}
+		viewerEventRating = loadedViewerEventRating
+		return nil
+	})
 
 	if record.ViewerContext.IsHost {
-		hostContext, err := r.loadEventHostContext(ctx, eventID)
-		if err != nil {
-			return nil, err
-		}
-		record.HostContext = hostContext
+		runConcurrentLoad(func(ctx context.Context) error {
+			loadedHostContext, err := r.loadEventHostContext(groupCtx, eventID)
+			if err != nil {
+				return err
+			}
+			hostContext = loadedHostContext
+			return nil
+		})
 	}
+
+	wg.Wait()
+	if firstErr != nil {
+		return nil, firstErr
+	}
+
+	location.Address = record.Location.Address
+	record.Location = location
+	record.Tags = tags
+	record.Constraints = constraints
+	record.ViewerEventRating = viewerEventRating
+	record.HostContext = hostContext
 
 	return record, nil
 }
@@ -963,19 +1017,61 @@ func (r *EventRepository) loadEventHostContext(
 	ctx context.Context,
 	eventID uuid.UUID,
 ) (*eventapp.EventDetailHostContextRecord, error) {
-	approvedParticipants, err := r.loadApprovedParticipants(ctx, eventID)
-	if err != nil {
-		return nil, err
+	groupCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+
+	var (
+		approvedParticipants []eventapp.EventDetailApprovedParticipantRecord
+		pendingJoinRequests  []eventapp.EventDetailPendingJoinRequestRecord
+		invitations          []eventapp.EventDetailInvitationRecord
+		wg                   sync.WaitGroup
+		firstErr             error
+		errOnce              sync.Once
+	)
+
+	runConcurrentLoad := func(load func(context.Context) error) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := load(groupCtx); err != nil {
+				errOnce.Do(func() {
+					firstErr = err
+					cancel(err)
+				})
+			}
+		}()
 	}
 
-	pendingJoinRequests, err := r.loadPendingJoinRequests(ctx, eventID)
-	if err != nil {
-		return nil, err
-	}
+	runConcurrentLoad(func(ctx context.Context) error {
+		loadedApprovedParticipants, err := r.loadApprovedParticipants(groupCtx, eventID)
+		if err != nil {
+			return err
+		}
+		approvedParticipants = loadedApprovedParticipants
+		return nil
+	})
 
-	invitations, err := r.loadInvitations(ctx, eventID)
-	if err != nil {
-		return nil, err
+	runConcurrentLoad(func(ctx context.Context) error {
+		loadedPendingJoinRequests, err := r.loadPendingJoinRequests(groupCtx, eventID)
+		if err != nil {
+			return err
+		}
+		pendingJoinRequests = loadedPendingJoinRequests
+		return nil
+	})
+
+	runConcurrentLoad(func(ctx context.Context) error {
+		loadedInvitations, err := r.loadInvitations(groupCtx, eventID)
+		if err != nil {
+			return err
+		}
+		invitations = loadedInvitations
+		return nil
+	})
+
+	wg.Wait()
+	if firstErr != nil {
+		return nil, firstErr
 	}
 
 	return &eventapp.EventDetailHostContextRecord{
