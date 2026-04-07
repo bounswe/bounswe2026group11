@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "scheme": "social-event-mapper",
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/images/icon.png",
     "splash": {
       "backgroundColor": "#ffffff"
     },
