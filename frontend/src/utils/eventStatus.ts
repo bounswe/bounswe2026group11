@@ -42,3 +42,7 @@ export function getEventStatusPresentation(status: string): EventStatusPresentat
       };
   }
 }
+
+export function shouldShowProfileEvent(status: string): boolean {
+  return status !== 'ACTIVE';
+}

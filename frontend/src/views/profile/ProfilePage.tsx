@@ -1,15 +1,97 @@
 import '@/styles/profile.css';
-import { useRef } from 'react';
+import '@/styles/discover.css';
+import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { EventCoverImage } from '@/components/EventCoverImage';
 import { useProfileViewModel } from '../../viewmodels/profile/useProfileViewModel';
+import type { EventSummary } from '../../models/profile';
+import { getEventLifecyclePresentation } from '@/utils/eventStatus';
+import { formatEventLocation } from '@/utils/eventLocation';
 
 const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp';
 const MAX_SIZE_MB = 10;
+
+type ProfileHistoryTab = 'hosted' | 'attended';
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+function ProfileHistoryCard({ event }: { event: EventSummary }) {
+  const lifecycle = getEventLifecyclePresentation(event.status);
+  const category = event.category_name ?? event.category ?? 'Event';
+
+  return (
+    <Link to={`/events/${event.id}`} className="dc-card">
+      <div className="dc-card-image-wrapper">
+        <EventCoverImage
+          src={event.image_url}
+          alt={event.title}
+          imgClassName="dc-card-image"
+          variant="card"
+        />
+        {lifecycle && (
+          <span
+            className={`dc-lifecycle-badge ${
+              lifecycle.variant === 'upcoming' ? 'dc-lifecycle-upcoming' : 'dc-lifecycle-in-progress'
+            }`}
+          >
+            {lifecycle.label}
+          </span>
+        )}
+        {event.privacy_level && event.privacy_level !== 'PRIVATE' && (
+          <span className={`dc-privacy-badge dc-privacy-${event.privacy_level.toLowerCase()}`}>
+            {event.privacy_level === 'PUBLIC' ? 'Public' : 'Protected'}
+          </span>
+        )}
+      </div>
+      <div className="dc-card-body">
+        <div className="dc-card-meta">
+          <span className="dc-card-category">{category}</span>
+          <span className="dc-card-date">
+            {formatDate(event.start_time)} &middot; {formatTime(event.start_time)}
+          </span>
+        </div>
+        <h3 className="dc-card-title">{event.title}</h3>
+        {event.location_address && (
+          <p className="dc-card-location">{event.location_address}</p>
+        )}
+        <div className="dc-card-footer">
+          <span className="dc-card-participants">
+            {event.approved_participant_count ?? 0} participant{event.approved_participant_count === 1 ? '' : 's'}
+          </span>
+          {event.host_score?.final_score != null && (
+            <span className="dc-card-score">
+              {'★'} {event.host_score.final_score.toFixed(1)}
+            </span>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 export default function ProfilePage() {
   const { token } = useAuth();
   const {
     profile,
+    hostedEvents,
+    attendedEvents,
     isLoading,
     isEditing,
     isSaving,
@@ -32,6 +114,7 @@ export default function ProfilePage() {
     isSearchingLocation,
     locationCleared,
   } = useProfileViewModel(token);
+  const [activeHistoryTab, setActiveHistoryTab] = useState<ProfileHistoryTab>('hosted');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -63,6 +146,7 @@ export default function ProfilePage() {
   }
 
   const displayAvatar = avatarPreview ?? profile.avatar_url;
+  const activeHistoryEvents = activeHistoryTab === 'hosted' ? hostedEvents : attendedEvents;
 
   return (
     <div className="profile-container">
@@ -105,6 +189,7 @@ export default function ProfilePage() {
       </div>
 
       {!isEditing ? (
+        <>
         <div className="profile-info">
           <div className="info-group">
             <label>Username</label>
@@ -130,12 +215,54 @@ export default function ProfilePage() {
           <div className="info-group">
             <label>Default Location</label>
             {profile.default_location_address ? (
-              <p>{profile.default_location_address}</p>
+              <p>{formatEventLocation(profile.default_location_address)}</p>
             ) : (
               <p className="empty-state">No default location set</p>
             )}
           </div>
         </div>
+
+        <section className="profile-history">
+          <div className="profile-history-header">
+            <h2 className="profile-history-title">Participation History</h2>
+            <p className="profile-history-subtitle">Hosted events and the events you attended</p>
+          </div>
+
+          <div className="profile-history-tabs">
+            <button
+              type="button"
+              className={`profile-history-tab ${activeHistoryTab === 'hosted' ? 'active' : ''}`}
+              onClick={() => setActiveHistoryTab('hosted')}
+            >
+              Hosted <span className="profile-history-tab-count">{hostedEvents.length}</span>
+            </button>
+            <button
+              type="button"
+              className={`profile-history-tab ${activeHistoryTab === 'attended' ? 'active' : ''}`}
+              onClick={() => setActiveHistoryTab('attended')}
+            >
+              Attended <span className="profile-history-tab-count">{attendedEvents.length}</span>
+            </button>
+          </div>
+
+          {activeHistoryEvents.length > 0 ? (
+            <div className="profile-history-grid">
+              {activeHistoryEvents.map((event) => (
+                <ProfileHistoryCard key={event.id} event={event} />
+              ))}
+            </div>
+          ) : (
+            <div className="profile-history-empty">
+              <p className="profile-history-empty-title">No {activeHistoryTab} events yet</p>
+              <p className="profile-history-empty-subtitle">
+                {activeHistoryTab === 'hosted'
+                  ? 'Events you create will show up here.'
+                  : 'Events you join will show up here.'}
+              </p>
+            </div>
+          )}
+        </section>
+        </>
       ) : (
         <div className="profile-form">
           <form onSubmit={handleSave}>
@@ -231,7 +358,7 @@ export default function ProfilePage() {
                             className="profile-location-suggestion-item"
                             onClick={() => selectLocation(s)}
                           >
-                            {s.display_name}
+                            {formatEventLocation(s.display_name)}
                           </button>
                         </li>
                       ))}
