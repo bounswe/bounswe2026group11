@@ -1,6 +1,7 @@
 import React, { forwardRef } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import SemLogo from '@/components/common/SemLogo';
 
 interface HomeHeaderProps {
   locationLabel: string;
@@ -35,6 +36,8 @@ const HomeHeader = forwardRef<any, HomeHeaderProps>(function HomeHeader(
           </TouchableOpacity>
         </View>
       </View>
+
+      <SemLogo size="sm" />
     </View>
   );
 });
