@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { router, useFocusEffect, type Href } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import HomeHeader from '@/components/home/HomeHeader';
 import SearchSection from '@/components/home/SearchSection';
@@ -19,22 +19,6 @@ import LocationPickerPanel from '@/components/home/LocationPickerPanel';
 
 export default function HomeView() {
   const vm = useHomeViewModel();
-  const hasMountedRef = useRef(false);
-  const silentRefreshRef = useRef(vm.silentRefresh);
-
-  useEffect(() => {
-    silentRefreshRef.current = vm.silentRefresh;
-  }, [vm.silentRefresh]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (hasMountedRef.current) {
-        void silentRefreshRef.current();
-      } else {
-        hasMountedRef.current = true;
-      }
-    }, []),
-  );
 
   const locationButtonRef = useRef<any>(null);
   const [locationPopupTop, setLocationPopupTop] = useState(140);
