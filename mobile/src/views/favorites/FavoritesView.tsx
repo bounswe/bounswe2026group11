@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import BottomTabBar from '@/components/common/BottomTabBar';
 import FavoriteEventsTab from '@/views/favorites/FavoriteEventsTab';
 import FavoriteLocationsTab from '@/views/favorites/FavoriteLocationsTab';
 
@@ -54,7 +53,6 @@ export default function FavoritesView() {
         </View>
       </View>
 
-      <BottomTabBar />
     </SafeAreaView>
   );
 }

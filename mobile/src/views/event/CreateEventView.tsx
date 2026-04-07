@@ -499,21 +499,21 @@ export default function CreateEventView() {
 
         {/* End Date/Time */}
         <View style={styles.fieldGroup}>
+          <View style={styles.inlineLabelRow}>
+            <Text style={styles.label}>End</Text>
+            {(vm.formData.endDate || vm.formData.endTime) && (
+              <TouchableOpacity
+                onPress={clearEndDateTime}
+                disabled={vm.isLoading}
+                accessibilityRole="button"
+                accessibilityLabel="Clear end date and time"
+              >
+                <Text style={styles.inlineActionText}>Clear</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={styles.dateTimeRow}>
             <View style={styles.dateTimeCol}>
-              <View style={styles.inlineLabelRow}>
-                <Text style={styles.label}>End</Text>
-                {(vm.formData.endDate || vm.formData.endTime) && (
-                  <TouchableOpacity
-                    onPress={clearEndDateTime}
-                    disabled={vm.isLoading}
-                    accessibilityRole="button"
-                    accessibilityLabel="Clear end date and time"
-                  >
-                    <Text style={styles.inlineActionText}>Clear</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
               <TouchableOpacity
                 style={[
                   styles.input,
@@ -541,7 +541,6 @@ export default function CreateEventView() {
               )}
             </View>
             <View style={styles.dateTimeColSmall}>
-              <Text style={styles.label}>{' '}</Text>
               <TouchableOpacity
                 style={[
                   styles.input,

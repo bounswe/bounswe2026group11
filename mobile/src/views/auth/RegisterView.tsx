@@ -47,7 +47,7 @@ export default function RegisterView() {
           session.refresh_token,
           session.user,
         );
-        router.replace('/home' as Href);
+        router.replace('/(tabs)/home' as Href);
       }
     }
   };

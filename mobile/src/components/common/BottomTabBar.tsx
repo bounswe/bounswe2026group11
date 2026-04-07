@@ -1,117 +1,91 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
-import { router, usePathname, type Href } from 'expo-router';
+import { router, type Href } from 'expo-router';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
-type TabItem = {
-  key: 'explore' | 'favorites' | 'create' | 'events' | 'profile';
-  label: string;
-  primary?: boolean;
+const TAB_META: Record<
+  string,
+  { label: string; icon: (active: boolean) => React.ReactNode }
+> = {
+  home: {
+    label: 'Explore',
+    icon: (active) => (
+      <Feather name="compass" size={22} color={active ? '#111827' : '#9CA3AF'} />
+    ),
+  },
+  favorites: {
+    label: 'Favorites',
+    icon: (active) => (
+      <MaterialIcons
+        name={active ? 'favorite' : 'favorite-border'}
+        size={22}
+        color={active ? '#111827' : '#9CA3AF'}
+      />
+    ),
+  },
+  events: {
+    label: 'My Events',
+    icon: (active) => (
+      <Feather name="calendar" size={22} color={active ? '#111827' : '#9CA3AF'} />
+    ),
+  },
+  profile: {
+    label: 'Profile',
+    icon: (active) => (
+      <Feather name="user" size={22} color={active ? '#111827' : '#9CA3AF'} />
+    ),
+  },
 };
 
-const TABS: TabItem[] = [
-  { key: 'explore', label: 'Explore' },
-  { key: 'favorites', label: 'Favorites' },
-  { key: 'create', label: 'Create', primary: true },
-  { key: 'events', label: 'My Events' },
-  { key: 'profile', label: 'Profile' },
-];
+export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
+  const createIndex = 2; // FAB position: after favorites (index 1), before events (index 2)
 
-export default function BottomTabBar() {
-  const pathname = usePathname();
+  const renderTab = (route: (typeof state.routes)[number], index: number) => {
+    const meta = TAB_META[route.name];
+    if (!meta) return null;
+
+    const active = state.index === index;
+
+    return (
+      <TouchableOpacity
+        key={route.key}
+        activeOpacity={0.85}
+        style={styles.tab}
+        accessibilityRole="button"
+        accessibilityState={{ selected: active }}
+        accessibilityLabel={meta.label}
+        onPress={() => {
+          if (!active) {
+            navigation.navigate(route.name, route.params);
+          }
+        }}
+      >
+        {meta.icon(active)}
+        <Text style={[styles.label, active && styles.activeText]}>{meta.label}</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const tabsBefore = state.routes.slice(0, createIndex);
+  const tabsAfter = state.routes.slice(createIndex);
 
   return (
     <View style={styles.container}>
-      {TABS.map((tab) => {
-        const active =
-          tab.key === 'explore'
-            ? pathname === '/home'
-            : tab.key === 'favorites'
-              ? pathname === '/favorites'
-              : tab.key === 'events'
-                ? pathname === '/events'
-                : tab.key === 'profile'
-                  ? pathname === '/profile'
-                  : false;
+      {tabsBefore.map((route, i) => renderTab(route, i))}
 
+      {/* FAB – Create Event (not a tab, pushes onto root stack) */}
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={styles.primaryWrapper}
+        onPress={() => router.push('/event/create' as Href)}
+      >
+        <View style={styles.primaryButton}>
+          <Feather name="plus" size={28} color="#FFFFFF" />
+        </View>
+      </TouchableOpacity>
 
-        if (tab.primary) {
-          const createActive = pathname === '/event/create';
-
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              activeOpacity={0.85}
-              style={styles.primaryWrapper}
-              onPress={() => router.push('/event/create')}
-            >
-              <View
-                style={[
-                  styles.primaryButton,
-                  createActive && styles.primaryButtonActive,
-                ]}
-              >
-                <Feather name="plus" size={28} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-          );
-        }
-
-        return (
-          <TouchableOpacity
-            key={tab.key}
-            activeOpacity={0.85}
-            style={styles.tab}
-            onPress={() => {
-              if (tab.key === 'explore') {
-                router.push('/home' as Href);
-              } else if (tab.key === 'favorites') {
-                router.push('/favorites' as Href);
-              } else if (tab.key === 'events') {
-                router.push('/events' as Href);
-              } else if (tab.key === 'profile') {
-                router.push('/profile' as Href);
-              }
-            }}
-          >
-            {tab.key === 'explore' && (
-              <Feather
-                name="compass"
-                size={22}
-                color={active ? '#111827' : '#9CA3AF'}
-              />
-            )}
-
-            {tab.key === 'favorites' && (
-              <MaterialIcons
-                name={active ? 'favorite' : 'favorite-border'}
-                size={22}
-                color={active ? '#111827' : '#9CA3AF'}
-              />
-            )}
-
-            {tab.key === 'events' && (
-              <Feather
-                name="calendar"
-                size={22}
-                color={active ? '#111827' : '#9CA3AF'}
-              />
-            )}
-
-            {tab.key === 'profile' && (
-              <Feather
-                name="user"
-                size={22}
-                color={active ? '#111827' : '#9CA3AF'}
-              />
-            )}
-
-            <Text style={[styles.label, active && styles.activeText]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+      {tabsAfter.map((route, i) => renderTab(route, createIndex + i))}
     </View>
   );
 }
@@ -158,8 +132,5 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
-  },
-  primaryButtonActive: {
-    backgroundColor: '#111827',
   },
 });
