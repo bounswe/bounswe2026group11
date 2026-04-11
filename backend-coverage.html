@@ -3,39 +3,342 @@
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-		<title>server: Go Coverage Report</title>
-		<style>
-			body {
-				background: black;
-				color: rgb(80, 80, 80);
-			}
-			body, pre, #legend span {
-				font-family: Menlo, monospace;
-				font-weight: bold;
-			}
-			#topbar {
-				background: black;
-				position: fixed;
-				top: 0; left: 0; right: 0;
-				height: 42px;
-				border-bottom: 1px solid rgb(80, 80, 80);
-			}
-			#content {
-				margin-top: 50px;
-			}
-			#nav, #legend {
-				float: left;
-				margin-left: 10px;
-			}
-			#legend {
-				margin-top: 12px;
-			}
-			#nav {
-				margin-top: 10px;
-			}
-			#legend span {
-				margin: 0 5px;
-			}
+			<title>Backend API Coverage Report</title>
+			<style>
+				body {
+					margin: 0;
+					background: linear-gradient(180deg, #eef4ff 0, #f8fafc 240px, #f8fafc 100%);
+					color: #172033;
+				}
+				body {
+					font-family: "Inter", "Segoe UI", sans-serif;
+				}
+				pre, #legend span, input, select, button {
+					font-family: "SFMono-Regular", Menlo, monospace;
+					font-weight: bold;
+				}
+				#topbar {
+					position: sticky;
+					top: 0;
+					z-index: 20;
+					padding: 28px 32px 20px;
+					background: rgba(248, 250, 252, 0.94);
+					backdrop-filter: blur(14px);
+					border-bottom: 1px solid #dbe4f0;
+					box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+				}
+				#content {
+					padding: 24px 32px 48px;
+				}
+				.topbar-row {
+					display: flex;
+					align-items: flex-start;
+					justify-content: space-between;
+					gap: 20px;
+					flex-wrap: wrap;
+				}
+				.title-block {
+					max-width: 820px;
+				}
+				.eyebrow {
+					margin: 0 0 8px;
+					font-size: 12px;
+					font-weight: 800;
+					letter-spacing: 0.12em;
+					text-transform: uppercase;
+					color: #2563eb;
+				}
+				h1 {
+					margin: 0;
+					font-size: 30px;
+					line-height: 1.15;
+					color: #0f172a;
+				}
+				.subtitle {
+					margin: 10px 0 0;
+					font-size: 15px;
+					line-height: 1.55;
+					color: #475569;
+				}
+				.overall-card {
+					min-width: 220px;
+					padding: 18px 20px;
+					border-radius: 18px;
+					background: #ffffff;
+					border: 1px solid #dbe4f0;
+					box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+				}
+				.metric-label {
+					display: block;
+					font-size: 11px;
+					font-weight: 800;
+					letter-spacing: 0.08em;
+					text-transform: uppercase;
+					color: #64748b;
+				}
+				.metric-value {
+					display: block;
+					margin-top: 8px;
+					font-size: 38px;
+					font-weight: 800;
+					color: #0f172a;
+				}
+				.coverage-pill {
+					display: inline-flex;
+					align-items: center;
+					margin-top: 12px;
+					padding: 6px 10px;
+					border-radius: 999px;
+					font-size: 12px;
+					font-weight: 700;
+					background: #eff6ff;
+					color: #1d4ed8;
+				}
+				#controls {
+					display: grid;
+					grid-template-columns: 1.2fr 0.8fr 1.5fr;
+					gap: 16px;
+					margin-top: 22px;
+				}
+				.control {
+					padding: 14px 16px 16px;
+					border-radius: 16px;
+					background: #ffffff;
+					border: 1px solid #dbe4f0;
+					box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+				}
+				.control label {
+					display: block;
+					margin-bottom: 8px;
+					font-size: 12px;
+					font-weight: 800;
+					letter-spacing: 0.06em;
+					text-transform: uppercase;
+					color: #64748b;
+				}
+				#nav, #legend {
+					margin: 0;
+				}
+				#legend {
+					display: flex;
+					flex-wrap: wrap;
+					gap: 8px;
+					padding: 10px 32px 0;
+				}
+				#legend span {
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					padding: 7px 10px;
+					border-radius: 999px;
+					background: rgba(255, 255, 255, 0.92);
+					border: 1px solid #dbe4f0;
+					box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+					font-size: 12px;
+				}
+				input, select {
+					width: 100%;
+					padding: 10px 12px;
+					border-radius: 10px;
+					border: 1px solid #cbd5e1;
+					background: #ffffff;
+					color: #0f172a;
+					font-size: 14px;
+					box-sizing: border-box;
+				}
+				input:focus, select:focus, button:focus {
+					outline: 2px solid rgba(37, 99, 235, 0.18);
+					outline-offset: 1px;
+					border-color: #60a5fa;
+				}
+				#summaryGrid {
+					display: grid;
+					grid-template-columns: repeat(4, minmax(0, 1fr));
+					gap: 16px;
+					padding: 24px 32px 8px;
+				}
+				.summary-card {
+					padding: 18px 20px;
+					border-radius: 18px;
+					background: #ffffff;
+					border: 1px solid #dbe4f0;
+					box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+				}
+				.summary-card strong {
+					display: block;
+					margin-top: 6px;
+					font-size: 30px;
+					line-height: 1;
+					color: #0f172a;
+				}
+				.summary-card small {
+					display: block;
+					margin-top: 10px;
+					font-size: 13px;
+					line-height: 1.45;
+					color: #64748b;
+				}
+				#highlights {
+					display: grid;
+					grid-template-columns: repeat(2, minmax(0, 1fr));
+					gap: 16px;
+					padding: 8px 32px 0;
+				}
+				.insight-panel {
+					padding: 18px 20px 16px;
+					border-radius: 18px;
+					background: #ffffff;
+					border: 1px solid #dbe4f0;
+					box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+				}
+				.insight-panel h2 {
+					margin: 0 0 6px;
+					font-size: 17px;
+					line-height: 1.2;
+					color: #0f172a;
+				}
+				.insight-panel p {
+					margin: 0 0 16px;
+					font-size: 13px;
+					line-height: 1.45;
+					color: #64748b;
+				}
+				.file-list {
+					list-style: none;
+					margin: 0;
+					padding: 0;
+					display: flex;
+					flex-direction: column;
+					gap: 10px;
+				}
+				.file-item {
+					margin: 0;
+				}
+				.file-link {
+					width: 100%;
+					padding: 12px 14px;
+					border-radius: 14px;
+					border: 1px solid #e2e8f0;
+					background: #f8fafc;
+					color: inherit;
+					cursor: pointer;
+					text-align: left;
+				}
+				.file-link:hover {
+					background: #f1f5f9;
+				}
+				.file-link-inner {
+					display: flex;
+					align-items: center;
+					justify-content: space-between;
+					gap: 14px;
+				}
+				.file-main {
+					min-width: 0;
+				}
+				.file-name {
+					display: block;
+					font-size: 14px;
+					font-weight: 800;
+					color: #0f172a;
+					word-break: break-word;
+				}
+				.file-path {
+					display: block;
+					margin-top: 5px;
+					font-size: 12px;
+					line-height: 1.4;
+					color: #64748b;
+					word-break: break-word;
+				}
+				.coverage-badge {
+					flex-shrink: 0;
+					padding: 7px 10px;
+					border-radius: 999px;
+					font-size: 12px;
+					font-weight: 800;
+				}
+				.coverage-zero {
+					background: #fee2e2;
+					color: #b91c1c;
+				}
+				.coverage-low {
+					background: #ffedd5;
+					color: #c2410c;
+				}
+				.coverage-medium {
+					background: #fef3c7;
+					color: #a16207;
+				}
+				.coverage-high {
+					background: #dcfce7;
+					color: #15803d;
+				}
+				#currentFileCard {
+					margin: 24px 32px 0;
+					padding: 16px 18px;
+					border-radius: 18px;
+					background: #0f172a;
+					color: #e2e8f0;
+					box-shadow: 0 16px 28px rgba(15, 23, 42, 0.24);
+				}
+				#currentFileCard small {
+					display: block;
+					margin-bottom: 8px;
+					font-size: 11px;
+					font-weight: 800;
+					letter-spacing: 0.08em;
+					text-transform: uppercase;
+					color: #93c5fd;
+				}
+				#selectionSummary {
+					font-size: 18px;
+					font-weight: 800;
+				}
+				#selectionPath {
+					display: block;
+					margin-top: 8px;
+					font-size: 13px;
+					line-height: 1.45;
+					color: #cbd5e1;
+					word-break: break-word;
+				}
+				pre.file {
+					margin: 0;
+					padding: 24px;
+					border-radius: 18px;
+					border: 1px solid #1e293b;
+					background: #020617;
+					box-shadow: 0 20px 36px rgba(15, 23, 42, 0.22);
+					line-height: 1.6;
+					overflow: auto;
+				}
+				@media (max-width: 1100px) {
+					#controls,
+					#summaryGrid,
+					#highlights {
+						grid-template-columns: 1fr 1fr;
+					}
+				}
+				@media (max-width: 760px) {
+					#topbar,
+					#content {
+						padding-left: 18px;
+						padding-right: 18px;
+					}
+					#legend,
+					#summaryGrid,
+					#highlights,
+					#currentFileCard {
+						padding-left: 18px;
+						padding-right: 18px;
+					}
+					#controls,
+					#summaryGrid,
+					#highlights {
+						grid-template-columns: 1fr;
+					}
+				}
 			.cov0 { color: rgb(192, 0, 0) }
 .cov1 { color: rgb(128, 128, 128) }
 .cov2 { color: rgb(116, 140, 131) }
@@ -50,10 +353,39 @@
 
 		</style>
 	</head>
-	<body>
-		<div id="topbar">
-			<div id="nav">
-				<select id="files">
+		<body>
+			<div id="topbar">
+				<div class="topbar-row">
+					<div class="title-block">
+						<p class="eyebrow">Social Event Mapper</p>
+						<h1>Backend API Coverage Report</h1>
+						<p class="subtitle">This report keeps the detailed Go source coverage intact, but adds a quick summary so you can immediately spot strong areas, weak areas, and the files that deserve attention first.</p>
+					</div>
+					<div class="overall-card">
+						<span class="metric-label">Overall Statement Coverage</span>
+						<strong class="metric-value" id="overallCoverage">41.3%</strong>
+						<span class="coverage-pill" id="coverageStatus">Coverage snapshot loaded</span>
+					</div>
+				</div>
+				<div id="controls">
+					<div class="control">
+						<label for="fileSearch">Search Files</label>
+						<input id="fileSearch" type="search" placeholder="auth, profile, event_handler, postgres..." />
+					</div>
+					<div class="control">
+						<label for="coverageFilter">Coverage Filter</label>
+						<select id="coverageFilter">
+							<option value="all">All files</option>
+							<option value="zero">0% only</option>
+							<option value="low">Below 40%</option>
+							<option value="medium">40% to 79.9%</option>
+							<option value="high">80% and above</option>
+						</select>
+					</div>
+					<div class="control">
+						<label for="files">File Browser</label>
+						<div id="nav">
+							<select id="files">
 				
 				<option value="file0">github.com/bounswe/bounswe2026group11/backend/cmd/server/main.go (0.0%)</option>
 				
@@ -181,7 +513,10 @@
 				
 				<option value="file62">github.com/bounswe/bounswe2026group11/backend/internal/server/http.go (0.0%)</option>
 				
-				</select>
+							</select>
+						</div>
+					</div>
+				</div>
 			</div>
 			<div id="legend">
 				<span>not tracked</span>
@@ -190,8 +525,46 @@
 				<span class="cov8">covered</span>
 			
 			</div>
-		</div>
-		<div id="content">
+			<div id="summaryGrid">
+				<div class="summary-card">
+					<span class="metric-label">Files In Report</span>
+					<strong id="totalFiles">0</strong>
+					<small>Total Go files included in this generated coverage snapshot.</small>
+				</div>
+				<div class="summary-card">
+					<span class="metric-label">Files With Coverage</span>
+					<strong id="coveredFiles">0</strong>
+					<small>Files with at least one covered statement.</small>
+				</div>
+				<div class="summary-card">
+					<span class="metric-label">Files At 0%</span>
+					<strong id="zeroCoverageFiles">0</strong>
+					<small>Useful for spotting untested entrypoints, adapters, or infrastructure code.</small>
+				</div>
+				<div class="summary-card">
+					<span class="metric-label">High Coverage Files</span>
+					<strong id="highCoverageFiles">0</strong>
+					<small>Files at 80% coverage or above.</small>
+				</div>
+			</div>
+			<div id="highlights">
+				<section class="insight-panel">
+					<h2>Strongest Coverage</h2>
+					<p>The most thoroughly covered files in the current backend snapshot.</p>
+					<ol class="file-list" id="bestFiles"></ol>
+				</section>
+				<section class="insight-panel">
+					<h2>Needs Attention</h2>
+					<p>Files with the weakest coverage, prioritized so you can review test gaps quickly.</p>
+					<ol class="file-list" id="riskFiles"></ol>
+				</section>
+			</div>
+			<div id="currentFileCard">
+				<small>Current File</small>
+				<span id="selectionSummary">Loading file selection...</span>
+				<span id="selectionPath"></span>
+			</div>
+			<div id="content">
 		
 		<pre class="file" id="file0" style="display: none">// Package main is the entrypoint for the Social Event Mapper backend server.
 // It initialises the dependency container and starts the HTTP server.
@@ -11655,8 +12028,83 @@ func registerHealthRoute(app *fiber.App) <span class="cov0" title="0">{
 	<script>
 	(function() {
 		var files = document.getElementById('files');
+		var fileSearch = document.getElementById('fileSearch');
+		var coverageFilter = document.getElementById('coverageFilter');
+		var overallCoverage = document.getElementById('overallCoverage');
+		var coverageStatus = document.getElementById('coverageStatus');
+		var totalFiles = document.getElementById('totalFiles');
+		var coveredFiles = document.getElementById('coveredFiles');
+		var zeroCoverageFiles = document.getElementById('zeroCoverageFiles');
+		var highCoverageFiles = document.getElementById('highCoverageFiles');
+		var bestFiles = document.getElementById('bestFiles');
+		var riskFiles = document.getElementById('riskFiles');
+		var selectionSummary = document.getElementById('selectionSummary');
+		var selectionPath = document.getElementById('selectionPath');
 		var visible;
+		var fileEntries = Array.prototype.map.call(files.options, function(option) {
+			var match = option.text.match(/^(.*) \(([\d.]+)%\)$/);
+			var path = match ? match[1] : option.text;
+			var coverage = match ? parseFloat(match[2]) : 0;
+			return {
+				option: option,
+				value: option.value,
+				path: path,
+				coverage: coverage,
+				shortName: path.split('/').slice(-3).join('/')
+			};
+		});
 		files.addEventListener('change', onChange, false);
+		fileSearch.addEventListener('input', applyFilters, false);
+		coverageFilter.addEventListener('change', applyFilters, false);
+
+		function coverageClass(value) {
+			if (value === 0) return 'coverage-zero';
+			if (value < 40) return 'coverage-low';
+			if (value < 80) return 'coverage-medium';
+			return 'coverage-high';
+		}
+
+		function formatCoverage(value) {
+			return value.toFixed(1) + '%';
+		}
+
+		function updateCards() {
+			var covered = fileEntries.filter(function(entry) { return entry.coverage > 0; }).length;
+			var zeros = fileEntries.filter(function(entry) { return entry.coverage === 0; }).length;
+			var high = fileEntries.filter(function(entry) { return entry.coverage >= 80; }).length;
+
+			totalFiles.textContent = String(fileEntries.length);
+			coveredFiles.textContent = String(covered);
+			zeroCoverageFiles.textContent = String(zeros);
+			highCoverageFiles.textContent = String(high);
+		}
+
+		function renderFileList(target, entries) {
+			target.innerHTML = '';
+			entries.forEach(function(entry) {
+				var item = document.createElement('li');
+				item.className = 'file-item';
+				item.innerHTML = '' +
+					'<button type="button" class="file-link" data-file="' + entry.value + '">' +
+						'<span class="file-link-inner">' +
+							'<span class="file-main">' +
+								'<span class="file-name">' + entry.shortName + '</span>' +
+								'<span class="file-path">' + entry.path + '</span>' +
+							'</span>' +
+							'<span class="coverage-badge ' + coverageClass(entry.coverage) + '">' + formatCoverage(entry.coverage) + '</span>' +
+						'</span>' +
+					'</button>';
+				target.appendChild(item);
+			});
+		}
+
+		function updateSelectionSummary(part) {
+			var selected = fileEntries.find(function(entry) { return entry.value === part; });
+			if (!selected) return;
+			selectionSummary.textContent = selected.shortName + ' - ' + formatCoverage(selected.coverage);
+			selectionPath.textContent = selected.path;
+		}
+
 		function select(part) {
 			if (visible)
 				visible.style.display = 'none';
@@ -11666,17 +12114,91 @@ func registerHealthRoute(app *fiber.App) <span class="cov0" title="0">{
 			files.value = part;
 			visible.style.display = 'block';
 			location.hash = part;
+			updateSelectionSummary(part);
 		}
 		function onChange() {
 			select(files.value);
 			window.scrollTo(0, 0);
 		}
+		function matchesCoverageFilter(entry, filter) {
+			if (filter === 'all') return true;
+			if (filter === 'zero') return entry.coverage === 0;
+			if (filter === 'low') return entry.coverage > 0 && entry.coverage < 40;
+			if (filter === 'medium') return entry.coverage >= 40 && entry.coverage < 80;
+			if (filter === 'high') return entry.coverage >= 80;
+			return true;
+		}
+		function applyFilters() {
+			var query = fileSearch.value.trim().toLowerCase();
+			var filter = coverageFilter.value;
+			var firstVisible = null;
+
+			fileEntries.forEach(function(entry) {
+				var queryMatch = !query || entry.path.toLowerCase().indexOf(query) !== -1;
+				var filterMatch = matchesCoverageFilter(entry, filter);
+				var shouldShow = queryMatch && filterMatch;
+				entry.option.hidden = !shouldShow;
+				entry.option.disabled = !shouldShow;
+				if (shouldShow && firstVisible === null) {
+					firstVisible = entry.value;
+				}
+			});
+
+			var current = fileEntries.find(function(entry) { return entry.value === files.value; });
+			if ((!current || current.option.hidden || current.option.disabled) && firstVisible !== null) {
+				select(firstVisible);
+			}
+		}
+		function loadOverallCoverage() {
+			fetch('backend-coverage.out', { cache: 'no-store' })
+				.then(function(response) { return response.text(); })
+				.then(function(text) {
+					var totalStatements = 0;
+					var coveredStatements = 0;
+
+					text.split('\n').slice(1).forEach(function(line) {
+						var match = line.match(/^\S+:\d+\.\d+,\d+\.\d+\s+(\d+)\s+(\d+)$/);
+						if (!match) return;
+						var statements = parseInt(match[1], 10);
+						var hits = parseInt(match[2], 10);
+						totalStatements += statements;
+						if (hits > 0) {
+							coveredStatements += statements;
+						}
+					});
+
+					if (totalStatements > 0) {
+						overallCoverage.textContent = ((coveredStatements / totalStatements) * 100).toFixed(1) + '%';
+						coverageStatus.textContent = 'Calculated from backend-coverage.out';
+					}
+				})
+				.catch(function() {
+					coverageStatus.textContent = 'Showing snapshot value from generated report';
+				});
+		}
+		updateCards();
+		renderFileList(bestFiles, fileEntries.slice().sort(function(a, b) {
+			if (a.coverage === b.coverage) return a.path.localeCompare(b.path);
+			return b.coverage - a.coverage;
+		}).slice(0, 5));
+		renderFileList(riskFiles, fileEntries.slice().sort(function(a, b) {
+			if (a.coverage === b.coverage) return a.path.localeCompare(b.path);
+			return a.coverage - b.coverage;
+		}).slice(0, 5));
+		loadOverallCoverage();
 		if (location.hash != "") {
 			select(location.hash.substr(1));
 		}
 		if (!visible) {
 			select("file0");
 		}
+		applyFilters();
+		document.addEventListener('click', function(event) {
+			var button = event.target.closest('.file-link');
+			if (!button) return;
+			select(button.getAttribute('data-file'));
+			window.scrollTo(0, 0);
+		});
 	})();
 	</script>
 </html>
