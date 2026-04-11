@@ -1,0 +1,765 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="352" failures="0" errors="0" time="27.886">
+  <testsuite name="useHomeViewModel" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:32" time="17.641" tests="39">
+    <testcase classname="useHomeViewModel loads initial categories and events on mount" name="useHomeViewModel loads initial categories and events on mount" time="0.373">
+    </testcase>
+    <testcase classname="useHomeViewModel prefers the live location over the profile default when both are available" name="useHomeViewModel prefers the live location over the profile default when both are available" time="0.369">
+    </testcase>
+    <testcase classname="useHomeViewModel uses the profile default location when live location is unavailable" name="useHomeViewModel uses the profile default location when live location is unavailable" time="0.373">
+    </testcase>
+    <testcase classname="useHomeViewModel keeps showing the resolved default location after silent refresh" name="useHomeViewModel keeps showing the resolved default location after silent refresh" time="0.317">
+    </testcase>
+    <testcase classname="useHomeViewModel requests the live location when no profile default exists and uses it when available" name="useHomeViewModel requests the live location when no profile default exists and uses it when available" time="0.316">
+    </testcase>
+    <testcase classname="useHomeViewModel loads favorite location options alphabetically and limits them to three items" name="useHomeViewModel loads favorite location options alphabetically and limits them to three items" time="0.056">
+    </testcase>
+    <testcase classname="useHomeViewModel updates search text" name="useHomeViewModel updates search text" time="0.005">
+    </testcase>
+    <testcase classname="useHomeViewModel updates selected category id" name="useHomeViewModel updates selected category id" time="0.004">
+    </testcase>
+    <testcase classname="useHomeViewModel refreshes events from the first page" name="useHomeViewModel refreshes events from the first page" time="0.318">
+    </testcase>
+    <testcase classname="useHomeViewModel loads more events and appends them" name="useHomeViewModel loads more events and appends them" time="0.366">
+    </testcase>
+    <testcase classname="useHomeViewModel sets apiError when loading events fails" name="useHomeViewModel sets apiError when loading events fails" time="0.311">
+    </testcase>
+    <testcase classname="useHomeViewModel sets apiError when loading categories fails" name="useHomeViewModel sets apiError when loading categories fails" time="0.055">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters opens and closes filter modal" name="useHomeViewModel discovery filters opens and closes filter modal" time="0.314">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters does not apply draft filters until apply is pressed" name="useHomeViewModel discovery filters does not apply draft filters until apply is pressed" time="0.317">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters uses START_TIME as the default sort order" name="useHomeViewModel discovery filters uses START_TIME as the default sort order" time="0.363">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters applies DISTANCE sorting to the discovery request" name="useHomeViewModel discovery filters applies DISTANCE sorting to the discovery request" time="0.631">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters applies privacy and radius filters to discovery request" name="useHomeViewModel discovery filters applies privacy and radius filters to discovery request" time="0.68">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters applies category filters from modal to discovery request" name="useHomeViewModel discovery filters applies category filters from modal to discovery request" time="0.627">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters keeps selected chip category together with modal categories" name="useHomeViewModel discovery filters keeps selected chip category together with modal categories" time="0.985">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters applies valid date range filters" name="useHomeViewModel discovery filters applies valid date range filters" time="0.682">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters shows error for invalid from date and does not apply filters" name="useHomeViewModel discovery filters shows error for invalid from date and does not apply filters" time="0.367">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters shows error for invalid to date and does not apply filters" name="useHomeViewModel discovery filters shows error for invalid to date and does not apply filters" time="0.368">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters shows error when from date is in the past" name="useHomeViewModel discovery filters shows error when from date is in the past" time="0.367">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters shows error when to date is earlier than from date" name="useHomeViewModel discovery filters shows error when to date is earlier than from date" time="0.366">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters resets draft filters and keeps modal open on reset" name="useHomeViewModel discovery filters resets draft filters and keeps modal open on reset" time="0.316">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters clears filter error after user updates a date field" name="useHomeViewModel discovery filters clears filter error after user updates a date field" time="0.369">
+    </testcase>
+    <testcase classname="useHomeViewModel discovery filters keeps the applied sort order during load more and silent refresh" name="useHomeViewModel discovery filters keeps the applied sort order during load more and silent refresh" time="0.679">
+    </testcase>
+    <testcase classname="useHomeViewModel location picker opens and closes location modal" name="useHomeViewModel location picker opens and closes location modal" time="0.365">
+    </testcase>
+    <testcase classname="useHomeViewModel location picker does not apply selected location immediately after choosing a suggestion" name="useHomeViewModel location picker does not apply selected location immediately after choosing a suggestion" time="0.364">
+    </testcase>
+    <testcase classname="useHomeViewModel location picker applies selected location only after choose location is pressed" name="useHomeViewModel location picker applies selected location only after choose location is pressed" time="0.633">
+    </testcase>
+    <testcase classname="useHomeViewModel location picker resets location draft and keeps location modal open" name="useHomeViewModel location picker resets location draft and keeps location modal open" time="0.365">
+    </testcase>
+    <testcase classname="useHomeViewModel location picker applies the hardcoded fallback location only after the user explicitly selects it" name="useHomeViewModel location picker applies the hardcoded fallback location only after the user explicitly selects it" time="0.368">
+    </testcase>
+    <testcase classname="useHomeViewModel location picker applies a saved favorite location after it is selected" name="useHomeViewModel location picker applies a saved favorite location after it is selected" time="0.629">
+    </testcase>
+    <testcase classname="useHomeViewModel location picker keeps the applied custom location after the hook remounts" name="useHomeViewModel location picker keeps the applied custom location after the hook remounts" time="0.679">
+    </testcase>
+    <testcase classname="useHomeViewModel location picker keeps the applied custom location during silent refresh" name="useHomeViewModel location picker keeps the applied custom location during silent refresh" time="0.324">
+    </testcase>
+    <testcase classname="useHomeViewModel location picker returns to the user profile default location after resetting a temporary location" name="useHomeViewModel location picker returns to the user profile default location after resetting a temporary location" time="0.435">
+    </testcase>
+    <testcase classname="useHomeViewModel IN_PROGRESS event filtering excludes IN_PROGRESS events from the initial load" name="useHomeViewModel IN_PROGRESS event filtering excludes IN_PROGRESS events from the initial load" time="0.362">
+    </testcase>
+    <testcase classname="useHomeViewModel IN_PROGRESS event filtering excludes IN_PROGRESS events when loading more" name="useHomeViewModel IN_PROGRESS event filtering excludes IN_PROGRESS events when loading more" time="0.316">
+    </testcase>
+    <testcase classname="useHomeViewModel IN_PROGRESS event filtering keeps events without a status field" name="useHomeViewModel IN_PROGRESS event filtering keeps events without a status field" time="0.365">
+    </testcase>
+  </testsuite>
+  <testsuite name="resolveConstraintViolation" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:50" time="3.123" tests="58">
+    <testcase classname="resolveConstraintViolation returns null when event has no gender or age constraints" name="resolveConstraintViolation returns null when event has no gender or age constraints" time="0">
+    </testcase>
+    <testcase classname="resolveConstraintViolation returns null when preferred_gender is set but user gender is missing" name="resolveConstraintViolation returns null when preferred_gender is set but user gender is missing" time="0">
+    </testcase>
+    <testcase classname="resolveConstraintViolation returns null when preferred_gender is set but user gender is blank or whitespace" name="resolveConstraintViolation returns null when preferred_gender is set but user gender is blank or whitespace" time="0">
+    </testcase>
+    <testcase classname="resolveConstraintViolation returns null when user matches (lowercase or API uppercase wire format)" name="resolveConstraintViolation returns null when user matches (lowercase or API uppercase wire format)" time="0">
+    </testcase>
+    <testcase classname="resolveConstraintViolation returns a message when user gender does not match preferred_gender" name="resolveConstraintViolation returns a message when user gender does not match preferred_gender" time="0">
+    </testcase>
+    <testcase classname="resolveConstraintViolation returns null when minimum_age is set but birth_date is missing or blank" name="resolveConstraintViolation returns null when minimum_age is set but birth_date is missing or blank" time="0">
+    </testcase>
+    <testcase classname="resolveConstraintViolation returns a message when user is under minimum_age" name="resolveConstraintViolation returns a message when user is under minimum_age" time="0">
+    </testcase>
+    <testcase classname="resolveConstraintViolation joins gender and age messages with · when both fail" name="resolveConstraintViolation joins gender and age messages with · when both fail" time="0.001">
+    </testcase>
+    <testcase classname="useEventDetailViewModel initial state starts in loading state with no event data" name="useEventDetailViewModel initial state starts in loading state with no event data" time="0.002">
+    </testcase>
+    <testcase classname="useEventDetailViewModel fetching event loads event detail on mount and sets viewer context" name="useEventDetailViewModel fetching event loads event detail on mount and sets viewer context" time="0.051">
+    </testcase>
+    <testcase classname="useEventDetailViewModel fetching event sets apiError when fetch fails" name="useEventDetailViewModel fetching event sets apiError when fetch fails" time="0.054">
+    </testcase>
+    <testcase classname="useEventDetailViewModel fetching event retry re-fetches the event" name="useEventDetailViewModel fetching event retry re-fetches the event" time="0.055">
+    </testcase>
+    <testcase classname="useEventDetailViewModel isQuotaFull is false when approved count is below capacity" name="useEventDetailViewModel isQuotaFull is false when approved count is below capacity" time="0.054">
+    </testcase>
+    <testcase classname="useEventDetailViewModel isQuotaFull is true when approved count meets capacity" name="useEventDetailViewModel isQuotaFull is true when approved count meets capacity" time="0.054">
+    </testcase>
+    <testcase classname="useEventDetailViewModel isQuotaFull is false when capacity is null (unlimited)" name="useEventDetailViewModel isQuotaFull is false when capacity is null (unlimited)" time="0.053">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleToggleFavorite calls removeFavorite and decrements count when currently favorited" name="useEventDetailViewModel handleToggleFavorite calls removeFavorite and decrements count when currently favorited" time="0.054">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleToggleFavorite calls addFavorite and increments count when currently not favorited" name="useEventDetailViewModel handleToggleFavorite calls addFavorite and increments count when currently not favorited" time="0.056">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleToggleFavorite rolls back optimistic favorite change when API fails" name="useEventDetailViewModel handleToggleFavorite rolls back optimistic favorite change when API fails" time="0.058">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleToggleFavorite initialises isFavorited from viewer_context" name="useEventDetailViewModel handleToggleFavorite initialises isFavorited from viewer_context" time="0.055">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleJoin calls joinEvent, refreshes event detail, and reflects JOINED status" name="useEventDetailViewModel handleJoin calls joinEvent, refreshes event detail, and reflects JOINED status" time="0.057">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleJoin does not show full loading screen during post-join refresh" name="useEventDetailViewModel handleJoin does not show full loading screen during post-join refresh" time="0.057">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleJoin sets actionError when joinEvent returns an ApiError" name="useEventDetailViewModel handleJoin sets actionError when joinEvent returns an ApiError" time="0.055">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleJoin sets generic actionError on unknown join failure" name="useEventDetailViewModel handleJoin sets generic actionError on unknown join failure" time="0.057">
+    </testcase>
+    <testcase classname="useEventDetailViewModel join request modal opens and closes the modal" name="useEventDetailViewModel join request modal opens and closes the modal" time="0.055">
+    </testcase>
+    <testcase classname="useEventDetailViewModel join request modal clears message and error when closing the modal" name="useEventDetailViewModel join request modal clears message and error when closing the modal" time="0.056">
+    </testcase>
+    <testcase classname="useEventDetailViewModel join request modal updates joinRequestMessage" name="useEventDetailViewModel join request modal updates joinRequestMessage" time="0.056">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleRequestJoin calls requestJoinEvent with the message and updates status to PENDING" name="useEventDetailViewModel handleRequestJoin calls requestJoinEvent with the message and updates status to PENDING" time="0.061">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleRequestJoin sends null message when the input is blank" name="useEventDetailViewModel handleRequestJoin sends null message when the input is blank" time="0.056">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleRequestJoin trims whitespace-only message and sends null" name="useEventDetailViewModel handleRequestJoin trims whitespace-only message and sends null" time="0.057">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleRequestJoin sets actionError and keeps modal open when request fails" name="useEventDetailViewModel handleRequestJoin sets actionError and keeps modal open when request fails" time="0.059">
+    </testcase>
+    <testcase classname="useEventDetailViewModel constraintViolation is null when the event has no constraints" name="useEventDetailViewModel constraintViolation is null when the event has no constraints" time="0.053">
+    </testcase>
+    <testcase classname="useEventDetailViewModel constraintViolation is null when user gender is unknown (null) even if event has preferred_gender" name="useEventDetailViewModel constraintViolation is null when user gender is unknown (null) even if event has preferred_gender" time="0.056">
+    </testcase>
+    <testcase classname="useEventDetailViewModel constraintViolation is null when user gender matches preferred_gender (case-insensitive)" name="useEventDetailViewModel constraintViolation is null when user gender matches preferred_gender (case-insensitive)" time="0.057">
+    </testcase>
+    <testcase classname="useEventDetailViewModel constraintViolation is null when session UserSummary.gender is uppercase MALE (API wire format)" name="useEventDetailViewModel constraintViolation is null when session UserSummary.gender is uppercase MALE (API wire format)" time="0.054">
+    </testcase>
+    <testcase classname="useEventDetailViewModel constraintViolation is non-null when user gender does not match preferred_gender" name="useEventDetailViewModel constraintViolation is non-null when user gender does not match preferred_gender" time="0.056">
+    </testcase>
+    <testcase classname="useEventDetailViewModel constraintViolation is null when user birth_date is unknown even if event has minimum_age" name="useEventDetailViewModel constraintViolation is null when user birth_date is unknown even if event has minimum_age" time="0.056">
+    </testcase>
+    <testcase classname="useEventDetailViewModel constraintViolation is null when session UserSummary.birth_date is set and user meets minimum age" name="useEventDetailViewModel constraintViolation is null when session UserSummary.birth_date is set and user meets minimum age" time="0.055">
+    </testcase>
+    <testcase classname="useEventDetailViewModel constraintViolation is non-null when user is under the minimum age" name="useEventDetailViewModel constraintViolation is non-null when user is under the minimum age" time="0.055">
+    </testcase>
+    <testcase classname="useEventDetailViewModel constraintViolation combines both gender and age violations into one message" name="useEventDetailViewModel constraintViolation combines both gender and age violations into one message" time="0.056">
+    </testcase>
+    <testcase classname="useEventDetailViewModel Host actions handleApproveRequest calls api and refreshes event detail" name="useEventDetailViewModel Host actions handleApproveRequest calls api and refreshes event detail" time="0.057">
+    </testcase>
+    <testcase classname="useEventDetailViewModel Host actions handleRejectRequest calls api and refreshes event detail" name="useEventDetailViewModel Host actions handleRejectRequest calls api and refreshes event detail" time="0.056">
+    </testcase>
+    <testcase classname="useEventDetailViewModel Host actions handleCancelEvent calls api and refreshes event detail" name="useEventDetailViewModel Host actions handleCancelEvent calls api and refreshes event detail" time="0.056">
+    </testcase>
+    <testcase classname="useEventDetailViewModel Host actions handleCancelEvent sets global actionError if it fails" name="useEventDetailViewModel Host actions handleCancelEvent sets global actionError if it fails" time="0.054">
+    </testcase>
+    <testcase classname="useEventDetailViewModel canLeave is true when user is a joined participant on an active event" name="useEventDetailViewModel canLeave is true when user is a joined participant on an active event" time="0.055">
+    </testcase>
+    <testcase classname="useEventDetailViewModel canLeave is true when user is a joined participant on an in-progress event with future end_time" name="useEventDetailViewModel canLeave is true when user is a joined participant on an in-progress event with future end_time" time="0.054">
+    </testcase>
+    <testcase classname="useEventDetailViewModel canLeave is false when the user is the host" name="useEventDetailViewModel canLeave is false when the user is the host" time="0.054">
+    </testcase>
+    <testcase classname="useEventDetailViewModel canLeave is false when user is not a participant" name="useEventDetailViewModel canLeave is false when user is not a participant" time="0.054">
+    </testcase>
+    <testcase classname="useEventDetailViewModel canLeave is false when event is canceled" name="useEventDetailViewModel canLeave is false when event is canceled" time="0.055">
+    </testcase>
+    <testcase classname="useEventDetailViewModel canLeave is false when event is completed" name="useEventDetailViewModel canLeave is false when event is completed" time="0.055">
+    </testcase>
+    <testcase classname="useEventDetailViewModel canLeave is false when event end_time has passed" name="useEventDetailViewModel canLeave is false when event end_time has passed" time="0.054">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleLeaveEvent calls leaveEvent API, refreshes detail, and sets success_left for post-start leave" name="useEventDetailViewModel handleLeaveEvent calls leaveEvent API, refreshes detail, and sets success_left for post-start leave" time="0.057">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleLeaveEvent sets actionState to idle for pre-start leave (backend allows rejoin)" name="useEventDetailViewModel handleLeaveEvent sets actionState to idle for pre-start leave (backend allows rejoin)" time="0.056">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleLeaveEvent sets actionError with API message when leave fails" name="useEventDetailViewModel handleLeaveEvent sets actionError with API message when leave fails" time="0.056">
+    </testcase>
+    <testcase classname="useEventDetailViewModel handleLeaveEvent sets generic actionError on unknown leave failure" name="useEventDetailViewModel handleLeaveEvent sets generic actionError on unknown leave failure" time="0.056">
+    </testcase>
+    <testcase classname="useEventDetailViewModel rating actions submits viewer rating and refreshes event detail" name="useEventDetailViewModel rating actions submits viewer rating and refreshes event detail" time="0.058">
+    </testcase>
+    <testcase classname="useEventDetailViewModel rating actions maps viewer rating errors from the backend" name="useEventDetailViewModel rating actions maps viewer rating errors from the backend" time="0.057">
+    </testcase>
+    <testcase classname="useEventDetailViewModel rating actions submits participant rating and refreshes host lists" name="useEventDetailViewModel rating actions submits participant rating and refreshes host lists" time="0.055">
+    </testcase>
+    <testcase classname="useEventDetailViewModel rating actions stores participant rating errors on the matching participant" name="useEventDetailViewModel rating actions stores participant rating errors on the matching participant" time="0.062">
+    </testcase>
+  </testsuite>
+  <testsuite name="useCreateEventViewModel" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:53" time="0.5" tests="76">
+    <testcase classname="useCreateEventViewModel starts with today as the default start date and no errors" name="useCreateEventViewModel starts with today as the default start date and no errors" time="0.005">
+    </testcase>
+    <testcase classname="useCreateEventViewModel title validation shows error when title is empty" name="useCreateEventViewModel title validation shows error when title is empty" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel title validation shows error when title is shorter than 10 characters" name="useCreateEventViewModel title validation shows error when title is shorter than 10 characters" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel title validation accepts title with exactly 10 characters" name="useCreateEventViewModel title validation accepts title with exactly 10 characters" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel description validation shows error when description is empty" name="useCreateEventViewModel description validation shows error when description is empty" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel description validation shows error when description is shorter than 20 characters" name="useCreateEventViewModel description validation shows error when description is shorter than 20 characters" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel start date validation shows time validation immediately while typing an invalid hour" name="useCreateEventViewModel start date validation shows time validation immediately while typing an invalid hour" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel start date validation shows date validation immediately when an impossible day is entered" name="useCreateEventViewModel start date validation shows date validation immediately when an impossible day is entered" time="0">
+    </testcase>
+    <testcase classname="useCreateEventViewModel start date validation shows error on both fields when start date and time are missing" name="useCreateEventViewModel start date validation shows error on both fields when start date and time are missing" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel start date validation shows error only on date when start date is missing but time is set" name="useCreateEventViewModel start date validation shows error only on date when start date is missing but time is set" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel start date validation shows error when start date is in the past" name="useCreateEventViewModel start date validation shows error when start date is in the past" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel start date validation accepts a future start date" name="useCreateEventViewModel start date validation accepts a future start date" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel start date validation rejects invalid day and time independently (35.21.2030 with 28:00 — example from issue)" name="useCreateEventViewModel start date validation rejects invalid day and time independently (35.21.2030 with 28:00 — example from issue)" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel start date validation rejects out-of-range day (35) — only date box is red" name="useCreateEventViewModel start date validation rejects out-of-range day (35) — only date box is red" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel start date validation rejects out-of-range month (21) — only date box is red" name="useCreateEventViewModel start date validation rejects out-of-range month (21) — only date box is red" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel start date validation rejects out-of-range hour (28:00) — only time box is red" name="useCreateEventViewModel start date validation rejects out-of-range hour (28:00) — only time box is red" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel start date validation rejects out-of-range minute (10:70) — only time box is red" name="useCreateEventViewModel start date validation rejects out-of-range minute (10:70) — only time box is red" time="0.006">
+    </testcase>
+    <testcase classname="useCreateEventViewModel start date validation rejects impossible calendar date (30.02.2030) — only date box is red" name="useCreateEventViewModel start date validation rejects impossible calendar date (30.02.2030) — only date box is red" time="0.008">
+    </testcase>
+    <testcase classname="useCreateEventViewModel end date validation shows end date error immediately when end time becomes earlier than start" name="useCreateEventViewModel end date validation shows end date error immediately when end time becomes earlier than start" time="0.007">
+    </testcase>
+    <testcase classname="useCreateEventViewModel end date validation shows error on date when end date is before start date" name="useCreateEventViewModel end date validation shows error on date when end date is before start date" time="0.011">
+    </testcase>
+    <testcase classname="useCreateEventViewModel end date validation clears end date error when end date is updated" name="useCreateEventViewModel end date validation clears end date error when end date is updated" time="0.007">
+    </testcase>
+    <testcase classname="useCreateEventViewModel end date validation clears end date error when end time is updated" name="useCreateEventViewModel end date validation clears end date error when end time is updated" time="0.005">
+    </testcase>
+    <testcase classname="useCreateEventViewModel error clearing clears start date error when start date is updated" name="useCreateEventViewModel error clearing clears start date error when start date is updated" time="0.002">
+    </testcase>
+    <testcase classname="useCreateEventViewModel error clearing clears location error when location query is updated" name="useCreateEventViewModel error clearing clears location error when location query is updated" time="0.005">
+    </testcase>
+    <testcase classname="useCreateEventViewModel capacity constraint shows error when capacity is less than 2" name="useCreateEventViewModel capacity constraint shows error when capacity is less than 2" time="0.01">
+    </testcase>
+    <testcase classname="useCreateEventViewModel capacity constraint shows error when capacity is 0" name="useCreateEventViewModel capacity constraint shows error when capacity is 0" time="0.003">
+    </testcase>
+    <testcase classname="useCreateEventViewModel capacity constraint shows error when capacity is negative" name="useCreateEventViewModel capacity constraint shows error when capacity is negative" time="0.004">
+    </testcase>
+    <testcase classname="useCreateEventViewModel capacity constraint accepts capacity of 2" name="useCreateEventViewModel capacity constraint accepts capacity of 2" time="0.003">
+    </testcase>
+    <testcase classname="useCreateEventViewModel capacity constraint accepts large capacity value" name="useCreateEventViewModel capacity constraint accepts large capacity value" time="0.002">
+    </testcase>
+    <testcase classname="useCreateEventViewModel age constraint shows error when min age is greater than max age" name="useCreateEventViewModel age constraint shows error when min age is greater than max age" time="0.002">
+    </testcase>
+    <testcase classname="useCreateEventViewModel age constraint shows error when age is out of range (&gt;120)" name="useCreateEventViewModel age constraint shows error when age is out of range (&gt;120)" time="0.002">
+    </testcase>
+    <testcase classname="useCreateEventViewModel age constraint shows error when age is negative" name="useCreateEventViewModel age constraint shows error when age is negative" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel age constraint accepts valid age range" name="useCreateEventViewModel age constraint accepts valid age range" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel age constraint accepts min-only age (18+)" name="useCreateEventViewModel age constraint accepts min-only age (18+)" time="0.002">
+    </testcase>
+    <testcase classname="useCreateEventViewModel constraint limits allows up to 5 total constraints" name="useCreateEventViewModel constraint limits allows up to 5 total constraints" time="0.004">
+    </testcase>
+    <testcase classname="useCreateEventViewModel constraint limits prevents adding more than max total constraints" name="useCreateEventViewModel constraint limits prevents adding more than max total constraints" time="0.002">
+    </testcase>
+    <testcase classname="useCreateEventViewModel constraint limits allows more than 2 other constraints when slots are available" name="useCreateEventViewModel constraint limits allows more than 2 other constraints when slots are available" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel constraint limits only allows 1 gender constraint" name="useCreateEventViewModel constraint limits only allows 1 gender constraint" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel tags adds a tag" name="useCreateEventViewModel tags adds a tag" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel tags does not add duplicate tags" name="useCreateEventViewModel tags does not add duplicate tags" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel tags limits to 5 tags" name="useCreateEventViewModel tags limits to 5 tags" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel tags removes a tag by index" name="useCreateEventViewModel tags removes a tag by index" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel submission calls createEvent and returns result on valid form" name="useCreateEventViewModel submission calls createEvent and returns result on valid form" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel submission uploads the selected image through the backend flow after event creation" name="useCreateEventViewModel submission uploads the selected image through the backend flow after event creation" time="0.003">
+    </testcase>
+    <testcase classname="useCreateEventViewModel submission shows a clear image error when upload fails after event creation" name="useCreateEventViewModel submission shows a clear image error when upload fails after event creation" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel submission shows a user-friendly message when the image upload network request fails" name="useCreateEventViewModel submission shows a user-friendly message when the image upload network request fails" time="0.002">
+    </testcase>
+    <testcase classname="useCreateEventViewModel submission does not call API when validation fails" name="useCreateEventViewModel submission does not call API when validation fails" time="0.003">
+    </testcase>
+    <testcase classname="useCreateEventViewModel submission sets apiError on API failure" name="useCreateEventViewModel submission sets apiError on API failure" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel submission sets generic apiError on unexpected error" name="useCreateEventViewModel submission sets generic apiError on unexpected error" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel submission maps API field errors to form errors" name="useCreateEventViewModel submission maps API field errors to form errors" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel location searches location suggestions with debounce" name="useCreateEventViewModel location searches location suggestions with debounce" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel location selects a location from suggestions" name="useCreateEventViewModel location selects a location from suggestions" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel location clears location" name="useCreateEventViewModel location clears location" time="0">
+    </testcase>
+    <testcase classname="useCreateEventViewModel does not include PRIVATE in privacy options" name="useCreateEventViewModel does not include PRIVATE in privacy options" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel image picking tries safer URI variants and stores a prepared preview image for Android-style picker paths" name="useCreateEventViewModel image picking tries safer URI variants and stores a prepared preview image for Android-style picker paths" time="0.001">
+    </testcase>
+    <testcase classname="useCreateEventViewModel image picking shows an inline error when the selected image cannot be processed" name="useCreateEventViewModel image picking shows an inline error when the selected image cannot be processed" time="0.003">
+    </testcase>
+    <testcase classname="useCreateEventViewModel image picking shows an inline error and alert when photo permission is denied" name="useCreateEventViewModel image picking shows an inline error and alert when photo permission is denied" time="0.002">
+    </testcase>
+    <testcase classname="formatDateInput auto-inserts dot after day and month while typing digits" name="formatDateInput auto-inserts dot after day and month while typing digits" time="0">
+    </testcase>
+    <testcase classname="formatDateInput limits to dd.mm.yyyy (8 digits)" name="formatDateInput limits to dd.mm.yyyy (8 digits)" time="0">
+    </testcase>
+    <testcase classname="formatDateInput formats when deleting digits" name="formatDateInput formats when deleting digits" time="0">
+    </testcase>
+    <testcase classname="formatDateInput strips non-digit characters" name="formatDateInput strips non-digit characters" time="0">
+    </testcase>
+    <testcase classname="formatTimeInput auto-inserts colon after 2 digits" name="formatTimeInput auto-inserts colon after 2 digits" time="0.001">
+    </testcase>
+    <testcase classname="formatTimeInput does not auto-insert colon when deleting" name="formatTimeInput does not auto-insert colon when deleting" time="0">
+    </testcase>
+    <testcase classname="formatTimeInput strips non-digit non-colon characters and auto-formats" name="formatTimeInput strips non-digit non-colon characters and auto-formats" time="0">
+    </testcase>
+    <testcase classname="formatTimeInput limits to 5 characters" name="formatTimeInput limits to 5 characters" time="0">
+    </testcase>
+    <testcase classname="formatTimeInput passes through valid partial input" name="formatTimeInput passes through valid partial input" time="0">
+    </testcase>
+    <testcase classname="validateLiveDateInput does not show an error for partial valid input" name="validateLiveDateInput does not show an error for partial valid input" time="0">
+    </testcase>
+    <testcase classname="validateLiveDateInput shows an immediate error when day is out of range" name="validateLiveDateInput shows an immediate error when day is out of range" time="0.001">
+    </testcase>
+    <testcase classname="validateLiveDateInput shows an immediate error when month is out of range" name="validateLiveDateInput shows an immediate error when month is out of range" time="0">
+    </testcase>
+    <testcase classname="validateLiveDateInput uses full date validation when the date is complete" name="validateLiveDateInput uses full date validation when the date is complete" time="0">
+    </testcase>
+    <testcase classname="validateLiveTimeInput does not show an error for partial valid input" name="validateLiveTimeInput does not show an error for partial valid input" time="0">
+    </testcase>
+    <testcase classname="validateLiveTimeInput shows an immediate error when hour is out of range" name="validateLiveTimeInput shows an immediate error when hour is out of range" time="0">
+    </testcase>
+    <testcase classname="validateLiveTimeInput shows an immediate error when minute is out of range" name="validateLiveTimeInput shows an immediate error when minute is out of range" time="0">
+    </testcase>
+    <testcase classname="validateLiveTimeInput uses full time validation when the time is complete" name="validateLiveTimeInput uses full time validation when the time is complete" time="0">
+    </testcase>
+    <testcase classname="normalizePickedImageUri fully decodes Android file URIs until they reach a filesystem path" name="normalizePickedImageUri fully decodes Android file URIs until they reach a filesystem path" time="0.001">
+    </testcase>
+    <testcase classname="normalizePickedImageUri leaves non-encoded file URIs unchanged" name="normalizePickedImageUri leaves non-encoded file URIs unchanged" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="FiltersBottomSheet" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:53" time="0.522" tests="2">
+    <testcase classname="FiltersBottomSheet renders the frontend sort options" name="FiltersBottomSheet renders the frontend sort options" time="0.05">
+    </testcase>
+    <testcase classname="FiltersBottomSheet shows the selected sort option and calls back when another one is pressed" name="FiltersBottomSheet shows the selected sort option and calls back when another one is pressed" time="0.014">
+    </testcase>
+  </testsuite>
+  <testsuite name="useFavoriteEventsViewModel" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:54" time="0.426" tests="5">
+    <testcase classname="useFavoriteEventsViewModel loads favorite events on mount from the dedicated favorites endpoint" name="useFavoriteEventsViewModel loads favorite events on mount from the dedicated favorites endpoint" time="0.054">
+    </testcase>
+    <testcase classname="useFavoriteEventsViewModel refresh reloads the favorite events list from the favorites endpoint" name="useFavoriteEventsViewModel refresh reloads the favorite events list from the favorites endpoint" time="0.055">
+    </testcase>
+    <testcase classname="useFavoriteEventsViewModel loadMore is a no-op because the favorites endpoint is not paginated" name="useFavoriteEventsViewModel loadMore is a no-op because the favorites endpoint is not paginated" time="0.054">
+    </testcase>
+    <testcase classname="useFavoriteEventsViewModel remove favorite calls the API and removes the event locally" name="useFavoriteEventsViewModel remove favorite calls the API and removes the event locally" time="0.056">
+    </testcase>
+    <testcase classname="useFavoriteEventsViewModel surfaces a helpful apiError when loading fails" name="useFavoriteEventsViewModel surfaces a helpful apiError when loading fails" time="0.054">
+    </testcase>
+  </testsuite>
+  <testsuite name="useHomeViewModel auth behavior" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:54" time="0.463" tests="1">
+    <testcase classname="useHomeViewModel auth behavior shows auth error and skips event loading when token is missing" name="useHomeViewModel auth behavior shows auth error and skips event loading when token is missing" time="0.308">
+    </testcase>
+  </testsuite>
+  <testsuite name="CreateEventView" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:55" time="0.46" tests="4">
+    <testcase classname="CreateEventView renders picker-based date and time controls with image upload messaging" name="CreateEventView renders picker-based date and time controls with image upload messaging" time="0.022">
+    </testcase>
+    <testcase classname="CreateEventView opens the start pickers and allows today as the minimum date" name="CreateEventView opens the start pickers and allows today as the minimum date" time="0.023">
+    </testcase>
+    <testcase classname="CreateEventView uses the selected start date as the inclusive minimum for end date picker" name="CreateEventView uses the selected start date as the inclusive minimum for end date picker" time="0.019">
+    </testcase>
+    <testcase classname="CreateEventView clears optional end date and time together from the screen action" name="CreateEventView clears optional end date and time together from the screen action" time="0.01">
+    </testcase>
+  </testsuite>
+  <testsuite name="EditProfileView" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:55" time="0.308" tests="2">
+    <testcase classname="EditProfileView replaces to the profile tab after a successful save" name="EditProfileView replaces to the profile tab after a successful save" time="0.059">
+    </testcase>
+    <testcase classname="EditProfileView does not navigate away when save fails" name="EditProfileView does not navigate away when save fails" time="0.009">
+    </testcase>
+  </testsuite>
+  <testsuite name="EventDetailView" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:56" time="0.355" tests="1">
+    <testcase classname="EventDetailView shows the pending join-request chip and hides the request button" name="EventDetailView shows the pending join-request chip and hides the request button" time="0.015">
+    </testcase>
+  </testsuite>
+  <testsuite name="useMyEventsViewModel" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:56" time="0.327" tests="4">
+    <testcase classname="useMyEventsViewModel loads my events on mount and defaults to active events" name="useMyEventsViewModel loads my events on mount and defaults to active events" time="0.081">
+    </testcase>
+    <testcase classname="useMyEventsViewModel filters events when the selected status changes" name="useMyEventsViewModel filters events when the selected status changes" time="0.053">
+    </testcase>
+    <testcase classname="useMyEventsViewModel shows an auth-specific error when the user is logged out" name="useMyEventsViewModel shows an auth-specific error when the user is logged out" time="0.002">
+    </testcase>
+    <testcase classname="useMyEventsViewModel surfaces a retryable error when loading fails" name="useMyEventsViewModel surfaces a retryable error when loading fails" time="0.053">
+    </testcase>
+  </testsuite>
+  <testsuite name="MyEventsView" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:56" time="0.325" tests="5">
+    <testcase classname="MyEventsView renders the my events page and event cards" name="MyEventsView renders the my events page and event cards" time="0.012">
+    </testcase>
+    <testcase classname="MyEventsView updates the selected status tab when a segment is pressed" name="MyEventsView updates the selected status tab when a segment is pressed" time="0.009">
+    </testcase>
+    <testcase classname="MyEventsView renders the empty state for the selected status" name="MyEventsView renders the empty state for the selected status" time="0.004">
+    </testcase>
+    <testcase classname="MyEventsView shows summary fallbacks when /me does not provide location or attendee count" name="MyEventsView shows summary fallbacks when /me does not provide location or attendee count" time="0.005">
+    </testcase>
+    <testcase classname="MyEventsView renders a retryable error state" name="MyEventsView renders a retryable error state" time="0.004">
+    </testcase>
+  </testsuite>
+  <testsuite name="LocationPickerPanel" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:57" time="0.304" tests="5">
+    <testcase classname="LocationPickerPanel renders the default option and favorite locations as ready-to-use choices" name="LocationPickerPanel renders the default option and favorite locations as ready-to-use choices" time="0.009">
+    </testcase>
+    <testcase classname="LocationPickerPanel shows a loading state while favorite locations are being fetched" name="LocationPickerPanel shows a loading state while favorite locations are being fetched" time="0.006">
+    </testcase>
+    <testcase classname="LocationPickerPanel shows an empty state when the user has no favorite locations" name="LocationPickerPanel shows an empty state when the user has no favorite locations" time="0.005">
+    </testcase>
+    <testcase classname="LocationPickerPanel shows an error state with retry when favorite locations fail to load" name="LocationPickerPanel shows an error state with retry when favorite locations fail to load" time="0.003">
+    </testcase>
+    <testcase classname="LocationPickerPanel shows only search results while the user is searching" name="LocationPickerPanel shows only search results while the user is searching" time="0.003">
+    </testcase>
+  </testsuite>
+  <testsuite name="useEditProfileViewModel" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:57" time="0.207" tests="21">
+    <testcase classname="useEditProfileViewModel starts in loading state" name="useEditProfileViewModel starts in loading state" time="0.002">
+    </testcase>
+    <testcase classname="useEditProfileViewModel populates form fields from fetched profile" name="useEditProfileViewModel populates form fields from fetched profile" time="0.002">
+    </testcase>
+    <testcase classname="useEditProfileViewModel populates empty strings when profile fields are null" name="useEditProfileViewModel populates empty strings when profile fields are null" time="0">
+    </testcase>
+    <testcase classname="useEditProfileViewModel updates default location from location search selection" name="useEditProfileViewModel updates default location from location search selection" time="0.001">
+    </testcase>
+    <testcase classname="useEditProfileViewModel saves the raw display_name of a detailed location selection" name="useEditProfileViewModel saves the raw display_name of a detailed location selection" time="0.001">
+    </testcase>
+    <testcase classname="useEditProfileViewModel clears the selected default location" name="useEditProfileViewModel clears the selected default location" time="0">
+    </testcase>
+    <testcase classname="useEditProfileViewModel picks an avatar image from the photo library" name="useEditProfileViewModel picks an avatar image from the photo library" time="0.003">
+    </testcase>
+    <testcase classname="useEditProfileViewModel uploads avatar on save when a new local image is selected" name="useEditProfileViewModel uploads avatar on save when a new local image is selected" time="0.001">
+    </testcase>
+    <testcase classname="useEditProfileViewModel omits locked gender and birth date from the update payload" name="useEditProfileViewModel omits locked gender and birth date from the update payload" time="0.001">
+    </testcase>
+    <testcase classname="useEditProfileViewModel updates a field and clears its error" name="useEditProfileViewModel updates a field and clears its error" time="0.001">
+    </testcase>
+    <testcase classname="useEditProfileViewModel validates birth date format on save" name="useEditProfileViewModel validates birth date format on save" time="0.001">
+    </testcase>
+    <testcase classname="useEditProfileViewModel triggers immediate error for day &gt; 31" name="useEditProfileViewModel triggers immediate error for day &gt; 31" time="0">
+    </testcase>
+    <testcase classname="useEditProfileViewModel triggers immediate error for month &gt; 12" name="useEditProfileViewModel triggers immediate error for month &gt; 12" time="0.001">
+    </testcase>
+    <testcase classname="useEditProfileViewModel validates month limit (1–12)" name="useEditProfileViewModel validates month limit (1–12)" time="0">
+    </testcase>
+    <testcase classname="useEditProfileViewModel validates future date limit" name="useEditProfileViewModel validates future date limit" time="0">
+    </testcase>
+    <testcase classname="useEditProfileViewModel validates birth date in real-time when 10 characters are reached" name="useEditProfileViewModel validates birth date in real-time when 10 characters are reached" time="0.001">
+    </testcase>
+    <testcase classname="useEditProfileViewModel auto-formats birth date typing into dd.mm.yyyy" name="useEditProfileViewModel auto-formats birth date typing into dd.mm.yyyy" time="0.001">
+    </testcase>
+    <testcase classname="useEditProfileViewModel calls updateMyProfile with correct data on valid save" name="useEditProfileViewModel calls updateMyProfile with correct data on valid save" time="0.001">
+    </testcase>
+    <testcase classname="useEditProfileViewModel sends empty strings for text fields and null for enums/dates" name="useEditProfileViewModel sends empty strings for text fields and null for enums/dates" time="0.001">
+    </testcase>
+    <testcase classname="useEditProfileViewModel sets apiError on save failure" name="useEditProfileViewModel sets apiError on save failure" time="0.001">
+    </testcase>
+    <testcase classname="useEditProfileViewModel sets error when token is null" name="useEditProfileViewModel sets error when token is null" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="FavoriteLocationsTab" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:57" time="0.218" tests="4">
+    <testcase classname="FavoriteLocationsTab renders the loading state while favorite locations are being fetched" name="FavoriteLocationsTab renders the loading state while favorite locations are being fetched" time="0.003">
+    </testcase>
+    <testcase classname="FavoriteLocationsTab renders the empty state when the user has no saved favorite locations" name="FavoriteLocationsTab renders the empty state when the user has no saved favorite locations" time="0.003">
+    </testcase>
+    <testcase classname="FavoriteLocationsTab renders an error state with retry when loading favorite locations fails" name="FavoriteLocationsTab renders an error state with retry when loading favorite locations fails" time="0.002">
+    </testcase>
+    <testcase classname="FavoriteLocationsTab shows the backend-backed count and limit banner when the user has three locations" name="FavoriteLocationsTab shows the backend-backed count and limit banner when the user has three locations" time="0.004">
+    </testcase>
+  </testsuite>
+  <testsuite name="useProfileViewModel" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:57" time="0.175" tests="14">
+    <testcase classname="useProfileViewModel starts in loading state" name="useProfileViewModel starts in loading state" time="0.005">
+    </testcase>
+    <testcase classname="useProfileViewModel fetches and exposes profile data on mount" name="useProfileViewModel fetches and exposes profile data on mount" time="0.001">
+    </testcase>
+    <testcase classname="useProfileViewModel derives primaryName from display_name when set" name="useProfileViewModel derives primaryName from display_name when set" time="0.001">
+    </testcase>
+    <testcase classname="useProfileViewModel derives primaryName from username when display_name is null" name="useProfileViewModel derives primaryName from username when display_name is null" time="0.001">
+    </testcase>
+    <testcase classname="useProfileViewModel exposes hosted and attended event lists" name="useProfileViewModel exposes hosted and attended event lists" time="0.001">
+    </testcase>
+    <testcase classname="useProfileViewModel falls back to New when final_score is missing" name="useProfileViewModel falls back to New when final_score is missing" time="0.001">
+    </testcase>
+    <testcase classname="useProfileViewModel deduplicates attended events returned by multiple endpoints" name="useProfileViewModel deduplicates attended events returned by multiple endpoints" time="0">
+    </testcase>
+    <testcase classname="useProfileViewModel excludes hosted events from the attended tab" name="useProfileViewModel excludes hosted events from the attended tab" time="0.001">
+    </testcase>
+    <testcase classname="useProfileViewModel filters ACTIVE events out of the hosted and attended tabs" name="useProfileViewModel filters ACTIVE events out of the hosted and attended tabs" time="0.001">
+    </testcase>
+    <testcase classname="useProfileViewModel treats zero-value backend end times as missing" name="useProfileViewModel treats zero-value backend end times as missing" time="0.001">
+    </testcase>
+    <testcase classname="useProfileViewModel sets apiError on API failure" name="useProfileViewModel sets apiError on API failure" time="0">
+    </testcase>
+    <testcase classname="useProfileViewModel sets generic error on unexpected failure" name="useProfileViewModel sets generic error on unexpected failure" time="0.001">
+    </testcase>
+    <testcase classname="useProfileViewModel sets error when token is null" name="useProfileViewModel sets error when token is null" time="0.001">
+    </testcase>
+    <testcase classname="useProfileViewModel can refresh profile data" name="useProfileViewModel can refresh profile data" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="useFavoriteLocationsViewModel" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:58" time="0.175" tests="11">
+    <testcase classname="useFavoriteLocationsViewModel loads favorite locations on mount and keeps them sorted alphabetically" name="useFavoriteLocationsViewModel loads favorite locations on mount and keeps them sorted alphabetically" time="0.004">
+    </testcase>
+    <testcase classname="useFavoriteLocationsViewModel opens and closes the add modal when the user can still add more locations" name="useFavoriteLocationsViewModel opens and closes the add modal when the user can still add more locations" time="0.001">
+    </testcase>
+    <testcase classname="useFavoriteLocationsViewModel searches address suggestions with debounce" name="useFavoriteLocationsViewModel searches address suggestions with debounce" time="0.002">
+    </testcase>
+    <testcase classname="useFavoriteLocationsViewModel creates a favorite location through the API and keeps the list sorted" name="useFavoriteLocationsViewModel creates a favorite location through the API and keeps the list sorted" time="0.001">
+    </testcase>
+    <testcase classname="useFavoriteLocationsViewModel saves the raw display_name of a detailed suggestion" name="useFavoriteLocationsViewModel saves the raw display_name of a detailed suggestion" time="0.001">
+    </testcase>
+    <testcase classname="useFavoriteLocationsViewModel blocks submit with validation errors before calling the API" name="useFavoriteLocationsViewModel blocks submit with validation errors before calling the API" time="0.001">
+    </testcase>
+    <testcase classname="useFavoriteLocationsViewModel enforces the max 3 rule based on the backend response" name="useFavoriteLocationsViewModel enforces the max 3 rule based on the backend response" time="0.001">
+    </testcase>
+    <testcase classname="useFavoriteLocationsViewModel syncs with the backend when create returns the favorite-location limit error" name="useFavoriteLocationsViewModel syncs with the backend when create returns the favorite-location limit error" time="0.002">
+    </testcase>
+    <testcase classname="useFavoriteLocationsViewModel removes a location through the API" name="useFavoriteLocationsViewModel removes a location through the API" time="0.001">
+    </testcase>
+    <testcase classname="useFavoriteLocationsViewModel sets apiError when loading favorite locations fails" name="useFavoriteLocationsViewModel sets apiError when loading favorite locations fails" time="0.004">
+    </testcase>
+    <testcase classname="useFavoriteLocationsViewModel shows a logged-out error without calling the backend" name="useFavoriteLocationsViewModel shows a logged-out error without calling the backend" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="FavoriteEventsTab" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:58" time="0.225" tests="6">
+    <testcase classname="FavoriteEventsTab renders the loading state while favorite events are being fetched" name="FavoriteEventsTab renders the loading state while favorite events are being fetched" time="0.002">
+    </testcase>
+    <testcase classname="FavoriteEventsTab renders the empty state when the user has no favorite events" name="FavoriteEventsTab renders the empty state when the user has no favorite events" time="0.002">
+    </testcase>
+    <testcase classname="FavoriteEventsTab renders an error banner without the empty state when loading fails" name="FavoriteEventsTab renders an error banner without the empty state when loading fails" time="0.001">
+    </testcase>
+    <testcase classname="FavoriteEventsTab renders favorite events from the dedicated favorites payload and navigates on press" name="FavoriteEventsTab renders favorite events from the dedicated favorites payload and navigates on press" time="0.002">
+    </testcase>
+    <testcase classname="FavoriteEventsTab passes the optional privacy level through when the favorites response includes it" name="FavoriteEventsTab passes the optional privacy level through when the favorites response includes it" time="0.001">
+    </testcase>
+    <testcase classname="FavoriteEventsTab passes the optional location address through when the favorites response includes it" name="FavoriteEventsTab passes the optional location address through when the favorites response includes it" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="useForgotPasswordViewModel" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:58" time="0.175" tests="17">
+    <testcase classname="useForgotPasswordViewModel starts on the email step with empty form" name="useForgotPasswordViewModel starts on the email step with empty form" time="0.002">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel does not call API when email validation fails" name="useForgotPasswordViewModel does not call API when email validation fails" time="0.004">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel advances to otp step after successful OTP request" name="useForgotPasswordViewModel advances to otp step after successful OTP request" time="0.001">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel trims email before sending" name="useForgotPasswordViewModel trims email before sending" time="0.001">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel shows apiError on OTP request failure" name="useForgotPasswordViewModel shows apiError on OTP request failure" time="0.001">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel handles unexpected error on OTP request" name="useForgotPasswordViewModel handles unexpected error on OTP request" time="0.001">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel clears field error when email is updated" name="useForgotPasswordViewModel clears field error when email is updated" time="0.001">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel does not call verify API when OTP validation fails" name="useForgotPasswordViewModel does not call verify API when OTP validation fails" time="0.001">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel advances to reset step after successful OTP verification" name="useForgotPasswordViewModel advances to reset step after successful OTP verification" time="0.001">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel shows OTP field error on invalid_otp and clears the input" name="useForgotPasswordViewModel shows OTP field error on invalid_otp and clears the input" time="0.001">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel shows apiError on OTP verify server error" name="useForgotPasswordViewModel shows apiError on OTP verify server error" time="0">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel does not call reset API when password validation fails" name="useForgotPasswordViewModel does not call reset API when password validation fails" time="0.002">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel calls reset API and returns true on success" name="useForgotPasswordViewModel calls reset API and returns true on success" time="0.001">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel shows apiError on invalid reset token" name="useForgotPasswordViewModel shows apiError on invalid reset token" time="0.001">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel handles unexpected error on reset" name="useForgotPasswordViewModel handles unexpected error on reset" time="0.003">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel goes back from otp to email step" name="useForgotPasswordViewModel goes back from otp to email step" time="0.001">
+    </testcase>
+    <testcase classname="useForgotPasswordViewModel goes back from reset to otp step" name="useForgotPasswordViewModel goes back from reset to otp step" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="HomeHeader" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:58" time="0.17" tests="2">
+    <testcase classname="HomeHeader renders the SEM logo on the left and the location button on the right" name="HomeHeader renders the SEM logo on the left and the location button on the right" time="0.017">
+    </testcase>
+    <testcase classname="HomeHeader renders the location label with bold italic emphasis" name="HomeHeader renders the location label with bold italic emphasis" time="0.003">
+    </testcase>
+  </testsuite>
+  <testsuite name="useLoginViewModel" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:58" time="0.147" tests="8">
+    <testcase classname="useLoginViewModel starts with empty form and no errors" name="useLoginViewModel starts with empty form and no errors" time="0.002">
+    </testcase>
+    <testcase classname="useLoginViewModel does not call API when validation fails" name="useLoginViewModel does not call API when validation fails" time="0.001">
+    </testcase>
+    <testcase classname="useLoginViewModel clears field error and apiError when a field is updated" name="useLoginViewModel clears field error and apiError when a field is updated" time="0.001">
+    </testcase>
+    <testcase classname="useLoginViewModel returns session on successful login" name="useLoginViewModel returns session on successful login" time="0.001">
+    </testcase>
+    <testcase classname="useLoginViewModel sets apiError on invalid credentials (401)" name="useLoginViewModel sets apiError on invalid credentials (401)" time="0.001">
+    </testcase>
+    <testcase classname="useLoginViewModel sets apiError on rate limit (429)" name="useLoginViewModel sets apiError on rate limit (429)" time="0.001">
+    </testcase>
+    <testcase classname="useLoginViewModel sets generic apiError on unexpected errors" name="useLoginViewModel sets generic apiError on unexpected errors" time="0.002">
+    </testcase>
+    <testcase classname="useLoginViewModel returns null when login fails" name="useLoginViewModel returns null when login fails" time="0.004">
+    </testcase>
+  </testsuite>
+  <testsuite name="useRegisterViewModel" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:59" time="0.15" tests="8">
+    <testcase classname="useRegisterViewModel starts on details step with empty form" name="useRegisterViewModel starts on details step with empty form" time="0.001">
+    </testcase>
+    <testcase classname="useRegisterViewModel does not call API when validation fails on submit details" name="useRegisterViewModel does not call API when validation fails on submit details" time="0.004">
+    </testcase>
+    <testcase classname="useRegisterViewModel sets email and username errors when check-availability returns TAKEN" name="useRegisterViewModel sets email and username errors when check-availability returns TAKEN" time="0.001">
+    </testcase>
+    <testcase classname="useRegisterViewModel requests OTP and moves to otp step when availability is clear" name="useRegisterViewModel requests OTP and moves to otp step when availability is clear" time="0.001">
+    </testcase>
+    <testcase classname="useRegisterViewModel sets apiError when check-availability throws ApiError" name="useRegisterViewModel sets apiError when check-availability throws ApiError" time="0.001">
+    </testcase>
+    <testcase classname="useRegisterViewModel returns session when OTP verify succeeds" name="useRegisterViewModel returns session when OTP verify succeeds" time="0.001">
+    </testcase>
+    <testcase classname="useRegisterViewModel maps invalid_otp ApiError to otp field and clears otp input" name="useRegisterViewModel maps invalid_otp ApiError to otp field and clears otp input" time="0.001">
+    </testcase>
+    <testcase classname="useRegisterViewModel goBack returns from otp to details" name="useRegisterViewModel goBack returns from otp to details" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="useLogoutViewModel" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:59" time="0.148" tests="8">
+    <testcase classname="useLogoutViewModel starts with isLoggingOut false and no error" name="useLogoutViewModel starts with isLoggingOut false and no error" time="0.007">
+    </testcase>
+    <testcase classname="useLogoutViewModel calls onLoggedOut immediately when refreshToken is null" name="useLogoutViewModel calls onLoggedOut immediately when refreshToken is null" time="0.002">
+    </testcase>
+    <testcase classname="useLogoutViewModel calls logout API with refresh_token and invokes onLoggedOut on success" name="useLogoutViewModel calls logout API with refresh_token and invokes onLoggedOut on success" time="0.001">
+    </testcase>
+    <testcase classname="useLogoutViewModel still calls onLoggedOut when server returns 401" name="useLogoutViewModel still calls onLoggedOut when server returns 401" time="0.001">
+    </testcase>
+    <testcase classname="useLogoutViewModel shows API error message and does not call onLoggedOut on non-401 API error" name="useLogoutViewModel shows API error message and does not call onLoggedOut on non-401 API error" time="0">
+    </testcase>
+    <testcase classname="useLogoutViewModel shows generic error message on network failure" name="useLogoutViewModel shows generic error message on network failure" time="0.001">
+    </testcase>
+    <testcase classname="useLogoutViewModel clears previous error when handleLogout is called again" name="useLogoutViewModel clears previous error when handleLogout is called again" time="0.001">
+    </testcase>
+    <testcase classname="useLogoutViewModel shows error and blocks logout on 403 forbidden" name="useLogoutViewModel shows error and blocks logout on 403 forbidden" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="api auth refresh handling" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:59" time="0.131" tests="4">
+    <testcase classname="api auth refresh handling refreshes and retries an authenticated request after a 401 response" name="api auth refresh handling refreshes and retries an authenticated request after a 401 response" time="0.003">
+    </testcase>
+    <testcase classname="api auth refresh handling throws immediately on 401 when there is no refresh token available" name="api auth refresh handling throws immediately on 401 when there is no refresh token available" time="0.003">
+    </testcase>
+    <testcase classname="api auth refresh handling throws after retry if the retried request also returns 401" name="api auth refresh handling throws after retry if the retried request also returns 401" time="0.002">
+    </testcase>
+    <testcase classname="api auth refresh handling propagates the error when the refresh request itself fails and clears the session" name="api auth refresh handling propagates the error when the refresh request itself fails and clears the session" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="uploadFileToPresignedUrl" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:59" time="0.117" tests="5">
+    <testcase classname="uploadFileToPresignedUrl uploads the local file with the provided method and headers" name="uploadFileToPresignedUrl uploads the local file with the provided method and headers" time="0.001">
+    </testcase>
+    <testcase classname="uploadFileToPresignedUrl throws a clear error when the upload request fails" name="uploadFileToPresignedUrl throws a clear error when the upload request fails" time="0.009">
+    </testcase>
+    <testcase classname="uploadFileToPresignedUrl throws a clear error for unsupported upload methods" name="uploadFileToPresignedUrl throws a clear error for unsupported upload methods" time="0.001">
+    </testcase>
+    <testcase classname="uploadFileToPresignedUrl builds my events from the four backend event-management endpoints" name="uploadFileToPresignedUrl builds my events from the four backend event-management endpoints" time="0.003">
+    </testcase>
+    <testcase classname="uploadFileToPresignedUrl falls back safely when event lists are empty or missing" name="uploadFileToPresignedUrl falls back safely when event lists are empty or missing" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="validateEmail" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:59" time="0.101" tests="22">
+    <testcase classname="validateEmail returns null for a valid email" name="validateEmail returns null for a valid email" time="0">
+    </testcase>
+    <testcase classname="validateEmail rejects empty or whitespace-only" name="validateEmail rejects empty or whitespace-only" time="0.001">
+    </testcase>
+    <testcase classname="validateEmail rejects invalid format" name="validateEmail rejects invalid format" time="0">
+    </testcase>
+    <testcase classname="validateEmail rejects when longer than 320 chars" name="validateEmail rejects when longer than 320 chars" time="0">
+    </testcase>
+    <testcase classname="validateOtp returns null for six digits" name="validateOtp returns null for six digits" time="0.001">
+    </testcase>
+    <testcase classname="validateOtp rejects empty" name="validateOtp rejects empty" time="0">
+    </testcase>
+    <testcase classname="validateOtp rejects wrong length or non-digits" name="validateOtp rejects wrong length or non-digits" time="0">
+    </testcase>
+    <testcase classname="validateUsername returns null for valid username" name="validateUsername returns null for valid username" time="0.001">
+    </testcase>
+    <testcase classname="validateUsername rejects empty" name="validateUsername rejects empty" time="0">
+    </testcase>
+    <testcase classname="validateUsername rejects invalid length" name="validateUsername rejects invalid length" time="0">
+    </testcase>
+    <testcase classname="validateUsername rejects invalid characters" name="validateUsername rejects invalid characters" time="0">
+    </testcase>
+    <testcase classname="validatePassword returns null for valid length" name="validatePassword returns null for valid length" time="0.001">
+    </testcase>
+    <testcase classname="validatePassword rejects empty" name="validatePassword rejects empty" time="0">
+    </testcase>
+    <testcase classname="validatePassword rejects too short or too long" name="validatePassword rejects too short or too long" time="0">
+    </testcase>
+    <testcase classname="validatePhoneNumber returns null when empty (optional)" name="validatePhoneNumber returns null when empty (optional)" time="0">
+    </testcase>
+    <testcase classname="validatePhoneNumber returns null for plausible numbers" name="validatePhoneNumber returns null for plausible numbers" time="0">
+    </testcase>
+    <testcase classname="validatePhoneNumber rejects too long" name="validatePhoneNumber rejects too long" time="0">
+    </testcase>
+    <testcase classname="validatePhoneNumber rejects invalid characters" name="validatePhoneNumber rejects invalid characters" time="0.002">
+    </testcase>
+    <testcase classname="validateBirthDate returns null when empty (optional)" name="validateBirthDate returns null when empty (optional)" time="0">
+    </testcase>
+    <testcase classname="validateBirthDate returns null for valid past date" name="validateBirthDate returns null for valid past date" time="0">
+    </testcase>
+    <testcase classname="validateBirthDate rejects wrong format" name="validateBirthDate rejects wrong format" time="0">
+    </testcase>
+    <testcase classname="validateBirthDate rejects future dates" name="validateBirthDate rejects future dates" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="sessionManager" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:59" time="0.099" tests="2">
+    <testcase classname="sessionManager rotates tokens once and shares a single in-flight refresh request" name="sessionManager rotates tokens once and shares a single in-flight refresh request" time="0.002">
+    </testcase>
+    <testcase classname="sessionManager clears the stored session when refresh fails terminally" name="sessionManager clears the stored session when refresh fails terminally" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="getFavoriteCountForDisplay" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:59" time="0.092" tests="4">
+    <testcase classname="getFavoriteCountForDisplay uses API favorite_count when present" name="getFavoriteCountForDisplay uses API favorite_count when present" time="0">
+    </testcase>
+    <testcase classname="getFavoriteCountForDisplay shows 0 when not favorited and no count" name="getFavoriteCountForDisplay shows 0 when not favorited and no count" time="0">
+    </testcase>
+    <testcase classname="getFavoriteCountForDisplay shows at least 1 when favorited but count missing or zero (legacy discovery)" name="getFavoriteCountForDisplay shows at least 1 when favorited but count missing or zero (legacy discovery)" time="0">
+    </testcase>
+    <testcase classname="getFavoriteCountForDisplay uses non-zero count when favorited" name="getFavoriteCountForDisplay uses non-zero count when favorited" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="getAutoCompletionDaysLeft" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:59" time="0.094" tests="11">
+    <testcase classname="getAutoCompletionDaysLeft returns null for ACTIVE events" name="getAutoCompletionDaysLeft returns null for ACTIVE events" time="0.001">
+    </testcase>
+    <testcase classname="getAutoCompletionDaysLeft returns null for COMPLETED events" name="getAutoCompletionDaysLeft returns null for COMPLETED events" time="0">
+    </testcase>
+    <testcase classname="getAutoCompletionDaysLeft returns null for CANCELED events" name="getAutoCompletionDaysLeft returns null for CANCELED events" time="0">
+    </testcase>
+    <testcase classname="getAutoCompletionDaysLeft returns null for IN_PROGRESS events that have an end_time" name="getAutoCompletionDaysLeft returns null for IN_PROGRESS events that have an end_time" time="0.001">
+    </testcase>
+    <testcase classname="getAutoCompletionDaysLeft returns null when event started less than 53 days ago" name="getAutoCompletionDaysLeft returns null when event started less than 53 days ago" time="0.001">
+    </testcase>
+    <testcase classname="getAutoCompletionDaysLeft returns null when event started 60 or more days ago" name="getAutoCompletionDaysLeft returns null when event started 60 or more days ago" time="0">
+    </testcase>
+    <testcase classname="getAutoCompletionDaysLeft returns 7 when event started exactly 53 days ago" name="getAutoCompletionDaysLeft returns 7 when event started exactly 53 days ago" time="0.001">
+    </testcase>
+    <testcase classname="getAutoCompletionDaysLeft returns 1 when event started exactly 59 days ago" name="getAutoCompletionDaysLeft returns 1 when event started exactly 59 days ago" time="0">
+    </testcase>
+    <testcase classname="getAutoCompletionDaysLeft returns correct days left for day 55" name="getAutoCompletionDaysLeft returns correct days left for day 55" time="0">
+    </testcase>
+    <testcase classname="getAutoCompletionDaysLeft treats null end_time the same as undefined" name="getAutoCompletionDaysLeft treats null end_time the same as undefined" time="0.001">
+    </testcase>
+    <testcase classname="getAutoCompletionDaysLeft accepts a custom now parameter" name="getAutoCompletionDaysLeft accepts a custom now parameter" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="eventStatus" errors="0" failures="0" skipped="0" timestamp="2026-04-11T11:37:59" time="0.089" tests="3">
+    <testcase classname="eventStatus formats known and unknown backend statuses for display" name="eventStatus formats known and unknown backend statuses for display" time="0.001">
+    </testcase>
+    <testcase classname="eventStatus returns distinct colors for supported statuses with a safe fallback" name="eventStatus returns distinct colors for supported statuses with a safe fallback" time="0">
+    </testcase>
+    <testcase classname="eventStatus hides only ACTIVE events from profile lists" name="eventStatus hides only ACTIVE events from profile lists" time="0.004">
+    </testcase>
+  </testsuite>
+</testsuites>
