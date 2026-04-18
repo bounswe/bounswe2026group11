@@ -24,6 +24,7 @@ type Repository interface {
 	ListEventPendingJoinRequests(ctx context.Context, eventID uuid.UUID, params EventCollectionPageParams) ([]EventDetailPendingJoinRequestRecord, error)
 	ListEventInvitations(ctx context.Context, eventID uuid.UUID, params EventCollectionPageParams) ([]EventDetailInvitationRecord, error)
 	GetEventByID(ctx context.Context, eventID uuid.UUID) (*domain.Event, error)
+	GetRequesterForJoin(ctx context.Context, userID uuid.UUID) (*domain.User, error)
 	TransitionEventStatuses(ctx context.Context) error
 	CancelEvent(ctx context.Context, eventID uuid.UUID, canceledApprovedParticipantCount int) error
 	CompleteEvent(ctx context.Context, eventID uuid.UUID) error

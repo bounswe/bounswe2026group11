@@ -33,25 +33,27 @@ func (u *fakeUnitOfWork) RunInTx(ctx context.Context, fn func(ctx context.Contex
 
 // fakeEventRepo is an in-memory implementation of Repository.
 type fakeEventRepo struct {
-	err                error
-	discoverErr        error
-	detailErr          error
-	events             map[uuid.UUID]*domain.Event
-	favoriteRecords    []FavoriteEventRecord
-	discoverRecords    []DiscoverableEventRecord
-	detailRecord       *EventDetailRecord
-	hostSummaryRecord  *EventHostContextSummaryRecord
-	participantRecords []EventDetailApprovedParticipantRecord
-	joinRequestRecords []EventDetailPendingJoinRequestRecord
-	invitationRecords  []EventDetailInvitationRecord
-	discoverCallCount  int
-	lastDiscoverUserID uuid.UUID
-	lastDiscoverParams DiscoverEventsParams
-	lastDetailUserID   uuid.UUID
-	lastDetailEventID  uuid.UUID
-	lastCollectionPage EventCollectionPageParams
-	lastCancelCtx      context.Context
-	lastCancelCount    int
+	err                    error
+	discoverErr            error
+	detailErr              error
+	events                 map[uuid.UUID]*domain.Event
+	favoriteRecords        []FavoriteEventRecord
+	discoverRecords        []DiscoverableEventRecord
+	detailRecord           *EventDetailRecord
+	hostSummaryRecord      *EventHostContextSummaryRecord
+	participantRecords     []EventDetailApprovedParticipantRecord
+	joinRequestRecords     []EventDetailPendingJoinRequestRecord
+	invitationRecords      []EventDetailInvitationRecord
+	discoverCallCount      int
+	lastDiscoverUserID     uuid.UUID
+	lastDiscoverParams     DiscoverEventsParams
+	lastDetailUserID       uuid.UUID
+	lastDetailEventID      uuid.UUID
+	lastCollectionPage     EventCollectionPageParams
+	lastCancelCtx          context.Context
+	lastCancelCount        int
+	requesters             map[uuid.UUID]*domain.User
+	getRequesterForJoinErr error
 }
 
 func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams) (*domain.Event, error) {
@@ -194,6 +196,16 @@ func (r *fakeEventRepo) ListDiscoverableEvents(_ context.Context, userID uuid.UU
 	}
 
 	return r.discoverRecords, nil
+}
+
+func (r *fakeEventRepo) GetRequesterForJoin(_ context.Context, userID uuid.UUID) (*domain.User, error) {
+	if r.getRequesterForJoinErr != nil {
+		return nil, r.getRequesterForJoinErr
+	}
+	if user, ok := r.requesters[userID]; ok {
+		return user, nil
+	}
+	return nil, domain.ErrNotFound
 }
 
 // fakeParticipationService is an in-memory implementation of ParticipationService.
@@ -362,7 +374,8 @@ func (s *fakeJoinRequestService) RejectJoinRequest(
 
 func newTestEventService() (*Service, *fakeEventRepo, *fakeParticipationService, *fakeJoinRequestService) {
 	eventRepo := &fakeEventRepo{
-		events: make(map[uuid.UUID]*domain.Event),
+		events:     make(map[uuid.UUID]*domain.Event),
+		requesters: map[uuid.UUID]*domain.User{},
 	}
 	participationService := &fakeParticipationService{}
 	joinRequestService := &fakeJoinRequestService{}
@@ -1292,7 +1305,10 @@ func TestDiscoverEventsBuildsNextCursorFromLastReturnedItem(t *testing.T) {
 
 // newTestEventServiceWithEvent wires a service with a pre-loaded event in the fake repo.
 func newTestEventServiceWithEvent(e *domain.Event) (*Service, *fakeEventRepo, *fakeParticipationService, *fakeJoinRequestService) {
-	eventRepo := &fakeEventRepo{events: map[uuid.UUID]*domain.Event{e.ID: e}}
+	eventRepo := &fakeEventRepo{
+		events:     map[uuid.UUID]*domain.Event{e.ID: e},
+		requesters: map[uuid.UUID]*domain.User{},
+	}
 	participationService := &fakeParticipationService{}
 	joinRequestService := &fakeJoinRequestService{}
 	return NewService(eventRepo, participationService, joinRequestService, &fakeUnitOfWork{}), eventRepo, participationService, joinRequestService
