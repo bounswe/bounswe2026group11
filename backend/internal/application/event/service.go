@@ -48,7 +48,7 @@ func NewService(
 // CreateEvent validates the input, then persists the event with its location,
 // tags, and constraints in a single transaction.
 func (s *Service) CreateEvent(ctx context.Context, hostID uuid.UUID, input CreateEventInput) (*CreateEventResult, error) {
-	errs := validateCreateEventInput(input)
+	errs := validateCreateEventInput(input, s.now().UTC())
 	if len(errs) > 0 {
 		return nil, domain.ValidationError(errs)
 	}

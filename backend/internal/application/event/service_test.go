@@ -732,6 +732,16 @@ func TestCreateEventValidationMissingStartTime(t *testing.T) {
 	assertValidationDetail(t, err, "start_time")
 }
 
+func TestCreateEventValidationPastStartTime(t *testing.T) {
+	svc, _, _, _ := newTestEventService()
+	input := validInput()
+	input.StartTime = time.Now().UTC().Add(-time.Hour)
+
+	_, err := svc.CreateEvent(context.Background(), uuid.New(), input)
+
+	assertValidationDetail(t, err, "start_time")
+}
+
 func TestCreateEventValidationEndTimeBeforeStartTime(t *testing.T) {
 	// given
 	svc, _, _, _ := newTestEventService()
