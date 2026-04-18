@@ -49,6 +49,20 @@ func WithUserVerifiedAt(verifiedAt time.Time) UserOption {
 	}
 }
 
+// WithUserGender overrides the default (nil) gender for the fixture.
+func WithUserGender(gender string) UserOption {
+	return func(f *userFixture) {
+		f.gender = &gender
+	}
+}
+
+// WithUserBirthDate overrides the default (nil) birth date for the fixture.
+func WithUserBirthDate(birthDate time.Time) UserOption {
+	return func(f *userFixture) {
+		f.birthDate = &birthDate
+	}
+}
+
 // GivenUser persists a user fixture through the provided auth repository.
 func GivenUser(t *testing.T, repo authapp.Repository, opts ...UserOption) *domain.User {
 	t.Helper()
