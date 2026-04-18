@@ -1343,6 +1343,22 @@ func protectedEvent(hostID uuid.UUID) *domain.Event {
 	}
 }
 
+func ptrInt(v int) *int {
+	return &v
+}
+
+func ptrTime(v time.Time) *time.Time {
+	return &v
+}
+
+func ptrString(v string) *string {
+	return &v
+}
+
+func ptrGender(v domain.EventParticipantGender) *domain.EventParticipantGender {
+	return &v
+}
+
 func TestCancelEventRunsEventAndParticipationUpdatesInsideOneUnitOfWork(t *testing.T) {
 	hostID := uuid.New()
 	ev := publicEventWithCapacity(hostID, 10, 3)
@@ -1551,6 +1567,66 @@ func TestJoinEventAllowsWhenUnderCapacity(t *testing.T) {
 	}
 	if result.Status != domain.ParticipationStatusApproved {
 		t.Fatalf("expected status APPROVED, got %q", result.Status)
+	}
+}
+
+func TestJoinEventRejectsUnderageUser(t *testing.T) {
+	hostID := uuid.New()
+	joinerID := uuid.New()
+	ev := publicEvent(hostID)
+	ev.MinimumAge = ptrInt(18)
+	svc, repo, _, _ := newTestEventServiceWithEvent(ev)
+	repo.requesters[joinerID] = &domain.User{
+		ID:        joinerID,
+		BirthDate: ptrTime(time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)),
+	}
+
+	_, err := svc.JoinEvent(context.Background(), joinerID, ev.ID)
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeAgeRequirementNotMet {
+		t.Fatalf("expected age_requirement_not_met, got %v", err)
+	}
+}
+
+func TestJoinEventRejectsMismatchedGender(t *testing.T) {
+	hostID := uuid.New()
+	joinerID := uuid.New()
+	ev := publicEvent(hostID)
+	ev.PreferredGender = ptrGender(domain.GenderFemale)
+	svc, repo, _, _ := newTestEventServiceWithEvent(ev)
+	repo.requesters[joinerID] = &domain.User{
+		ID:     joinerID,
+		Gender: ptrString(string(domain.GenderMale)),
+	}
+
+	_, err := svc.JoinEvent(context.Background(), joinerID, ev.ID)
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeGenderRequirementNotMet {
+		t.Fatalf("expected gender_requirement_not_met, got %v", err)
+	}
+}
+
+func TestJoinEventRejectsMissingBirthDateWhenAgeRestricted(t *testing.T) {
+	hostID := uuid.New()
+	joinerID := uuid.New()
+	ev := publicEvent(hostID)
+	ev.MinimumAge = ptrInt(18)
+	svc, repo, _, _ := newTestEventServiceWithEvent(ev)
+	repo.requesters[joinerID] = &domain.User{ID: joinerID}
+
+	_, err := svc.JoinEvent(context.Background(), joinerID, ev.ID)
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeProfileIncomplete {
+		t.Fatalf("expected profile_incomplete, got %v", err)
 	}
 }
 
