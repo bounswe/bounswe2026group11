@@ -246,11 +246,14 @@ func (s *Service) ListEventInvitations(
 // participation record has status APPROVED.
 //
 // Errors:
-//   - 404 event_not_found        – event does not exist
-//   - 403 host_cannot_join       – caller is the event host
-//   - 409 event_join_not_allowed – event is not PUBLIC
-//   - 409 capacity_exceeded      – event has reached maximum capacity
-//   - 409 already_participating  – caller already has a participation record
+//   - 404 event_not_found            – event does not exist
+//   - 403 host_cannot_join           – caller is the event host
+//   - 409 event_join_not_allowed     – event is not PUBLIC
+//   - 409 capacity_exceeded          – event has reached maximum capacity
+//   - 409 already_participating      – caller already has a participation record
+//   - 400 profile_incomplete         – event has an age/gender restriction but user profile is missing the required field
+//   - 409 age_requirement_not_met    – user is below the event's minimum age
+//   - 409 gender_requirement_not_met – user gender does not match the event's preferred gender
 func (s *Service) JoinEvent(ctx context.Context, userID, eventID uuid.UUID) (*JoinEventResult, error) {
 	event, err := s.eventRepo.GetEventByID(ctx, eventID)
 	if err != nil {
@@ -274,6 +277,10 @@ func (s *Service) JoinEvent(ctx context.Context, userID, eventID uuid.UUID) (*Jo
 
 	if event.Capacity != nil && event.ApprovedParticipantCount >= *event.Capacity {
 		return nil, domain.ConflictError(domain.ErrorCodeCapacityExceeded, "This event has reached its maximum capacity.")
+	}
+
+	if err := s.ensureRequesterEligible(ctx, userID, event); err != nil {
+		return nil, err
 	}
 
 	p, err := s.participationService.CreateApprovedParticipation(ctx, eventID, userID)
@@ -325,10 +332,13 @@ func (s *Service) LeaveEvent(ctx context.Context, userID, eventID uuid.UUID) (*L
 // The host must approve the request before the user becomes a participant.
 //
 // Errors:
-//   - 404 event_not_found        – event does not exist
-//   - 403 host_cannot_join       – caller is the event host
-//   - 409 event_join_not_allowed – event is not PROTECTED
-//   - 409 already_requested      – caller already has a pending request
+//   - 404 event_not_found            – event does not exist
+//   - 403 host_cannot_join           – caller is the event host
+//   - 409 event_join_not_allowed     – event is not PROTECTED
+//   - 409 already_requested          – caller already has a pending request
+//   - 400 profile_incomplete         – event has an age/gender restriction but user profile is missing the required field
+//   - 409 age_requirement_not_met    – user is below the event's minimum age
+//   - 409 gender_requirement_not_met – user gender does not match the event's preferred gender
 func (s *Service) RequestJoin(ctx context.Context, userID, eventID uuid.UUID, input RequestJoinInput) (*RequestJoinResult, error) {
 	event, err := s.eventRepo.GetEventByID(ctx, eventID)
 	if err != nil {
@@ -348,6 +358,10 @@ func (s *Service) RequestJoin(ctx context.Context, userID, eventID uuid.UUID, in
 
 	if event.PrivacyLevel != domain.PrivacyProtected {
 		return nil, domain.ConflictError(domain.ErrorCodeEventJoinNotAllowed, "Only PROTECTED events accept join requests.")
+	}
+
+	if err := s.ensureRequesterEligible(ctx, userID, event); err != nil {
+		return nil, err
 	}
 
 	jr, err := s.joinRequestService.CreatePendingJoinRequest(ctx, eventID, userID, event.HostID, join_request.CreatePendingJoinRequestInput{
@@ -671,4 +685,24 @@ func encodeNextEventCollectionCursor(createdAt time.Time, entityID uuid.UUID) (*
 	}
 
 	return &encoded, nil
+}
+
+// ensureRequesterEligible loads the requester's profile fields and runs the
+// shared domain eligibility check. It returns nil when the user is eligible
+// to join or request to join the given event.
+func (s *Service) ensureRequesterEligible(ctx context.Context, userID uuid.UUID, ev *domain.Event) error {
+	if ev.MinimumAge == nil && ev.PreferredGender == nil {
+		return nil
+	}
+	user, err := s.eventRepo.GetRequesterForJoin(ctx, userID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.BadRequestError(domain.ErrorCodeProfileIncomplete, "Your account was not found.")
+		}
+		return err
+	}
+	if appErr := domain.CheckParticipationEligibility(user, ev, s.now().UTC()); appErr != nil {
+		return appErr
+	}
+	return nil
 }

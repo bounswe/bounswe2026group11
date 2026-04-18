@@ -1749,6 +1749,48 @@ func TestRequestJoinRejectsPublicEvent(t *testing.T) {
 	}
 }
 
+func TestRequestJoinRejectsUnderageUser(t *testing.T) {
+	hostID := uuid.New()
+	joinerID := uuid.New()
+	ev := protectedEvent(hostID)
+	ev.MinimumAge = ptrInt(18)
+	svc, repo, _, _ := newTestEventServiceWithEvent(ev)
+	repo.requesters[joinerID] = &domain.User{
+		ID:        joinerID,
+		BirthDate: ptrTime(time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)),
+	}
+
+	_, err := svc.RequestJoin(context.Background(), joinerID, ev.ID, RequestJoinInput{})
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeAgeRequirementNotMet {
+		t.Fatalf("expected age_requirement_not_met, got %v", err)
+	}
+}
+
+func TestRequestJoinRejectsMismatchedGender(t *testing.T) {
+	hostID := uuid.New()
+	joinerID := uuid.New()
+	ev := protectedEvent(hostID)
+	ev.PreferredGender = ptrGender(domain.GenderFemale)
+	svc, repo, _, _ := newTestEventServiceWithEvent(ev)
+	repo.requesters[joinerID] = &domain.User{
+		ID:     joinerID,
+		Gender: ptrString(string(domain.GenderMale)),
+	}
+
+	_, err := svc.RequestJoin(context.Background(), joinerID, ev.ID, RequestJoinInput{})
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeGenderRequirementNotMet {
+		t.Fatalf("expected gender_requirement_not_met, got %v", err)
+	}
+}
+
 func TestApproveJoinRequestDelegatesToJoinRequestService(t *testing.T) {
 	hostID := uuid.New()
 	ev := protectedEvent(hostID)
