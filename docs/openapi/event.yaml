@@ -825,7 +825,7 @@ paths:
                     status: APPROVED
                     created_at: "2026-03-26T11:00:00+03:00"
         '400':
-          description: Invalid event ID format.
+          description: "Invalid event ID format, or the requester's profile is missing a field required by the event (`profile_incomplete`)."
           content:
             application/json:
               schema:
@@ -838,6 +838,18 @@ paths:
                       message: The request body contains invalid fields. See error.details for field-specific messages.
                       details:
                         id: must be a valid UUID
+                profile_incomplete_birth_date:
+                  summary: User birth date is missing on an age-restricted event
+                  value:
+                    error:
+                      code: profile_incomplete
+                      message: Your birth date must be set on your profile to join age-restricted events.
+                profile_incomplete_gender:
+                  summary: User gender is missing on a gender-restricted event
+                  value:
+                    error:
+                      code: profile_incomplete
+                      message: Your gender must be set on your profile to join this event.
         '401':
           description: Missing or invalid access token.
           content:
@@ -870,8 +882,10 @@ paths:
                       message: The requested event does not exist.
         '409':
           description: |
-            Conflict. Either the user is already participating (`already_participating`) or
-            the event privacy level does not allow direct join (`event_join_not_allowed`).
+            Conflict. Either the user is already participating (`already_participating`),
+            the event privacy level does not allow direct join (`event_join_not_allowed`),
+            the requester is below the event's minimum age (`age_requirement_not_met`), or
+            the requester's gender does not match the event's preferred gender (`gender_requirement_not_met`).
           content:
             application/json:
               schema:
@@ -887,6 +901,18 @@ paths:
                     error:
                       code: event_join_not_allowed
                       message: Only PUBLIC events can be joined directly.
+                age_requirement_not_met:
+                  summary: Requester is below the event's minimum age
+                  value:
+                    error:
+                      code: age_requirement_not_met
+                      message: You do not meet the minimum age required by this event.
+                gender_requirement_not_met:
+                  summary: Requester gender does not match the event's preferred gender
+                  value:
+                    error:
+                      code: gender_requirement_not_met
+                      message: This event is restricted to participants of a specific gender.
         '500':
           description: Unexpected server error.
           content:
@@ -1172,7 +1198,7 @@ paths:
                     status: PENDING
                     created_at: "2026-03-26T12:00:00+03:00"
         '400':
-          description: Invalid event ID format or malformed JSON body.
+          description: "Invalid event ID format, malformed JSON body, or the requester's profile is missing a field required by the event (`profile_incomplete`)."
           content:
             application/json:
               schema:
@@ -1185,6 +1211,18 @@ paths:
                       message: The request body contains invalid fields. See error.details for field-specific messages.
                       details:
                         id: must be a valid UUID
+                profile_incomplete_birth_date:
+                  summary: User birth date is missing on an age-restricted event
+                  value:
+                    error:
+                      code: profile_incomplete
+                      message: Your birth date must be set on your profile to join age-restricted events.
+                profile_incomplete_gender:
+                  summary: User gender is missing on a gender-restricted event
+                  value:
+                    error:
+                      code: profile_incomplete
+                      message: Your gender must be set on your profile to join this event.
         '401':
           description: Missing or invalid access token.
           content:
@@ -1219,8 +1257,10 @@ paths:
           description: |
             Conflict. The caller already has a pending request (`already_requested`), is already
             participating (`already_participating`), the event privacy level does not allow join
-            requests (`event_join_not_allowed`), or a rejection cooldown is still active
-            (`join_request_cooldown_active`).
+            requests (`event_join_not_allowed`), a rejection cooldown is still active
+            (`join_request_cooldown_active`), the requester is below the event's minimum age
+            (`age_requirement_not_met`), or the requester's gender does not match the event's
+            preferred gender (`gender_requirement_not_met`).
           content:
             application/json:
               schema:
@@ -1246,6 +1286,18 @@ paths:
                     error:
                       code: join_request_cooldown_active
                       message: You must wait 3 days after rejection before requesting to join this event again.
+                age_requirement_not_met:
+                  summary: Requester is below the event's minimum age
+                  value:
+                    error:
+                      code: age_requirement_not_met
+                      message: You do not meet the minimum age required by this event.
+                gender_requirement_not_met:
+                  summary: Requester gender does not match the event's preferred gender
+                  value:
+                    error:
+                      code: gender_requirement_not_met
+                      message: This event is restricted to participants of a specific gender.
         '500':
           description: Unexpected server error.
           content:
@@ -1821,6 +1873,14 @@ paths:
                       message: The request body contains invalid fields. See error.details for field-specific messages.
                       details:
                         category_id: must reference an existing event category id
+                start_time_in_past:
+                  summary: start_time is not in the future
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        start_time: start_time must be in the future
         '401':
           description: Missing or invalid access token.
           content:
