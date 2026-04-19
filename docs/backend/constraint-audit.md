@@ -1,6 +1,6 @@
 # Backend Participation & Event Constraint Audit — Issue #467
 
-_Last updated: 2026-04-18_
+_Last updated: 2026-04-19_
 
 | Constraint                               | Stored in                    | Enforced server-side?          | Enforcement location                                    | Test reference                         |
 |------------------------------------------|------------------------------|--------------------------------|---------------------------------------------------------|----------------------------------------|
@@ -10,10 +10,10 @@ _Last updated: 2026-04-18_
 | Event status (not CANCELED/COMPLETED)    | `event.status`               | ✅ Yes                          | `event.Service.JoinEvent`, `event.Service.RequestJoin`, `event.Service.ApproveJoinRequest` | _existing coverage_ |
 | Duplicate participation / pending request| `participation`, `join_request` | ✅ Yes (repo)                | `participation_repo`, `join_request_repo`               | _existing coverage_                    |
 | Rejection cooldown (72h)                 | `join_request.updated_at`    | ✅ Yes                          | `join_request_repo.handleExistingJoinRequestForCreate`  | _existing coverage_                    |
-| **Minimum age**                          | `event.minimum_age`          | ⚠️ **Partially — create-event shape only; join-time enforcement missing** | —                                                       | _added in plan Tasks 4–6_              |
-| **Preferred gender**                     | `event.preferred_gender`     | ⚠️ **Partially — create-event shape only; join-time enforcement missing** | —                                                       | _added in plan Tasks 4–6_              |
+| Minimum age                              | `event.minimum_age`          | ✅ Yes                          | `domain.CheckParticipationEligibility` called from `event.Service.JoinEvent`, `event.Service.RequestJoin` | `TestJoinEventRejectsUnderageUser`, `TestRequestJoinRejectsUnderageUser`, `TestIntegrationJoinEventRejectsUnderageUser` |
+| Preferred gender                         | `event.preferred_gender`     | ✅ Yes                          | `domain.CheckParticipationEligibility` called from `event.Service.JoinEvent`, `event.Service.RequestJoin` | `TestJoinEventRejectsMismatchedGender`, `TestRequestJoinRejectsMismatchedGender`, `TestIntegrationRequestJoinRejectsMismatchedGender` |
 | **Language restrictions**                | `event_constraint` (free-form)| ⚠️ Not structurally enforceable (no language field on user) | — | _follow-up issue_ |
-| **Start time must be in future**         | `event.start_time`           | ❌ **Missing**                  | —                                                       | _added in plan Task 8_                 |
+| Start time must be in future             | `event.start_time`           | ✅ Yes                          | `validateCreateEventInput` in `event.Service.CreateEvent` | `TestCreateEventValidationPastStartTime` |
 
 ## Decisions
 
