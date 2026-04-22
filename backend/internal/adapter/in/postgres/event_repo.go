@@ -1546,6 +1546,37 @@ func (r *EventRepository) GetEventByID(ctx context.Context, eventID uuid.UUID) (
 	return event, nil
 }
 
+// GetRequesterForJoin loads the minimal user fields required to enforce
+// participation eligibility checks (age, gender).
+func (r *EventRepository) GetRequesterForJoin(ctx context.Context, userID uuid.UUID) (*domain.User, error) {
+	const query = `SELECT id, gender, birth_date FROM app_user WHERE id = $1`
+
+	var (
+		id        uuid.UUID
+		gender    pgtype.Text
+		birthDate pgtype.Date
+	)
+
+	err := r.pool.QueryRow(ctx, query, userID).Scan(&id, &gender, &birthDate)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("get requester for join: %w", err)
+	}
+
+	user := &domain.User{ID: id}
+	if gender.Valid {
+		g := gender.String
+		user.Gender = &g
+	}
+	if birthDate.Valid {
+		t := birthDate.Time
+		user.BirthDate = &t
+	}
+	return user, nil
+}
+
 // GetEventImageState returns the event host and current image version for direct uploads.
 func (r *EventRepository) GetEventImageState(ctx context.Context, eventID uuid.UUID) (*imageuploadapp.EventImageState, error) {
 	var state imageuploadapp.EventImageState

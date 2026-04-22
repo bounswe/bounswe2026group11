@@ -54,6 +54,9 @@ const (
 	ErrorCodeEventNotLeaveable               = "event_not_leaveable"
 	ErrorCodeFavoriteLocationNotFound        = "favorite_location_not_found"
 	ErrorCodeFavoriteLocationLimitExceeded   = "favorite_location_limit_exceeded"
+	ErrorCodeAgeRequirementNotMet            = "age_requirement_not_met"
+	ErrorCodeGenderRequirementNotMet         = "gender_requirement_not_met"
+	ErrorCodeProfileIncomplete               = "profile_incomplete"
 
 	ErrorCodeImageUploadTokenInvalid    = "image_upload_token_invalid"
 	ErrorCodeImageUploadNotAllowed      = "image_upload_not_allowed"

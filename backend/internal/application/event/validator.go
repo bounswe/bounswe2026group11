@@ -3,13 +3,14 @@ package event
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 )
 
 // validateCreateEventInput checks the application-level invariants for create-event
 // requests after delivery adapters have parsed wire-specific values.
-func validateCreateEventInput(input CreateEventInput) map[string]string {
+func validateCreateEventInput(input CreateEventInput, now time.Time) map[string]string {
 	errs := make(map[string]string)
 
 	if strings.TrimSpace(input.Title) == "" {
@@ -38,6 +39,8 @@ func validateCreateEventInput(input CreateEventInput) map[string]string {
 
 	if input.StartTime.IsZero() {
 		errs["start_time"] = "start_time is required"
+	} else if !input.StartTime.After(now) {
+		errs["start_time"] = "start_time must be in the future"
 	}
 
 	if input.EndTime != nil && input.StartTime.IsZero() {

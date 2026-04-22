@@ -2402,6 +2402,12 @@ type routeDiscoveryEventSeed struct {
 func createDiscoveryEvent(t *testing.T, harness *common.EventHarness, seed discoveryEventSeed) uuid.UUID {
 	t.Helper()
 
+	createStartTime := seed.StartTime
+	backdate := !seed.StartTime.IsZero() && !seed.StartTime.After(time.Now().UTC())
+	if backdate {
+		createStartTime = time.Now().UTC().Add(time.Hour)
+	}
+
 	result, err := harness.Service.CreateEvent(context.Background(), seed.HostID, eventapp.CreateEventInput{
 		Title:        seed.Title,
 		Description:  common.StringPtr(seed.Description),
@@ -2409,7 +2415,7 @@ func createDiscoveryEvent(t *testing.T, harness *common.EventHarness, seed disco
 		LocationType: domain.LocationPoint,
 		Lat:          &seed.Lat,
 		Lon:          &seed.Lon,
-		StartTime:    seed.StartTime,
+		StartTime:    createStartTime,
 		PrivacyLevel: seed.PrivacyLevel,
 		Tags:         seed.Tags,
 	})
@@ -2420,6 +2426,17 @@ func createDiscoveryEvent(t *testing.T, harness *common.EventHarness, seed disco
 	eventID, err := uuid.Parse(result.ID)
 	if err != nil {
 		t.Fatalf("uuid.Parse() error = %v", err)
+	}
+
+	if backdate {
+		if _, err := common.RequirePool(t).Exec(
+			context.Background(),
+			`UPDATE event SET start_time = $2 WHERE id = $1`,
+			eventID,
+			seed.StartTime,
+		); err != nil {
+			t.Fatalf("backdate event start_time error = %v", err)
+		}
 	}
 
 	return eventID
@@ -2616,6 +2633,100 @@ func setJoinRequestUpdatedAt(t *testing.T, joinRequestID uuid.UUID, updatedAt ti
 	); err != nil {
 		t.Fatalf("update join_request updated_at error = %v", err)
 	}
+}
+
+func TestIntegrationJoinEventRejectsUnderageUser(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	joiner := common.GivenUser(t, harness.AuthRepo,
+		common.WithUserBirthDate(time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)),
+	)
+	eventID := createPublicEventWithMinAge(t, harness, host.ID, 18)
+
+	_, err := harness.Service.JoinEvent(context.Background(), joiner.ID, eventID)
+
+	common.RequireAppErrorCode(t, err, domain.ErrorCodeAgeRequirementNotMet)
+}
+
+func TestIntegrationRequestJoinRejectsMismatchedGender(t *testing.T) {
+	t.Parallel()
+
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	joiner := common.GivenUser(t, harness.AuthRepo,
+		common.WithUserGender(string(domain.GenderMale)),
+	)
+	eventID := createProtectedEventWithPreferredGender(t, harness, host.ID, domain.GenderFemale)
+
+	_, err := harness.Service.RequestJoin(context.Background(), joiner.ID, eventID, eventapp.RequestJoinInput{})
+
+	common.RequireAppErrorCode(t, err, domain.ErrorCodeGenderRequirementNotMet)
+}
+
+// createPublicEventWithMinAge builds a PUBLIC event with the given minimum age
+// restriction via the real event service and returns its ID.
+func createPublicEventWithMinAge(t *testing.T, harness *common.EventHarness, hostID uuid.UUID, minAge int) uuid.UUID {
+	t.Helper()
+
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+	categoryID := common.GivenEventCategory(t)
+	lat := 41.0
+	lon := 29.0
+
+	result, err := harness.Service.CreateEvent(context.Background(), hostID, eventapp.CreateEventInput{
+		Title:        "Age-restricted event " + uuid.NewString()[:8],
+		Description:  common.StringPtr("Age-restricted integration fixture"),
+		CategoryID:   &categoryID,
+		LocationType: domain.LocationPoint,
+		Lat:          &lat,
+		Lon:          &lon,
+		StartTime:    startTime,
+		PrivacyLevel: domain.PrivacyPublic,
+		MinimumAge:   &minAge,
+	})
+	if err != nil {
+		t.Fatalf("CreateEvent() error = %v", err)
+	}
+
+	id, err := uuid.Parse(result.ID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() error = %v", err)
+	}
+	return id
+}
+
+// createProtectedEventWithPreferredGender builds a PROTECTED event with a preferred
+// gender restriction via the real event service and returns its ID.
+func createProtectedEventWithPreferredGender(t *testing.T, harness *common.EventHarness, hostID uuid.UUID, gender domain.EventParticipantGender) uuid.UUID {
+	t.Helper()
+
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+	categoryID := common.GivenEventCategory(t)
+	lat := 41.0
+	lon := 29.0
+
+	result, err := harness.Service.CreateEvent(context.Background(), hostID, eventapp.CreateEventInput{
+		Title:           "Gender-restricted event " + uuid.NewString()[:8],
+		Description:     common.StringPtr("Gender-restricted integration fixture"),
+		CategoryID:      &categoryID,
+		LocationType:    domain.LocationPoint,
+		Lat:             &lat,
+		Lon:             &lon,
+		StartTime:       startTime,
+		PrivacyLevel:    domain.PrivacyProtected,
+		PreferredGender: &gender,
+	})
+	if err != nil {
+		t.Fatalf("CreateEvent() error = %v", err)
+	}
+
+	id, err := uuid.Parse(result.ID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() error = %v", err)
+	}
+	return id
 }
 
 func createProtectedEventWithCapacity(t *testing.T, harness *common.EventHarness, hostID uuid.UUID, capacity int) uuid.UUID {

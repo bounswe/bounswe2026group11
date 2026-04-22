@@ -33,25 +33,27 @@ func (u *fakeUnitOfWork) RunInTx(ctx context.Context, fn func(ctx context.Contex
 
 // fakeEventRepo is an in-memory implementation of Repository.
 type fakeEventRepo struct {
-	err                error
-	discoverErr        error
-	detailErr          error
-	events             map[uuid.UUID]*domain.Event
-	favoriteRecords    []FavoriteEventRecord
-	discoverRecords    []DiscoverableEventRecord
-	detailRecord       *EventDetailRecord
-	hostSummaryRecord  *EventHostContextSummaryRecord
-	participantRecords []EventDetailApprovedParticipantRecord
-	joinRequestRecords []EventDetailPendingJoinRequestRecord
-	invitationRecords  []EventDetailInvitationRecord
-	discoverCallCount  int
-	lastDiscoverUserID uuid.UUID
-	lastDiscoverParams DiscoverEventsParams
-	lastDetailUserID   uuid.UUID
-	lastDetailEventID  uuid.UUID
-	lastCollectionPage EventCollectionPageParams
-	lastCancelCtx      context.Context
-	lastCancelCount    int
+	err                    error
+	discoverErr            error
+	detailErr              error
+	events                 map[uuid.UUID]*domain.Event
+	favoriteRecords        []FavoriteEventRecord
+	discoverRecords        []DiscoverableEventRecord
+	detailRecord           *EventDetailRecord
+	hostSummaryRecord      *EventHostContextSummaryRecord
+	participantRecords     []EventDetailApprovedParticipantRecord
+	joinRequestRecords     []EventDetailPendingJoinRequestRecord
+	invitationRecords      []EventDetailInvitationRecord
+	discoverCallCount      int
+	lastDiscoverUserID     uuid.UUID
+	lastDiscoverParams     DiscoverEventsParams
+	lastDetailUserID       uuid.UUID
+	lastDetailEventID      uuid.UUID
+	lastCollectionPage     EventCollectionPageParams
+	lastCancelCtx          context.Context
+	lastCancelCount        int
+	requesters             map[uuid.UUID]*domain.User
+	getRequesterForJoinErr error
 }
 
 func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams) (*domain.Event, error) {
@@ -194,6 +196,16 @@ func (r *fakeEventRepo) ListDiscoverableEvents(_ context.Context, userID uuid.UU
 	}
 
 	return r.discoverRecords, nil
+}
+
+func (r *fakeEventRepo) GetRequesterForJoin(_ context.Context, userID uuid.UUID) (*domain.User, error) {
+	if r.getRequesterForJoinErr != nil {
+		return nil, r.getRequesterForJoinErr
+	}
+	if user, ok := r.requesters[userID]; ok {
+		return user, nil
+	}
+	return nil, domain.ErrNotFound
 }
 
 // fakeParticipationService is an in-memory implementation of ParticipationService.
@@ -362,7 +374,8 @@ func (s *fakeJoinRequestService) RejectJoinRequest(
 
 func newTestEventService() (*Service, *fakeEventRepo, *fakeParticipationService, *fakeJoinRequestService) {
 	eventRepo := &fakeEventRepo{
-		events: make(map[uuid.UUID]*domain.Event),
+		events:     make(map[uuid.UUID]*domain.Event),
+		requesters: map[uuid.UUID]*domain.User{},
 	}
 	participationService := &fakeParticipationService{}
 	joinRequestService := &fakeJoinRequestService{}
@@ -716,6 +729,16 @@ func TestCreateEventValidationMissingStartTime(t *testing.T) {
 	_, err := svc.CreateEvent(context.Background(), uuid.New(), input)
 
 	// then
+	assertValidationDetail(t, err, "start_time")
+}
+
+func TestCreateEventValidationPastStartTime(t *testing.T) {
+	svc, _, _, _ := newTestEventService()
+	input := validInput()
+	input.StartTime = time.Now().UTC().Add(-time.Hour)
+
+	_, err := svc.CreateEvent(context.Background(), uuid.New(), input)
+
 	assertValidationDetail(t, err, "start_time")
 }
 
@@ -1292,7 +1315,10 @@ func TestDiscoverEventsBuildsNextCursorFromLastReturnedItem(t *testing.T) {
 
 // newTestEventServiceWithEvent wires a service with a pre-loaded event in the fake repo.
 func newTestEventServiceWithEvent(e *domain.Event) (*Service, *fakeEventRepo, *fakeParticipationService, *fakeJoinRequestService) {
-	eventRepo := &fakeEventRepo{events: map[uuid.UUID]*domain.Event{e.ID: e}}
+	eventRepo := &fakeEventRepo{
+		events:     map[uuid.UUID]*domain.Event{e.ID: e},
+		requesters: map[uuid.UUID]*domain.User{},
+	}
 	participationService := &fakeParticipationService{}
 	joinRequestService := &fakeJoinRequestService{}
 	return NewService(eventRepo, participationService, joinRequestService, &fakeUnitOfWork{}), eventRepo, participationService, joinRequestService
@@ -1325,6 +1351,22 @@ func protectedEvent(hostID uuid.UUID) *domain.Event {
 		PrivacyLevel: domain.PrivacyProtected,
 		Status:       domain.EventStatusActive,
 	}
+}
+
+func ptrInt(v int) *int {
+	return &v
+}
+
+func ptrTime(v time.Time) *time.Time {
+	return &v
+}
+
+func ptrString(v string) *string {
+	return &v
+}
+
+func ptrGender(v domain.EventParticipantGender) *domain.EventParticipantGender {
+	return &v
 }
 
 func TestCancelEventRunsEventAndParticipationUpdatesInsideOneUnitOfWork(t *testing.T) {
@@ -1538,6 +1580,66 @@ func TestJoinEventAllowsWhenUnderCapacity(t *testing.T) {
 	}
 }
 
+func TestJoinEventRejectsUnderageUser(t *testing.T) {
+	hostID := uuid.New()
+	joinerID := uuid.New()
+	ev := publicEvent(hostID)
+	ev.MinimumAge = ptrInt(18)
+	svc, repo, _, _ := newTestEventServiceWithEvent(ev)
+	repo.requesters[joinerID] = &domain.User{
+		ID:        joinerID,
+		BirthDate: ptrTime(time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)),
+	}
+
+	_, err := svc.JoinEvent(context.Background(), joinerID, ev.ID)
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeAgeRequirementNotMet {
+		t.Fatalf("expected age_requirement_not_met, got %v", err)
+	}
+}
+
+func TestJoinEventRejectsMismatchedGender(t *testing.T) {
+	hostID := uuid.New()
+	joinerID := uuid.New()
+	ev := publicEvent(hostID)
+	ev.PreferredGender = ptrGender(domain.GenderFemale)
+	svc, repo, _, _ := newTestEventServiceWithEvent(ev)
+	repo.requesters[joinerID] = &domain.User{
+		ID:     joinerID,
+		Gender: ptrString(string(domain.GenderMale)),
+	}
+
+	_, err := svc.JoinEvent(context.Background(), joinerID, ev.ID)
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeGenderRequirementNotMet {
+		t.Fatalf("expected gender_requirement_not_met, got %v", err)
+	}
+}
+
+func TestJoinEventRejectsMissingBirthDateWhenAgeRestricted(t *testing.T) {
+	hostID := uuid.New()
+	joinerID := uuid.New()
+	ev := publicEvent(hostID)
+	ev.MinimumAge = ptrInt(18)
+	svc, repo, _, _ := newTestEventServiceWithEvent(ev)
+	repo.requesters[joinerID] = &domain.User{ID: joinerID}
+
+	_, err := svc.JoinEvent(context.Background(), joinerID, ev.ID)
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeProfileIncomplete {
+		t.Fatalf("expected profile_incomplete, got %v", err)
+	}
+}
+
 func TestLeaveEventSuccessReturnsLeaved(t *testing.T) {
 	hostID := uuid.New()
 	participantID := uuid.New()
@@ -1654,6 +1756,48 @@ func TestRequestJoinRejectsPublicEvent(t *testing.T) {
 	}
 	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeEventJoinNotAllowed {
 		t.Fatalf("expected event_join_not_allowed, got %v", err)
+	}
+}
+
+func TestRequestJoinRejectsUnderageUser(t *testing.T) {
+	hostID := uuid.New()
+	joinerID := uuid.New()
+	ev := protectedEvent(hostID)
+	ev.MinimumAge = ptrInt(18)
+	svc, repo, _, _ := newTestEventServiceWithEvent(ev)
+	repo.requesters[joinerID] = &domain.User{
+		ID:        joinerID,
+		BirthDate: ptrTime(time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)),
+	}
+
+	_, err := svc.RequestJoin(context.Background(), joinerID, ev.ID, RequestJoinInput{})
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeAgeRequirementNotMet {
+		t.Fatalf("expected age_requirement_not_met, got %v", err)
+	}
+}
+
+func TestRequestJoinRejectsMismatchedGender(t *testing.T) {
+	hostID := uuid.New()
+	joinerID := uuid.New()
+	ev := protectedEvent(hostID)
+	ev.PreferredGender = ptrGender(domain.GenderFemale)
+	svc, repo, _, _ := newTestEventServiceWithEvent(ev)
+	repo.requesters[joinerID] = &domain.User{
+		ID:     joinerID,
+		Gender: ptrString(string(domain.GenderMale)),
+	}
+
+	_, err := svc.RequestJoin(context.Background(), joinerID, ev.ID, RequestJoinInput{})
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeGenderRequirementNotMet {
+		t.Fatalf("expected gender_requirement_not_met, got %v", err)
 	}
 }
 
