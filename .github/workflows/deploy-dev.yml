@@ -85,6 +85,7 @@ jobs:
       IMAGE_TAG: ${{ github.sha }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
       RESEND_CLIENT_API_KEY: ${{ secrets.RESEND_CLIENT_API_KEY }}
       SPACES_ACCESS_KEY: ${{ secrets.SPACES_ACCESS_KEY }}
       SPACES_SECRET_KEY: ${{ secrets.SPACES_SECRET_KEY }}
@@ -104,6 +105,7 @@ jobs:
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
           DB_PASSWORD: ${{ env.DB_PASSWORD }}
           JWT_SECRET: ${{ env.JWT_SECRET }}
+          NEW_RELIC_LICENSE_KEY: ${{ env.NEW_RELIC_LICENSE_KEY }}
           RESEND_CLIENT_API_KEY: ${{ env.RESEND_CLIENT_API_KEY }}
           SPACES_ACCESS_KEY: ${{ env.SPACES_ACCESS_KEY }}
           SPACES_SECRET_KEY: ${{ env.SPACES_SECRET_KEY }}
@@ -115,7 +117,7 @@ jobs:
           host: ${{ secrets.SSH_DEV_IP_ADDRESS }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: DOCKERHUB_NAMESPACE,IMAGE_TAG,DB_PASSWORD,JWT_SECRET,RESEND_CLIENT_API_KEY,SPACES_ACCESS_KEY,SPACES_SECRET_KEY,SPACES_ENDPOINT,SPACES_BUCKET,SPACES_CDN_BASE_URL,SPACES_S3_REGION
+          envs: DOCKERHUB_NAMESPACE,IMAGE_TAG,DB_PASSWORD,JWT_SECRET,NEW_RELIC_LICENSE_KEY,RESEND_CLIENT_API_KEY,SPACES_ACCESS_KEY,SPACES_SECRET_KEY,SPACES_ENDPOINT,SPACES_BUCKET,SPACES_CDN_BASE_URL,SPACES_S3_REGION
           script: |
             set -eu
 
@@ -133,6 +135,7 @@ jobs:
             append_env IMAGE_TAG "$IMAGE_TAG"
             append_env DB_PASSWORD "$DB_PASSWORD"
             append_env JWT_SECRET "$JWT_SECRET"
+            append_env NEW_RELIC_LICENSE_KEY "$NEW_RELIC_LICENSE_KEY"
             append_env RESEND_CLIENT_API_KEY "$RESEND_CLIENT_API_KEY"
             append_env SPACES_ACCESS_KEY "$SPACES_ACCESS_KEY"
             append_env SPACES_SECRET_KEY "$SPACES_SECRET_KEY"

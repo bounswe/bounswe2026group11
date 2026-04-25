@@ -143,6 +143,7 @@ These names still matter at runtime:
 |----------|---------|
 | `DB_PASSWORD` | Postgres + backend |
 | `JWT_SECRET` | Backend |
+| `NEW_RELIC_LICENSE_KEY` | Backend OpenTelemetry export to New Relic OTLP |
 | `RESEND_CLIENT_API_KEY` | Backend transactional email delivery |
 | `SPACES_ACCESS_KEY` | Backend direct-upload signing + Spaces admin script |
 | `SPACES_SECRET_KEY` | Backend direct-upload signing + Spaces admin script |
@@ -168,6 +169,7 @@ Example mapping (name secrets however you prefer; align with your workflow):
 |-------------------------|----------------|
 | `DB_PASSWORD` | `DB_PASSWORD=...` |
 | `JWT_SECRET` | `JWT_SECRET=...` |
+| `NEW_RELIC_LICENSE_KEY` | `NEW_RELIC_LICENSE_KEY=...` |
 | `RESEND_CLIENT_API_KEY` | `RESEND_CLIENT_API_KEY=...` |
 | `SPACES_ACCESS_KEY` | `SPACES_ACCESS_KEY=...` |
 | `SPACES_SECRET_KEY` | `SPACES_SECRET_KEY=...` |
@@ -184,6 +186,7 @@ In **GitHub Actions**, pass secrets into a remote step (e.g. `appleboy/ssh-actio
 # Resulting /opt/sem/deploy/.env (values come from GitHub Secrets at deploy time — not committed)
 DB_PASSWORD=...
 JWT_SECRET=...
+NEW_RELIC_LICENSE_KEY=...
 RESEND_CLIENT_API_KEY=...
 SPACES_ACCESS_KEY=...
 SPACES_SECRET_KEY=...

@@ -2,7 +2,7 @@ package httpapi
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/gofiber/fiber/v2"
@@ -34,7 +34,11 @@ func WriteError(c *fiber.Ctx, err error) error {
 		})
 	}
 
-	log.Printf("handler error: %v", err)
+	slog.ErrorContext(c.UserContext(), "handler error",
+		"error", err,
+		"method", c.Method(),
+		"path", c.Path(),
+	)
 	return c.Status(fiber.StatusInternalServerError).JSON(ErrorEnvelope{
 		Error: ErrorBody{
 			Code:    "internal_server_error",
