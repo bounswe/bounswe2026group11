@@ -1,6 +1,7 @@
 package image_upload_handler
 
 import (
+	"log/slog"
 	"strings"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
@@ -40,6 +41,16 @@ func (h *Handler) CreateProfileAvatarUpload(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"profile avatar upload URL created",
+		httpapi.OperationAttr("image_upload.profile_avatar.create"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.String("base_url", result.BaseURL),
+		slog.Int("upload_count", len(result.Uploads)),
+		slog.Int("version", result.Version),
+	)
+
 	return c.JSON(result)
 }
 
@@ -56,6 +67,13 @@ func (h *Handler) ConfirmProfileAvatarUpload(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"profile avatar upload confirmed",
+		httpapi.OperationAttr("image_upload.profile_avatar.confirm"),
+		httpapi.UserIDAttr(claims.UserID),
+	)
+
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -71,6 +89,17 @@ func (h *Handler) CreateEventImageUpload(c *fiber.Ctx) error {
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event image upload URL created",
+		httpapi.OperationAttr("image_upload.event_image.create"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		slog.String("base_url", result.BaseURL),
+		slog.Int("upload_count", len(result.Uploads)),
+		slog.Int("version", result.Version),
+	)
 
 	return c.JSON(result)
 }
@@ -91,6 +120,14 @@ func (h *Handler) ConfirmEventImageUpload(c *fiber.Ctx) error {
 	if err := h.service.ConfirmEventImageUpload(c.UserContext(), claims.UserID, eventID, body); err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event image upload confirmed",
+		httpapi.OperationAttr("image_upload.event_image.confirm"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+	)
 
 	return c.SendStatus(fiber.StatusNoContent)
 }

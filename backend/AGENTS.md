@@ -21,6 +21,24 @@ Read `/AGENTS.md` first, then use this file for backend work.
 - Add inline comments inside methods when the flow is trivial-to-misread, constraint-heavy, or otherwise hard to infer from the code alone.
 - Do not add comments that only restate the code. Comments should explain intent, invariants, edge cases, or why a decision exists.
 
+## Observability and logging
+
+- Prefer **structured application logs** at meaningful business boundaries instead of logging every incoming HTTP request.
+- Keep backend request-level telemetry in **OpenTelemetry metrics/traces**; do not reintroduce generic per-request info logs when route/span metrics already cover that need.
+- When adding logs in HTTP handlers or application-entry boundaries, use the shared structured logging helpers under `internal/adapter/out/httpapi/` so field names stay consistent across the backend.
+- Include safe, low-noise context that helps debugging and correlation:
+  - operation name (for example `event.discover`, `profile.update`)
+  - stable IDs such as `user_id`, `event_id`, `join_request_id`, `favorite_location_id` when relevant
+  - low-cardinality result fields such as `result_count`, `has_next`, booleans, or status-like fields
+- For request/query/filter context, prefer a **single summary string field** (for example `query_summary`) over exploding many dynamic attributes; this keeps cardinality under control in New Relic.
+- Do **not** log secrets or confidential payloads. Never log tokens, passwords, OTP/reset/confirm tokens, raw authorization headers, or sensitive free-form user content unless there is an explicit, reviewed reason and the value is redacted.
+- Be especially careful with user-editable text fields. Prefer logging presence/absence, counts, or updated field names instead of raw values unless the field is clearly non-sensitive and operationally necessary.
+- When OTLP/New Relic is configured, backend logs are expected to go through the OpenTelemetry pipeline instead of stdout. Do not add alternate console logging paths that duplicate those records.
+- If you add a new high-value endpoint or mutation, consider whether it also needs a structured success log for observability. Keep the wording short, action-oriented, and consistent with existing messages.
+- If you change observability bootstrap behavior, preserve both of these contracts unless the task explicitly changes them:
+  - HTTP metrics/traces continue to flow through the OpenTelemetry middleware
+  - application logs continue to expose `level`/severity information in New Relic
+
 ## API documentation
 
 - After completing backend development, add or update the relevant OpenAPI documentation under `/docs/openapi/`.

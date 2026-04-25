@@ -1,9 +1,7 @@
 package httpapi
 
 import (
-	"log/slog"
 	"strings"
-	"time"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/gofiber/fiber/v2"
@@ -75,22 +73,6 @@ func OptionalAuth(verifier domain.TokenVerifier) fiber.Handler {
 func UserClaims(c *fiber.Ctx) *domain.AuthClaims {
 	claims, _ := c.Locals(contextKeyUserClaims).(*domain.AuthClaims)
 	return claims
-}
-
-// RequestLogger returns a middleware that logs the HTTP method, path, status
-// code, and latency of every request using the structured logger.
-func RequestLogger() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		start := time.Now()
-		err := c.Next()
-		slog.InfoContext(c.UserContext(), "request",
-			"method", c.Method(),
-			"path", c.Path(),
-			"status", c.Response().StatusCode(),
-			"latency", time.Since(start).String(),
-		)
-		return err
-	}
 }
 
 // extractBearer parses "Bearer <token>" from an Authorization header value.

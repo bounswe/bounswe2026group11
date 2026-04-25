@@ -1,6 +1,8 @@
 package favorite_location_handler
 
 import (
+	"log/slog"
+
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
 	favoritelocationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
@@ -36,6 +38,14 @@ func (h *Handler) ListFavoriteLocations(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"favorite locations fetched",
+		httpapi.OperationAttr("favorite_location.list"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.Int("result_count", len(result.Items)),
+	)
+
 	return c.JSON(result)
 }
 
@@ -58,6 +68,14 @@ func (h *Handler) CreateFavoriteLocation(c *fiber.Ctx) error {
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"favorite location created",
+		httpapi.OperationAttr("favorite_location.create"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.String("created_favorite_location_id", result.ID),
+	)
 
 	return c.Status(fiber.StatusCreated).JSON(result)
 }
@@ -90,6 +108,14 @@ func (h *Handler) UpdateFavoriteLocation(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"favorite location updated",
+		httpapi.OperationAttr("favorite_location.update"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.FavoriteLocationIDAttr(favoriteLocationID),
+	)
+
 	return c.JSON(result)
 }
 
@@ -104,6 +130,14 @@ func (h *Handler) DeleteFavoriteLocation(c *fiber.Ctx) error {
 	if err := h.service.DeleteMyFavoriteLocation(c.UserContext(), claims.UserID, favoriteLocationID); err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"favorite location deleted",
+		httpapi.OperationAttr("favorite_location.delete"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.FavoriteLocationIDAttr(favoriteLocationID),
+	)
 
 	return c.SendStatus(fiber.StatusNoContent)
 }

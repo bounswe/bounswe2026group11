@@ -28,8 +28,9 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 		},
 	})
 
+	// otelfiber emits request traces and HTTP metrics; application logs stay
+	// focused on high-signal business actions inside handlers.
 	app.Use(otelfiber.Middleware())
-	app.Use(httpapi.RequestLogger())
 
 	registerHealthRoute(app)
 
