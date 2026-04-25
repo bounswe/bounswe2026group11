@@ -3,7 +3,7 @@ package bootstrap
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	emailadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/email"
@@ -114,7 +114,7 @@ func New(ctx context.Context) (*Container, error) {
 func (c *Container) StartEventExpiryJob(ctx context.Context, interval time.Duration) {
 	expire := func() {
 		if err := c.eventRepo.TransitionEventStatuses(ctx); err != nil {
-			log.Printf("event status transition job: %v", err)
+			slog.ErrorContext(ctx, "event status transition job failed", "error", err)
 		}
 	}
 	expire()

@@ -10,6 +10,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/profile_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/rating_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/bootstrap"
+	"github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -27,6 +28,7 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 		},
 	})
 
+	app.Use(otelfiber.Middleware())
 	app.Use(httpapi.RequestLogger())
 
 	registerHealthRoute(app)
