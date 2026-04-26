@@ -1,6 +1,8 @@
 package event_handler
 
 import (
+	"fmt"
+	"log/slog"
 	"net/url"
 	"strconv"
 	"strings"
@@ -60,6 +62,16 @@ func (h *EventHandler) DiscoverEvents(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event discovery completed",
+		httpapi.OperationAttr("event.discover"),
+		httpapi.OptionalUserIDAttr(userID),
+		httpapi.QuerySummaryAttr(summarizeDiscoverEventsInput(input)),
+		slog.Int("result_count", len(result.Items)),
+		slog.Bool("has_next", result.PageInfo.HasNext),
+	)
+
 	return c.JSON(result)
 }
 
@@ -75,6 +87,14 @@ func (h *EventHandler) GetEventDetail(c *fiber.Ctx) error {
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event detail fetched",
+		httpapi.OperationAttr("event.detail"),
+		httpapi.OptionalUserIDAttr(userID),
+		httpapi.EventIDAttr(eventID),
+	)
 
 	c.Set(fiber.HeaderCacheControl, "private, no-store")
 	c.Set(fiber.HeaderVary, fiber.HeaderAuthorization)
@@ -93,6 +113,14 @@ func (h *EventHandler) GetEventHostContextSummary(c *fiber.Ctx) error {
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event host context fetched",
+		httpapi.OperationAttr("event.host_context"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+	)
 
 	return c.JSON(result)
 }
@@ -115,6 +143,17 @@ func (h *EventHandler) ListEventApprovedParticipants(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event participants listed",
+		httpapi.OperationAttr("event.participants.list"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		httpapi.QuerySummaryAttr(summarizeEventCollectionInput(input)),
+		slog.Int("result_count", len(result.Items)),
+		slog.Bool("has_next", result.PageInfo.HasNext),
+	)
+
 	return c.JSON(result)
 }
 
@@ -136,6 +175,17 @@ func (h *EventHandler) ListEventPendingJoinRequests(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event join requests listed",
+		httpapi.OperationAttr("event.join_requests.list"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		httpapi.QuerySummaryAttr(summarizeEventCollectionInput(input)),
+		slog.Int("result_count", len(result.Items)),
+		slog.Bool("has_next", result.PageInfo.HasNext),
+	)
+
 	return c.JSON(result)
 }
 
@@ -156,6 +206,17 @@ func (h *EventHandler) ListEventInvitations(c *fiber.Ctx) error {
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event invitations listed",
+		httpapi.OperationAttr("event.invitations.list"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		httpapi.QuerySummaryAttr(summarizeEventCollectionInput(input)),
+		slog.Int("result_count", len(result.Items)),
+		slog.Bool("has_next", result.PageInfo.HasNext),
+	)
 
 	return c.JSON(result)
 }
@@ -185,6 +246,15 @@ func (h *EventHandler) CreateEvent(c *fiber.Ctx) error {
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event created",
+		httpapi.OperationAttr("event.create"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.String("created_event_id", result.ID),
+		httpapi.QuerySummaryAttr(summarizeCreateEventInput(input)),
+	)
 
 	return c.Status(fiber.StatusCreated).JSON(result)
 }
@@ -289,6 +359,15 @@ func (h *EventHandler) JoinEvent(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event joined",
+		httpapi.OperationAttr("event.join"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		slog.String("participation_id", result.ParticipationID),
+	)
+
 	return c.Status(fiber.StatusCreated).JSON(result)
 }
 
@@ -305,6 +384,15 @@ func (h *EventHandler) LeaveEvent(c *fiber.Ctx) error {
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event left",
+		httpapi.OperationAttr("event.leave"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		slog.String("participation_id", result.ParticipationID),
+	)
 
 	return c.JSON(result)
 }
@@ -332,6 +420,15 @@ func (h *EventHandler) RequestJoin(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event join request created",
+		httpapi.OperationAttr("event.join_request.create"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		httpapi.QuerySummaryAttr(httpapi.JoinSummary(httpapi.BoolSummary("has_message", body.Message != nil && strings.TrimSpace(*body.Message) != ""))),
+	)
+
 	return c.Status(fiber.StatusCreated).JSON(result)
 }
 
@@ -353,6 +450,16 @@ func (h *EventHandler) ApproveJoinRequest(c *fiber.Ctx) error {
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event join request approved",
+		httpapi.OperationAttr("event.join_request.approve"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		httpapi.JoinRequestIDAttr(joinRequestID),
+		slog.String("participation_id", result.ParticipationID),
+	)
 
 	return c.JSON(result)
 }
@@ -376,6 +483,15 @@ func (h *EventHandler) RejectJoinRequest(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event join request rejected",
+		httpapi.OperationAttr("event.join_request.reject"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		httpapi.JoinRequestIDAttr(joinRequestID),
+	)
+
 	return c.JSON(result)
 }
 
@@ -391,6 +507,14 @@ func (h *EventHandler) CancelEvent(c *fiber.Ctx) error {
 	if err := h.service.CancelEvent(c.UserContext(), claims.UserID, eventID); err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event canceled",
+		httpapi.OperationAttr("event.cancel"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+	)
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -408,6 +532,14 @@ func (h *EventHandler) CompleteEvent(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event completed",
+		httpapi.OperationAttr("event.complete"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+	)
+
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -422,6 +554,14 @@ func (h *EventHandler) AddFavorite(c *fiber.Ctx) error {
 	if err := h.service.AddFavorite(c.UserContext(), claims.UserID, eventID); err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event favorited",
+		httpapi.OperationAttr("event.favorite.add"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+	)
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -438,7 +578,90 @@ func (h *EventHandler) RemoveFavorite(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event favorite removed",
+		httpapi.OperationAttr("event.favorite.remove"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+	)
+
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func summarizeDiscoverEventsInput(input event.DiscoverEventsInput) string {
+	parts := []string{
+		fmt.Sprintf("lat_set=%t", input.Lat != nil),
+		fmt.Sprintf("lon_set=%t", input.Lon != nil),
+		fmt.Sprintf("radius_meters=%s", optionalIntSummaryValue(input.RadiusMeters)),
+		fmt.Sprintf("limit=%s", optionalIntSummaryValue(input.Limit)),
+		fmt.Sprintf("q=%s", optionalStringSummaryValue(input.Query)),
+		fmt.Sprintf("privacy_levels=%d", len(input.PrivacyLevels)),
+		fmt.Sprintf("category_ids=%d", len(input.CategoryIDs)),
+		fmt.Sprintf("tag_names=%d", len(input.TagNames)),
+		fmt.Sprintf("start_from=%s", optionalTimeSummaryValue(input.StartFrom)),
+		fmt.Sprintf("start_to=%s", optionalTimeSummaryValue(input.StartTo)),
+		fmt.Sprintf("only_favorited=%t", input.OnlyFavorited),
+		fmt.Sprintf("sort_by=%s", optionalSortBySummaryValue(input.SortBy)),
+		fmt.Sprintf("cursor=%s", optionalStringSummaryValue(input.Cursor)),
+	}
+	return strings.Join(parts, " ")
+}
+
+func summarizeEventCollectionInput(input event.ListEventCollectionInput) string {
+	return httpapi.JoinSummary(
+		fmt.Sprintf("limit=%s", optionalIntSummaryValue(input.Limit)),
+		fmt.Sprintf("cursor=%s", optionalStringSummaryValue(input.Cursor)),
+	)
+}
+
+func summarizeCreateEventInput(input event.CreateEventInput) string {
+	return httpapi.JoinSummary(
+		fmt.Sprintf("category_id=%s", optionalIntSummaryValue(input.CategoryID)),
+		fmt.Sprintf("privacy_level=%s", input.PrivacyLevel),
+		fmt.Sprintf("location_type=%s", input.LocationType),
+		fmt.Sprintf("route_points=%d", len(input.RoutePoints)),
+		fmt.Sprintf("tags=%d", len(input.Tags)),
+		fmt.Sprintf("constraints=%d", len(input.Constraints)),
+		fmt.Sprintf("capacity_set=%t", input.Capacity != nil),
+		fmt.Sprintf("minimum_age_set=%t", input.MinimumAge != nil),
+		fmt.Sprintf("preferred_gender_set=%t", input.PreferredGender != nil),
+		fmt.Sprintf("end_time_set=%t", input.EndTime != nil),
+		fmt.Sprintf("image_url_set=%t", input.ImageURL != nil && strings.TrimSpace(*input.ImageURL) != ""),
+		fmt.Sprintf("start_time=%s", input.StartTime.UTC().Format(time.RFC3339)),
+	)
+}
+
+func optionalIntSummaryValue(value *int) string {
+	if value == nil {
+		return "<nil>"
+	}
+	return strconv.Itoa(*value)
+}
+
+func optionalStringSummaryValue(value *string) string {
+	if value == nil {
+		return "<nil>"
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return "<empty>"
+	}
+	return trimmed
+}
+
+func optionalTimeSummaryValue(value *time.Time) string {
+	if value == nil {
+		return "<nil>"
+	}
+	return value.UTC().Format(time.RFC3339)
+}
+
+func optionalSortBySummaryValue(value *domain.EventDiscoverySort) string {
+	if value == nil {
+		return "<nil>"
+	}
+	return string(*value)
 }
 
 func parseEventIDParam(c *fiber.Ctx) (uuid.UUID, error) {

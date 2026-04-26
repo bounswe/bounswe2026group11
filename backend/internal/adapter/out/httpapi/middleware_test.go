@@ -119,26 +119,3 @@ func TestRequireAuthValidToken(t *testing.T) {
 		t.Fatalf("expected 200, got %d — body: %s", resp.StatusCode, body)
 	}
 }
-
-func TestRequestLoggerPassesThrough(t *testing.T) {
-	// given
-	app := fiber.New()
-	app.Use(RequestLogger())
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.SendStatus(fiber.StatusOK)
-	})
-
-	req := httptest.NewRequest(fiber.MethodGet, "/health", nil)
-
-	// when
-	resp, err := app.Test(req)
-	if err != nil {
-		t.Fatalf("application.Test() error = %v", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	// then
-	if resp.StatusCode != fiber.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
-}

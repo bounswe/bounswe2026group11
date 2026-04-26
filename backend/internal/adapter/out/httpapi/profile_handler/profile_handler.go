@@ -1,6 +1,9 @@
 package profile_handler
 
 import (
+	"log/slog"
+	"strings"
+
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/profile"
@@ -40,6 +43,13 @@ func (h *ProfileHandler) GetMyProfile(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"my profile fetched",
+		httpapi.OperationAttr("profile.get"),
+		httpapi.UserIDAttr(claims.UserID),
+	)
+
 	return c.JSON(result)
 }
 
@@ -50,6 +60,14 @@ func (h *ProfileHandler) GetMyHostedEvents(c *fiber.Ctx) error {
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"my hosted events fetched",
+		httpapi.OperationAttr("profile.events.hosted"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.Int("result_count", len(events)),
+	)
 	return c.JSON(fiber.Map{"events": events})
 }
 
@@ -60,6 +78,14 @@ func (h *ProfileHandler) GetMyUpcomingEvents(c *fiber.Ctx) error {
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"my upcoming events fetched",
+		httpapi.OperationAttr("profile.events.upcoming"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.Int("result_count", len(events)),
+	)
 	return c.JSON(fiber.Map{"events": events})
 }
 
@@ -70,6 +96,14 @@ func (h *ProfileHandler) GetMyCompletedEvents(c *fiber.Ctx) error {
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"my completed events fetched",
+		httpapi.OperationAttr("profile.events.completed"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.Int("result_count", len(events)),
+	)
 	return c.JSON(fiber.Map{"events": events})
 }
 
@@ -80,6 +114,14 @@ func (h *ProfileHandler) GetMyCanceledEvents(c *fiber.Ctx) error {
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"my canceled events fetched",
+		httpapi.OperationAttr("profile.events.canceled"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.Int("result_count", len(events)),
+	)
 	return c.JSON(fiber.Map{"events": events})
 }
 
@@ -120,6 +162,14 @@ func (h *ProfileHandler) UpdateMyProfile(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"my profile updated",
+		httpapi.OperationAttr("profile.update"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.QuerySummaryAttr(summarizeUpdatedProfileFields(body)),
+	)
+
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -131,5 +181,48 @@ func (h *ProfileHandler) ListFavoriteEvents(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"my favorite events fetched",
+		httpapi.OperationAttr("profile.favorites.list"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.Int("result_count", len(result.Items)),
+	)
+
 	return c.JSON(result)
+}
+
+func summarizeUpdatedProfileFields(body updateProfileBody) string {
+	fields := make([]string, 0, 9)
+	if body.PhoneNumber != nil {
+		fields = append(fields, "phone_number")
+	}
+	if body.Gender != nil {
+		fields = append(fields, "gender")
+	}
+	if body.BirthDate != nil {
+		fields = append(fields, "birth_date")
+	}
+	if body.DefaultLocationAddress != nil {
+		fields = append(fields, "default_location_address")
+	}
+	if body.DefaultLocationLat != nil {
+		fields = append(fields, "default_location_lat")
+	}
+	if body.DefaultLocationLon != nil {
+		fields = append(fields, "default_location_lon")
+	}
+	if body.DisplayName != nil {
+		fields = append(fields, "display_name")
+	}
+	if body.Bio != nil {
+		fields = append(fields, "bio")
+	}
+	if body.AvatarURL != nil {
+		fields = append(fields, "avatar_url")
+	}
+	if len(fields) == 0 {
+		return "updated_fields=<none>"
+	}
+	return "updated_fields=" + strings.Join(fields, ",")
 }

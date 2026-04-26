@@ -46,9 +46,9 @@ func (r *Runtime) LoggerProvider() *sdklog.LoggerProvider {
 	return r.loggerProvider
 }
 
-// ConfigureLogger installs the process-wide logger. It always writes JSON logs
-// to stdout and, when a LoggerProvider is available, mirrors them into the
-// OpenTelemetry logs pipeline.
+// ConfigureLogger installs the process-wide logger. Without a LoggerProvider it
+// writes JSON logs to stdout. When a LoggerProvider is available, it sends logs
+// only to the OpenTelemetry pipeline so container stdout stays quiet.
 func ConfigureLogger(provider *sdklog.LoggerProvider) {
 	stdoutHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
 	if provider == nil {
@@ -61,7 +61,7 @@ func ConfigureLogger(provider *sdklog.LoggerProvider) {
 		otelslog.WithLoggerProvider(provider),
 		otelslog.WithSource(true),
 	)
-	slog.SetDefault(slog.New(newFanoutHandler(stdoutHandler, otelHandler)))
+	slog.SetDefault(slog.New(newLevelAttrHandler(otelHandler)))
 }
 
 // Setup initializes OpenTelemetry traces, metrics, and logs when an OTLP
@@ -168,49 +168,45 @@ func newResource(ctx context.Context, appEnv string) (*resource.Resource, error)
 	return res, nil
 }
 
-type fanoutHandler struct {
-	handlers []slog.Handler
+type levelAttrHandler struct {
+	next slog.Handler
 }
 
-func newFanoutHandler(handlers ...slog.Handler) slog.Handler {
-	filtered := make([]slog.Handler, 0, len(handlers))
-	for _, handler := range handlers {
-		if handler != nil {
-			filtered = append(filtered, handler)
+func newLevelAttrHandler(next slog.Handler) slog.Handler {
+	if next == nil {
+		return nil
+	}
+	return &levelAttrHandler{next: next}
+}
+
+func (h *levelAttrHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.next.Enabled(ctx, level)
+}
+
+func (h *levelAttrHandler) Handle(ctx context.Context, record slog.Record) error {
+	cloned := record.Clone()
+	if !recordHasAttr(record, slog.LevelKey) {
+		cloned.AddAttrs(slog.String(slog.LevelKey, record.Level.String()))
+	}
+	return h.next.Handle(ctx, cloned)
+}
+
+func (h *levelAttrHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &levelAttrHandler{next: h.next.WithAttrs(attrs)}
+}
+
+func (h *levelAttrHandler) WithGroup(name string) slog.Handler {
+	return &levelAttrHandler{next: h.next.WithGroup(name)}
+}
+
+func recordHasAttr(record slog.Record, key string) bool {
+	found := false
+	record.Attrs(func(attr slog.Attr) bool {
+		if attr.Key == key {
+			found = true
+			return false
 		}
-	}
-	return &fanoutHandler{handlers: filtered}
-}
-
-func (h *fanoutHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	for _, handler := range h.handlers {
-		if handler.Enabled(ctx, level) {
-			return true
-		}
-	}
-	return false
-}
-
-func (h *fanoutHandler) Handle(ctx context.Context, record slog.Record) error {
-	var err error
-	for _, handler := range h.handlers {
-		err = errors.Join(err, handler.Handle(ctx, record.Clone()))
-	}
-	return err
-}
-
-func (h *fanoutHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	next := make([]slog.Handler, 0, len(h.handlers))
-	for _, handler := range h.handlers {
-		next = append(next, handler.WithAttrs(attrs))
-	}
-	return &fanoutHandler{handlers: next}
-}
-
-func (h *fanoutHandler) WithGroup(name string) slog.Handler {
-	next := make([]slog.Handler, 0, len(h.handlers))
-	for _, handler := range h.handlers {
-		next = append(next, handler.WithGroup(name))
-	}
-	return &fanoutHandler{handlers: next}
+		return true
+	})
+	return found
 }

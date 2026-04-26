@@ -1,6 +1,9 @@
 package rating_handler
 
 import (
+	"log/slog"
+	"strings"
+
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
 	ratingapp "github.com/bounswe/bounswe2026group11/backend/internal/application/rating"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
@@ -45,6 +48,16 @@ func (h *RatingHandler) UpsertEventRating(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, svcErr)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event rating upserted",
+		httpapi.OperationAttr("rating.event.upsert"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		slog.Int("rating", input.Rating),
+		slog.Bool("has_message", input.Message != nil && strings.TrimSpace(*input.Message) != ""),
+	)
+
 	return c.JSON(result)
 }
 
@@ -59,6 +72,14 @@ func (h *RatingHandler) DeleteEventRating(c *fiber.Ctx) error {
 	if err := h.service.DeleteEventRating(c.UserContext(), claims.UserID, eventID); err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event rating deleted",
+		httpapi.OperationAttr("rating.event.delete"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+	)
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -85,6 +106,17 @@ func (h *RatingHandler) UpsertParticipantRating(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, svcErr)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"participant rating upserted",
+		httpapi.OperationAttr("rating.participant.upsert"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		httpapi.ParticipantUserIDAttr(participantUserID),
+		slog.Int("rating", input.Rating),
+		slog.Bool("has_message", input.Message != nil && strings.TrimSpace(*input.Message) != ""),
+	)
+
 	return c.JSON(result)
 }
 
@@ -103,6 +135,15 @@ func (h *RatingHandler) DeleteParticipantRating(c *fiber.Ctx) error {
 	if err := h.service.DeleteParticipantRating(c.UserContext(), claims.UserID, eventID, participantUserID); err != nil {
 		return httpapi.WriteError(c, err)
 	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"participant rating deleted",
+		httpapi.OperationAttr("rating.participant.delete"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		httpapi.ParticipantUserIDAttr(participantUserID),
+	)
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
