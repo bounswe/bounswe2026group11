@@ -62,6 +62,13 @@ const (
 	ErrorCodeImageUploadNotAllowed      = "image_upload_not_allowed"
 	ErrorCodeImageUploadIncomplete      = "image_upload_incomplete"
 	ErrorCodeImageUploadVersionConflict = "image_upload_version_conflict"
+
+	ErrorCodeTicketNotFound           = "ticket_not_found"
+	ErrorCodeTicketNotActive          = "ticket_not_active"
+	ErrorCodeTicketNotOwned           = "ticket_not_owned"
+	ErrorCodeTicketScanRejected       = "ticket_scan_rejected"
+	ErrorCodeTicketProximityRequired  = "ticket_proximity_required"
+	ErrorCodeTicketClientNotSupported = "ticket_client_not_supported"
 )
 
 // ErrNotFound is a sentinel error returned when a queried entity does not exist.

@@ -16,6 +16,35 @@ func (u *fakeUnitOfWork) RunInTx(ctx context.Context, fn func(ctx context.Contex
 	return fn(ctx)
 }
 
+type fakeTicketLifecycle struct {
+	createCallCount   int
+	lastParticipation *domain.Participation
+	lastStatus        domain.TicketStatus
+	err               error
+}
+
+func (f *fakeTicketLifecycle) CreateTicketForParticipation(_ context.Context, participation *domain.Participation, status domain.TicketStatus) (*domain.Ticket, error) {
+	f.createCallCount++
+	f.lastParticipation = participation
+	f.lastStatus = status
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &domain.Ticket{ID: uuid.New(), ParticipationID: participation.ID, Status: status}, nil
+}
+
+func (f *fakeTicketLifecycle) CancelTicketForParticipation(context.Context, uuid.UUID) error {
+	return nil
+}
+
+func (f *fakeTicketLifecycle) CancelTicketsForEvent(context.Context, uuid.UUID) error {
+	return nil
+}
+
+func (f *fakeTicketLifecycle) ExpireTicketsForEvent(context.Context, uuid.UUID) error {
+	return nil
+}
+
 type fakeJoinRequestRepo struct {
 	err               error
 	callCount         int
@@ -183,6 +212,33 @@ func TestApproveJoinRequestDelegatesToRepo(t *testing.T) {
 	}
 	if repo.lastApproveParams.EventID != eventID || repo.lastApproveParams.JoinRequestID != joinRequestID || repo.lastApproveParams.HostUserID != hostUserID {
 		t.Fatalf("expected approve params to match event %s, join request %s, host %s", eventID, joinRequestID, hostUserID)
+	}
+}
+
+func TestApproveJoinRequestCreatesActiveTicket(t *testing.T) {
+	// given
+	repo := &fakeJoinRequestRepo{}
+	tickets := &fakeTicketLifecycle{}
+	service := NewService(repo, &fakeUnitOfWork{}, tickets)
+	eventID := uuid.New()
+	joinRequestID := uuid.New()
+	hostUserID := uuid.New()
+
+	// when
+	result, err := service.ApproveJoinRequest(context.Background(), eventID, joinRequestID, hostUserID)
+
+	// then
+	if err != nil {
+		t.Fatalf("ApproveJoinRequest() error = %v", err)
+	}
+	if tickets.createCallCount != 1 {
+		t.Fatalf("expected ticket creation once, got %d", tickets.createCallCount)
+	}
+	if tickets.lastParticipation == nil || tickets.lastParticipation.ID != result.Participation.ID {
+		t.Fatalf("expected ticket participation %s, got %+v", result.Participation.ID, tickets.lastParticipation)
+	}
+	if tickets.lastStatus != domain.TicketStatusActive {
+		t.Fatalf("expected ticket status ACTIVE, got %q", tickets.lastStatus)
 	}
 }
 

@@ -24,6 +24,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/profile"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/rating"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/ticket"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config"
@@ -44,6 +45,7 @@ type Container struct {
 	eventRepo               *postgres.EventRepository
 	participationRepo       *postgres.ParticipationRepository
 	joinRequestRepo         *postgres.JoinRequestRepository
+	ticketRepo              *postgres.TicketRepository
 	ratingRepo              *postgres.RatingRepository
 	categoryRepo            *postgres.CategoryRepository
 	profileRepo             *postgres.ProfileRepository
@@ -52,6 +54,7 @@ type Container struct {
 	EventService            event.UseCase
 	ParticipationService    participation.UseCase
 	JoinRequestService      join_request.UseCase
+	TicketService           ticket.UseCase
 	RatingService           rating.UseCase
 	CategoryService         category.UseCase
 	ProfileService          profile.UseCase
@@ -92,11 +95,13 @@ func New(ctx context.Context) (*Container, error) {
 	container.eventRepo = postgres.NewEventRepository(container.DB)
 	container.participationRepo = postgres.NewParticipationRepository(container.DB)
 	container.joinRequestRepo = postgres.NewJoinRequestRepository(container.DB)
+	container.ticketRepo = postgres.NewTicketRepository(container.DB)
 	container.ratingRepo = postgres.NewRatingRepository(container.DB)
 	container.categoryRepo = postgres.NewCategoryRepository(container.DB)
 	container.profileRepo = postgres.NewProfileRepository(container.DB)
 	container.favoriteLocationRepo = postgres.NewFavoriteLocationRepository(container.DB)
 	container.ParticipationService = newParticipationService(container)
+	container.TicketService = newTicketService(container)
 	container.JoinRequestService = newJoinRequestService(container)
 	container.RatingService = newRatingService(container)
 	container.AuthService = newAuthService(container)
@@ -178,7 +183,7 @@ func buildSpacesStorage(cfg *config.Config) *spacesadapter.Storage {
 
 // newEventService wires the event use case with its driven adapters.
 func newEventService(c *Container) event.UseCase {
-	return event.NewService(c.eventRepo, c.ParticipationService, c.JoinRequestService, c.UnitOfWork)
+	return event.NewService(c.eventRepo, c.ParticipationService, c.JoinRequestService, c.UnitOfWork, c.TicketService)
 }
 
 // newParticipationService wires the participation use-case service with its
@@ -190,7 +195,20 @@ func newParticipationService(c *Container) participation.UseCase {
 // newJoinRequestService wires the join request use-case service with its
 // driven adapter.
 func newJoinRequestService(c *Container) join_request.UseCase {
-	return join_request.NewService(c.joinRequestRepo, c.UnitOfWork)
+	return join_request.NewService(c.joinRequestRepo, c.UnitOfWork, c.TicketService)
+}
+
+// newTicketService wires the ticket use-case service with its driven adapters.
+func newTicketService(c *Container) ticket.UseCase {
+	return ticket.NewService(
+		c.ticketRepo,
+		c.UnitOfWork,
+		jwtadapter.TicketTokenManager{Secret: []byte(c.Config.JWTSecret)},
+		ticket.Settings{
+			QRTokenTTL:      10 * time.Second,
+			ProximityMeters: 200,
+		},
+	)
 }
 
 // newCategoryService wires the category use-case service with its driven adapter.

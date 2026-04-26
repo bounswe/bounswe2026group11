@@ -1,0 +1,323 @@
+openapi: 3.1.0
+info:
+  title: Social Event Mapper Ticket API
+  version: 0.1.0
+  description: |
+    Ticket endpoints for protected-event mobile entry flows.
+
+    QR display and QR scanning are product-supported only in the mobile app. QR
+    stream and scan endpoints require `X-Client-Surface: MOBILE` in addition to
+    bearer authentication.
+servers:
+  - url: /api
+tags:
+  - name: Tickets
+    description: Protected-event ticket list, detail, QR stream, and host scan contracts.
+security:
+  - bearerAuth: []
+paths:
+  /me/tickets:
+    get:
+      tags: [Tickets]
+      summary: List my tickets
+      operationId: listMyTickets
+      responses:
+        '200':
+          description: Ticket list returned successfully. QR tokens are never included.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTicketsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /me/tickets/{ticketId}:
+    get:
+      tags: [Tickets]
+      summary: Get my ticket detail
+      operationId: getMyTicket
+      parameters:
+        - $ref: '#/components/parameters/TicketId'
+      responses:
+        '200':
+          description: Ticket detail returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketDetailResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Ticket not found or not owned by the caller.
+  /me/tickets/{ticketId}/qr-stream:
+    get:
+      tags: [Tickets]
+      summary: Stream short-lived QR tokens
+      operationId: streamTicketQR
+      description: |
+        Opens a Server-Sent Events stream and emits an initial `qr_token`, then a
+        refreshed token every 10 seconds. The backend validates ticket ownership,
+        ACTIVE ticket status, APPROVED participation, ACTIVE/IN_PROGRESS protected
+        event status, ticket business expiry, and 200-meter proximity before issuing
+        each token.
+      parameters:
+        - $ref: '#/components/parameters/TicketId'
+        - $ref: '#/components/parameters/MobileSurface'
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+      responses:
+        '200':
+          description: SSE stream opened.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              examples:
+                qrToken:
+                  value: |
+                    event: qr_token
+                    data: {"token":"signed-short-lived-token","expires_at":"2026-04-26T12:00:10Z","version":42}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Missing mobile surface header or caller is outside proximity.
+        '404':
+          description: Ticket not found.
+        '409':
+          description: Ticket, participation, or event is not eligible for QR issuance.
+  /host/events/{eventId}/ticket-scans:
+    post:
+      tags: [Tickets]
+      summary: Scan a participant ticket
+      operationId: scanTicket
+      description: |
+        Host-only mobile endpoint. A successful scan atomically marks the ticket
+        `USED`. Rejected scans return `result: REJECTED` and a machine-readable
+        reason without changing ticket state.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/MobileSurface'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [qr_token]
+              properties:
+                qr_token:
+                  type: string
+      responses:
+        '200':
+          description: Scan evaluated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketScanResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Missing mobile surface header or caller is not the event host.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    TicketId:
+      name: ticketId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    MobileSurface:
+      name: X-Client-Surface
+      in: header
+      required: true
+      schema:
+        type: string
+        enum: [MOBILE]
+  responses:
+    BadRequest:
+      description: Invalid path, query, or JSON body.
+    Unauthorized:
+      description: Missing or invalid bearer token.
+  schemas:
+    TicketStatus:
+      type: string
+      enum: [ACTIVE, PENDING, EXPIRED, USED, CANCELED]
+    ParticipationStatus:
+      type: string
+      enum: [APPROVED, PENDING, CANCELED, LEAVED]
+    EventStatus:
+      type: string
+      enum: [ACTIVE, IN_PROGRESS, COMPLETED, CANCELED]
+    ListTicketsResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketListItem'
+    TicketListItem:
+      type: object
+      required: [ticket_id, status, expires_at, event, participation]
+      properties:
+        ticket_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/TicketStatus'
+        expires_at:
+          type: string
+          format: date-time
+        event:
+          $ref: '#/components/schemas/TicketEvent'
+        participation:
+          $ref: '#/components/schemas/TicketParticipation'
+    TicketDetailResponse:
+      type: object
+      required: [ticket, participation, event, location, qr_access]
+      properties:
+        ticket:
+          type: object
+          required: [id, status, expires_at, created_at, updated_at]
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              $ref: '#/components/schemas/TicketStatus'
+            expires_at:
+              type: string
+              format: date-time
+            used_at:
+              type: string
+              format: date-time
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+        participation:
+          $ref: '#/components/schemas/TicketParticipation'
+        event:
+          $ref: '#/components/schemas/TicketEvent'
+        location:
+          type: object
+          required: [type, anchor_lat, anchor_lon]
+          properties:
+            type:
+              type: string
+              enum: [POINT, ROUTE]
+            address:
+              type: string
+            anchor_lat:
+              type: number
+            anchor_lon:
+              type: number
+        qr_access:
+          type: object
+          required: [requires_location_permission, requires_proximity, proximity_meters, eligible_now]
+          properties:
+            requires_location_permission:
+              type: boolean
+            requires_proximity:
+              type: boolean
+            proximity_meters:
+              type: number
+              example: 200
+            eligible_now:
+              type: boolean
+            reason:
+              type: string
+              example: PARTICIPATION_PENDING_REAPPROVAL
+    TicketParticipation:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ParticipationStatus'
+    TicketEvent:
+      type: object
+      required: [id, title, status, privacy_level, start_time, location_type]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/EventStatus'
+        privacy_level:
+          type: string
+          enum: [PROTECTED]
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        location_type:
+          type: string
+          enum: [POINT, ROUTE]
+        address:
+          type: string
+    TicketScanResponse:
+      type: object
+      required: [result]
+      properties:
+        result:
+          type: string
+          enum: [ACCEPTED, REJECTED]
+        reason:
+          type: string
+          enum:
+            - INVALID_TOKEN
+            - TICKET_NOT_FOUND
+            - TICKET_ALREADY_USED
+            - TICKET_NOT_ACTIVE
+            - PARTICIPATION_INVALID
+            - EVENT_INVALID
+            - TOKEN_OLD_VERSION
+            - TOKEN_NOT_LATEST
+            - EVENT_MISMATCH
+            - PARTICIPATION_MISMATCH
+        ticket_id:
+          type: string
+          format: uuid
+        participation_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        ticket_status:
+          $ref: '#/components/schemas/TicketStatus'

@@ -19,6 +19,7 @@ import (
 	participationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
 	profileapp "github.com/bounswe/bounswe2026group11/backend/internal/application/profile"
 	ratingapp "github.com/bounswe/bounswe2026group11/backend/internal/application/rating"
+	ticketapp "github.com/bounswe/bounswe2026group11/backend/internal/application/ticket"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/jackc/pgx/v5"
 )
@@ -83,6 +84,7 @@ func NewAuthHarness(t *testing.T) *AuthHarness {
 type EventHarness struct {
 	Service        eventapp.UseCase
 	EventRepo      *postgresrepo.EventRepository
+	TicketService  ticketapp.UseCase
 	RatingService  ratingapp.UseCase
 	ProfileService profileapp.UseCase
 	AuthRepo       authapp.Repository
@@ -103,15 +105,26 @@ func NewEventHarness(t *testing.T) *EventHarness {
 	eventRepo := postgresrepo.NewEventRepository(pool)
 	participationRepo := postgresrepo.NewParticipationRepository(pool)
 	joinRequestRepo := postgresrepo.NewJoinRequestRepository(pool)
+	ticketRepo := postgresrepo.NewTicketRepository(pool)
 	ratingRepo := postgresrepo.NewRatingRepository(pool)
 	profileRepo := postgresrepo.NewProfileRepository(pool)
 	unitOfWork := postgresrepo.NewUnitOfWork(pool)
 	participationService := participationapp.NewService(participationRepo)
-	joinRequestService := joinrequestapp.NewService(joinRequestRepo, unitOfWork)
+	ticketService := ticketapp.NewService(
+		ticketRepo,
+		unitOfWork,
+		jwtadapter.TicketTokenManager{Secret: []byte("integration-test-secret")},
+		ticketapp.Settings{
+			QRTokenTTL:      10 * time.Second,
+			ProximityMeters: 200,
+		},
+	)
+	joinRequestService := joinrequestapp.NewService(joinRequestRepo, unitOfWork, ticketService)
 
 	return &EventHarness{
-		Service:   eventapp.NewService(eventRepo, participationService, joinRequestService, unitOfWork),
-		EventRepo: eventRepo,
+		Service:       eventapp.NewService(eventRepo, participationService, joinRequestService, unitOfWork, ticketService),
+		EventRepo:     eventRepo,
+		TicketService: ticketService,
 		RatingService: ratingapp.NewService(ratingRepo, unitOfWork, ratingapp.Settings{
 			GlobalPrior: 4.0,
 			BayesianM:   5,

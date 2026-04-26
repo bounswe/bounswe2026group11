@@ -280,6 +280,41 @@ type fakeJoinRequestService struct {
 	lastInput         join_request.CreatePendingJoinRequestInput
 }
 
+type fakeTicketLifecycle struct {
+	cancelParticipationCallCount int
+	cancelEventCallCount         int
+	expireEventCallCount         int
+	lastParticipationID          uuid.UUID
+	lastCancelEventID            uuid.UUID
+	lastExpireEventID            uuid.UUID
+	err                          error
+}
+
+func (s *fakeTicketLifecycle) CreateTicketForParticipation(_ context.Context, participation *domain.Participation, status domain.TicketStatus) (*domain.Ticket, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return &domain.Ticket{ID: uuid.New(), ParticipationID: participation.ID, Status: status}, nil
+}
+
+func (s *fakeTicketLifecycle) CancelTicketForParticipation(_ context.Context, participationID uuid.UUID) error {
+	s.cancelParticipationCallCount++
+	s.lastParticipationID = participationID
+	return s.err
+}
+
+func (s *fakeTicketLifecycle) CancelTicketsForEvent(_ context.Context, eventID uuid.UUID) error {
+	s.cancelEventCallCount++
+	s.lastCancelEventID = eventID
+	return s.err
+}
+
+func (s *fakeTicketLifecycle) ExpireTicketsForEvent(_ context.Context, eventID uuid.UUID) error {
+	s.expireEventCallCount++
+	s.lastExpireEventID = eventID
+	return s.err
+}
+
 func (s *fakeJoinRequestService) CreatePendingJoinRequest(
 	_ context.Context,
 	eventID, userID, hostUserID uuid.UUID,
@@ -1324,6 +1359,17 @@ func newTestEventServiceWithEvent(e *domain.Event) (*Service, *fakeEventRepo, *f
 	return NewService(eventRepo, participationService, joinRequestService, &fakeUnitOfWork{}), eventRepo, participationService, joinRequestService
 }
 
+func newTestEventServiceWithEventAndTickets(e *domain.Event) (*Service, *fakeEventRepo, *fakeParticipationService, *fakeJoinRequestService, *fakeTicketLifecycle) {
+	eventRepo := &fakeEventRepo{
+		events:     map[uuid.UUID]*domain.Event{e.ID: e},
+		requesters: map[uuid.UUID]*domain.User{},
+	}
+	participationService := &fakeParticipationService{}
+	joinRequestService := &fakeJoinRequestService{}
+	ticketService := &fakeTicketLifecycle{}
+	return NewService(eventRepo, participationService, joinRequestService, &fakeUnitOfWork{}, ticketService), eventRepo, participationService, joinRequestService, ticketService
+}
+
 func publicEvent(hostID uuid.UUID) *domain.Event {
 	return &domain.Event{
 		ID:           uuid.New(),
@@ -1396,6 +1442,20 @@ func TestCancelEventRunsEventAndParticipationUpdatesInsideOneUnitOfWork(t *testi
 	}
 }
 
+func TestCancelEventCancelsTicketsInsideUnitOfWork(t *testing.T) {
+	hostID := uuid.New()
+	ev := publicEvent(hostID)
+	svc, _, _, _, ticketService := newTestEventServiceWithEventAndTickets(ev)
+
+	if err := svc.CancelEvent(context.Background(), hostID, ev.ID); err != nil {
+		t.Fatalf("CancelEvent() error = %v", err)
+	}
+
+	if ticketService.cancelEventCallCount != 1 || ticketService.lastCancelEventID != ev.ID {
+		t.Fatalf("expected ticket cancellation for event %s, got calls=%d event=%s", ev.ID, ticketService.cancelEventCallCount, ticketService.lastCancelEventID)
+	}
+}
+
 func TestCancelEventRollsBackUnitOfWorkWhenParticipationCancelFails(t *testing.T) {
 	hostID := uuid.New()
 	ev := publicEvent(hostID)
@@ -1423,6 +1483,20 @@ func TestCompleteEventHostSuccess(t *testing.T) {
 	}
 	if ev.Status != domain.EventStatusCompleted {
 		t.Fatalf("expected status COMPLETED, got %q", ev.Status)
+	}
+}
+
+func TestCompleteEventExpiresTickets(t *testing.T) {
+	hostID := uuid.New()
+	ev := publicEvent(hostID)
+	svc, _, _, _, ticketService := newTestEventServiceWithEventAndTickets(ev)
+
+	if err := svc.CompleteEvent(context.Background(), hostID, ev.ID); err != nil {
+		t.Fatalf("CompleteEvent() error = %v", err)
+	}
+
+	if ticketService.expireEventCallCount != 1 || ticketService.lastExpireEventID != ev.ID {
+		t.Fatalf("expected ticket expiry for event %s, got calls=%d event=%s", ev.ID, ticketService.expireEventCallCount, ticketService.lastExpireEventID)
 	}
 }
 
@@ -1659,6 +1733,28 @@ func TestLeaveEventSuccessReturnsLeaved(t *testing.T) {
 	}
 	if participationService.lastLeaveEventID != ev.ID || participationService.lastLeaveUserID != participantID {
 		t.Fatalf("expected leave participation service to receive event %s and user %s", ev.ID, participantID)
+	}
+}
+
+func TestLeaveEventCancelsLinkedTicket(t *testing.T) {
+	hostID := uuid.New()
+	participantID := uuid.New()
+	ev := leaveableEvent(hostID)
+	svc, _, participationService, _, ticketService := newTestEventServiceWithEventAndTickets(ev)
+
+	result, err := svc.LeaveEvent(context.Background(), participantID, ev.ID)
+
+	if err != nil {
+		t.Fatalf("LeaveEvent() error = %v", err)
+	}
+	if ticketService.cancelParticipationCallCount != 1 {
+		t.Fatalf("expected ticket cancellation once, got %d", ticketService.cancelParticipationCallCount)
+	}
+	if ticketService.lastParticipationID != uuid.MustParse(result.ParticipationID) {
+		t.Fatalf("expected ticket cancellation for participation %s, got %s", result.ParticipationID, ticketService.lastParticipationID)
+	}
+	if participationService.leaveCallCount != 1 {
+		t.Fatalf("expected leave participation service to be called once")
 	}
 }
 

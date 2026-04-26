@@ -7,6 +7,7 @@ import (
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/ticket"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
@@ -17,6 +18,7 @@ type Service struct {
 	eventRepo            Repository
 	participationService participation.UseCase
 	joinRequestService   join_request.UseCase
+	ticketService        ticket.LifecycleUseCase
 	unitOfWork           uow.UnitOfWork
 	now                  func() time.Time
 }
@@ -35,14 +37,19 @@ func NewService(
 	participationService participation.UseCase,
 	joinRequestService join_request.UseCase,
 	unitOfWork uow.UnitOfWork,
+	ticketLifecycle ...ticket.LifecycleUseCase,
 ) *Service {
-	return &Service{
+	service := &Service{
 		eventRepo:            eventRepo,
 		participationService: participationService,
 		joinRequestService:   joinRequestService,
 		unitOfWork:           unitOfWork,
 		now:                  time.Now,
 	}
+	if len(ticketLifecycle) > 0 {
+		service.ticketService = ticketLifecycle[0]
+	}
+	return service
 }
 
 // CreateEvent validates the input, then persists the event with its location,
@@ -315,7 +322,18 @@ func (s *Service) LeaveEvent(ctx context.Context, userID, eventID uuid.UUID) (*L
 		return nil, domain.ConflictError(domain.ErrorCodeEventNotLeaveable, "This event can no longer be left.")
 	}
 
-	p, err := s.participationService.LeaveParticipation(ctx, eventID, userID)
+	var p *domain.Participation
+	err = s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		var err error
+		p, err = s.participationService.LeaveParticipation(ctx, eventID, userID)
+		if err != nil {
+			return err
+		}
+		if s.ticketService != nil {
+			return s.ticketService.CancelTicketForParticipation(ctx, p.ID)
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -457,6 +475,12 @@ func (s *Service) CancelEvent(ctx context.Context, userID, eventID uuid.UUID) er
 			return err
 		}
 
+		if s.ticketService != nil {
+			if err := s.ticketService.CancelTicketsForEvent(ctx, eventID); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 }
@@ -475,14 +499,21 @@ func (s *Service) CompleteEvent(ctx context.Context, userID, eventID uuid.UUID) 
 		return domain.ForbiddenError(domain.ErrorCodeEventCompleteNotAllowed, "Only the event host can complete this event.")
 	}
 
-	if err := s.eventRepo.CompleteEvent(ctx, eventID); err != nil {
-		if errors.Is(err, ErrEventNotCompletable) {
-			return domain.ConflictError(domain.ErrorCodeEventNotCompletable, "The event cannot be completed because it is already CANCELED or COMPLETED.")
+	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		if err := s.eventRepo.CompleteEvent(ctx, eventID); err != nil {
+			if errors.Is(err, ErrEventNotCompletable) {
+				return domain.ConflictError(domain.ErrorCodeEventNotCompletable, "The event cannot be completed because it is already CANCELED or COMPLETED.")
+			}
+			return err
 		}
-		return err
-	}
 
-	return nil
+		if s.ticketService != nil {
+			if err := s.ticketService.ExpireTicketsForEvent(ctx, eventID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // AddFavorite saves an event to the user's favorites list.
