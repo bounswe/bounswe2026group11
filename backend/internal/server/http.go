@@ -9,6 +9,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/profile_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/rating_handler"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/ticket_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/bootstrap"
 	"github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
@@ -47,6 +48,10 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 	// Rating routes
 	ratingHandler := rating_handler.NewRatingHandler(container.RatingService)
 	rating_handler.RegisterRatingRoutes(app, ratingHandler, auth)
+
+	// Ticket routes
+	ticketHandler := ticket_handler.NewHandler(container.TicketService)
+	ticket_handler.RegisterRoutes(app, ticketHandler, auth)
 
 	// Category routes (public, no auth required)
 	categoryHandler := category_handler.NewCategoryHandler(container.CategoryService)

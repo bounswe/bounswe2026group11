@@ -1643,7 +1643,7 @@ func (r *EventRepository) CancelEvent(ctx context.Context, eventID uuid.UUID, ca
 // CompleteEvent sets the event status to COMPLETED when it is ACTIVE or IN_PROGRESS.
 // Returns ErrEventNotCompletable when the event is CANCELED, COMPLETED, or any other non-completable status.
 func (r *EventRepository) CompleteEvent(ctx context.Context, eventID uuid.UUID) error {
-	tag, err := r.pool.Exec(ctx, `
+	tag, err := r.db.Exec(ctx, `
 		UPDATE event
 		SET status = 'COMPLETED', updated_at = NOW()
 		WHERE id = $1 AND status IN ('ACTIVE', 'IN_PROGRESS')
@@ -1668,18 +1668,29 @@ func (r *EventRepository) CompleteEvent(ctx context.Context, eventID uuid.UUID) 
 // Participation activity does not advance updated_at.
 func (r *EventRepository) TransitionEventStatuses(ctx context.Context) error {
 	_, err := r.pool.Exec(ctx, `
-		UPDATE event
-		SET status = CASE
-			WHEN end_time IS NOT NULL AND end_time < NOW()                                                         THEN 'COMPLETED'
-			WHEN start_time < NOW() - INTERVAL '60 days'                                                          THEN 'COMPLETED'
-			WHEN start_time < NOW() - INTERVAL '30 days' AND updated_at < NOW() - INTERVAL '7 days'               THEN 'COMPLETED'
-			ELSE 'IN_PROGRESS'
-		END
-		WHERE status IN ('ACTIVE', 'IN_PROGRESS')
-		  AND (
-		    start_time < NOW()
-		    OR (end_time IS NOT NULL AND end_time < NOW())
-		  )
+		WITH transitioned AS (
+			UPDATE event
+			SET status = CASE
+				WHEN end_time IS NOT NULL AND end_time < NOW()                                           THEN 'COMPLETED'
+				WHEN start_time < NOW() - INTERVAL '60 days'                                            THEN 'COMPLETED'
+				WHEN start_time < NOW() - INTERVAL '30 days' AND updated_at < NOW() - INTERVAL '7 days' THEN 'COMPLETED'
+				ELSE 'IN_PROGRESS'
+			END
+			WHERE status IN ('ACTIVE', 'IN_PROGRESS')
+			  AND (
+			    start_time < NOW()
+			    OR (end_time IS NOT NULL AND end_time < NOW())
+			  )
+			RETURNING id, status
+		)
+		UPDATE ticket t
+		SET status = 'EXPIRED',
+		    updated_at = NOW()
+		FROM participation p
+		JOIN transitioned e ON e.id = p.event_id
+		WHERE t.participation_id = p.id
+		  AND e.status = 'COMPLETED'
+		  AND t.status IN ('ACTIVE', 'PENDING')
 	`)
 	return err
 }
