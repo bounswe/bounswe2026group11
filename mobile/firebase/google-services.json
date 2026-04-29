@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "592904673539",
+    "project_id": "social-event-mapper-01",
+    "storage_bucket": "social-event-mapper-01.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:592904673539:android:57e37b113e236c59d6b136",
+        "android_client_info": {
+          "package_name": "com.bounswe2026group11.socialeventmapper"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzLBJA6n1DMofBpZKyuzv0yVvNMibgjvQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

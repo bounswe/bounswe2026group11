@@ -1,3 +1,6 @@
+import '@/firebase/appFirebase';
+
+import { PushMessagingHost } from '@/components/common/PushMessagingHost';
 import { Stack, router, usePathname, type Href } from 'expo-router';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
@@ -33,6 +36,7 @@ function AppStack() {
 export default function RootLayout() {
   return (
     <AuthProvider>
+      <PushMessagingHost />
       <AppStack />
     </AuthProvider>
   );
