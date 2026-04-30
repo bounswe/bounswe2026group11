@@ -23,7 +23,7 @@ export default function AppShell() {
 
   const isLoggedIn = !!token;
   const navItems = isLoggedIn ? AUTH_NAV : [];
-  const isAdminPanel = location.pathname.startsWith('/admin-panel');
+  const isAdminPanel = location.pathname.startsWith('/backoffice') || location.pathname.startsWith('/admin-panel');
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -81,7 +81,7 @@ export default function AppShell() {
                   + Create Event
                 </NavLink>
                 {role === 'ADMIN' && (
-                  <NavLink to="/admin-panel" className="shell-admin-btn">
+                  <NavLink to="/backoffice" className="shell-admin-btn">
                     <svg className="shell-admin-icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M12 3.5 18 6v5.2c0 3.9-2.4 7.4-6 8.8-3.6-1.4-6-4.9-6-8.8V6l6-2.5Z" />
                     </svg>

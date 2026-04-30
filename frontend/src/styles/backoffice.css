@@ -114,12 +114,39 @@
 .bo-filter-bar select,
 .bo-pagination select {
   min-height: 34px;
+  height: 36px;
   padding: 6px 9px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   background: #ffffff;
   color: #111827;
   font-size: 13px;
+}
+
+.bo-filter-bar select,
+.bo-pagination select,
+.bo-field select {
+  appearance: none;
+  min-width: 150px;
+  padding-right: 32px;
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #6b7280 50%),
+    linear-gradient(135deg, #6b7280 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) 15px,
+    calc(100% - 11px) 15px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  line-height: 1.2;
+}
+
+.bo-filter-bar select:focus,
+.bo-pagination select:focus,
+.bo-field select:focus {
+  outline: 2px solid rgba(17, 24, 39, 0.16);
+  outline-offset: 1px;
+  border-color: #111827;
 }
 
 .bo-filter-bar input {
@@ -180,6 +207,48 @@
   font-weight: 700;
 }
 
+.bo-id-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+}
+
+.bo-id-cell button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  cursor: pointer;
+}
+
+.bo-id-cell svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.bo-copy-check {
+  color: #166534;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.bo-id-cell button:hover {
+  border-color: #111827;
+  background: #f9fafb;
+}
+
 .bo-table tbody tr:hover {
   background: #f9fafb;
 }
@@ -204,6 +273,280 @@
   gap: 12px;
   border-color: #fecaca;
   color: #991b1b;
+}
+
+.bo-action-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.bo-notification-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.bo-composer-targets,
+.bo-body-field,
+.bo-advanced-fields,
+.bo-inline-state,
+.bo-result,
+.bo-form-actions {
+  grid-column: 1 / -1;
+}
+
+.bo-composer-targets {
+  grid-column: 1;
+}
+
+.bo-composer-main-fields {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.bo-delivery-field select {
+  min-width: 0;
+}
+
+.bo-add-row {
+  display: flex;
+  gap: 8px;
+}
+
+.bo-add-row input {
+  flex: 1;
+}
+
+.bo-add-row button {
+  width: 36px;
+  min-height: 36px;
+  border: 1px solid #111827;
+  border-radius: 6px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bo-target-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 30px;
+  margin-top: 8px;
+}
+
+.bo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 5px 7px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bo-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #111827;
+  cursor: pointer;
+}
+
+.bo-muted {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.bo-advanced-fields {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 10px;
+}
+
+.bo-advanced-fields summary {
+  width: max-content;
+  cursor: pointer;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bo-advanced-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.bo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bo-field-wide {
+  grid-column: 1 / -1;
+}
+
+.bo-field input,
+.bo-field select,
+.bo-field textarea {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-weight: 500;
+  resize: vertical;
+}
+
+.bo-field select {
+  height: 36px;
+}
+
+.bo-field small {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.bo-field strong {
+  color: #991b1b;
+  font-size: 12px;
+}
+
+.bo-form-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.bo-form-actions button,
+.bo-row-action {
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #111827;
+  border-radius: 6px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bo-form-actions button:disabled,
+.bo-row-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.bo-result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bo-result span {
+  padding-right: 8px;
+  border-right: 1px solid #86efac;
+}
+
+.bo-result span:last-child {
+  border-right: 0;
+}
+
+.bo-history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bo-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bo-section-heading h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 18px;
+}
+
+.bo-secondary-button {
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bo-cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 320px;
+  white-space: normal;
+}
+
+.bo-cell-stack strong {
+  color: #111827;
+  font-weight: 700;
+}
+
+.bo-cell-stack span {
+  color: #6b7280;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.bo-message-cell span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .bo-pagination {
@@ -241,5 +584,23 @@
   .bo-content {
     margin-left: 210px;
     padding: 24px;
+  }
+
+  .bo-action-form {
+    grid-template-columns: 1fr;
+  }
+
+  .bo-notification-composer,
+  .bo-advanced-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bo-composer-targets,
+  .bo-composer-main-fields {
+    grid-column: 1;
+  }
+
+  .bo-composer-main-fields {
+    grid-template-columns: 1fr;
   }
 }

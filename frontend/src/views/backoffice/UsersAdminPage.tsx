@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { AdminUserFilters } from '@/models/admin';
 import { listAdminUsers } from '@/services/adminService';
 import { useAdminListViewModel } from '@/viewmodels/admin/useAdminListViewModel';
-import { BackofficePageShell, BackofficePagination, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
+import { BackofficeIdCell, BackofficePageShell, BackofficePagination, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
 
 const INITIAL_FILTERS: AdminUserFilters = {
   q: '',
@@ -50,6 +50,7 @@ export default function UsersAdminPage() {
         <table className="bo-table">
           <thead>
             <tr>
+              <th>ID</th>
               <th>Username</th>
               <th>Email</th>
               <th>Phone</th>
@@ -63,6 +64,7 @@ export default function UsersAdminPage() {
           <tbody>
             {vm.items.map((user) => (
               <tr key={user.id}>
+                <td><BackofficeIdCell id={user.id} /></td>
                 <td>{user.username}</td>
                 <td>{user.email}</td>
                 <td>{user.phone_number ?? '-'}</td>

@@ -13,6 +13,7 @@ type Repository interface {
 	ListEvents(ctx context.Context, input ListEventsInput) (*ListEventsResult, error)
 	ListParticipations(ctx context.Context, input ListParticipationsInput) (*ListParticipationsResult, error)
 	ListTickets(ctx context.Context, input ListTicketsInput) (*ListTicketsResult, error)
+	ListNotifications(ctx context.Context, input ListNotificationsInput) (*ListNotificationsResult, error)
 	CountExistingUsers(ctx context.Context, userIDs []uuid.UUID) (int, error)
 	GetEventState(ctx context.Context, eventID uuid.UUID, forUpdate bool) (*AdminEventState, error)
 	CreateManualParticipation(ctx context.Context, eventID, userID uuid.UUID, status domain.ParticipationStatus) (*domain.Participation, error)

@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { AdminTicketFilters } from '@/models/admin';
 import { listAdminTickets } from '@/services/adminService';
 import { useAdminListViewModel } from '@/viewmodels/admin/useAdminListViewModel';
-import { BackofficePageShell, BackofficePagination, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
+import { BackofficeIdCell, BackofficePageShell, BackofficePagination, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
 
 const INITIAL_FILTERS: AdminTicketFilters = {
   q: '',
@@ -50,6 +50,7 @@ export default function TicketsAdminPage() {
         <table className="bo-table">
           <thead>
             <tr>
+              <th>ID</th>
               <th>Event</th>
               <th>User</th>
               <th>Email</th>
@@ -63,6 +64,7 @@ export default function TicketsAdminPage() {
           <tbody>
             {vm.items.map((ticket) => (
               <tr key={ticket.id}>
+                <td><BackofficeIdCell id={ticket.id} /></td>
                 <td>{ticket.event_title}</td>
                 <td>{ticket.username}</td>
                 <td>{ticket.user_email}</td>

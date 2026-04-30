@@ -2,11 +2,11 @@ import { NavLink, Outlet } from 'react-router-dom';
 import '@/styles/backoffice.css';
 
 const SIDEBAR_ITEMS = [
-  { to: '/admin-panel/users', label: 'Users' },
-  { to: '/admin-panel/events', label: 'Events' },
-  { to: '/admin-panel/participations', label: 'Participations' },
-  { to: '/admin-panel/tickets', label: 'Tickets' },
-  { to: '/admin-panel/notifications', label: 'Notifications' },
+  { to: '/backoffice/users', label: 'Users' },
+  { to: '/backoffice/events', label: 'Events' },
+  { to: '/backoffice/participations', label: 'Participations' },
+  { to: '/backoffice/tickets', label: 'Tickets' },
+  { to: '/backoffice/notifications', label: 'Notifications' },
 ];
 
 export default function BackofficeLayout() {

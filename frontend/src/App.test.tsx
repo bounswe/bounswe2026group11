@@ -85,19 +85,19 @@ describe('App / route', () => {
     expect(screen.queryByText('Landing Page')).toBeNull();
   });
 
-  it('denies /admin-panel child pages to non-admin users', () => {
+  it('denies /backoffice child pages to non-admin users', () => {
     mockUseAuth.mockReturnValue({ isLoading: false, token: 'valid-token', role: 'USER' });
 
-    renderAt('/admin-panel/users');
+    renderAt('/backoffice/users');
 
     expect(screen.getByText('Admin Access Required')).toBeDefined();
     expect(screen.queryByText('Users Admin Page')).toBeNull();
   });
 
-  it('renders /admin-panel child pages for admins', () => {
+  it('renders /backoffice child pages for admins', () => {
     mockUseAuth.mockReturnValue({ isLoading: false, token: 'valid-token', role: 'ADMIN' });
 
-    renderAt('/admin-panel/users');
+    renderAt('/backoffice/users');
 
     expect(screen.getByText('Users Admin Page')).toBeDefined();
     expect(screen.getByRole('link', { name: 'Users' })).toBeDefined();

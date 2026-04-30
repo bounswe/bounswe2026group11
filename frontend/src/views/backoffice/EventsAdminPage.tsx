@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { AdminEventFilters } from '@/models/admin';
 import { listAdminEvents } from '@/services/adminService';
 import { useAdminListViewModel } from '@/viewmodels/admin/useAdminListViewModel';
-import { BackofficePageShell, BackofficePagination, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
+import { BackofficeIdCell, BackofficePageShell, BackofficePagination, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
 
 const INITIAL_FILTERS: AdminEventFilters = {
   q: '',
@@ -54,6 +54,7 @@ export default function EventsAdminPage() {
         <table className="bo-table">
           <thead>
             <tr>
+              <th>ID</th>
               <th>Title</th>
               <th>Host</th>
               <th>Category</th>
@@ -69,6 +70,7 @@ export default function EventsAdminPage() {
           <tbody>
             {vm.items.map((event) => (
               <tr key={event.id}>
+                <td><BackofficeIdCell id={event.id} /></td>
                 <td>{event.title}</td>
                 <td>{event.host_username}</td>
                 <td>{event.category_name ?? event.category_id ?? '-'}</td>
