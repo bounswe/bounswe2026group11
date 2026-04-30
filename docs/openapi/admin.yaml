@@ -1,0 +1,311 @@
+openapi: 3.1.0
+info:
+  title: Social Event Mapper Admin Backoffice API
+  version: 0.1.0
+  description: |
+    Web-only read APIs for the admin backoffice.
+
+    All endpoints require a bearer access token whose `role` claim is `ADMIN`.
+    Anonymous callers receive `401`; authenticated non-admin callers receive `403`.
+servers:
+  - url: /api
+security:
+  - bearerAuth: []
+tags:
+  - name: Admin
+    description: Read-only admin table endpoints.
+paths:
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List users
+      operationId: adminListUsers
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/TextQuery'
+        - name: status
+          in: query
+          schema: { type: string, enum: [active] }
+        - name: role
+          in: query
+          schema: { type: string, enum: [USER, ADMIN] }
+        - name: created_from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: created_to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Offset-paginated users.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/events:
+    get:
+      tags: [Admin]
+      summary: List events
+      operationId: adminListEvents
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/TextQuery'
+        - name: host_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: category_id
+          in: query
+          schema: { type: integer }
+        - name: privacy_level
+          in: query
+          schema: { type: string, enum: [PUBLIC, PROTECTED, PRIVATE] }
+        - name: status
+          in: query
+          schema: { type: string, enum: [ACTIVE, IN_PROGRESS, CANCELED, COMPLETED] }
+        - name: start_from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: start_to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Offset-paginated events.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminEvent' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/participations:
+    get:
+      tags: [Admin]
+      summary: List participations
+      operationId: adminListParticipations
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/TextQuery'
+        - name: status
+          in: query
+          schema: { type: string, enum: [APPROVED, PENDING, CANCELED, LEAVED] }
+        - name: event_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: user_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: created_from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: created_to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Offset-paginated participations.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminParticipation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/tickets:
+    get:
+      tags: [Admin]
+      summary: List tickets
+      operationId: adminListTickets
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/TextQuery'
+        - name: status
+          in: query
+          schema: { type: string, enum: [ACTIVE, PENDING, EXPIRED, USED, CANCELED] }
+        - name: event_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: user_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: participation_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: created_from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: created_to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Offset-paginated tickets.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminTicket' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      description: Page size. Defaults to 50 and may not exceed 100.
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    Offset:
+      name: offset
+      in: query
+      description: Zero-based row offset. Defaults to 0.
+      schema: { type: integer, minimum: 0, default: 0 }
+    TextQuery:
+      name: q
+      in: query
+      description: Case-insensitive text search over table-friendly identifying fields.
+      schema: { type: string }
+  schemas:
+    PageMeta:
+      type: object
+      additionalProperties: false
+      required: [limit, offset, total_count, has_next]
+      properties:
+        limit: { type: integer, example: 50 }
+        offset: { type: integer, example: 0 }
+        total_count: { type: integer, example: 125 }
+        has_next: { type: boolean, example: true }
+    AdminUser:
+      type: object
+      additionalProperties: false
+      required: [id, username, email, email_verified, status, role, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        email: { type: string, format: email }
+        phone_number: { type: [string, 'null'] }
+        email_verified: { type: boolean }
+        last_login: { type: [string, 'null'], format: date-time }
+        status: { type: string, example: active }
+        role: { type: string, enum: [USER, ADMIN] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AdminEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        host_id: { type: string, format: uuid }
+        host_username: { type: string }
+        title: { type: string }
+        category_id: { type: [integer, 'null'] }
+        category_name: { type: [string, 'null'] }
+        start_time: { type: string, format: date-time }
+        end_time: { type: [string, 'null'], format: date-time }
+        privacy_level: { type: string, enum: [PUBLIC, PROTECTED, PRIVATE] }
+        status: { type: string, enum: [ACTIVE, IN_PROGRESS, CANCELED, COMPLETED] }
+        capacity: { type: [integer, 'null'] }
+        approved_participant_count: { type: integer }
+        pending_participant_count: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AdminParticipation:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        event_title: { type: string }
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        user_email: { type: string, format: email }
+        status: { type: string, enum: [APPROVED, PENDING, CANCELED, LEAVED] }
+        reconfirmed_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AdminTicket:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        participation_id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        event_title: { type: string }
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        user_email: { type: string, format: email }
+        status: { type: string, enum: [ACTIVE, PENDING, EXPIRED, USED, CANCELED] }
+        expires_at: { type: string, format: date-time }
+        used_at: { type: [string, 'null'], format: date-time }
+        canceled_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details:
+              type: object
+              additionalProperties: { type: string }
+  responses:
+    ValidationError:
+      description: Invalid query parameter. `error.details` identifies the field.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: Missing, invalid, or expired bearer token.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: The bearer token is valid, but the user role is not ADMIN.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }

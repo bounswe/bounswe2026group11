@@ -39,10 +39,16 @@ func (v Verifier) VerifyAccessToken(token string) (*domain.AuthClaims, error) {
 
 	username, _ := claims["username"].(string)
 	email, _ := claims["email"].(string)
+	roleValue, _ := claims["role"].(string)
+	role, ok := domain.ParseUserRole(roleValue)
+	if !ok {
+		return nil, fmt.Errorf("invalid role claim")
+	}
 
 	return &domain.AuthClaims{
 		UserID:   userID,
 		Username: username,
 		Email:    email,
+		Role:     role,
 	}, nil
 }

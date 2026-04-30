@@ -14,13 +14,14 @@ type Issuer struct {
 }
 
 // IssueAccessToken creates a signed HS256 JWT containing the user's ID, username,
-// and email as claims, valid for the configured TTL.
+// email, and role as claims, valid for the configured TTL.
 func (j Issuer) IssueAccessToken(user domain.User, issuedAt time.Time) (string, int64, error) {
 	expiresAt := issuedAt.Add(j.TTL)
 	claims := gojwt.MapClaims{
 		"sub":      user.ID.String(),
 		"username": user.Username,
 		"email":    user.Email,
+		"role":     string(user.Role),
 		"iat":      issuedAt.Unix(),
 		"exp":      expiresAt.Unix(),
 	}

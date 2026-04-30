@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/category_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler"
@@ -42,7 +43,13 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 
 	// Event routes
 	auth := httpapi.RequireAuth(container.TokenVerifier)
+	adminAuth := httpapi.RequireAdmin(container.TokenVerifier)
 	optionalAuth := httpapi.OptionalAuth(container.TokenVerifier)
+
+	// Admin backoffice routes (authenticated ADMIN role only)
+	adminHandler := admin_handler.NewHandler(container.AdminService)
+	admin_handler.RegisterRoutes(app, adminHandler, adminAuth)
+
 	eventHandler := event_handler.NewEventHandler(container.EventService)
 	event_handler.RegisterEventRoutes(app, eventHandler, auth, optionalAuth)
 

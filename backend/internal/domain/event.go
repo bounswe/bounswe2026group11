@@ -89,6 +89,13 @@ var eventDiscoverySorts = map[string]EventDiscoverySort{
 	string(EventDiscoverySortRelevance): EventDiscoverySortRelevance,
 }
 
+var eventStatuses = map[string]EventStatus{
+	string(EventStatusActive):     EventStatusActive,
+	string(EventStatusInProgress): EventStatusInProgress,
+	string(EventStatusCanceled):   EventStatusCanceled,
+	string(EventStatusCompleted):  EventStatusCompleted,
+}
+
 // ParseEventPrivacyLevel converts a wire string to an EventPrivacyLevel.
 func ParseEventPrivacyLevel(value string) (EventPrivacyLevel, bool) {
 	level, ok := eventPrivacyLevels[value]
@@ -111,6 +118,12 @@ func ParseEventParticipantGender(value string) (EventParticipantGender, bool) {
 func ParseEventDiscoverySort(value string) (EventDiscoverySort, bool) {
 	sort, ok := eventDiscoverySorts[value]
 	return sort, ok
+}
+
+// ParseEventStatus converts a wire string to an EventStatus.
+func ParseEventStatus(value string) (EventStatus, bool) {
+	status, ok := eventStatuses[value]
+	return status, ok
 }
 
 // GeoPoint is a single WGS84 coordinate used for event locations.

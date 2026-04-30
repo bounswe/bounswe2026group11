@@ -22,6 +22,7 @@ func scanUser(row pgx.Row) (*domain.User, error) {
 		emailVerifiedAt pgtype.Timestamptz
 		lastLogin       pgtype.Timestamptz
 		status          pgtype.Text
+		role            string
 	)
 
 	if err := row.Scan(
@@ -35,6 +36,7 @@ func scanUser(row pgx.Row) (*domain.User, error) {
 		&emailVerifiedAt,
 		&lastLogin,
 		&status,
+		&role,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	); err != nil {
@@ -50,7 +52,8 @@ func scanUser(row pgx.Row) (*domain.User, error) {
 	user.PasswordHash = textValue(passwordHash)
 	user.EmailVerifiedAt = timestamptzPtr(emailVerifiedAt)
 	user.LastLogin = timestamptzPtr(lastLogin)
-	user.Status = textValue(status)
+	user.Status = domain.UserStatus(textValue(status))
+	user.Role = domain.UserRole(role)
 	return &user, nil
 }
 

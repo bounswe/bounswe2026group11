@@ -41,7 +41,7 @@ func NewAuthRepositoryWithTx(pool *pgxpool.Pool, tx pgx.Tx) *AuthRepository {
 
 func (r *AuthRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id, username, email, phone_number, gender, birth_date, password_hash, email_verified_at, last_login, status, created_at, updated_at
+		SELECT id, username, email, phone_number, gender, birth_date, password_hash, email_verified_at, last_login, status, role, created_at, updated_at
 		FROM app_user
 		WHERE email = $1
 	`, email)
@@ -50,7 +50,7 @@ func (r *AuthRepository) GetUserByEmail(ctx context.Context, email string) (*dom
 
 func (r *AuthRepository) GetUserByUsername(ctx context.Context, username string) (*domain.User, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id, username, email, phone_number, gender, birth_date, password_hash, email_verified_at, last_login, status, created_at, updated_at
+		SELECT id, username, email, phone_number, gender, birth_date, password_hash, email_verified_at, last_login, status, role, created_at, updated_at
 		FROM app_user
 		WHERE username = $1
 	`, username)
@@ -59,7 +59,7 @@ func (r *AuthRepository) GetUserByUsername(ctx context.Context, username string)
 
 func (r *AuthRepository) GetUserByID(ctx context.Context, userID uuid.UUID) (*domain.User, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id, username, email, phone_number, gender, birth_date, password_hash, email_verified_at, last_login, status, created_at, updated_at
+		SELECT id, username, email, phone_number, gender, birth_date, password_hash, email_verified_at, last_login, status, role, created_at, updated_at
 		FROM app_user
 		WHERE id = $1
 	`, userID)
@@ -68,10 +68,10 @@ func (r *AuthRepository) GetUserByID(ctx context.Context, userID uuid.UUID) (*do
 
 func (r *AuthRepository) CreateUser(ctx context.Context, params authapp.CreateUserParams) (*domain.User, error) {
 	row := r.db.QueryRow(ctx, `
-		INSERT INTO app_user (username, email, phone_number, gender, birth_date, password_hash, email_verified_at, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, username, email, phone_number, gender, birth_date, password_hash, email_verified_at, last_login, status, created_at, updated_at
-	`, params.Username, params.Email, params.PhoneNumber, params.Gender, params.BirthDate, params.PasswordHash, params.EmailVerifiedAt, params.Status)
+		INSERT INTO app_user (username, email, phone_number, gender, birth_date, password_hash, email_verified_at, status, role)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, username, email, phone_number, gender, birth_date, password_hash, email_verified_at, last_login, status, role, created_at, updated_at
+	`, params.Username, params.Email, params.PhoneNumber, params.Gender, params.BirthDate, params.PasswordHash, params.EmailVerifiedAt, params.Status, domain.UserRoleUser)
 
 	user, err := scanUser(row)
 	if err != nil {
