@@ -31,7 +31,7 @@ async function handleErrorResponse(response: Response): Promise<never> {
 
 interface TokenRefreshManager {
   getRefreshToken: () => string | null;
-  onRefreshSuccess: (accessToken: string, refreshToken: string, username: string) => void;
+  onRefreshSuccess: (accessToken: string, refreshToken: string, username: string, role: AuthSessionResponse['user']['role']) => void;
   onRefreshFailure: () => void;
 }
 
@@ -65,6 +65,7 @@ async function attemptTokenRefresh(): Promise<string> {
       session.access_token,
       session.refresh_token,
       session.user.username,
+      session.user.role,
     );
     return session.access_token;
   };

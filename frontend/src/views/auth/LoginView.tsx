@@ -14,7 +14,7 @@ export default function LoginView() {
     e.preventDefault();
     const session = await vm.handleLogin();
     if (session) {
-      setSession(session.access_token, session.refresh_token, session.user.username);
+      setSession(session.access_token, session.refresh_token, session.user.username, session.user.role);
       navigate('/discover', { replace: true });
     }
   };

@@ -1,12 +1,32 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { setTokenRefreshManager } from '@/services/api';
 import { profileService } from '@/services/profileService';
+import type { UserRole } from '@/models/auth';
 
 const STORAGE_KEY_TOKEN = 'sem_access_token';
 const STORAGE_KEY_REFRESH = 'sem_refresh_token';
 const STORAGE_KEY_USERNAME = 'sem_username';
 const STORAGE_KEY_AVATAR_URL = 'sem_avatar_url';
 const STORAGE_KEY_DISPLAY_NAME = 'sem_display_name';
+const STORAGE_KEY_ROLE = 'sem_role';
+
+function normalizeRole(value: string | null | undefined): UserRole | null {
+  return value === 'ADMIN' || value === 'USER' ? value : null;
+}
+
+function readRoleFromAccessToken(accessToken: string): UserRole | null {
+  const payload = accessToken.split('.')[1];
+  if (!payload) return null;
+
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const decoded = JSON.parse(window.atob(padded)) as { role?: string };
+    return normalizeRole(decoded.role);
+  } catch {
+    return null;
+  }
+}
 
 export interface ProfileSummary {
   avatarUrl: string | null;
@@ -17,10 +37,11 @@ interface AuthContextType {
   token: string | null;
   refreshToken: string | null;
   username: string | null;
+  role: UserRole | null;
   avatarUrl: string | null;
   displayName: string | null;
   isLoading: boolean;
-  setSession: (accessToken: string, refreshToken: string, username: string) => void;
+  setSession: (accessToken: string, refreshToken: string, username: string, role?: UserRole) => void;
   setProfileSummary: (data: ProfileSummary) => void;
   clearAuth: () => void;
 }
@@ -31,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
+  const [role, setRole] = useState<UserRole | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,6 +80,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(storedToken);
       setRefreshToken(storedRefresh);
       setUsername(storedUsername);
+      const storedRole = normalizeRole(localStorage.getItem(STORAGE_KEY_ROLE)) ?? readRoleFromAccessToken(storedToken) ?? 'USER';
+      setRole(storedRole);
+      localStorage.setItem(STORAGE_KEY_ROLE, storedRole);
       const storedAvatar = localStorage.getItem(STORAGE_KEY_AVATAR_URL);
       const storedDisplayName = localStorage.getItem(STORAGE_KEY_DISPLAY_NAME);
       setAvatarUrl(storedAvatar);
@@ -67,15 +92,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setSession = useCallback(
-    (accessToken: string, refresh: string, user: string) => {
+    (accessToken: string, refresh: string, user: string, nextRole: UserRole = 'USER') => {
       localStorage.setItem(STORAGE_KEY_TOKEN, accessToken);
       localStorage.setItem(STORAGE_KEY_REFRESH, refresh);
       localStorage.setItem(STORAGE_KEY_USERNAME, user);
+      localStorage.setItem(STORAGE_KEY_ROLE, nextRole);
       localStorage.removeItem(STORAGE_KEY_AVATAR_URL);
       localStorage.removeItem(STORAGE_KEY_DISPLAY_NAME);
       setToken(accessToken);
       setRefreshToken(refresh);
       setUsername(user);
+      setRole(nextRole);
       setAvatarUrl(null);
       setDisplayName(null);
     },
@@ -86,11 +113,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(STORAGE_KEY_TOKEN);
     localStorage.removeItem(STORAGE_KEY_REFRESH);
     localStorage.removeItem(STORAGE_KEY_USERNAME);
+    localStorage.removeItem(STORAGE_KEY_ROLE);
     localStorage.removeItem(STORAGE_KEY_AVATAR_URL);
     localStorage.removeItem(STORAGE_KEY_DISPLAY_NAME);
     setToken(null);
     setRefreshToken(null);
     setUsername(null);
+    setRole(null);
     setAvatarUrl(null);
     setDisplayName(null);
   }, []);
@@ -119,8 +148,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setTokenRefreshManager({
       getRefreshToken: () => localStorage.getItem(STORAGE_KEY_REFRESH),
-      onRefreshSuccess: (accessToken, newRefreshToken, newUsername) => {
-        setSession(accessToken, newRefreshToken, newUsername);
+      onRefreshSuccess: (accessToken, newRefreshToken, newUsername, newRole) => {
+        setSession(accessToken, newRefreshToken, newUsername, newRole);
       },
       onRefreshFailure: clearAuth,
     });
@@ -136,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         refreshToken,
         username,
+        role,
         avatarUrl,
         displayName,
         isLoading,

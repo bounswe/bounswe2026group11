@@ -1,4 +1,5 @@
 export type AvailabilityStatus = 'AVAILABLE' | 'TAKEN';
+export type UserRole = 'USER' | 'ADMIN';
 
 export interface CheckAvailabilityRequest {
   username: string;
@@ -41,6 +42,7 @@ export interface UserSummary {
   phone_number: string | null;
   email_verified: boolean;
   status: string;
+  role: UserRole;
 }
 
 export interface AuthSessionResponse {

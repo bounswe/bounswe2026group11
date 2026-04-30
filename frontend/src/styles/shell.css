@@ -16,7 +16,7 @@
 }
 
 .shell-header-inner {
-  max-width: 1200px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 0 24px;
   height: 64px;
@@ -85,6 +85,40 @@
 
 .shell-create-btn:hover {
   background-color: #0F172A;
+}
+
+.shell-admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  text-decoration: none;
+  border-radius: 8px;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.shell-admin-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  flex-shrink: 0;
+}
+
+.shell-admin-btn:hover,
+.shell-admin-btn.active {
+  color: #ffffff;
+  background-color: #111827;
+  border-color: #111827;
 }
 
 /* User menu */
@@ -246,10 +280,16 @@
 /* Main content */
 .shell-main {
   flex: 1;
-  max-width: 1200px;
+  max-width: 1440px;
   width: 100%;
   margin: 0 auto;
   padding: 32px 24px;
+}
+
+.shell-main.admin-panel-main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 /* Responsive */
@@ -316,6 +356,10 @@
 
   /* Hide header create button on mobile */
   .shell-create-btn {
+    display: none;
+  }
+
+  .shell-admin-btn {
     display: none;
   }
 

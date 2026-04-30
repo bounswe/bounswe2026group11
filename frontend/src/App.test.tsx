@@ -20,6 +20,11 @@ vi.mock('./components/AppShell', () => {
 vi.mock('./views/auth/LoginView', () => ({ default: () => <div>Login</div> }));
 vi.mock('./views/auth/RegisterView', () => ({ default: () => <div>Register</div> }));
 vi.mock('./views/auth/ForgotPasswordView', () => ({ default: () => <div>Forgot Password</div> }));
+vi.mock('./views/backoffice/UsersAdminPage', () => ({ default: () => <div>Users Admin Page</div> }));
+vi.mock('./views/backoffice/EventsAdminPage', () => ({ default: () => <div>Events Admin Page</div> }));
+vi.mock('./views/backoffice/ParticipationsAdminPage', () => ({ default: () => <div>Participations Admin Page</div> }));
+vi.mock('./views/backoffice/TicketsAdminPage', () => ({ default: () => <div>Tickets Admin Page</div> }));
+vi.mock('./views/backoffice/NotificationsAdminPage', () => ({ default: () => <div>Notifications Admin Page</div> }));
 vi.mock('./components/ProtectedRoute', () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -78,5 +83,23 @@ describe('App / route', () => {
     // App returns null while loading; only CurrentPath should be in the DOM
     expect(container.querySelector('[data-testid="path"]')).toBeDefined();
     expect(screen.queryByText('Landing Page')).toBeNull();
+  });
+
+  it('denies /admin-panel child pages to non-admin users', () => {
+    mockUseAuth.mockReturnValue({ isLoading: false, token: 'valid-token', role: 'USER' });
+
+    renderAt('/admin-panel/users');
+
+    expect(screen.getByText('Admin Access Required')).toBeDefined();
+    expect(screen.queryByText('Users Admin Page')).toBeNull();
+  });
+
+  it('renders /admin-panel child pages for admins', () => {
+    mockUseAuth.mockReturnValue({ isLoading: false, token: 'valid-token', role: 'ADMIN' });
+
+    renderAt('/admin-panel/users');
+
+    expect(screen.getByText('Users Admin Page')).toBeDefined();
+    expect(screen.getByRole('link', { name: 'Users' })).toBeDefined();
   });
 });

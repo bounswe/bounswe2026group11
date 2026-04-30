@@ -33,7 +33,7 @@ export default function RegisterView() {
     } else {
       const session = await vm.handleVerifyOtp();
       if (session) {
-        setSession(session.access_token, session.refresh_token, session.user.username);
+        setSession(session.access_token, session.refresh_token, session.user.username, session.user.role);
         navigate('/discover', { replace: true });
       }
     }

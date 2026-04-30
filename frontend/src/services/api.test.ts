@@ -16,7 +16,7 @@ const SESSION_RESPONSE = {
   refresh_token: 'new-refresh-token',
   token_type: 'Bearer' as const,
   expires_in_seconds: 900,
-  user: { id: '1', username: 'testuser', email: 'test@example.com', phone_number: null, email_verified: true, status: 'active' },
+  user: { id: '1', username: 'testuser', email: 'test@example.com', phone_number: null, email_verified: true, status: 'active', role: 'ADMIN' },
 };
 
 const onRefreshSuccess = vi.fn();
@@ -83,6 +83,7 @@ describe('apiGetAuth', () => {
       'new-access-token',
       'new-refresh-token',
       'testuser',
+      'ADMIN',
     );
   });
 
