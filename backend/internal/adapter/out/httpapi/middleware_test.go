@@ -33,6 +33,18 @@ func testApp(verifier domain.TokenVerifier) *fiber.App {
 	return app
 }
 
+func adminTestApp(verifier domain.TokenVerifier) *fiber.App {
+	app := fiber.New()
+	app.Get("/admin", RequireAdmin(verifier), func(c *fiber.Ctx) error {
+		claims := UserClaims(c)
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"user_id": claims.UserID.String(),
+			"role":    claims.Role.String(),
+		})
+	})
+	return app
+}
+
 func TestRequireAuthMissingHeader(t *testing.T) {
 	// given
 	app := testApp(&fakeVerifier{})
@@ -117,5 +129,77 @@ func TestRequireAuthValidToken(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected 200, got %d — body: %s", resp.StatusCode, body)
+	}
+}
+
+func TestRequireAdminMissingHeader(t *testing.T) {
+	// given
+	app := adminTestApp(&fakeVerifier{})
+	req := httptest.NewRequest(fiber.MethodGet, "/admin", nil)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestRequireAdminRejectsNonAdmin(t *testing.T) {
+	// given
+	app := adminTestApp(&fakeVerifier{
+		claims: &domain.AuthClaims{
+			UserID:   uuid.New(),
+			Username: "regular",
+			Email:    "regular@example.com",
+			Role:     domain.UserRoleUser,
+		},
+	})
+	req := httptest.NewRequest(fiber.MethodGet, "/admin", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token.here")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusForbidden {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 403, got %d body=%s", resp.StatusCode, body)
+	}
+}
+
+func TestRequireAdminAllowsAdmin(t *testing.T) {
+	// given
+	app := adminTestApp(&fakeVerifier{
+		claims: &domain.AuthClaims{
+			UserID:   uuid.New(),
+			Username: "admin",
+			Email:    "admin@example.com",
+			Role:     domain.UserRoleAdmin,
+		},
+	})
+	req := httptest.NewRequest(fiber.MethodGet, "/admin", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token.here")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d body=%s", resp.StatusCode, body)
 	}
 }

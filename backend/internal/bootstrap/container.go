@@ -15,6 +15,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/ratelimit"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/security"
 	spacesadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/spaces"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/admin"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/category"
 	emailapp "github.com/bounswe/bounswe2026group11/backend/internal/application/email"
@@ -44,6 +45,7 @@ type Container struct {
 	TokenIssuer             auth.TokenIssuer
 	TokenVerifier           domain.TokenVerifier
 	authRepo                *postgres.AuthRepository
+	adminRepo               *postgres.AdminRepository
 	eventRepo               *postgres.EventRepository
 	participationRepo       *postgres.ParticipationRepository
 	joinRequestRepo         *postgres.JoinRequestRepository
@@ -54,6 +56,7 @@ type Container struct {
 	profileRepo             *postgres.ProfileRepository
 	favoriteLocationRepo    *postgres.FavoriteLocationRepository
 	AuthService             auth.UseCase
+	AdminService            admin.UseCase
 	EventService            event.UseCase
 	ParticipationService    participation.UseCase
 	JoinRequestService      join_request.UseCase
@@ -97,6 +100,7 @@ func New(ctx context.Context) (*Container, error) {
 		TokenVerifier: buildTokenVerifier(cfg),
 	}
 	container.authRepo = postgres.NewAuthRepository(container.DB)
+	container.adminRepo = postgres.NewAdminRepository(container.DB)
 	container.eventRepo = postgres.NewEventRepository(container.DB)
 	container.participationRepo = postgres.NewParticipationRepository(container.DB)
 	container.joinRequestRepo = postgres.NewJoinRequestRepository(container.DB)
@@ -118,6 +122,7 @@ func New(ctx context.Context) (*Container, error) {
 	}
 	container.NotificationService = notificationService
 	container.AuthService = newAuthService(container)
+	container.AdminService = newAdminService(container)
 	container.EventService = newEventService(container)
 	container.CategoryService = newCategoryService(container)
 	container.ProfileService = newProfileService(container)
@@ -234,6 +239,11 @@ func buildPushSender(ctx context.Context, cfg *config.Config) (notification.Push
 	default:
 		return nil, fmt.Errorf("unsupported push provider %q", cfg.PushProvider)
 	}
+}
+
+// newAdminService wires the admin backoffice use case with its read repository.
+func newAdminService(c *Container) admin.UseCase {
+	return admin.NewService(c.adminRepo)
 }
 
 // newEventService wires the event use case with its driven adapters.

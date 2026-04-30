@@ -71,6 +71,8 @@ const (
 	ErrorCodeTicketClientNotSupported = "ticket_client_not_supported"
 
 	ErrorCodeNotificationNotFound = "notification_not_found"
+
+	ErrorCodeAdminAccessRequired = "admin_access_required"
 )
 
 // ErrNotFound is a sentinel error returned when a queried entity does not exist.

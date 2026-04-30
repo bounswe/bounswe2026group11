@@ -264,6 +264,7 @@ paths:
                       phone_number: "+905551112233"
                       email_verified: true
                       status: active
+                      role: USER
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -318,6 +319,7 @@ paths:
                       phone_number: "+905551112233"
                       email_verified: true
                       status: active
+                      role: USER
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -371,6 +373,7 @@ paths:
                       phone_number: "+905551112233"
                       email_verified: true
                       status: active
+                      role: USER
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -823,7 +826,7 @@ components:
       type: object
       description: Public-facing summary of the authenticated user.
       additionalProperties: false
-      required: [id, username, email, phone_number, email_verified, status]
+      required: [id, username, email, phone_number, email_verified, status, role]
       properties:
         id:
           type: string
@@ -853,6 +856,11 @@ components:
           type: string
           description: Current account status.
           example: active
+        role:
+          type: string
+          enum: [USER, ADMIN]
+          description: Authorization role embedded in access tokens and session responses. Newly registered users receive USER.
+          example: USER
         gender:
           type:
             - string

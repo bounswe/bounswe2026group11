@@ -27,6 +27,7 @@ type AuthClaims struct {
 	UserID   uuid.UUID
 	Username string
 	Email    string
+	Role     UserRole
 }
 
 // TokenVerifier parses and validates access tokens, returning the embedded claims.

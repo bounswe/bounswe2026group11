@@ -25,7 +25,7 @@ type userFixture struct {
 	gender          *string
 	birthDate       *time.Time
 	emailVerifiedAt time.Time
-	status          string
+	status          domain.UserStatus
 }
 
 // WithUserUsername overrides the default username for the fixture.

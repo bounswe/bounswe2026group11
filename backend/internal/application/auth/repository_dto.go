@@ -3,6 +3,7 @@ package auth
 import (
 	"time"
 
+	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 )
 
@@ -15,7 +16,7 @@ type CreateUserParams struct {
 	BirthDate       *time.Time
 	PasswordHash    string
 	EmailVerifiedAt time.Time
-	Status          string
+	Status          domain.UserStatus
 }
 
 // UpsertOTPChallengeParams carries the fields needed to insert or update an

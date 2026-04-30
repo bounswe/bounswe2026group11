@@ -41,6 +41,45 @@ func RequireAuth(verifier domain.TokenVerifier) fiber.Handler {
 	}
 }
 
+// RequireAdmin returns middleware that first authenticates the request and then
+// requires the caller's role claim to be ADMIN. Authentication failures keep the
+// standard 401 behavior from RequireAuth; authenticated non-admins receive 403.
+func RequireAdmin(verifier domain.TokenVerifier) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		header := c.Get(fiber.HeaderAuthorization)
+		token, ok := extractBearer(header)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(ErrorEnvelope{
+				Error: ErrorBody{
+					Code:    "missing_token",
+					Message: "Authorization header with Bearer token is required.",
+				},
+			})
+		}
+
+		claims, err := verifier.VerifyAccessToken(token)
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(ErrorEnvelope{
+				Error: ErrorBody{
+					Code:    "invalid_token",
+					Message: "The access token is invalid or expired.",
+				},
+			})
+		}
+		if claims.Role != domain.UserRoleAdmin {
+			return c.Status(fiber.StatusForbidden).JSON(ErrorEnvelope{
+				Error: ErrorBody{
+					Code:    domain.ErrorCodeAdminAccessRequired,
+					Message: "Admin access is required for this endpoint.",
+				},
+			})
+		}
+
+		c.Locals(contextKeyUserClaims, claims)
+		return c.Next()
+	}
+}
+
 // OptionalAuth returns a middleware that parses the Bearer token if present
 // and stores the claims in the request context. If the header is absent the
 // request proceeds unauthenticated (UserClaims will return nil). If a token
@@ -73,6 +112,29 @@ func OptionalAuth(verifier domain.TokenVerifier) fiber.Handler {
 func UserClaims(c *fiber.Ctx) *domain.AuthClaims {
 	claims, _ := c.Locals(contextKeyUserClaims).(*domain.AuthClaims)
 	return claims
+}
+
+// RequireAdminRole is intended to be mounted after RequireAuth when route
+// groups need to compose authentication separately from authorization.
+func RequireAdminRole(c *fiber.Ctx) error {
+	claims := UserClaims(c)
+	if claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(ErrorEnvelope{
+			Error: ErrorBody{
+				Code:    "missing_token",
+				Message: "Authorization header with Bearer token is required.",
+			},
+		})
+	}
+	if claims.Role != domain.UserRoleAdmin {
+		return c.Status(fiber.StatusForbidden).JSON(ErrorEnvelope{
+			Error: ErrorBody{
+				Code:    domain.ErrorCodeAdminAccessRequired,
+				Message: "Admin access is required for this endpoint.",
+			},
+		})
+	}
+	return c.Next()
 }
 
 // extractBearer parses "Bearer <token>" from an Authorization header value.
