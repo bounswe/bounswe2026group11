@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -183,23 +184,197 @@ func (r *NotificationRepository) ListActiveDevicesForUsers(ctx context.Context, 
 	return devices, nil
 }
 
-func (r *NotificationRepository) CreateNotification(ctx context.Context, params notificationapp.CreateNotificationParams) error {
+func (r *NotificationRepository) CreateNotificationIfAbsent(ctx context.Context, params notificationapp.CreateNotificationParams) (*notificationapp.CreateNotificationResult, error) {
+	data, err := marshalNotificationData(params.Data)
+	if err != nil {
+		return nil, err
+	}
+
+	var created bool
+	notification, err := scanNotificationWithCreated(r.db.QueryRow(ctx, `
+		WITH inserted AS (
+			INSERT INTO notification (
+				event_id,
+				receiver_user_id,
+				title,
+				type,
+				body,
+				is_read,
+				deep_link,
+				image_url,
+				data,
+				idempotency_key,
+				read_at,
+				deleted_at,
+				created_at,
+				updated_at
+			)
+			VALUES ($1, $2, $3, $4, $5, FALSE, $6, $7, $8, $9, NULL, NULL, $10, $10)
+			ON CONFLICT (receiver_user_id, idempotency_key) DO NOTHING
+			RETURNING id, event_id, receiver_user_id, title, type, body, is_read, read_at, deleted_at,
+				deep_link, image_url, data, idempotency_key, created_at, updated_at, TRUE AS created
+		)
+		SELECT id, event_id, receiver_user_id, title, type, body, is_read, read_at, deleted_at,
+			deep_link, image_url, data, idempotency_key, created_at, updated_at, created
+		FROM inserted
+		UNION ALL
+		SELECT id, event_id, receiver_user_id, title, type, body, is_read, read_at, deleted_at,
+			deep_link, image_url, data, idempotency_key, created_at, updated_at, FALSE AS created
+		FROM notification
+		WHERE receiver_user_id = $2
+		  AND idempotency_key = $9
+		LIMIT 1
+	`, params.EventID, params.UserID, params.Title, params.Type, params.Body, params.DeepLink, params.ImageURL, data, params.IdempotencyKey, params.CreatedAt), &created)
+	if err != nil {
+		return nil, fmt.Errorf("insert notification: %w", err)
+	}
+	return &notificationapp.CreateNotificationResult{Notification: *notification, Created: created}, nil
+}
+
+func (r *NotificationRepository) ListNotifications(ctx context.Context, params notificationapp.ListNotificationsParams) ([]domain.Notification, error) {
+	var (
+		cursorCreatedAt *time.Time
+		cursorID        *uuid.UUID
+	)
+	if params.DecodedCursor != nil {
+		cursorCreatedAt = &params.DecodedCursor.CreatedAt
+		cursorID = &params.DecodedCursor.NotificationID
+	}
+
+	rows, err := r.db.Query(ctx, `
+		SELECT id, event_id, receiver_user_id, title, type, body, is_read, read_at, deleted_at,
+			deep_link, image_url, data, idempotency_key, created_at, updated_at
+		FROM notification
+		WHERE receiver_user_id = $1
+		  AND deleted_at IS NULL
+		  AND created_at >= $2
+		  AND ($4 = FALSE OR is_read = FALSE)
+		  AND ($5::timestamptz IS NULL OR (created_at, id) < ($5::timestamptz, $6::uuid))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $3
+	`, params.UserID, params.VisibleAfter, params.RepositoryFetchLimit, params.OnlyUnread, cursorCreatedAt, cursorID)
+	if err != nil {
+		return nil, fmt.Errorf("list notifications: %w", err)
+	}
+	defer rows.Close()
+
+	notifications := []domain.Notification{}
+	for rows.Next() {
+		notification, err := scanNotification(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan notification: %w", err)
+		}
+		notifications = append(notifications, *notification)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate notifications: %w", err)
+	}
+	return notifications, nil
+}
+
+func (r *NotificationRepository) CountUnreadNotifications(ctx context.Context, userID uuid.UUID, visibleAfter time.Time) (int, error) {
+	var count int
+	if err := r.db.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM notification
+		WHERE receiver_user_id = $1
+		  AND deleted_at IS NULL
+		  AND is_read = FALSE
+		  AND created_at >= $2
+	`, userID, visibleAfter).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count unread notifications: %w", err)
+	}
+	return count, nil
+}
+
+func (r *NotificationRepository) MarkNotificationRead(ctx context.Context, userID, notificationID uuid.UUID, readAt, visibleAfter time.Time) (bool, error) {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE notification
+		SET is_read = TRUE,
+		    read_at = COALESCE(read_at, $3),
+		    updated_at = $3
+		WHERE receiver_user_id = $1
+		  AND id = $2
+		  AND deleted_at IS NULL
+		  AND created_at >= $4
+	`, userID, notificationID, readAt, visibleAfter)
+	if err != nil {
+		return false, fmt.Errorf("mark notification read: %w", err)
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+func (r *NotificationRepository) MarkAllNotificationsRead(ctx context.Context, userID uuid.UUID, readAt, visibleAfter time.Time) (int, error) {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE notification
+		SET is_read = TRUE,
+		    read_at = COALESCE(read_at, $2),
+		    updated_at = $2
+		WHERE receiver_user_id = $1
+		  AND deleted_at IS NULL
+		  AND is_read = FALSE
+		  AND created_at >= $3
+	`, userID, readAt, visibleAfter)
+	if err != nil {
+		return 0, fmt.Errorf("mark all notifications read: %w", err)
+	}
+	return int(tag.RowsAffected()), nil
+}
+
+func (r *NotificationRepository) SoftDeleteNotification(ctx context.Context, userID, notificationID uuid.UUID, deletedAt, visibleAfter time.Time) error {
 	if _, err := r.db.Exec(ctx, `
-		INSERT INTO notification (
-			event_id,
+		UPDATE notification
+		SET deleted_at = COALESCE(deleted_at, $3),
+		    updated_at = $3
+		WHERE receiver_user_id = $1
+		  AND id = $2
+		  AND deleted_at IS NULL
+		  AND created_at >= $4
+	`, userID, notificationID, deletedAt, visibleAfter); err != nil {
+		return fmt.Errorf("soft delete notification: %w", err)
+	}
+	return nil
+}
+
+func (r *NotificationRepository) SoftDeleteAllNotifications(ctx context.Context, userID uuid.UUID, deletedAt, visibleAfter time.Time) error {
+	if _, err := r.db.Exec(ctx, `
+		UPDATE notification
+		SET deleted_at = COALESCE(deleted_at, $2),
+		    updated_at = $2
+		WHERE receiver_user_id = $1
+		  AND deleted_at IS NULL
+		  AND created_at >= $3
+	`, userID, deletedAt, visibleAfter); err != nil {
+		return fmt.Errorf("soft delete all notifications: %w", err)
+	}
+	return nil
+}
+
+func (r *NotificationRepository) DeleteExpiredNotifications(ctx context.Context, cutoff time.Time) (int, error) {
+	tag, err := r.db.Exec(ctx, `
+		DELETE FROM notification
+		WHERE created_at < $1
+	`, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("delete expired notifications: %w", err)
+	}
+	return int(tag.RowsAffected()), nil
+}
+
+func (r *NotificationRepository) CreateDeliveryAttempt(ctx context.Context, params notificationapp.CreateDeliveryAttemptParams) error {
+	if _, err := r.db.Exec(ctx, `
+		INSERT INTO notification_delivery_attempt (
+			notification_id,
 			receiver_user_id,
-			title,
-			type,
-			body,
-			is_read,
-			deep_link,
-			delivery_method,
+			method,
 			status,
+			push_device_id,
+			error_summary,
 			sent_at
 		)
-		VALUES ($1, $2, $3, $4, $5, FALSE, $6, $7, $8, $9)
-	`, params.EventID, params.UserID, params.Title, params.Type, params.Body, params.DeepLink, params.DeliveryMethod, params.Status, params.SentAt); err != nil {
-		return fmt.Errorf("insert notification: %w", err)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, params.NotificationID, params.UserID, params.Method, params.Status, params.PushDeviceID, params.ErrorSummary, params.SentAt); err != nil {
+		return fmt.Errorf("insert notification delivery attempt: %w", err)
 	}
 	return nil
 }
@@ -238,6 +413,78 @@ func scanPushDevice(row pgx.Row) (*domain.PushDevice, error) {
 	device.DeviceInfo = textPtr(deviceInfo)
 	device.RevokedAt = timestamptzPtr(revokedAt)
 	return &device, nil
+}
+
+func scanNotification(row pgx.Row) (*domain.Notification, error) {
+	return scanNotificationWithCreated(row, nil)
+}
+
+func scanNotificationWithCreated(row pgx.Row, created *bool) (*domain.Notification, error) {
+	var (
+		notification domain.Notification
+		eventID      pgtype.UUID
+		typ          pgtype.Text
+		readAt       pgtype.Timestamptz
+		deletedAt    pgtype.Timestamptz
+		deepLink     pgtype.Text
+		imageURL     pgtype.Text
+		data         []byte
+	)
+
+	dest := []any{
+		&notification.ID,
+		&eventID,
+		&notification.ReceiverUserID,
+		&notification.Title,
+		&typ,
+		&notification.Body,
+		&notification.IsRead,
+		&readAt,
+		&deletedAt,
+		&deepLink,
+		&imageURL,
+		&data,
+		&notification.IdempotencyKey,
+		&notification.CreatedAt,
+		&notification.UpdatedAt,
+	}
+	if created != nil {
+		dest = append(dest, created)
+	}
+	if err := row.Scan(dest...); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, err
+	}
+
+	notification.EventID = uuidPtr(eventID)
+	notification.Type = textPtr(typ)
+	notification.ReadAt = timestamptzPtr(readAt)
+	notification.DeletedAt = timestamptzPtr(deletedAt)
+	notification.DeepLink = textPtr(deepLink)
+	notification.ImageURL = textPtr(imageURL)
+	notification.Data = map[string]string{}
+	if len(data) > 0 {
+		if err := json.Unmarshal(data, &notification.Data); err != nil {
+			return nil, fmt.Errorf("unmarshal notification data: %w", err)
+		}
+	}
+	if notification.Data == nil {
+		notification.Data = map[string]string{}
+	}
+	return &notification, nil
+}
+
+func marshalNotificationData(data map[string]string) ([]byte, error) {
+	if data == nil {
+		data = map[string]string{}
+	}
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("marshal notification data: %w", err)
+	}
+	return raw, nil
 }
 
 var _ notificationapp.Repository = (*NotificationRepository)(nil)

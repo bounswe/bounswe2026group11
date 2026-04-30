@@ -3,6 +3,7 @@ package notification
 import (
 	"context"
 	"errors"
+	"sort"
 	"testing"
 	"time"
 
@@ -103,14 +104,94 @@ func TestSendPushToUsersStoresResultsAndRevokesInvalidToken(t *testing.T) {
 	if repo.devices[invalidDeviceID].RevokedAt == nil {
 		t.Fatal("expected invalid device to be revoked")
 	}
-	if len(repo.notifications) != 2 {
-		t.Fatalf("expected 2 notification rows, got %d", len(repo.notifications))
+	if len(repo.notifications) != 1 {
+		t.Fatalf("expected 1 inbox notification row, got %d", len(repo.notifications))
+	}
+	if len(repo.deliveryAttempts) != 2 {
+		t.Fatalf("expected 2 delivery attempts, got %d", len(repo.deliveryAttempts))
+	}
+}
+
+func TestSendNotificationToUsersSkipsPushWhenSSEReceivesNotification(t *testing.T) {
+	// given
+	repo := newFakeNotificationRepo()
+	broker := NewBroker()
+	sender := &recordingPushSender{}
+	svc := NewService(repo, sender, fakeUnitOfWork{}, broker)
+	svc.now = func() time.Time { return time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC) }
+	userID := uuid.New()
+	repo.addDevice(userID, uuid.New(), "push-token", svc.now())
+	sub := broker.Subscribe(userID)
+	defer sub.Cancel()
+
+	// when
+	result, err := svc.SendNotificationToUsers(context.Background(), SendNotificationInput{
+		UserIDs:        []uuid.UUID{userID},
+		Title:          "Event update",
+		Body:           "A new update is available.",
+		IdempotencyKey: "event:update:1",
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("SendNotificationToUsers() error = %v", err)
+	}
+	if result.SSEDeliveryCount != 1 || result.PushActiveDeviceCount != 0 {
+		t.Fatalf("expected SSE delivery and no push, got %#v", result)
+	}
+	if sender.sentCount != 0 {
+		t.Fatalf("expected no push sends, got %d", sender.sentCount)
+	}
+	select {
+	case notification := <-sub.Events:
+		if notification.Title != "Event update" {
+			t.Fatalf("unexpected notification title %q", notification.Title)
+		}
+	default:
+		t.Fatal("expected notification on SSE subscription")
+	}
+}
+
+func TestSendNotificationToUsersIsIdempotent(t *testing.T) {
+	// given
+	repo := newFakeNotificationRepo()
+	sender := &recordingPushSender{}
+	svc := NewService(repo, sender, fakeUnitOfWork{})
+	svc.now = func() time.Time { return time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC) }
+	userID := uuid.New()
+	repo.addDevice(userID, uuid.New(), "push-token", svc.now())
+	input := SendNotificationInput{
+		UserIDs:        []uuid.UUID{userID},
+		Title:          "Event update",
+		Body:           "A new update is available.",
+		IdempotencyKey: "event:update:1",
+	}
+
+	// when
+	if _, err := svc.SendNotificationToUsers(context.Background(), input); err != nil {
+		t.Fatalf("SendNotificationToUsers(first) error = %v", err)
+	}
+	result, err := svc.SendNotificationToUsers(context.Background(), input)
+
+	// then
+	if err != nil {
+		t.Fatalf("SendNotificationToUsers(second) error = %v", err)
+	}
+	if result.IdempotentCount != 1 || result.CreatedCount != 0 {
+		t.Fatalf("expected idempotent duplicate, got %#v", result)
+	}
+	if len(repo.notifications) != 1 {
+		t.Fatalf("expected one inbox notification, got %d", len(repo.notifications))
+	}
+	if sender.sentCount != 1 {
+		t.Fatalf("expected push to be sent only once, got %d", sender.sentCount)
 	}
 }
 
 type fakeNotificationRepo struct {
-	devices       map[uuid.UUID]*domain.PushDevice
-	notifications []CreateNotificationParams
+	devices          map[uuid.UUID]*domain.PushDevice
+	notifications    map[uuid.UUID]*domain.Notification
+	deliveryAttempts []CreateDeliveryAttemptParams
 }
 
 type fakeUnitOfWork struct{}
@@ -120,7 +201,10 @@ func (fakeUnitOfWork) RunInTx(ctx context.Context, fn func(context.Context) erro
 }
 
 func newFakeNotificationRepo() *fakeNotificationRepo {
-	return &fakeNotificationRepo{devices: map[uuid.UUID]*domain.PushDevice{}}
+	return &fakeNotificationRepo{
+		devices:       map[uuid.UUID]*domain.PushDevice{},
+		notifications: map[uuid.UUID]*domain.Notification{},
+	}
 }
 
 func (r *fakeNotificationRepo) LockUser(_ context.Context, userID uuid.UUID) error {
@@ -210,8 +294,127 @@ func (r *fakeNotificationRepo) ListActiveDevicesForUsers(_ context.Context, user
 	return devices, nil
 }
 
-func (r *fakeNotificationRepo) CreateNotification(_ context.Context, params CreateNotificationParams) error {
-	r.notifications = append(r.notifications, params)
+func (r *fakeNotificationRepo) CreateNotificationIfAbsent(_ context.Context, params CreateNotificationParams) (*CreateNotificationResult, error) {
+	for _, notification := range r.notifications {
+		if notification.ReceiverUserID == params.UserID && notification.IdempotencyKey == params.IdempotencyKey {
+			return &CreateNotificationResult{Notification: *notification, Created: false}, nil
+		}
+	}
+	notification := &domain.Notification{
+		ID:             uuid.New(),
+		EventID:        params.EventID,
+		ReceiverUserID: params.UserID,
+		Title:          params.Title,
+		Type:           params.Type,
+		Body:           params.Body,
+		DeepLink:       params.DeepLink,
+		ImageURL:       params.ImageURL,
+		Data:           params.Data,
+		IdempotencyKey: params.IdempotencyKey,
+		CreatedAt:      params.CreatedAt,
+		UpdatedAt:      params.CreatedAt,
+	}
+	if notification.Data == nil {
+		notification.Data = map[string]string{}
+	}
+	r.notifications[notification.ID] = notification
+	return &CreateNotificationResult{Notification: *notification, Created: true}, nil
+}
+
+func (r *fakeNotificationRepo) ListNotifications(_ context.Context, params ListNotificationsParams) ([]domain.Notification, error) {
+	notifications := []domain.Notification{}
+	for _, notification := range r.notifications {
+		if notification.ReceiverUserID != params.UserID || notification.DeletedAt != nil || notification.CreatedAt.Before(params.VisibleAfter) {
+			continue
+		}
+		if params.OnlyUnread && notification.IsRead {
+			continue
+		}
+		if params.DecodedCursor != nil && !notificationBeforeCursor(*notification, *params.DecodedCursor) {
+			continue
+		}
+		notifications = append(notifications, *notification)
+	}
+	sort.Slice(notifications, func(i, j int) bool {
+		if notifications[i].CreatedAt.Equal(notifications[j].CreatedAt) {
+			return notifications[i].ID.String() > notifications[j].ID.String()
+		}
+		return notifications[i].CreatedAt.After(notifications[j].CreatedAt)
+	})
+	if len(notifications) > params.RepositoryFetchLimit {
+		notifications = notifications[:params.RepositoryFetchLimit]
+	}
+	return notifications, nil
+}
+
+func (r *fakeNotificationRepo) CountUnreadNotifications(_ context.Context, userID uuid.UUID, visibleAfter time.Time) (int, error) {
+	count := 0
+	for _, notification := range r.notifications {
+		if notification.ReceiverUserID == userID && !notification.IsRead && notification.DeletedAt == nil && !notification.CreatedAt.Before(visibleAfter) {
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (r *fakeNotificationRepo) MarkNotificationRead(_ context.Context, userID, notificationID uuid.UUID, readAt, visibleAfter time.Time) (bool, error) {
+	notification := r.notifications[notificationID]
+	if notification == nil || notification.ReceiverUserID != userID || notification.DeletedAt != nil || notification.CreatedAt.Before(visibleAfter) {
+		return false, nil
+	}
+	notification.IsRead = true
+	if notification.ReadAt == nil {
+		notification.ReadAt = &readAt
+	}
+	notification.UpdatedAt = readAt
+	return true, nil
+}
+
+func (r *fakeNotificationRepo) MarkAllNotificationsRead(_ context.Context, userID uuid.UUID, readAt, visibleAfter time.Time) (int, error) {
+	count := 0
+	for _, notification := range r.notifications {
+		if notification.ReceiverUserID == userID && !notification.IsRead && notification.DeletedAt == nil && !notification.CreatedAt.Before(visibleAfter) {
+			notification.IsRead = true
+			notification.ReadAt = &readAt
+			notification.UpdatedAt = readAt
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (r *fakeNotificationRepo) SoftDeleteNotification(_ context.Context, userID, notificationID uuid.UUID, deletedAt, visibleAfter time.Time) error {
+	notification := r.notifications[notificationID]
+	if notification != nil && notification.ReceiverUserID == userID && notification.DeletedAt == nil && !notification.CreatedAt.Before(visibleAfter) {
+		notification.DeletedAt = &deletedAt
+		notification.UpdatedAt = deletedAt
+	}
+	return nil
+}
+
+func (r *fakeNotificationRepo) SoftDeleteAllNotifications(_ context.Context, userID uuid.UUID, deletedAt, visibleAfter time.Time) error {
+	for _, notification := range r.notifications {
+		if notification.ReceiverUserID == userID && notification.DeletedAt == nil && !notification.CreatedAt.Before(visibleAfter) {
+			notification.DeletedAt = &deletedAt
+			notification.UpdatedAt = deletedAt
+		}
+	}
+	return nil
+}
+
+func (r *fakeNotificationRepo) DeleteExpiredNotifications(_ context.Context, cutoff time.Time) (int, error) {
+	count := 0
+	for id, notification := range r.notifications {
+		if notification.CreatedAt.Before(cutoff) {
+			delete(r.notifications, id)
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (r *fakeNotificationRepo) CreateDeliveryAttempt(_ context.Context, params CreateDeliveryAttemptParams) error {
+	r.deliveryAttempts = append(r.deliveryAttempts, params)
 	return nil
 }
 
@@ -258,4 +461,18 @@ func (s fakePushSender) Send(_ context.Context, message PushSendMessage) (*PushS
 		return &PushSendResult{InvalidToken: true}, errors.New("invalid token")
 	}
 	return &PushSendResult{}, nil
+}
+
+type recordingPushSender struct {
+	sentCount int
+}
+
+func (s *recordingPushSender) Send(_ context.Context, _ PushSendMessage) (*PushSendResult, error) {
+	s.sentCount++
+	return &PushSendResult{}, nil
+}
+
+func notificationBeforeCursor(notification domain.Notification, cursor NotificationCursor) bool {
+	return notification.CreatedAt.Before(cursor.CreatedAt) ||
+		(notification.CreatedAt.Equal(cursor.CreatedAt) && notification.ID.String() < cursor.NotificationID.String())
 }

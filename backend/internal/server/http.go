@@ -67,7 +67,7 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 	favorite_location_handler.RegisterRoutes(app, favoriteLocationHandler, auth)
 
 	// Push notification device routes (authenticated)
-	notificationHandler := notification_handler.NewHandler(container.NotificationService)
+	notificationHandler := notification_handler.NewHandler(container.NotificationService, container.NotificationBroker)
 	notification_handler.RegisterRoutes(app, notificationHandler, auth)
 
 	// Direct image upload routes (authenticated)

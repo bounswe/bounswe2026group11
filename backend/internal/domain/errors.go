@@ -69,6 +69,8 @@ const (
 	ErrorCodeTicketScanRejected       = "ticket_scan_rejected"
 	ErrorCodeTicketProximityRequired  = "ticket_proximity_required"
 	ErrorCodeTicketClientNotSupported = "ticket_client_not_supported"
+
+	ErrorCodeNotificationNotFound = "notification_not_found"
 )
 
 // ErrNotFound is a sentinel error returned when a queried entity does not exist.

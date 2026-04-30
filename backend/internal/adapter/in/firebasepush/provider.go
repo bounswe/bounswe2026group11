@@ -98,14 +98,19 @@ func (s *Sender) Send(ctx context.Context, message notificationapp.PushSendMessa
 		data["deep_link"] = strings.TrimSpace(*message.DeepLink)
 	}
 
+	notificationPayload := map[string]string{
+		"title": message.Title,
+		"body":  message.Body,
+	}
+	if message.ImageURL != nil && strings.TrimSpace(*message.ImageURL) != "" {
+		notificationPayload["image"] = strings.TrimSpace(*message.ImageURL)
+	}
+
 	payload := map[string]any{
 		"message": map[string]any{
-			"token": message.Token,
-			"notification": map[string]string{
-				"title": message.Title,
-				"body":  message.Body,
-			},
-			"data": data,
+			"token":        message.Token,
+			"notification": notificationPayload,
+			"data":         data,
 		},
 	}
 	body, err := json.Marshal(payload)
