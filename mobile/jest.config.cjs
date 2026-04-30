@@ -15,6 +15,9 @@ module.exports = {
     '^expo-location$': '<rootDir>/jest/mocks/expo-location.js',
     '^expo-secure-store$': '<rootDir>/jest/mocks/expo-secure-store.js',
     '^react-native-svg$': '<rootDir>/jest/mocks/react-native-svg.js',
+    '^@react-native-firebase/app$': '<rootDir>/jest/mocks/react-native-firebase-app.js',
+    '^@react-native-firebase/messaging$':
+      '<rootDir>/jest/mocks/react-native-firebase-messaging.js',
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   clearMocks: true,

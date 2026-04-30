@@ -1,6 +1,6 @@
 {
   "name": "social-event-mapper",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
@@ -12,6 +12,8 @@
   "dependencies": {
     "@react-native-community/datetimepicker": "^9.1.0",
     "@react-native-community/slider": "5.1.2",
+    "@react-native-firebase/app": "^24.0.0",
+    "@react-native-firebase/messaging": "^24.0.0",
     "expo": "~55.0.8",
     "expo-image-manipulator": "~55.0.13",
     "expo-image-picker": "~55.0.16",

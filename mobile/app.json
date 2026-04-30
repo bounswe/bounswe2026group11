@@ -13,11 +13,22 @@
         {
           "locationWhenInUsePermission": "Allow Social Event Mapper to access your location so we can suggest nearby events and fill in your current location when you do not have a default location set."
         }
-      ]
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
     ],
+    "ios": {
+      "bundleIdentifier": "com.bounswe2026group11.socialeventmapper",
+      "googleServicesFile": "./firebase/GoogleService-Info.plist",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
     "android": {
       "package": "com.bounswe2026group11.socialeventmapper",
-      "versionCode": 1
+      "versionCode": 1,
+      "googleServicesFile": "./firebase/google-services.json",
+      "permissions": ["android.permission.POST_NOTIFICATIONS"]
     },
     "experiments": {
       "typedRoutes": true
