@@ -188,6 +188,77 @@ func TestSendNotificationToUsersIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestSendCustomNotificationBothUsesSSEAndPush(t *testing.T) {
+	// given
+	repo := newFakeNotificationRepo()
+	broker := NewBroker()
+	sender := &recordingPushSender{}
+	svc := NewService(repo, sender, fakeUnitOfWork{}, broker)
+	svc.now = func() time.Time { return time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC) }
+	userID := uuid.New()
+	repo.addDevice(userID, uuid.New(), "push-token", svc.now())
+	sub := broker.Subscribe(userID)
+	defer sub.Cancel()
+
+	// when
+	result, err := svc.SendCustomNotificationToUsers(context.Background(), SendCustomNotificationInput{
+		UserIDs:        []uuid.UUID{userID},
+		DeliveryMode:   domain.NotificationDeliveryModeBoth,
+		Title:          "Admin update",
+		Body:           "Please check this.",
+		IdempotencyKey: "admin:update:1",
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("SendCustomNotificationToUsers() error = %v", err)
+	}
+	if result.SSEDeliveryCount != 1 || result.PushSentCount != 1 {
+		t.Fatalf("expected SSE and push delivery, got %#v", result)
+	}
+	if sender.sentCount != 1 {
+		t.Fatalf("expected one push send, got %d", sender.sentCount)
+	}
+	select {
+	case notification := <-sub.Events:
+		if notification.Title != "Admin update" {
+			t.Fatalf("unexpected notification title %q", notification.Title)
+		}
+	default:
+		t.Fatal("expected notification on SSE subscription")
+	}
+}
+
+func TestSendCustomNotificationInAppSkipsPush(t *testing.T) {
+	// given
+	repo := newFakeNotificationRepo()
+	sender := &recordingPushSender{}
+	svc := NewService(repo, sender, fakeUnitOfWork{})
+	svc.now = func() time.Time { return time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC) }
+	userID := uuid.New()
+	repo.addDevice(userID, uuid.New(), "push-token", svc.now())
+
+	// when
+	result, err := svc.SendCustomNotificationToUsers(context.Background(), SendCustomNotificationInput{
+		UserIDs:        []uuid.UUID{userID},
+		DeliveryMode:   domain.NotificationDeliveryModeInApp,
+		Title:          "Admin update",
+		Body:           "Please check this.",
+		IdempotencyKey: "admin:update:2",
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("SendCustomNotificationToUsers() error = %v", err)
+	}
+	if result.PushActiveDeviceCount != 0 || result.PushSentCount != 0 || sender.sentCount != 0 {
+		t.Fatalf("expected no push delivery, result=%#v sends=%d", result, sender.sentCount)
+	}
+	if len(repo.notifications) != 1 {
+		t.Fatalf("expected one inbox notification, got %d", len(repo.notifications))
+	}
+}
+
 type fakeNotificationRepo struct {
 	devices          map[uuid.UUID]*domain.PushDevice
 	notifications    map[uuid.UUID]*domain.Notification

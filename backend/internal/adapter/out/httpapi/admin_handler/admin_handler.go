@@ -29,7 +29,10 @@ func RegisterRoutes(router fiber.Router, handler *Handler, adminAuth fiber.Handl
 	group.Get("/users", handler.ListUsers)
 	group.Get("/events", handler.ListEvents)
 	group.Get("/participations", handler.ListParticipations)
+	group.Post("/participations", handler.CreateParticipation)
+	group.Post("/participations/:participation_id/cancel", handler.CancelParticipation)
 	group.Get("/tickets", handler.ListTickets)
+	group.Post("/notifications", handler.CreateNotification)
 }
 
 func (h *Handler) ListUsers(c *fiber.Ctx) error {
@@ -82,6 +85,178 @@ func (h *Handler) ListTickets(c *fiber.Ctx) error {
 	}
 	logAdminList(c, "admin.tickets.list", len(result.Items), result.PageMeta, summarizeTickets(input))
 	return c.JSON(result)
+}
+
+func (h *Handler) CreateNotification(c *fiber.Ctx) error {
+	input, errs := parseCreateNotificationInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.SendCustomNotification(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.Status(fiber.StatusCreated).JSON(result)
+}
+
+func (h *Handler) CreateParticipation(c *fiber.Ctx) error {
+	input, errs := parseCreateParticipationInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.CreateManualParticipation(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.Status(fiber.StatusCreated).JSON(result)
+}
+
+func (h *Handler) CancelParticipation(c *fiber.Ctx) error {
+	input, errs := parseCancelParticipationInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.CancelParticipation(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+type createNotificationRequest struct {
+	UserIDs        []string          `json:"user_ids"`
+	DeliveryMode   string            `json:"delivery_mode"`
+	Title          string            `json:"title"`
+	Body           string            `json:"body"`
+	Type           *string           `json:"type"`
+	DeepLink       *string           `json:"deep_link"`
+	EventID        *string           `json:"event_id"`
+	Data           map[string]string `json:"data"`
+	IdempotencyKey *string           `json:"idempotency_key"`
+}
+
+type createParticipationRequest struct {
+	EventID string  `json:"event_id"`
+	UserID  string  `json:"user_id"`
+	Status  *string `json:"status"`
+	Reason  *string `json:"reason"`
+}
+
+type cancelParticipationRequest struct {
+	Reason *string `json:"reason"`
+}
+
+func parseCreateNotificationInput(c *fiber.Ctx) (admin.SendCustomNotificationInput, map[string]string) {
+	var body createNotificationRequest
+	errs := map[string]string{}
+	if err := c.BodyParser(&body); err != nil {
+		errs["body"] = "must be a valid JSON object"
+		return admin.SendCustomNotificationInput{}, errs
+	}
+
+	input := admin.SendCustomNotificationInput{
+		AdminUserID:    httpapi.UserClaims(c).UserID,
+		Title:          body.Title,
+		Body:           body.Body,
+		Type:           optionalTrimmedPtr(body.Type),
+		DeepLink:       optionalTrimmedPtr(body.DeepLink),
+		Data:           body.Data,
+		IdempotencyKey: optionalTrimmedPtr(body.IdempotencyKey),
+	}
+	if len(body.UserIDs) == 0 {
+		errs["user_ids"] = "must contain at least one user id"
+	} else {
+		input.UserIDs = make([]uuid.UUID, 0, len(body.UserIDs))
+		for _, raw := range body.UserIDs {
+			value, err := uuid.Parse(strings.TrimSpace(raw))
+			if err != nil {
+				errs["user_ids"] = "must contain only valid UUIDs"
+				break
+			}
+			if value == uuid.Nil {
+				errs["user_ids"] = "must contain only valid UUIDs"
+				break
+			}
+			input.UserIDs = append(input.UserIDs, value)
+		}
+	}
+	mode, ok := domain.ParseNotificationDeliveryMode(body.DeliveryMode)
+	if !ok {
+		errs["delivery_mode"] = "must be one of: IN_APP, PUSH, BOTH"
+	} else {
+		input.DeliveryMode = mode
+	}
+	if strings.TrimSpace(body.Title) == "" {
+		errs["title"] = "is required"
+	}
+	if strings.TrimSpace(body.Body) == "" {
+		errs["body"] = "is required"
+	}
+	if body.EventID != nil && strings.TrimSpace(*body.EventID) != "" {
+		eventID, err := uuid.Parse(strings.TrimSpace(*body.EventID))
+		if err != nil || eventID == uuid.Nil {
+			errs["event_id"] = "must be a valid UUID"
+		} else {
+			input.EventID = &eventID
+		}
+	}
+	return input, errs
+}
+
+func parseCreateParticipationInput(c *fiber.Ctx) (admin.CreateManualParticipationInput, map[string]string) {
+	var body createParticipationRequest
+	errs := map[string]string{}
+	if err := c.BodyParser(&body); err != nil {
+		errs["body"] = "must be a valid JSON object"
+		return admin.CreateManualParticipationInput{}, errs
+	}
+
+	input := admin.CreateManualParticipationInput{
+		AdminUserID: httpapi.UserClaims(c).UserID,
+		Status:      domain.ParticipationStatusApproved,
+		Reason:      optionalTrimmedPtr(body.Reason),
+	}
+	eventID, err := uuid.Parse(strings.TrimSpace(body.EventID))
+	if err != nil || eventID == uuid.Nil {
+		errs["event_id"] = "must be a valid UUID"
+	} else {
+		input.EventID = eventID
+	}
+	userID, err := uuid.Parse(strings.TrimSpace(body.UserID))
+	if err != nil || userID == uuid.Nil {
+		errs["user_id"] = "must be a valid UUID"
+	} else {
+		input.UserID = userID
+	}
+	if body.Status != nil && strings.TrimSpace(*body.Status) != "" {
+		status, ok := domain.ParseParticipationStatus(strings.TrimSpace(*body.Status))
+		if !ok || (status != domain.ParticipationStatusApproved && status != domain.ParticipationStatusPending) {
+			errs["status"] = "must be one of: APPROVED, PENDING"
+		} else {
+			input.Status = status
+		}
+	}
+	return input, errs
+}
+
+func parseCancelParticipationInput(c *fiber.Ctx) (admin.CancelParticipationInput, map[string]string) {
+	errs := map[string]string{}
+	participationID, err := uuid.Parse(strings.TrimSpace(c.Params("participation_id")))
+	if err != nil || participationID == uuid.Nil {
+		errs["participation_id"] = "must be a valid UUID"
+	}
+
+	var body cancelParticipationRequest
+	if len(c.Body()) > 0 {
+		if err := c.BodyParser(&body); err != nil {
+			errs["body"] = "must be a valid JSON object"
+		}
+	}
+	return admin.CancelParticipationInput{
+		AdminUserID:     httpapi.UserClaims(c).UserID,
+		ParticipationID: participationID,
+		Reason:          optionalTrimmedPtr(body.Reason),
+	}, errs
 }
 
 func parseListUsersInput(c *fiber.Ctx) (admin.ListUsersInput, map[string]string) {
@@ -203,6 +378,13 @@ func optionalTrimmed(value string) *string {
 		return nil
 	}
 	return &trimmed
+}
+
+func optionalTrimmedPtr(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	return optionalTrimmed(*value)
 }
 
 func parseOptionalUUID(c *fiber.Ctx, key string, errs map[string]string) *uuid.UUID {

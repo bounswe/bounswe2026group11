@@ -243,7 +243,7 @@ func buildPushSender(ctx context.Context, cfg *config.Config) (notification.Push
 
 // newAdminService wires the admin backoffice use case with its read repository.
 func newAdminService(c *Container) admin.UseCase {
-	return admin.NewService(c.adminRepo)
+	return admin.NewService(c.adminRepo, admin.WithMutationDependencies(c.NotificationService, c.TicketService, c.UnitOfWork))
 }
 
 // newEventService wires the event use case with its driven adapters.

@@ -245,6 +245,10 @@ func (s *stubNotificationService) SendNotificationToUsers(_ context.Context, _ n
 	return &notificationapp.SendNotificationResult{}, nil
 }
 
+func (s *stubNotificationService) SendCustomNotificationToUsers(_ context.Context, _ notificationapp.SendCustomNotificationInput) (*notificationapp.SendNotificationResult, error) {
+	return &notificationapp.SendNotificationResult{}, nil
+}
+
 func (s *stubNotificationService) SendPushToUsers(_ context.Context, _ notificationapp.SendPushInput) (*notificationapp.SendPushResult, error) {
 	return &notificationapp.SendPushResult{}, nil
 }

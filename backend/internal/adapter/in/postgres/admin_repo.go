@@ -2,10 +2,14 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	adminapp "github.com/bounswe/bounswe2026group11/backend/internal/application/admin"
+	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -352,6 +356,166 @@ func (r *AdminRepository) ListTickets(ctx context.Context, input adminapp.ListTi
 	}
 
 	return &adminapp.ListTicketsResult{Items: items, PageMeta: pageMeta(input.PageInput, totalCount, len(items))}, nil
+}
+
+func (r *AdminRepository) CountExistingUsers(ctx context.Context, userIDs []uuid.UUID) (int, error) {
+	if len(userIDs) == 0 {
+		return 0, nil
+	}
+	var count int
+	if err := r.db.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM app_user
+		WHERE id = ANY($1)
+	`, userIDs).Scan(&count); err != nil {
+		return 0, fmt.Errorf("admin count existing users: %w", err)
+	}
+	return count, nil
+}
+
+func (r *AdminRepository) GetEventState(ctx context.Context, eventID uuid.UUID, forUpdate bool) (*adminapp.AdminEventState, error) {
+	query := `
+		SELECT id, privacy_level
+		FROM event
+		WHERE id = $1
+	`
+	if forUpdate {
+		query += ` FOR UPDATE`
+	}
+
+	var (
+		state        adminapp.AdminEventState
+		privacyLevel string
+	)
+	err := r.db.QueryRow(ctx, query, eventID).Scan(&state.ID, &privacyLevel)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("admin get event state: %w", err)
+	}
+	parsed, ok := domain.ParseEventPrivacyLevel(privacyLevel)
+	if !ok {
+		return nil, fmt.Errorf("admin get event state: unknown privacy level %q", privacyLevel)
+	}
+	state.PrivacyLevel = parsed
+	return &state, nil
+}
+
+func (r *AdminRepository) CreateManualParticipation(ctx context.Context, eventID, userID uuid.UUID, status domain.ParticipationStatus) (*domain.Participation, error) {
+	existing, err := loadParticipation(ctx, r.db, eventID, userID, true)
+	if err != nil {
+		return nil, fmt.Errorf("admin load existing participation: %w", err)
+	}
+	if existing != nil && (existing.Status == domain.ParticipationStatusApproved || existing.Status == domain.ParticipationStatusPending) {
+		return nil, domain.ConflictError(domain.ErrorCodeAlreadyParticipating, "The user already has an active participation for this event.")
+	}
+
+	if existing != nil {
+		participation, err := scanParticipation(r.db.QueryRow(ctx, `
+			UPDATE participation
+			SET status = $3,
+			    reconfirmed_at = NULL,
+			    updated_at = NOW()
+			WHERE event_id = $1
+			  AND user_id = $2
+			RETURNING id, status, created_at, updated_at
+		`, eventID, userID, status), eventID, userID, "admin reactivate participation")
+		if err != nil {
+			return nil, err
+		}
+		return participation, nil
+	}
+
+	participation, err := scanParticipation(r.db.QueryRow(ctx, `
+		INSERT INTO participation (event_id, user_id, status)
+		VALUES ($1, $2, $3)
+		RETURNING id, status, created_at, updated_at
+	`, eventID, userID, status), eventID, userID, "admin create participation")
+	if err != nil {
+		return nil, mapAdminParticipationMutationError(err)
+	}
+	if participation == nil {
+		return nil, fmt.Errorf("admin create participation: no row returned")
+	}
+	return participation, nil
+}
+
+func (r *AdminRepository) GetParticipationByID(ctx context.Context, participationID uuid.UUID, forUpdate bool) (*domain.Participation, error) {
+	query := `
+		SELECT id, event_id, user_id, status, created_at, updated_at
+		FROM participation
+		WHERE id = $1
+	`
+	if forUpdate {
+		query += ` FOR UPDATE`
+	}
+	return scanAdminParticipation(r.db.QueryRow(ctx, query, participationID), "admin get participation")
+}
+
+func (r *AdminRepository) CancelParticipation(ctx context.Context, participationID uuid.UUID) (*domain.Participation, bool, error) {
+	existing, err := r.GetParticipationByID(ctx, participationID, true)
+	if err != nil {
+		return nil, false, err
+	}
+	if existing == nil {
+		return nil, false, domain.NotFoundError(domain.ErrorCodeParticipationNotFound, "The requested participation does not exist.")
+	}
+	if existing.Status == domain.ParticipationStatusCanceled {
+		return existing, true, nil
+	}
+
+	participation, err := scanAdminParticipation(r.db.QueryRow(ctx, `
+		UPDATE participation
+		SET status = $2,
+		    updated_at = NOW()
+		WHERE id = $1
+		RETURNING id, event_id, user_id, status, created_at, updated_at
+	`, participationID, domain.ParticipationStatusCanceled), "admin cancel participation")
+	if err != nil {
+		return nil, false, err
+	}
+	return participation, false, nil
+}
+
+func scanAdminParticipation(row pgx.Row, operation string) (*domain.Participation, error) {
+	var (
+		participation domain.Participation
+		status        string
+	)
+	err := row.Scan(
+		&participation.ID,
+		&participation.EventID,
+		&participation.UserID,
+		&status,
+		&participation.CreatedAt,
+		&participation.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("%s: %w", operation, err)
+	}
+	parsed, ok := domain.ParseParticipationStatus(status)
+	if !ok {
+		return nil, fmt.Errorf("%s: unknown participation status %q", operation, status)
+	}
+	participation.Status = parsed
+	return &participation, nil
+}
+
+func mapAdminParticipationMutationError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if strings.Contains(err.Error(), "fk_participation_event") {
+		return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+	}
+	if strings.Contains(err.Error(), "fk_participation_user") {
+		return domain.NotFoundError(domain.ErrorCodeUserNotFound, "The requested user does not exist.")
+	}
+	return err
 }
 
 func pageMeta(page adminapp.PageInput, totalCount, itemCount int) adminapp.PageMeta {

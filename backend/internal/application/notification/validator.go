@@ -65,6 +65,36 @@ func validateSendNotificationInput(input SendNotificationInput) *domain.AppError
 	return nil
 }
 
+func validateSendCustomNotificationInput(input SendCustomNotificationInput) *domain.AppError {
+	details := map[string]string{}
+	if len(input.UserIDs) == 0 {
+		details["user_ids"] = "must contain at least one user id"
+	}
+	if input.DeliveryMode == "" {
+		details["delivery_mode"] = "must be one of: IN_APP, PUSH, BOTH"
+	}
+	if input.DeliveryMode != "" {
+		switch input.DeliveryMode {
+		case domain.NotificationDeliveryModeInApp, domain.NotificationDeliveryModePush, domain.NotificationDeliveryModeBoth:
+		default:
+			details["delivery_mode"] = "must be one of: IN_APP, PUSH, BOTH"
+		}
+	}
+	if strings.TrimSpace(input.Title) == "" {
+		details["title"] = "is required"
+	}
+	if strings.TrimSpace(input.Body) == "" {
+		details["body"] = "is required"
+	}
+	if strings.TrimSpace(input.IdempotencyKey) == "" {
+		details["idempotency_key"] = "is required"
+	}
+	if len(details) > 0 {
+		return domain.ValidationError(details)
+	}
+	return nil
+}
+
 func normalizeListNotificationsInput(input ListNotificationsInput, now time.Time) (ListNotificationsParams, error) {
 	params := ListNotificationsParams{
 		UserID:               input.UserID,

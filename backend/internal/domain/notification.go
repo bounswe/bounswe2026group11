@@ -56,10 +56,20 @@ func (m NotificationDeliveryMethod) String() string {
 // NotificationDeliveryStatus identifies the result of one delivery attempt.
 type NotificationDeliveryStatus string
 
+// NotificationDeliveryMode identifies which admin-triggered delivery channels
+// should be attempted for a custom notification.
+type NotificationDeliveryMode string
+
 const (
 	NotificationDeliveryStatusSent    NotificationDeliveryStatus = "SENT"
 	NotificationDeliveryStatusFailed  NotificationDeliveryStatus = "FAILED"
 	NotificationDeliveryStatusSkipped NotificationDeliveryStatus = "SKIPPED"
+)
+
+const (
+	NotificationDeliveryModeInApp NotificationDeliveryMode = "IN_APP"
+	NotificationDeliveryModePush  NotificationDeliveryMode = "PUSH"
+	NotificationDeliveryModeBoth  NotificationDeliveryMode = "BOTH"
 )
 
 func ParseNotificationDeliveryStatus(value string) (NotificationDeliveryStatus, bool) {
@@ -77,6 +87,23 @@ func ParseNotificationDeliveryStatus(value string) (NotificationDeliveryStatus, 
 
 func (s NotificationDeliveryStatus) String() string {
 	return string(s)
+}
+
+func ParseNotificationDeliveryMode(value string) (NotificationDeliveryMode, bool) {
+	switch NotificationDeliveryMode(strings.ToUpper(strings.TrimSpace(value))) {
+	case NotificationDeliveryModeInApp:
+		return NotificationDeliveryModeInApp, true
+	case NotificationDeliveryModePush:
+		return NotificationDeliveryModePush, true
+	case NotificationDeliveryModeBoth:
+		return NotificationDeliveryModeBoth, true
+	default:
+		return "", false
+	}
+}
+
+func (m NotificationDeliveryMode) String() string {
+	return string(m)
 }
 
 // Notification is the user-facing in-app notification inbox item.

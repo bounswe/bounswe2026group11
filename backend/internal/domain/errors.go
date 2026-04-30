@@ -31,9 +31,11 @@ const (
 	ErrorCodeUsernameExists    = "username_already_exists"
 	ErrorCodePhoneExists       = "phone_number_already_exists"
 	ErrorCodeEventTitleExists  = "event_title_already_exists"
+	ErrorCodeUserNotFound      = "user_not_found"
 
 	ErrorCodeEventNotFound                   = "event_not_found"
 	ErrorCodeAlreadyParticipating            = "already_participating"
+	ErrorCodeParticipationNotFound           = "participation_not_found"
 	ErrorCodeAlreadyRequested                = "already_requested"
 	ErrorCodeEventJoinNotAllowed             = "event_join_not_allowed"
 	ErrorCodeHostCannotJoin                  = "host_cannot_join"
@@ -72,7 +74,8 @@ const (
 
 	ErrorCodeNotificationNotFound = "notification_not_found"
 
-	ErrorCodeAdminAccessRequired = "admin_access_required"
+	ErrorCodeAdminAccessRequired        = "admin_access_required"
+	ErrorCodeAdminDependencyUnavailable = "admin_dependency_unavailable"
 )
 
 // ErrNotFound is a sentinel error returned when a queried entity does not exist.

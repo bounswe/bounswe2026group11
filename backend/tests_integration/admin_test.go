@@ -3,6 +3,7 @@
 package tests_integration
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -10,11 +11,14 @@ import (
 	"testing"
 	"time"
 
+	pushadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/firebasepush"
 	jwtadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/jwt"
 	postgresrepo "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/postgres"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler"
 	adminapp "github.com/bounswe/bounswe2026group11/backend/internal/application/admin"
+	notificationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
+	ticketapp "github.com/bounswe/bounswe2026group11/backend/internal/application/ticket"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/bounswe/bounswe2026group11/backend/tests_integration/common"
 	"github.com/gofiber/fiber/v2"
@@ -113,6 +117,108 @@ func TestAdminEventsParticipationsAndTicketsFiltering(t *testing.T) {
 	assertAdminListHasOne(t, ticketsResp, "tickets")
 }
 
+func TestAdminCreateNotificationMutation(t *testing.T) {
+	t.Parallel()
+
+	// given
+	pool := common.RequirePool(t)
+	authRepo := postgresrepo.NewAuthRepository(pool)
+	service := newAdminMutationService(t)
+	app, issuer := adminIntegrationApp(service)
+
+	adminUser := common.GivenUser(t, authRepo, common.WithUserUsername("admin_notify_"+uuid.NewString()[:8]))
+	targetUser := common.GivenUser(t, authRepo, common.WithUserUsername("target_notify_"+uuid.NewString()[:8]))
+	promoteUser(t, adminUser.ID)
+	adminUser.Role = domain.UserRoleAdmin
+	adminToken := issueAccessToken(t, issuer, *adminUser)
+	payload := `{"user_ids":["` + targetUser.ID.String() + `"],"delivery_mode":"IN_APP","title":"Backoffice update","body":"Check your inbox","idempotency_key":"admin-it-` + uuid.NewString() + `"}`
+
+	// when
+	resp := performAdminJSONRequest(t, app, fiber.MethodPost, "/admin/notifications", adminToken, payload)
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("expected admin notification request to return 201, got %d", resp.StatusCode)
+	}
+	var body adminapp.SendCustomNotificationResult
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	if body.TargetUserCount != 1 || body.CreatedCount != 1 {
+		t.Fatalf("unexpected notification result: %#v", body)
+	}
+}
+
+func TestAdminCreateAndCancelParticipationMutationCreatesAndCancelsTicket(t *testing.T) {
+	t.Parallel()
+
+	// given
+	pool := common.RequirePool(t)
+	authRepo := postgresrepo.NewAuthRepository(pool)
+	eventHarness := common.NewEventHarness(t)
+	service := newAdminMutationService(t)
+	app, issuer := adminIntegrationApp(service)
+
+	adminUser := common.GivenUser(t, authRepo, common.WithUserUsername("admin_part_"+uuid.NewString()[:8]))
+	host := common.GivenUser(t, authRepo, common.WithUserUsername("host_part_"+uuid.NewString()[:8]))
+	participant := common.GivenUser(t, authRepo, common.WithUserUsername("manual_part_"+uuid.NewString()[:8]))
+	promoteUser(t, adminUser.ID)
+	adminUser.Role = domain.UserRoleAdmin
+	adminToken := issueAccessToken(t, issuer, *adminUser)
+	eventRef := common.GivenProtectedEvent(t, eventHarness.Service, host.ID)
+	createPayload := `{"event_id":"` + eventRef.ID.String() + `","user_id":"` + participant.ID.String() + `"}`
+
+	// when
+	createResp := performAdminJSONRequest(t, app, fiber.MethodPost, "/admin/participations", adminToken, createPayload)
+	defer func() { _ = createResp.Body.Close() }()
+
+	// then
+	if createResp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("expected participation create to return 201, got %d", createResp.StatusCode)
+	}
+	var createBody adminapp.CreateManualParticipationResult
+	if err := json.NewDecoder(createResp.Body).Decode(&createBody); err != nil {
+		t.Fatalf("Decode(create) error = %v", err)
+	}
+	if createBody.TicketID == nil || createBody.TicketStatus == nil || *createBody.TicketStatus != domain.TicketStatusActive {
+		t.Fatalf("expected active ticket for protected event, got %#v", createBody)
+	}
+
+	duplicateResp := performAdminJSONRequest(t, app, fiber.MethodPost, "/admin/participations", adminToken, createPayload)
+	defer func() { _ = duplicateResp.Body.Close() }()
+	if duplicateResp.StatusCode != fiber.StatusConflict {
+		t.Fatalf("expected duplicate participation to return 409, got %d", duplicateResp.StatusCode)
+	}
+
+	cancelResp := performAdminJSONRequest(t, app, fiber.MethodPost, "/admin/participations/"+createBody.ParticipationID.String()+"/cancel", adminToken, `{}`)
+	defer func() { _ = cancelResp.Body.Close() }()
+	if cancelResp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected participation cancel to return 200, got %d", cancelResp.StatusCode)
+	}
+
+	var ticketStatus string
+	if err := pool.QueryRow(context.Background(), `SELECT status FROM ticket WHERE participation_id = $1`, createBody.ParticipationID).Scan(&ticketStatus); err != nil {
+		t.Fatalf("query ticket status error = %v", err)
+	}
+	if ticketStatus != string(domain.TicketStatusCanceled) {
+		t.Fatalf("expected ticket to be canceled, got %q", ticketStatus)
+	}
+
+	cancelAgainResp := performAdminJSONRequest(t, app, fiber.MethodPost, "/admin/participations/"+createBody.ParticipationID.String()+"/cancel", adminToken, `{}`)
+	defer func() { _ = cancelAgainResp.Body.Close() }()
+	if cancelAgainResp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected idempotent cancel to return 200, got %d", cancelAgainResp.StatusCode)
+	}
+	var cancelAgainBody adminapp.CancelParticipationResult
+	if err := json.NewDecoder(cancelAgainResp.Body).Decode(&cancelAgainBody); err != nil {
+		t.Fatalf("Decode(cancel again) error = %v", err)
+	}
+	if !cancelAgainBody.AlreadyCanceled {
+		t.Fatalf("expected already_canceled=true, got %#v", cancelAgainBody)
+	}
+}
+
 func adminIntegrationApp(service adminapp.UseCase) (*fiber.App, jwtadapter.Issuer) {
 	secret := []byte("admin-integration-secret")
 	issuer := jwtadapter.Issuer{Secret: secret, TTL: 15 * time.Minute}
@@ -143,6 +249,37 @@ func performAdminRequest(t *testing.T, app *fiber.App, path, token string) *http
 		t.Fatalf("app.Test(%s) error = %v", path, err)
 	}
 	return resp
+}
+
+func performAdminJSONRequest(t *testing.T, app *fiber.App, method, path, token, payload string) *http.Response {
+	t.Helper()
+	req := httptest.NewRequest(method, path, bytes.NewBufferString(payload))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+	if token != "" {
+		req.Header.Set(fiber.HeaderAuthorization, "Bearer "+token)
+	}
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test(%s %s) error = %v", method, path, err)
+	}
+	return resp
+}
+
+func newAdminMutationService(t *testing.T) adminapp.UseCase {
+	t.Helper()
+	pool := common.RequirePool(t)
+	unitOfWork := postgresrepo.NewUnitOfWork(pool)
+	ticketService := ticketapp.NewService(
+		postgresrepo.NewTicketRepository(pool),
+		unitOfWork,
+		jwtadapter.TicketTokenManager{Secret: []byte("admin-integration-secret")},
+		ticketapp.Settings{QRTokenTTL: 10 * time.Second, ProximityMeters: 200},
+	)
+	notificationService := notificationapp.NewService(postgresrepo.NewNotificationRepository(pool), pushadapter.MockSender{}, unitOfWork)
+	return adminapp.NewService(
+		postgresrepo.NewAdminRepository(pool),
+		adminapp.WithMutationDependencies(notificationService, ticketService, unitOfWork),
+	)
 }
 
 func promoteUser(t *testing.T, userID uuid.UUID) {
