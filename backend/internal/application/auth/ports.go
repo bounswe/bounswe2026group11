@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
+	"github.com/google/uuid"
 )
 
 // PasswordHasher hashes and compares passwords or OTP codes.
@@ -46,4 +47,9 @@ type OTPMailInput struct {
 type OTPMailer interface {
 	SendRegistrationOTP(ctx context.Context, input OTPMailInput) error
 	SendPasswordResetOTP(ctx context.Context, input OTPMailInput) error
+}
+
+// PushDeviceRevoker disconnects a mobile installation from the user during logout.
+type PushDeviceRevoker interface {
+	UnregisterDevice(ctx context.Context, userID, installationID uuid.UUID) error
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ type Service struct {
 	otpRateLimiter          RateLimiter
 	loginRateLimiter        RateLimiter
 	availabilityRateLimiter RateLimiter
+	pushDevices             PushDeviceRevoker
 	now                     func() time.Time
 	otpTTL                  time.Duration
 	otpMaxAttempts          int
@@ -70,6 +72,11 @@ func NewService(
 		refreshTokenTTL:         cfg.RefreshTokenTTL,
 		maxSessionTTL:           cfg.MaxSessionTTL,
 	}
+}
+
+// SetPushDeviceRevoker attaches the optional push-device cleanup dependency.
+func (s *Service) SetPushDeviceRevoker(revoker PushDeviceRevoker) {
+	s.pushDevices = revoker
 }
 
 // RequestRegistrationOTP generates an OTP code, stores its hash, and mails the
@@ -424,8 +431,8 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, deviceInfo *
 }
 
 // Logout revokes the presented refresh token, ending the session.
-func (s *Service) Logout(ctx context.Context, refreshToken string) error {
-	refreshToken = strings.TrimSpace(refreshToken)
+func (s *Service) Logout(ctx context.Context, input LogoutInput) error {
+	refreshToken := strings.TrimSpace(input.RefreshToken)
 	if refreshToken == "" {
 		return domain.ValidationError(map[string]string{"refresh_token": "is required"})
 	}
@@ -446,6 +453,16 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 		if err := s.repo.RevokeRefreshToken(ctx, current.ID, now); err != nil {
 			return fmt.Errorf("revoke refresh token: %w", err)
 		}
+		if input.DeviceInstallationID != nil && s.pushDevices != nil {
+			if err := s.pushDevices.UnregisterDevice(ctx, current.UserID, *input.DeviceInstallationID); err != nil {
+				return fmt.Errorf("revoke logout push device: %w", err)
+			}
+		}
+		slog.InfoContext(ctx, "session logged out",
+			"operation", "auth.logout",
+			"user_id", current.UserID.String(),
+			"push_device_unregistered", input.DeviceInstallationID != nil && s.pushDevices != nil,
+		)
 		return nil
 	})
 }

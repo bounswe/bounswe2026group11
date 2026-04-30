@@ -12,5 +12,5 @@ type UseCase interface {
 	CheckAvailability(ctx context.Context, input CheckAvailabilityInput) (*CheckAvailabilityResult, error)
 	Login(ctx context.Context, input LoginInput) (*Session, error)
 	Refresh(ctx context.Context, refreshToken string, deviceInfo *string) (*Session, error)
-	Logout(ctx context.Context, refreshToken string) error
+	Logout(ctx context.Context, input LogoutInput) error
 }

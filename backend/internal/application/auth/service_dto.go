@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
+	"github.com/google/uuid"
 )
 
 // Config holds tuning parameters for the auth service such as token lifetimes,
@@ -77,6 +78,11 @@ type CheckAvailabilityInput struct {
 	Username  string
 	Email     string
 	ClientKey string
+}
+
+type LogoutInput struct {
+	RefreshToken         string
+	DeviceInstallationID *uuid.UUID
 }
 
 // CheckAvailabilityResult reports whether a username and email are available

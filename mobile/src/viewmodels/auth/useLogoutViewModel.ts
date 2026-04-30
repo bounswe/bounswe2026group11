@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { logout } from '@/services/authService';
 import { ApiError } from '@/services/api';
+import { getDeviceInstallationID } from '@/services/deviceInstallation';
 
 export interface UseLogoutResult {
   isLoggingOut: boolean;
@@ -25,7 +26,11 @@ export function useLogoutViewModel(
 
     setIsLoggingOut(true);
     try {
-      await logout({ refresh_token: refreshToken });
+      const deviceInstallationID = await getDeviceInstallationID();
+      await logout({
+        refresh_token: refreshToken,
+        device_installation_id: deviceInstallationID,
+      });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         // Refresh token already invalid on server; still clear local session.

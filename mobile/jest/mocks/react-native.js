@@ -237,7 +237,17 @@ module.exports = {
   },
   Platform: {
     OS: 'ios',
+    Version: '26.0',
     select: (spec) => spec.ios,
+  },
+  PermissionsAndroid: {
+    PERMISSIONS: {
+      POST_NOTIFICATIONS: 'android.permission.POST_NOTIFICATIONS',
+    },
+    RESULTS: {
+      GRANTED: 'granted',
+    },
+    request: jest.fn(async () => 'granted'),
   },
   View,
   Text,
