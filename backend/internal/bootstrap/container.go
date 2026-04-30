@@ -60,6 +60,7 @@ type Container struct {
 	TicketService           ticket.UseCase
 	RatingService           rating.UseCase
 	NotificationService     notification.UseCase
+	NotificationBroker      *notification.Broker
 	CategoryService         category.UseCase
 	ProfileService          profile.UseCase
 	FavoriteLocationService favoritelocation.UseCase
@@ -102,6 +103,7 @@ func New(ctx context.Context) (*Container, error) {
 	container.ticketRepo = postgres.NewTicketRepository(container.DB)
 	container.ratingRepo = postgres.NewRatingRepository(container.DB)
 	container.notificationRepo = postgres.NewNotificationRepository(container.DB)
+	container.NotificationBroker = notification.NewBroker()
 	container.categoryRepo = postgres.NewCategoryRepository(container.DB)
 	container.profileRepo = postgres.NewProfileRepository(container.DB)
 	container.favoriteLocationRepo = postgres.NewFavoriteLocationRepository(container.DB)
@@ -141,6 +143,37 @@ func (c *Container) StartEventExpiryJob(ctx context.Context, interval time.Durat
 			select {
 			case <-ticker.C:
 				expire()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+// StartNotificationRetentionJob deletes inbox notifications older than the
+// configured retention window, then repeats until ctx is cancelled.
+func (c *Container) StartNotificationRetentionJob(ctx context.Context, interval time.Duration) {
+	purge := func() {
+		deleted, err := c.NotificationService.DeleteExpiredNotifications(ctx)
+		if err != nil {
+			slog.ErrorContext(ctx, "notification retention job failed", "error", err)
+			return
+		}
+		if deleted > 0 {
+			slog.InfoContext(ctx, "expired notifications deleted",
+				"operation", "notification.retention.delete_expired",
+				"deleted_count", deleted,
+			)
+		}
+	}
+	purge()
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				purge()
 			case <-ctx.Done():
 				return
 			}
@@ -253,7 +286,7 @@ func newNotificationService(ctx context.Context, c *Container) (notification.Use
 	if err != nil {
 		return nil, fmt.Errorf("build push sender: %w", err)
 	}
-	return notification.NewService(c.notificationRepo, sender, c.UnitOfWork), nil
+	return notification.NewService(c.notificationRepo, sender, c.UnitOfWork, c.NotificationBroker), nil
 }
 
 func newImageUploadService(c *Container, storage *spacesadapter.Storage) imageupload.UseCase {

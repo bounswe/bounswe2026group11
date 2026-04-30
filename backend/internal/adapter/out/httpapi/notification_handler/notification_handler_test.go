@@ -3,6 +3,7 @@ package notification_handler
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -88,10 +89,93 @@ func TestUnregisterPushDeviceRequiresAuthentication(t *testing.T) {
 	}
 }
 
+func TestListNotificationsParsesPagination(t *testing.T) {
+	// given
+	service := &stubNotificationService{}
+	app := newNotificationTestApp(service, authedNotificationVerifier())
+	req := httptest.NewRequest(fiber.MethodGet, "/me/notifications?limit=10&cursor=test-cursor", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if service.listCallCount != 1 {
+		t.Fatalf("expected list to be called once, got %d", service.listCallCount)
+	}
+	if service.lastListInput.Limit == nil || *service.lastListInput.Limit != 10 {
+		t.Fatalf("expected limit 10, got %+v", service.lastListInput.Limit)
+	}
+	if service.lastListInput.Cursor == nil || *service.lastListInput.Cursor != "test-cursor" {
+		t.Fatalf("expected cursor to be forwarded, got %+v", service.lastListInput.Cursor)
+	}
+}
+
+func TestGetUnreadNotificationCountReturnsCount(t *testing.T) {
+	// given
+	service := &stubNotificationService{unreadCount: 3}
+	app := newNotificationTestApp(service, authedNotificationVerifier())
+	req := httptest.NewRequest(fiber.MethodGet, "/me/notifications/unread-count", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	var body unreadCountResponse
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response error = %v", err)
+	}
+	if body.UnreadCount != 3 {
+		t.Fatalf("expected unread count 3, got %d", body.UnreadCount)
+	}
+}
+
+func TestMarkNotificationReadRejectsInvalidNotificationID(t *testing.T) {
+	// given
+	service := &stubNotificationService{}
+	app := newNotificationTestApp(service, authedNotificationVerifier())
+	req := httptest.NewRequest(fiber.MethodPatch, "/me/notifications/not-a-uuid/read", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+	if service.markReadCallCount != 0 {
+		t.Fatalf("expected mark read not to be called, got %d", service.markReadCallCount)
+	}
+}
+
 type stubNotificationService struct {
 	registerCallCount    int
 	unregisterCallCount  int
+	listCallCount        int
+	markReadCallCount    int
+	unreadCount          int
 	lastRegisterInput    notificationapp.RegisterDeviceInput
+	lastListInput        notificationapp.ListNotificationsInput
 	lastUnregisterUserID uuid.UUID
 	lastUnregisterID     uuid.UUID
 }
@@ -112,6 +196,53 @@ func (s *stubNotificationService) UnregisterDevice(_ context.Context, userID, in
 	s.lastUnregisterUserID = userID
 	s.lastUnregisterID = installationID
 	return nil
+}
+
+func (s *stubNotificationService) ListNotifications(_ context.Context, input notificationapp.ListNotificationsInput) (*notificationapp.ListNotificationsResult, error) {
+	s.listCallCount++
+	s.lastListInput = input
+	return &notificationapp.ListNotificationsResult{
+		Items: []domain.Notification{
+			{
+				ID:             uuid.New(),
+				ReceiverUserID: input.UserID,
+				Title:          "Event update",
+				Body:           "A new update is available.",
+				Data:           map[string]string{},
+				CreatedAt:      time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC),
+			},
+		},
+		PageInfo: notificationapp.NotificationPageInfo{HasNext: false},
+	}, nil
+}
+
+func (s *stubNotificationService) CountUnreadNotifications(_ context.Context, _ uuid.UUID) (*notificationapp.UnreadCountResult, error) {
+	return &notificationapp.UnreadCountResult{UnreadCount: s.unreadCount}, nil
+}
+
+func (s *stubNotificationService) MarkNotificationRead(_ context.Context, _, _ uuid.UUID) error {
+	s.markReadCallCount++
+	return nil
+}
+
+func (s *stubNotificationService) MarkAllNotificationsRead(_ context.Context, _ uuid.UUID) (*notificationapp.MarkAllReadResult, error) {
+	return &notificationapp.MarkAllReadResult{UpdatedCount: 1}, nil
+}
+
+func (s *stubNotificationService) DeleteNotification(_ context.Context, _, _ uuid.UUID) error {
+	return nil
+}
+
+func (s *stubNotificationService) DeleteAllNotifications(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
+func (s *stubNotificationService) DeleteExpiredNotifications(_ context.Context) (int, error) {
+	return 0, nil
+}
+
+func (s *stubNotificationService) SendNotificationToUsers(_ context.Context, _ notificationapp.SendNotificationInput) (*notificationapp.SendNotificationResult, error) {
+	return &notificationapp.SendNotificationResult{}, nil
 }
 
 func (s *stubNotificationService) SendPushToUsers(_ context.Context, _ notificationapp.SendPushInput) (*notificationapp.SendPushResult, error) {

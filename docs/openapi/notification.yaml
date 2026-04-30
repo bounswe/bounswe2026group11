@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
-  title: Social Event Mapper - Push Notification API
-  version: 0.1.0
-  description: Authenticated endpoints for registering and unregistering mobile FCM push devices.
+  title: Social Event Mapper - Notification API
+  version: 0.2.0
+  description: Authenticated endpoints for mobile push-device registration and the in-app notification inbox.
 
 servers:
   - url: /api
@@ -10,6 +10,8 @@ servers:
 tags:
   - name: Push Notifications
     description: Mobile push-device registration endpoints.
+  - name: In-App Notifications
+    description: Notification inbox, unread counters, mutations, and SSE streaming.
 
 paths:
   /me/push-devices/{installation_id}:
@@ -25,24 +27,13 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: installation_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/InstallationID"
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/RegisterPushDeviceRequest"
-            examples:
-              ios:
-                value:
-                  fcm_token: dQw4w9WgXcQ:APA91b...
-                  platform: IOS
-                  device_info: ios 26.0
       responses:
         "200":
           description: Push device registered or updated.
@@ -61,17 +52,170 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: installation_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/InstallationID"
       responses:
         "204":
           description: Push device unregistered or already inactive.
         "400":
           $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /me/notifications:
+    get:
+      tags: [In-App Notifications]
+      summary: List the authenticated user's notifications
+      description: Returns non-deleted notifications created within the 90-day retention window, ordered by newest first.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Notification page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListNotificationsResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+    delete:
+      tags: [In-App Notifications]
+      summary: Delete all visible notifications
+      description: Soft-deletes all non-expired notifications for the authenticated user. Rows are physically removed by the 90-day retention cleanup.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: All visible notifications are hidden.
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /me/notifications/unread:
+    get:
+      tags: [In-App Notifications]
+      summary: List unread notifications
+      description: Returns unread, non-deleted notifications created within the 90-day retention window, ordered by newest first.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Unread notification page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListNotificationsResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /me/notifications/unread-count:
+    get:
+      tags: [In-App Notifications]
+      summary: Get unread notification count
+      description: Counts unread, non-deleted notifications created within the 90-day retention window.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unread count.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnreadCountResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /me/notifications/read:
+    patch:
+      tags: [In-App Notifications]
+      summary: Mark all notifications as read
+      description: Marks all visible unread notifications as read and returns the number of rows updated.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Updated count.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarkAllReadResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /me/notifications/{notification_id}/read:
+    patch:
+      tags: [In-App Notifications]
+      summary: Mark one notification as read
+      description: Marks one owned, visible notification as read. Repeating the call is safe.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/NotificationID"
+      responses:
+        "204":
+          description: Notification is read.
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotificationNotFoundError"
+
+  /me/notifications/{notification_id}:
+    delete:
+      tags: [In-App Notifications]
+      summary: Delete one notification
+      description: Soft-deletes one owned notification. The operation is idempotent and does not reveal whether the notification existed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/NotificationID"
+      responses:
+        "204":
+          description: Notification is hidden or was already absent.
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /me/notifications/stream:
+    get:
+      tags: [In-App Notifications]
+      summary: Stream in-app notifications
+      description: |
+        Opens a Server-Sent Events stream for active users. Clients must send the
+        normal Bearer access token in the `Authorization` header, typically with
+        a fetch-based SSE client because browser `EventSource` cannot set custom
+        headers. The server sends `event: heartbeat` every 20 seconds and
+        `event: notification` when a new notification is created for the user.
+        Notification events use `id: <notification_id>` and the same JSON shape
+        as the list endpoints. Clients should still call the HTTP list endpoints
+        after reconnecting to recover missed events.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: SSE stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                examples:
+                  - |
+                    event: heartbeat
+                    data: {}
+
+                    id: 2ca3f3d1-7d3c-4e4e-b1b9-78fe0d4c749d
+                    event: notification
+                    data: {"id":"2ca3f3d1-7d3c-4e4e-b1b9-78fe0d4c749d","event_id":null,"title":"Event update","body":"A new update is available.","type":null,"deep_link":null,"image_url":null,"data":{},"is_read":false,"read_at":null,"created_at":"2026-04-30T12:00:00Z"}
         "401":
           $ref: "#/components/responses/UnauthorizedError"
 
@@ -81,6 +225,38 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  parameters:
+    InstallationID:
+      name: installation_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    NotificationID:
+      name: notification_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 25
+      description: Maximum notifications to return.
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Opaque cursor returned in `page_info.next_cursor`.
   schemas:
     RegisterPushDeviceRequest:
       type: object
@@ -91,7 +267,6 @@ components:
           type: string
           minLength: 1
           maxLength: 4096
-          description: Firebase Cloud Messaging registration token for this app installation.
         platform:
           type: string
           enum: [IOS, ANDROID]
@@ -100,7 +275,6 @@ components:
             - string
             - "null"
           maxLength: 512
-          description: Optional low-sensitivity device summary for debugging.
     RegisterPushDeviceResponse:
       type: object
       additionalProperties: false
@@ -119,6 +293,88 @@ components:
         updated_at:
           type: string
           format: date-time
+    Notification:
+      type: object
+      additionalProperties: false
+      required: [id, event_id, title, body, type, deep_link, image_url, data, is_read, read_at, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        title:
+          type: string
+        body:
+          type: string
+        type:
+          type:
+            - string
+            - "null"
+        deep_link:
+          type:
+            - string
+            - "null"
+        image_url:
+          type:
+            - string
+            - "null"
+          format: uri
+        data:
+          type: object
+          additionalProperties:
+            type: string
+        is_read:
+          type: boolean
+        read_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+    ListNotificationsResponse:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        page_info:
+          $ref: "#/components/schemas/PageInfo"
+    PageInfo:
+      type: object
+      additionalProperties: false
+      required: [next_cursor, has_next]
+      properties:
+        next_cursor:
+          type:
+            - string
+            - "null"
+        has_next:
+          type: boolean
+    UnreadCountResponse:
+      type: object
+      additionalProperties: false
+      required: [unread_count]
+      properties:
+        unread_count:
+          type: integer
+          minimum: 0
+    MarkAllReadResponse:
+      type: object
+      additionalProperties: false
+      required: [updated_count]
+      properties:
+        updated_count:
+          type: integer
+          minimum: 0
     ErrorResponse:
       type: object
       required: [error]
@@ -137,13 +393,19 @@ components:
                 type: string
   responses:
     ValidationError:
-      description: The request body or path parameters failed validation.
+      description: The request body, path parameters, or query parameters failed validation.
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
     UnauthorizedError:
       description: Missing or invalid access token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotificationNotFoundError:
+      description: Notification does not exist, is not owned by the caller, is deleted, or is expired.
       content:
         application/json:
           schema:
