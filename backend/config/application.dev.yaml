@@ -23,3 +23,4 @@ rating_global_prior: 4.0
 rating_bayesian_m: 5
 spaces_presign_ttl: 15m
 spaces_upload_cache_control: public, max-age=604800, immutable
+push_provider: firebase

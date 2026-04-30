@@ -151,6 +151,7 @@ These names still matter at runtime:
 | `SPACES_BUCKET` | Backend direct-upload signing + Spaces admin script |
 | `SPACES_CDN_BASE_URL` | Backend public image URLs returned to clients |
 | `SPACES_S3_REGION` | Backend Spaces SDK configuration + Spaces admin script |
+| `FIREBASE_SERVICE_ACCOUNT_JSON_BASE64` | Backend FCM push delivery in dev/prod when `PUSH_PROVIDER=firebase` |
 | `DOCKERHUB_NAMESPACE` | `deploy/docker-compose.dev.yml` image names (set in `deploy/.env` or the shell/CI environment) |
 | `IMAGE_TAG` | Exact backend/frontend image tag used by `deploy/docker-compose.dev.yml` (defaults to `latest` when not set) |
 
@@ -177,6 +178,7 @@ Example mapping (name secrets however you prefer; align with your workflow):
 | `SPACES_BUCKET` | `SPACES_BUCKET=...` |
 | `SPACES_CDN_BASE_URL` | `SPACES_CDN_BASE_URL=...` |
 | `SPACES_S3_REGION` | `SPACES_S3_REGION=...` |
+| `FIREBASE_SERVICE_ACCOUNT_JSON_BASE64` | `FIREBASE_SERVICE_ACCOUNT_JSON_BASE64=...` |
 | `DOCKERHUB_NAMESPACE` | `DOCKERHUB_NAMESPACE=...` |
 | `IMAGE_TAG` | `IMAGE_TAG=...` |
 
@@ -194,6 +196,7 @@ SPACES_ENDPOINT=...
 SPACES_BUCKET=...
 SPACES_CDN_BASE_URL=...
 SPACES_S3_REGION=...
+FIREBASE_SERVICE_ACCOUNT_JSON_BASE64=...
 DOCKERHUB_NAMESPACE=...
 IMAGE_TAG=...
 ```

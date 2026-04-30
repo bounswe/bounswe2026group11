@@ -90,6 +90,7 @@ export interface StoredAuthSession {
 
 export interface LogoutRequest {
   refresh_token: string;
+  device_installation_id?: string | null;
 }
 
 export interface RefreshRequest {

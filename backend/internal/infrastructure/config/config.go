@@ -18,38 +18,41 @@ var appEnvPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 // Config holds application settings loaded from an environment-specific YAML
 // file first, then from the repository-root .env for secrets, then from OS environment variables.
 type Config struct {
-	AppPort                int
-	DBHost                 string
-	DBPort                 int
-	DBName                 string
-	DBUser                 string
-	DBPassword             string
-	JWTSecret              string
-	AccessTokenTTL         time.Duration
-	RefreshTokenTTL        time.Duration
-	MaxSessionTTL          time.Duration
-	OTPTTL                 time.Duration
-	OTPMaxAttempts         int
-	OTPResendCooldown      time.Duration
-	OTPRequestLimit        int
-	OTPRequestWindow       time.Duration
-	LoginRateLimit         int
-	LoginRateWindow        time.Duration
-	AvailabilityRateLimit  int
-	AvailabilityRateWindow time.Duration
-	MailProvider           string
-	MailDomain             string
-	ResendClientAPIKey     string
-	RatingGlobalPrior      float64
-	RatingBayesianM        int
-	SpacesAccessKey        string
-	SpacesSecretKey        string
-	SpacesEndpoint         string
-	SpacesBucket           string
-	SpacesCDNBaseURL       string
-	SpacesS3Region         string
-	SpacesPresignTTL       time.Duration
-	SpacesUploadCacheCtrl  string
+	AppPort                          int
+	DBHost                           string
+	DBPort                           int
+	DBName                           string
+	DBUser                           string
+	DBPassword                       string
+	JWTSecret                        string
+	AccessTokenTTL                   time.Duration
+	RefreshTokenTTL                  time.Duration
+	MaxSessionTTL                    time.Duration
+	OTPTTL                           time.Duration
+	OTPMaxAttempts                   int
+	OTPResendCooldown                time.Duration
+	OTPRequestLimit                  int
+	OTPRequestWindow                 time.Duration
+	LoginRateLimit                   int
+	LoginRateWindow                  time.Duration
+	AvailabilityRateLimit            int
+	AvailabilityRateWindow           time.Duration
+	MailProvider                     string
+	MailDomain                       string
+	ResendClientAPIKey               string
+	RatingGlobalPrior                float64
+	RatingBayesianM                  int
+	SpacesAccessKey                  string
+	SpacesSecretKey                  string
+	SpacesEndpoint                   string
+	SpacesBucket                     string
+	SpacesCDNBaseURL                 string
+	SpacesS3Region                   string
+	SpacesPresignTTL                 time.Duration
+	SpacesUploadCacheCtrl            string
+	PushProvider                     string
+	FirebaseCredentialsFile          string
+	FirebaseServiceAccountJSONBase64 string
 }
 
 // Load reads configuration using the following precedence:
@@ -108,40 +111,46 @@ func Load() (*Config, error) {
 	bind("spaces_s3_region", "SPACES_S3_REGION")
 	bind("spaces_presign_ttl", "SPACES_PRESIGN_TTL")
 	bind("spaces_upload_cache_control", "SPACES_UPLOAD_CACHE_CONTROL")
+	bind("push_provider", "PUSH_PROVIDER")
+	bind("firebase_credentials_file", "FIREBASE_CREDENTIALS_FILE")
+	bind("firebase_service_account_json_base64", "FIREBASE_SERVICE_ACCOUNT_JSON_BASE64")
 
 	cfg := &Config{
-		AppPort:                v.GetInt("app_port"),
-		DBHost:                 strings.TrimSpace(v.GetString("db_host")),
-		DBPort:                 v.GetInt("db_port"),
-		DBName:                 strings.TrimSpace(v.GetString("db_name")),
-		DBUser:                 strings.TrimSpace(v.GetString("db_user")),
-		DBPassword:             v.GetString("db_password"),
-		JWTSecret:              strings.TrimSpace(v.GetString("jwt_secret")),
-		AccessTokenTTL:         v.GetDuration("access_token_ttl"),
-		RefreshTokenTTL:        v.GetDuration("refresh_token_ttl"),
-		MaxSessionTTL:          v.GetDuration("max_session_ttl"),
-		OTPTTL:                 v.GetDuration("otp_ttl"),
-		OTPMaxAttempts:         v.GetInt("otp_max_attempts"),
-		OTPResendCooldown:      v.GetDuration("otp_resend_cooldown"),
-		OTPRequestLimit:        v.GetInt("otp_request_limit"),
-		OTPRequestWindow:       v.GetDuration("otp_request_window"),
-		LoginRateLimit:         v.GetInt("login_rate_limit"),
-		LoginRateWindow:        v.GetDuration("login_rate_window"),
-		AvailabilityRateLimit:  v.GetInt("availability_rate_limit"),
-		AvailabilityRateWindow: v.GetDuration("availability_rate_window"),
-		MailProvider:           strings.TrimSpace(v.GetString("mail_provider")),
-		MailDomain:             strings.TrimSpace(v.GetString("mail_domain")),
-		ResendClientAPIKey:     strings.TrimSpace(v.GetString("resend_client_api_key")),
-		RatingGlobalPrior:      v.GetFloat64("rating_global_prior"),
-		RatingBayesianM:        v.GetInt("rating_bayesian_m"),
-		SpacesAccessKey:        strings.TrimSpace(v.GetString("spaces_access_key")),
-		SpacesSecretKey:        strings.TrimSpace(v.GetString("spaces_secret_key")),
-		SpacesEndpoint:         strings.TrimSpace(v.GetString("spaces_endpoint")),
-		SpacesBucket:           strings.TrimSpace(v.GetString("spaces_bucket")),
-		SpacesCDNBaseURL:       strings.TrimSpace(v.GetString("spaces_cdn_base_url")),
-		SpacesS3Region:         strings.TrimSpace(v.GetString("spaces_s3_region")),
-		SpacesPresignTTL:       v.GetDuration("spaces_presign_ttl"),
-		SpacesUploadCacheCtrl:  strings.TrimSpace(v.GetString("spaces_upload_cache_control")),
+		AppPort:                          v.GetInt("app_port"),
+		DBHost:                           strings.TrimSpace(v.GetString("db_host")),
+		DBPort:                           v.GetInt("db_port"),
+		DBName:                           strings.TrimSpace(v.GetString("db_name")),
+		DBUser:                           strings.TrimSpace(v.GetString("db_user")),
+		DBPassword:                       v.GetString("db_password"),
+		JWTSecret:                        strings.TrimSpace(v.GetString("jwt_secret")),
+		AccessTokenTTL:                   v.GetDuration("access_token_ttl"),
+		RefreshTokenTTL:                  v.GetDuration("refresh_token_ttl"),
+		MaxSessionTTL:                    v.GetDuration("max_session_ttl"),
+		OTPTTL:                           v.GetDuration("otp_ttl"),
+		OTPMaxAttempts:                   v.GetInt("otp_max_attempts"),
+		OTPResendCooldown:                v.GetDuration("otp_resend_cooldown"),
+		OTPRequestLimit:                  v.GetInt("otp_request_limit"),
+		OTPRequestWindow:                 v.GetDuration("otp_request_window"),
+		LoginRateLimit:                   v.GetInt("login_rate_limit"),
+		LoginRateWindow:                  v.GetDuration("login_rate_window"),
+		AvailabilityRateLimit:            v.GetInt("availability_rate_limit"),
+		AvailabilityRateWindow:           v.GetDuration("availability_rate_window"),
+		MailProvider:                     strings.TrimSpace(v.GetString("mail_provider")),
+		MailDomain:                       strings.TrimSpace(v.GetString("mail_domain")),
+		ResendClientAPIKey:               strings.TrimSpace(v.GetString("resend_client_api_key")),
+		RatingGlobalPrior:                v.GetFloat64("rating_global_prior"),
+		RatingBayesianM:                  v.GetInt("rating_bayesian_m"),
+		SpacesAccessKey:                  strings.TrimSpace(v.GetString("spaces_access_key")),
+		SpacesSecretKey:                  strings.TrimSpace(v.GetString("spaces_secret_key")),
+		SpacesEndpoint:                   strings.TrimSpace(v.GetString("spaces_endpoint")),
+		SpacesBucket:                     strings.TrimSpace(v.GetString("spaces_bucket")),
+		SpacesCDNBaseURL:                 strings.TrimSpace(v.GetString("spaces_cdn_base_url")),
+		SpacesS3Region:                   strings.TrimSpace(v.GetString("spaces_s3_region")),
+		SpacesPresignTTL:                 v.GetDuration("spaces_presign_ttl"),
+		SpacesUploadCacheCtrl:            strings.TrimSpace(v.GetString("spaces_upload_cache_control")),
+		PushProvider:                     strings.TrimSpace(v.GetString("push_provider")),
+		FirebaseCredentialsFile:          strings.TrimSpace(v.GetString("firebase_credentials_file")),
+		FirebaseServiceAccountJSONBase64: strings.TrimSpace(v.GetString("firebase_service_account_json_base64")),
 	}
 
 	if err := validate(v, cfg); err != nil {
@@ -390,6 +399,22 @@ func validate(v *viper.Viper, c *Config) error {
 	}
 	if c.SpacesUploadCacheCtrl == "" {
 		return fmt.Errorf("SPACES_UPLOAD_CACHE_CONTROL is required and cannot be empty")
+	}
+	if c.PushProvider == "" {
+		return fmt.Errorf("PUSH_PROVIDER cannot be empty")
+	}
+	if c.PushProvider != "mock" && c.PushProvider != "firebase" {
+		return fmt.Errorf("PUSH_PROVIDER must be \"mock\" or \"firebase\", got %q", c.PushProvider)
+	}
+	if c.PushProvider == "firebase" {
+		hasFile := c.FirebaseCredentialsFile != ""
+		hasJSON := c.FirebaseServiceAccountJSONBase64 != ""
+		if !hasFile && !hasJSON {
+			return missing("FIREBASE_CREDENTIALS_FILE or FIREBASE_SERVICE_ACCOUNT_JSON_BASE64")
+		}
+		if hasFile && hasJSON {
+			return fmt.Errorf("set either FIREBASE_CREDENTIALS_FILE or FIREBASE_SERVICE_ACCOUNT_JSON_BASE64, not both")
+		}
 	}
 
 	return nil

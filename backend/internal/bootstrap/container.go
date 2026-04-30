@@ -7,6 +7,7 @@ import (
 	"time"
 
 	emailadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/email"
+	pushadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/firebasepush"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/hasher"
 	jwtadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/jwt"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/otp"
@@ -21,6 +22,7 @@ import (
 	favoritelocation "github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/profile"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/rating"
@@ -47,6 +49,7 @@ type Container struct {
 	joinRequestRepo         *postgres.JoinRequestRepository
 	ticketRepo              *postgres.TicketRepository
 	ratingRepo              *postgres.RatingRepository
+	notificationRepo        *postgres.NotificationRepository
 	categoryRepo            *postgres.CategoryRepository
 	profileRepo             *postgres.ProfileRepository
 	favoriteLocationRepo    *postgres.FavoriteLocationRepository
@@ -56,6 +59,7 @@ type Container struct {
 	JoinRequestService      join_request.UseCase
 	TicketService           ticket.UseCase
 	RatingService           rating.UseCase
+	NotificationService     notification.UseCase
 	CategoryService         category.UseCase
 	ProfileService          profile.UseCase
 	FavoriteLocationService favoritelocation.UseCase
@@ -97,6 +101,7 @@ func New(ctx context.Context) (*Container, error) {
 	container.joinRequestRepo = postgres.NewJoinRequestRepository(container.DB)
 	container.ticketRepo = postgres.NewTicketRepository(container.DB)
 	container.ratingRepo = postgres.NewRatingRepository(container.DB)
+	container.notificationRepo = postgres.NewNotificationRepository(container.DB)
 	container.categoryRepo = postgres.NewCategoryRepository(container.DB)
 	container.profileRepo = postgres.NewProfileRepository(container.DB)
 	container.favoriteLocationRepo = postgres.NewFavoriteLocationRepository(container.DB)
@@ -104,6 +109,12 @@ func New(ctx context.Context) (*Container, error) {
 	container.TicketService = newTicketService(container)
 	container.JoinRequestService = newJoinRequestService(container)
 	container.RatingService = newRatingService(container)
+	notificationService, err := newNotificationService(ctx, container)
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+	container.NotificationService = notificationService
 	container.AuthService = newAuthService(container)
 	container.EventService = newEventService(container)
 	container.CategoryService = newCategoryService(container)
@@ -181,6 +192,17 @@ func buildSpacesStorage(cfg *config.Config) *spacesadapter.Storage {
 	})
 }
 
+func buildPushSender(ctx context.Context, cfg *config.Config) (notification.PushSender, error) {
+	switch cfg.PushProvider {
+	case "mock":
+		return pushadapter.MockSender{}, nil
+	case "firebase":
+		return pushadapter.NewSender(ctx, cfg.FirebaseCredentialsFile, cfg.FirebaseServiceAccountJSONBase64)
+	default:
+		return nil, fmt.Errorf("unsupported push provider %q", cfg.PushProvider)
+	}
+}
+
 // newEventService wires the event use case with its driven adapters.
 func newEventService(c *Container) event.UseCase {
 	return event.NewService(c.eventRepo, c.ParticipationService, c.JoinRequestService, c.UnitOfWork, c.TicketService)
@@ -226,6 +248,14 @@ func newFavoriteLocationService(c *Container) favoritelocation.UseCase {
 	return favoritelocation.NewService(c.favoriteLocationRepo, c.UnitOfWork)
 }
 
+func newNotificationService(ctx context.Context, c *Container) (notification.UseCase, error) {
+	sender, err := buildPushSender(ctx, c.Config)
+	if err != nil {
+		return nil, fmt.Errorf("build push sender: %w", err)
+	}
+	return notification.NewService(c.notificationRepo, sender, c.UnitOfWork), nil
+}
+
 func newImageUploadService(c *Container, storage *spacesadapter.Storage) imageupload.UseCase {
 	return imageupload.NewService(
 		c.profileRepo,
@@ -250,7 +280,7 @@ func newRatingService(c *Container) rating.UseCase {
 
 // newAuthService wires the auth use-case service with its driven adapters.
 func newAuthService(c *Container) auth.UseCase {
-	return auth.NewService(
+	service := auth.NewService(
 		c.authRepo,
 		c.UnitOfWork,
 		hasher.BcryptHasher{},
@@ -279,4 +309,6 @@ func newAuthService(c *Container) auth.UseCase {
 			MaxSessionTTL:     c.Config.MaxSessionTTL,
 		},
 	)
+	service.SetPushDeviceRevoker(c.NotificationService)
+	return service
 }

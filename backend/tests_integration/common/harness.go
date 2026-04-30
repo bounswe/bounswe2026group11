@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	pushadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/firebasepush"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/hasher"
 	jwtadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/jwt"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/otp"
@@ -16,6 +17,7 @@ import (
 	eventapp "github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	favoritelocationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location"
 	joinrequestapp "github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
+	notificationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
 	participationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
 	profileapp "github.com/bounswe/bounswe2026group11/backend/internal/application/profile"
 	ratingapp "github.com/bounswe/bounswe2026group11/backend/internal/application/rating"
@@ -97,6 +99,14 @@ type FavoriteLocationHarness struct {
 	AuthRepo authapp.Repository
 }
 
+// NotificationHarness bundles notification wiring against a rollback-only transaction.
+type NotificationHarness struct {
+	Service  notificationapp.UseCase
+	Repo     *postgresrepo.NotificationRepository
+	AuthRepo authapp.Repository
+	Tx       pgx.Tx
+}
+
 // NewEventHarness creates an event service that shares the package-level pool.
 func NewEventHarness(t *testing.T) *EventHarness {
 	t.Helper()
@@ -146,6 +156,21 @@ func NewFavoriteLocationHarness(t *testing.T) *FavoriteLocationHarness {
 		Service:  favoritelocationapp.NewService(repo, unitOfWork),
 		Repo:     repo,
 		AuthRepo: postgresrepo.NewAuthRepository(pool),
+	}
+}
+
+func NewNotificationHarness(t *testing.T) *NotificationHarness {
+	t.Helper()
+
+	pool, tx := BeginTx(t)
+	repo := postgresrepo.NewNotificationRepositoryWithTx(pool, tx)
+	unitOfWork := postgresrepo.NewUnitOfWorkWithTx(pool, tx)
+
+	return &NotificationHarness{
+		Service:  notificationapp.NewService(repo, pushadapter.MockSender{}, unitOfWork),
+		Repo:     repo,
+		AuthRepo: postgresrepo.NewAuthRepositoryWithTx(pool, tx),
+		Tx:       tx,
 	}
 }
 

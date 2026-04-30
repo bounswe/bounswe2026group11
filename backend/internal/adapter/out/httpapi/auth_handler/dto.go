@@ -41,6 +41,11 @@ type refreshBody struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+type logoutBody struct {
+	RefreshToken         string  `json:"refresh_token"`
+	DeviceInstallationID *string `json:"device_installation_id"`
+}
+
 type sessionResponse struct {
 	AccessToken      string             `json:"access_token"`
 	RefreshToken     string             `json:"refresh_token"`

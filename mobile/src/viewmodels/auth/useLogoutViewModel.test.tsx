@@ -3,12 +3,17 @@
  */
 import { renderHook, act } from '@testing-library/react';
 import * as authService from '@/services/authService';
+import * as deviceInstallation from '@/services/deviceInstallation';
 import { ApiError } from '@/services/api';
 import { useLogoutViewModel } from './useLogoutViewModel';
 
 jest.mock('@/services/authService');
+jest.mock('@/services/deviceInstallation');
 
 const mockLogout = jest.mocked(authService.logout);
+const mockGetDeviceInstallationID = jest.mocked(
+  deviceInstallation.getDeviceInstallationID,
+);
 
 describe('useLogoutViewModel', () => {
   let onLoggedOut: jest.Mock;
@@ -16,6 +21,9 @@ describe('useLogoutViewModel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockLogout.mockResolvedValue(undefined);
+    mockGetDeviceInstallationID.mockResolvedValue(
+      '550e8400-e29b-41d4-a716-446655440000',
+    );
     onLoggedOut = jest.fn();
   });
 
@@ -57,6 +65,7 @@ describe('useLogoutViewModel', () => {
     expect(mockLogout).toHaveBeenCalledTimes(1);
     expect(mockLogout).toHaveBeenCalledWith({
       refresh_token: 'my-refresh-token',
+      device_installation_id: '550e8400-e29b-41d4-a716-446655440000',
     });
     expect(onLoggedOut).toHaveBeenCalledTimes(1);
     expect(result.current.isLoggingOut).toBe(false);

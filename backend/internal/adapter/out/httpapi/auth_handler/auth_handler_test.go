@@ -337,6 +337,34 @@ func TestCheckAvailabilityValidationError(t *testing.T) {
 	}
 }
 
+func TestLogoutForwardsOptionalDeviceInstallationID(t *testing.T) {
+	// given
+	service := &stubAuthService{}
+	app := fiber.New()
+	RegisterAuthRoutes(app, NewAuthHandler(service))
+	installationID := uuid.New()
+	req := httptest.NewRequest(fiber.MethodPost, "/auth/logout", bytes.NewBufferString(`{"refresh_token":"refresh","device_installation_id":"`+installationID.String()+`"}`))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", fiber.StatusNoContent, resp.StatusCode)
+	}
+	if service.lastLogoutInput.RefreshToken != "refresh" {
+		t.Fatalf("expected refresh token to be forwarded, got %#v", service.lastLogoutInput)
+	}
+	if service.lastLogoutInput.DeviceInstallationID == nil || *service.lastLogoutInput.DeviceInstallationID != installationID {
+		t.Fatalf("expected device installation id %s, got %#v", installationID, service.lastLogoutInput.DeviceInstallationID)
+	}
+}
+
 type stubAuthService struct {
 	lastOTPRequest                 auth.RequestOTPInput
 	lastPasswordResetOTPRequest    auth.RequestOTPInput
@@ -344,6 +372,7 @@ type stubAuthService struct {
 	lastResetPasswordRequest       auth.ResetPasswordInput
 	lastVerifyRequest              auth.VerifyRegistrationInput
 	lastAvailabilityRequest        auth.CheckAvailabilityInput
+	lastLogoutInput                auth.LogoutInput
 	loginErr                       error
 	passwordResetErr               error
 	verifyPasswordResetErr         error
@@ -417,6 +446,7 @@ func (s *stubAuthService) Refresh(_ context.Context, _ string, _ *string) (*auth
 	return &auth.Session{}, nil
 }
 
-func (s *stubAuthService) Logout(_ context.Context, _ string) error {
+func (s *stubAuthService) Logout(_ context.Context, input auth.LogoutInput) error {
+	s.lastLogoutInput = input
 	return nil
 }

@@ -379,18 +379,23 @@ paths:
     post:
       tags: [Auth]
       summary: Revoke a refresh token
-      description: Invalidate a refresh token so it can no longer be used to mint new sessions.
+      description: |
+        Invalidate a refresh token so it can no longer be used to mint new sessions.
+
+        Mobile clients may include `device_installation_id` to revoke the current
+        app installation's active FCM token assignment at the same time.
       operationId: logoutSession
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RefreshRequest'
+              $ref: '#/components/schemas/LogoutRequest'
             examples:
               default:
                 value:
                   refresh_token: 8bb5f3dce7...
+                  device_installation_id: 550e8400-e29b-41d4-a716-446655440000
       responses:
         '204':
           description: Refresh token revoked.
@@ -759,6 +764,25 @@ components:
           maxLength: 512
           description: Long-lived token issued with the session.
           example: 8bb5f3dce7...
+    LogoutRequest:
+      type: object
+      description: Refresh token payload used for logout, with optional mobile push-device cleanup.
+      additionalProperties: false
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          minLength: 32
+          maxLength: 512
+          description: Long-lived token issued with the session.
+          example: 8bb5f3dce7...
+        device_installation_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Optional mobile app installation id whose active FCM token should be revoked during logout.
+          example: 550e8400-e29b-41d4-a716-446655440000
     AuthSessionResponse:
       type: object
       description: |

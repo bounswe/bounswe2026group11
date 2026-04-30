@@ -7,6 +7,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 // AuthHandler groups HTTP handlers that delegate to the auth use-case port.
@@ -159,6 +160,13 @@ func (h *AuthHandler) VerifyRegistrationOTP(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"user registration completed",
+		httpapi.OperationAttr("auth.register.complete"),
+		httpapi.UserIDAttr(session.User.ID),
+	)
+
 	return c.Status(fiber.StatusCreated).JSON(toSessionResponse(session))
 }
 
@@ -178,6 +186,13 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"user logged in",
+		httpapi.OperationAttr("auth.login"),
+		httpapi.UserIDAttr(session.User.ID),
+	)
+
 	return c.Status(fiber.StatusOK).JSON(toSessionResponse(session))
 }
 
@@ -193,17 +208,36 @@ func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 
+	httpapi.LogInfo(
+		c.UserContext(),
+		"session refreshed",
+		httpapi.OperationAttr("auth.refresh"),
+		httpapi.UserIDAttr(session.User.ID),
+	)
+
 	return c.Status(fiber.StatusOK).JSON(toSessionResponse(session))
 }
 
 // Logout handles POST /auth/logout.
 func (h *AuthHandler) Logout(c *fiber.Ctx) error {
-	var body refreshBody
+	var body logoutBody
 	if err := c.BodyParser(&body); err != nil {
 		return httpapi.WriteError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
 	}
 
-	if err := h.service.Logout(c.UserContext(), body.RefreshToken); err != nil {
+	var deviceInstallationID *uuid.UUID
+	if body.DeviceInstallationID != nil && strings.TrimSpace(*body.DeviceInstallationID) != "" {
+		parsed, err := uuid.Parse(strings.TrimSpace(*body.DeviceInstallationID))
+		if err != nil {
+			return httpapi.WriteError(c, domain.ValidationError(map[string]string{"device_installation_id": "must be a valid UUID"}))
+		}
+		deviceInstallationID = &parsed
+	}
+
+	if err := h.service.Logout(c.UserContext(), auth.LogoutInput{
+		RefreshToken:         body.RefreshToken,
+		DeviceInstallationID: deviceInstallationID,
+	}); err != nil {
 		return httpapi.WriteError(c, err)
 	}
 

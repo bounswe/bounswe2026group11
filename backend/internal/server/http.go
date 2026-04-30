@@ -7,6 +7,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/favorite_location_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/notification_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/profile_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/rating_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/ticket_handler"
@@ -64,6 +65,10 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 	// Favorite location routes (authenticated)
 	favoriteLocationHandler := favorite_location_handler.NewHandler(container.FavoriteLocationService)
 	favorite_location_handler.RegisterRoutes(app, favoriteLocationHandler, auth)
+
+	// Push notification device routes (authenticated)
+	notificationHandler := notification_handler.NewHandler(container.NotificationService)
+	notification_handler.RegisterRoutes(app, notificationHandler, auth)
 
 	// Direct image upload routes (authenticated)
 	imageUploadHandler := image_upload_handler.NewHandler(container.ImageUploadService)

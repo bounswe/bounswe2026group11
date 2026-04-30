@@ -1,0 +1,150 @@
+openapi: 3.1.0
+info:
+  title: Social Event Mapper - Push Notification API
+  version: 0.1.0
+  description: Authenticated endpoints for registering and unregistering mobile FCM push devices.
+
+servers:
+  - url: /api
+
+tags:
+  - name: Push Notifications
+    description: Mobile push-device registration endpoints.
+
+paths:
+  /me/push-devices/{installation_id}:
+    put:
+      tags: [Push Notifications]
+      summary: Register or update the current app installation's FCM token
+      description: |
+        Creates or updates the authenticated user's active push-device record for
+        this app installation. Each user can have at most two active devices; when
+        a third active installation registers, the server revokes the oldest active
+        installation. If the same FCM token was active for another user or
+        installation, that previous assignment is revoked before this one becomes active.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: installation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterPushDeviceRequest"
+            examples:
+              ios:
+                value:
+                  fcm_token: dQw4w9WgXcQ:APA91b...
+                  platform: IOS
+                  device_info: ios 26.0
+      responses:
+        "200":
+          description: Push device registered or updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterPushDeviceResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+    delete:
+      tags: [Push Notifications]
+      summary: Unregister the current app installation's FCM token
+      description: Revokes the authenticated user's active push-device record for this installation. The operation is idempotent.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: installation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Push device unregistered or already inactive.
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RegisterPushDeviceRequest:
+      type: object
+      additionalProperties: false
+      required: [fcm_token, platform]
+      properties:
+        fcm_token:
+          type: string
+          minLength: 1
+          maxLength: 4096
+          description: Firebase Cloud Messaging registration token for this app installation.
+        platform:
+          type: string
+          enum: [IOS, ANDROID]
+        device_info:
+          type:
+            - string
+            - "null"
+          maxLength: 512
+          description: Optional low-sensitivity device summary for debugging.
+    RegisterPushDeviceResponse:
+      type: object
+      additionalProperties: false
+      required: [installation_id, platform, active_device_count, updated_at]
+      properties:
+        installation_id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+          enum: [IOS, ANDROID]
+        active_device_count:
+          type: integer
+          minimum: 0
+          maximum: 2
+        updated_at:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties:
+                type: string
+  responses:
+    ValidationError:
+      description: The request body or path parameters failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnauthorizedError:
+      description: Missing or invalid access token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"

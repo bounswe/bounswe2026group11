@@ -248,6 +248,9 @@ func clearConfigEnv(t *testing.T) {
 		"SPACES_S3_REGION",
 		"SPACES_PRESIGN_TTL",
 		"SPACES_UPLOAD_CACHE_CONTROL",
+		"PUSH_PROVIDER",
+		"FIREBASE_CREDENTIALS_FILE",
+		"FIREBASE_SERVICE_ACCOUNT_JSON_BASE64",
 	} {
 		t.Setenv(k, "")
 	}
@@ -328,6 +331,7 @@ spaces_cdn_base_url: https://sem-bucket.fra1.cdn.digitaloceanspaces.com
 spaces_s3_region: us-east-1
 spaces_presign_ttl: 15m
 spaces_upload_cache_control: public, max-age=604800, immutable
+push_provider: mock
 `) + "\n"
 }
 
@@ -362,6 +366,7 @@ spaces_cdn_base_url: https://sem-bucket.fra1.cdn.digitaloceanspaces.com
 spaces_s3_region: us-east-1
 spaces_presign_ttl: 15m
 spaces_upload_cache_control: public, max-age=604800, immutable
+push_provider: mock
 `) + "\n"
 }
 
@@ -395,5 +400,6 @@ spaces_cdn_base_url: https://sem-bucket.fra1.cdn.digitaloceanspaces.com
 spaces_s3_region: us-east-1
 spaces_presign_ttl: 15m
 spaces_upload_cache_control: public, max-age=604800, immutable
+push_provider: mock
 `) + "\n"
 }

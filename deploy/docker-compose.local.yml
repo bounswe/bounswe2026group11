@@ -43,6 +43,7 @@ services:
       SPACES_BUCKET: ${SPACES_BUCKET}
       SPACES_CDN_BASE_URL: ${SPACES_CDN_BASE_URL}
       SPACES_S3_REGION: ${SPACES_S3_REGION}
+      PUSH_PROVIDER: mock
     networks:
       - app
 
