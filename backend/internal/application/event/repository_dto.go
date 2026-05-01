@@ -64,6 +64,8 @@ type DiscoverableEventRecord struct {
 	StartTime                time.Time
 	Status                   domain.EventStatus
 	LocationAddress          *string
+	LocationLat              *float64
+	LocationLon              *float64
 	PrivacyLevel             domain.EventPrivacyLevel
 	ApprovedParticipantCount int
 	FavoriteCount            int

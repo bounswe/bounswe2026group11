@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -130,6 +131,15 @@ func ParseEventStatus(value string) (EventStatus, bool) {
 type GeoPoint struct {
 	Lat float64
 	Lon float64
+}
+
+// ApproximateGeoPoint snaps p to a ~500 m grid to protect venue privacy for protected events.
+func ApproximateGeoPoint(p GeoPoint) GeoPoint {
+	const grid = 0.005 // ~555 m at the equator
+	return GeoPoint{
+		Lat: math.Round(p.Lat/grid) * grid,
+		Lon: math.Round(p.Lon/grid) * grid,
+	}
 }
 
 // Event is the core event entity.
