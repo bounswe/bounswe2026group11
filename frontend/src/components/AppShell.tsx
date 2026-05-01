@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { logout } from '@/services/authService';
@@ -14,14 +14,16 @@ const AUTH_NAV = [
 ];
 
 export default function AppShell() {
-  const { token, username, avatarUrl, displayName, refreshToken, clearAuth } = useAuth();
+  const { token, username, role, avatarUrl, displayName, refreshToken, clearAuth } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isLoggedIn = !!token;
   const navItems = isLoggedIn ? AUTH_NAV : [];
+  const isAdminPanel = location.pathname.startsWith('/admin-panel');
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -78,6 +80,14 @@ export default function AppShell() {
                 <NavLink to="/events/create" className="shell-create-btn">
                   + Create Event
                 </NavLink>
+                {role === 'ADMIN' && (
+                  <NavLink to="/admin-panel" className="shell-admin-btn">
+                    <svg className="shell-admin-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 3.5 18 6v5.2c0 3.9-2.4 7.4-6 8.8-3.6-1.4-6-4.9-6-8.8V6l6-2.5Z" />
+                    </svg>
+                    <span>Admin Panel</span>
+                  </NavLink>
+                )}
                 <div className="shell-user-menu" ref={userMenuRef}>
                   <button
                     className="shell-user-btn"
@@ -146,7 +156,7 @@ export default function AppShell() {
         />
       )}
 
-      <main className="shell-main">
+      <main className={`shell-main ${isAdminPanel ? 'admin-panel-main' : ''}`}>
         <Outlet />
       </main>
 
