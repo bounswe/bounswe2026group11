@@ -168,4 +168,23 @@ describe('EventDetailView', () => {
     expect(screen.getByText('Request sent — awaiting approval')).toBeTruthy();
     expect(screen.queryByText('Request to Join')).toBeNull();
   });
+
+  it('shows the inaccessible state when apiError mentions private or missing events', () => {
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({
+        event: null,
+        apiError: 'This event is either private or does not exist. You may need an invitation to view it.',
+      }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByText('Event Inaccessible')).toBeTruthy();
+    expect(screen.getByText(/You may need an invitation/)).toBeTruthy();
+    expect(screen.getByText('Go Back to Discovery')).toBeTruthy();
+    
+    // Check for the lock icon
+    const lockIcon = screen.getByTestId('error-icon-lock');
+    expect(lockIcon).toBeTruthy();
+  });
 });

@@ -875,7 +875,7 @@ describe('useCreateEventViewModel', () => {
     expect(result.current.formData.privacyLevel).toBe('PUBLIC');
     // PRIVATE should not be in the exported options - tested via import
     const { PRIVACY_OPTIONS } = require('./useCreateEventViewModel');
-    expect(PRIVACY_OPTIONS.map((o: { value: string }) => o.value)).not.toContain('PRIVATE');
+    expect(PRIVACY_OPTIONS.map((o: { value: string }) => o.value)).toContain('PRIVATE');
   });
 
   describe('image picking', () => {

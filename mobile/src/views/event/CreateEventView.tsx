@@ -10,9 +10,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -624,6 +625,17 @@ export default function CreateEventView() {
             ))}
           </View>
 
+          {/* Privacy Level Description */}
+          <View style={styles.privacyDescriptionContainer}>
+            <Text style={styles.privacyDescriptionText}>
+              {vm.formData.privacyLevel === 'PUBLIC' &&
+                'Visible to everyone. Anyone can join without approval.'}
+              {vm.formData.privacyLevel === 'PROTECTED' &&
+                'Visible to everyone, but people must send a join request and wait for your approval.'}
+              {vm.formData.privacyLevel === 'PRIVATE' &&
+                'Only visible to invited users. People can join only if you invite them.'}
+            </Text>
+          </View>
         </View>
 
         {/* Tags */}
@@ -1222,6 +1234,62 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 8,
   },
+  inviteInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  inviteInput: {
+    flex: 1,
+    height: 48,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#111827',
+  },
+  invitedList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  invitedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 4,
+  },
+  invitedChipText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  uploadSection: {
+    marginTop: 12,
+  },
+  uploadHint: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadButtonText: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '600',
+  },
   tagInput: {
     flex: 1,
   },
@@ -1299,5 +1367,18 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  privacyDescriptionContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  privacyDescriptionText: {
+    fontSize: 13,
+    color: '#64748B',
+    lineHeight: 18,
   },
 });

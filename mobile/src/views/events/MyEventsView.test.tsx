@@ -57,6 +57,7 @@ function makeEvent(overrides: Partial<MyEventSummary> = {}): MyEventSummary {
     approved_participant_count: 18,
     status: 'ACTIVE',
     relation: 'HOSTING',
+    privacy_level: 'PUBLIC',
     badges: [{ type: 'HOST', label: 'Host' }],
     ...overrides,
   };

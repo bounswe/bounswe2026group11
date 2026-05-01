@@ -31,6 +31,7 @@ function makeEvent(
     approved_participant_count: 12,
     status,
     relation,
+    privacy_level: 'PUBLIC',
     badges: relation === 'HOSTING' ? [{ type: 'HOST', label: 'Host' }] : [],
   };
 }

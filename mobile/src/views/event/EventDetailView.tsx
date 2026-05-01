@@ -32,17 +32,28 @@ interface EventDetailViewProps {
 
 function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
   const label = level ? level.charAt(0) + level.slice(1).toLowerCase() : '';
-  const isProtected = level === 'PROTECTED';
+
+  let badgeStyle = styles.badgePublic;
+  let textStyle = styles.badgeTextPublic;
+  let iconName: 'globe' | 'lock' = 'globe';
+  let iconColor = '#1E40AF';
+
+  if (level === 'PROTECTED') {
+    badgeStyle = styles.badgeProtected;
+    textStyle = styles.badgeTextProtected;
+    iconName = 'lock';
+    iconColor = '#92400E';
+  } else if (level === 'PRIVATE') {
+    badgeStyle = styles.badgePrivate;
+    textStyle = styles.badgeTextPrivate;
+    iconName = 'lock';
+    iconColor = '#5B21B6';
+  }
+
   return (
-    <View style={[styles.badge, isProtected ? styles.badgeProtected : styles.badgePublic]}>
-      <Feather
-        name={isProtected ? 'lock' : 'globe'}
-        size={12}
-        color={isProtected ? '#92400E' : '#1E40AF'}
-      />
-      <Text style={[styles.badgeText, isProtected ? styles.badgeTextProtected : styles.badgeTextPublic]}>
-        {label}
-      </Text>
+    <View style={[styles.badge, badgeStyle]}>
+      <Feather name={iconName} size={12} color={iconColor} />
+      <Text style={[styles.badgeText, textStyle]}>{label}</Text>
     </View>
   );
 }
@@ -511,17 +522,34 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
   }
 
   if (vm.apiError || !vm.event) {
+    const isPrivateOrMissing = vm.apiError?.includes('private') || vm.apiError?.includes('not exist');
+    
     return (
       <SafeAreaView style={styles.centeredScreen}>
         <View style={styles.errorContainer}>
-          <Feather name="alert-circle" size={48} color="#9CA3AF" />
-          <Text style={styles.errorTitle}>Something went wrong</Text>
-          <Text style={styles.errorMessage}>{vm.apiError ?? 'Event not found.'}</Text>
+          <View 
+            style={styles.errorIconCircle}
+            testID={isPrivateOrMissing ? "error-icon-lock" : "error-icon-alert"}
+          >
+            <Feather 
+              name={isPrivateOrMissing ? "lock" : "alert-circle"} 
+              size={32} 
+              color={isPrivateOrMissing ? "#5B21B6" : "#9CA3AF"} 
+            />
+          </View>
+          <Text style={styles.errorTitle}>
+            {isPrivateOrMissing ? 'Event Inaccessible' : 'Something went wrong'}
+          </Text>
+          <Text style={styles.errorMessage}>
+            {vm.apiError ?? 'The event you are looking for could not be found.'}
+          </Text>
+          
           <TouchableOpacity style={styles.retryButton} onPress={vm.retry}>
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
+          
           <TouchableOpacity style={styles.backLinkButton} onPress={() => router.back()}>
-            <Text style={styles.backLinkText}>Go Back</Text>
+            <Text style={styles.backLinkText}>Go Back to Discovery</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -1016,6 +1044,9 @@ const styles = StyleSheet.create({
   badgeProtected: {
     backgroundColor: '#FEF3C7',
   },
+  badgePrivate: {
+    backgroundColor: '#EDE9FE',
+  },
   badgeText: {
     fontSize: 12,
     fontWeight: '700',
@@ -1025,6 +1056,9 @@ const styles = StyleSheet.create({
   },
   badgeTextProtected: {
     color: '#92400E',
+  },
+  badgeTextPrivate: {
+    color: '#5B21B6',
   },
 
   /* Section */
@@ -1514,6 +1548,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 32,
     gap: 12,
+  },
+  errorIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   errorTitle: {
     fontSize: 18,

@@ -47,6 +47,7 @@ export const CATEGORY_PREVIEW_COUNT = 6;
 export const PRIVACY_OPTIONS: { label: string; value: PrivacyLevel }[] = [
   { label: 'Public', value: 'PUBLIC' },
   { label: 'Protected', value: 'PROTECTED' },
+  { label: 'Private', value: 'PRIVATE' },
 ];
 
 export const CONSTRAINT_TYPES = ['gender', 'age', 'capacity', 'other'] as const;
@@ -129,6 +130,13 @@ export interface CreateEventViewModel {
   removeConstraint: (index: number) => void;
   pickImage: () => Promise<void>;
   removeImage: () => void;
+  invitedUsers: string[];
+  searchQuery: string;
+  isSearchingUsers: boolean;
+  setSearchQuery: (query: string) => void;
+  addInvitedUser: (username: string) => void;
+  removeInvitedUser: (username: string) => void;
+  handleSearchUser: () => Promise<void>;
   handleSubmit: (token: string) => Promise<CreateEventResponse | null>;
 }
 
@@ -571,6 +579,9 @@ export function useCreateEventViewModel(): CreateEventViewModel {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [invitedUsers, setInvitedUsers] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const imageUploadSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearImageUploadSuccessMessage = useCallback(() => {
@@ -618,6 +629,27 @@ export function useCreateEventViewModel(): CreateEventViewModel {
     },
     [clearImageUploadSuccessMessage],
   );
+
+  const addInvitedUser = useCallback((username: string) => {
+    const trimmed = username.trim().toLowerCase();
+    if (trimmed && !invitedUsers.includes(trimmed)) {
+      setInvitedUsers((prev) => [...prev, trimmed]);
+      setSearchQuery('');
+    }
+  }, [invitedUsers]);
+
+  const removeInvitedUser = useCallback((username: string) => {
+    setInvitedUsers((prev) => prev.filter((u) => u !== username));
+  }, []);
+
+  const handleSearchUser = useCallback(async () => {
+    if (!searchQuery.trim()) return;
+    setIsSearchingUsers(true);
+    // Mock search delay to simulate backend check
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    addInvitedUser(searchQuery);
+    setIsSearchingUsers(false);
+  }, [searchQuery, addInvitedUser]);
 
   const toggleCategoriesExpanded = useCallback(() => {
     setCategoriesExpanded((prev) => !prev);
@@ -1091,6 +1123,13 @@ export function useCreateEventViewModel(): CreateEventViewModel {
     removeConstraint,
     pickImage,
     removeImage,
+    invitedUsers,
+    searchQuery,
+    isSearchingUsers,
+    setSearchQuery,
+    addInvitedUser,
+    removeInvitedUser,
+    handleSearchUser,
     handleSubmit,
   };
 }

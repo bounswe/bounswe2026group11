@@ -74,7 +74,7 @@ export default function ProfileEventCard({
                     privacyLevel === 'PROTECTED'
                       ? 'lock'
                       : privacyLevel === 'PRIVATE'
-                        ? 'slash'
+                        ? 'lock'
                         : 'globe'
                   }
                   size={12}
@@ -82,7 +82,7 @@ export default function ProfileEventCard({
                     privacyLevel === 'PROTECTED'
                       ? '#92400E'
                       : privacyLevel === 'PRIVATE'
-                        ? '#7C2D12'
+                        ? '#5B21B6'
                         : '#1E40AF'
                   }
                 />
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
   },
   visibilityBadgePrivate: {
-    backgroundColor: '#FDE68A',
+    backgroundColor: '#EDE9FE',
   },
   visibilityBadgeText: {
     fontSize: 12,
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     color: '#92400E',
   },
   visibilityBadgeTextPrivate: {
-    color: '#7C2D12',
+    color: '#5B21B6',
   },
   statusBadge: {
     paddingHorizontal: 12,

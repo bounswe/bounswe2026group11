@@ -25,6 +25,8 @@ jest.mock('@expo/vector-icons', () => {
       ReactLocal.createElement('span', { 'data-icon': name }),
     Ionicons: ({ name }: { name: string }) =>
       ReactLocal.createElement('span', { 'data-icon': name }),
+    Feather: ({ name }: { name: string }) =>
+      ReactLocal.createElement('span', { 'data-icon': name }),
   };
 });
 
@@ -114,6 +116,13 @@ function buildViewModel(
     removeConstraint: jest.fn(),
     pickImage: jest.fn(),
     removeImage: jest.fn(),
+    invitedUsers: [],
+    searchQuery: '',
+    isSearchingUsers: false,
+    setSearchQuery: jest.fn(),
+    addInvitedUser: jest.fn(),
+    removeInvitedUser: jest.fn(),
+    handleSearchUser: jest.fn(),
     handleSubmit: jest.fn(),
     ...partial,
   };
@@ -217,5 +226,35 @@ describe('CreateEventView', () => {
 
     expect(updateField).toHaveBeenNthCalledWith(1, 'endDate', '');
     expect(updateField).toHaveBeenNthCalledWith(2, 'endTime', '');
+  });
+
+  it('renders correct helper text for each privacy level', () => {
+    // 1. PUBLIC (Default)
+    const { rerender } = render(<CreateEventView />);
+    expect(screen.getByText(/Visible to everyone. Anyone can join without approval./i)).toBeTruthy();
+
+    // 2. PROTECTED
+    mockUseCreateEventViewModel.mockReturnValue(
+      buildViewModel({
+        formData: {
+          ...buildViewModel().formData,
+          privacyLevel: 'PROTECTED',
+        },
+      }),
+    );
+    rerender(<CreateEventView />);
+    expect(screen.getByText(/Visible to everyone, but people must send a join request and wait for your approval./i)).toBeTruthy();
+
+    // 3. PRIVATE
+    mockUseCreateEventViewModel.mockReturnValue(
+      buildViewModel({
+        formData: {
+          ...buildViewModel().formData,
+          privacyLevel: 'PRIVATE',
+        },
+      }),
+    );
+    rerender(<CreateEventView />);
+    expect(screen.getByText(/Only visible to invited users. People can join only if you invite them./i)).toBeTruthy();
   });
 });

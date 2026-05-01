@@ -269,8 +269,16 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (data.viewer_context.is_host) {
         void refreshHostContextSummary();
       }
-    } catch {
-      if (!silent) setApiError('Failed to load event details. Please try again.');
+    } catch (err) {
+      if (!silent) {
+        if (err instanceof ApiError && err.status === 404) {
+          setApiError(
+            'This event is either private or does not exist. You may need an invitation to view it.',
+          );
+        } else {
+          setApiError('Failed to load event details. Please try again.');
+        }
+      }
     } finally {
       if (!silent) setIsLoading(false);
     }
