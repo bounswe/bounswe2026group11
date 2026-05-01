@@ -2,6 +2,7 @@ package domain
 
 import (
 	"math"
+	"math/rand"
 	"time"
 
 	"github.com/google/uuid"
@@ -133,12 +134,27 @@ type GeoPoint struct {
 	Lon float64
 }
 
-// ApproximateGeoPoint snaps p to a ~500 m grid to protect venue privacy for protected events.
+// ApproximateGeoPoint returns a random point within a 250 m radius of p so
+// that protected event locations cannot be pinpointed while still placing the
+// marker in the right neighbourhood. Using a random offset (rather than a
+// fixed grid snap) prevents multiple nearby events from collapsing to the same
+// map pin.
 func ApproximateGeoPoint(p GeoPoint) GeoPoint {
-	const grid = 0.005 // ~555 m at the equator
+	const (
+		radiusMeters       = 250.0
+		metersPerDegreeLat = 111320.0
+	)
+	// Uniform distribution inside a circle: scale by sqrt to avoid
+	// concentrating points near the centre.
+	angle := rand.Float64() * 2 * math.Pi
+	distance := math.Sqrt(rand.Float64()) * radiusMeters
+
+	deltaLat := distance * math.Cos(angle) / metersPerDegreeLat
+	deltaLon := distance * math.Sin(angle) / (metersPerDegreeLat * math.Cos(p.Lat*math.Pi/180))
+
 	return GeoPoint{
-		Lat: math.Round(p.Lat/grid) * grid,
-		Lon: math.Round(p.Lon/grid) * grid,
+		Lat: p.Lat + deltaLat,
+		Lon: p.Lon + deltaLon,
 	}
 }
 
