@@ -255,6 +255,91 @@ func (s *Service) SendNotificationToUsers(ctx context.Context, input SendNotific
 	return result, nil
 }
 
+// SendCustomNotificationToUsers sends an admin-triggered notification through
+// the requested channels while sharing inbox persistence, realtime attempts,
+// push attempts, invalid-token handling, and delivery metrics.
+func (s *Service) SendCustomNotificationToUsers(ctx context.Context, input SendCustomNotificationInput) (*SendNotificationResult, error) {
+	if appErr := validateSendCustomNotificationInput(input); appErr != nil {
+		return nil, appErr
+	}
+
+	now := s.now().UTC()
+	result := &SendNotificationResult{
+		TargetUserCount: len(uniqueUserIDs(input.UserIDs)),
+	}
+
+	for userID := range uniqueUserIDs(input.UserIDs) {
+		createResult, err := s.repo.CreateNotificationIfAbsent(ctx, CreateNotificationParams{
+			UserID:         userID,
+			EventID:        input.EventID,
+			Title:          strings.TrimSpace(input.Title),
+			Type:           input.Type,
+			Body:           strings.TrimSpace(input.Body),
+			DeepLink:       input.DeepLink,
+			ImageURL:       input.ImageURL,
+			Data:           input.Data,
+			IdempotencyKey: strings.TrimSpace(input.IdempotencyKey),
+			CreatedAt:      now,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("create custom notification: %w", err)
+		}
+		if !createResult.Created {
+			result.IdempotentCount++
+			continue
+		}
+		result.CreatedCount++
+
+		if input.DeliveryMode == domain.NotificationDeliveryModeInApp || input.DeliveryMode == domain.NotificationDeliveryModeBoth {
+			delivered := 0
+			if s.realtime != nil {
+				delivered = s.realtime.Publish(ctx, userID, createResult.Notification)
+			}
+			if delivered > 0 {
+				result.SSEDeliveryCount += delivered
+				for i := 0; i < delivered; i++ {
+					sentAt := now
+					if err := s.repo.CreateDeliveryAttempt(ctx, CreateDeliveryAttemptParams{
+						NotificationID: createResult.Notification.ID,
+						UserID:         userID,
+						Method:         domain.NotificationDeliveryMethodSSE,
+						Status:         domain.NotificationDeliveryStatusSent,
+						SentAt:         &sentAt,
+					}); err != nil {
+						return nil, fmt.Errorf("store custom sse delivery attempt: %w", err)
+					}
+				}
+			}
+		}
+
+		if input.DeliveryMode == domain.NotificationDeliveryModePush || input.DeliveryMode == domain.NotificationDeliveryModeBoth {
+			pushResult, err := s.sendPushForNotification(ctx, createResult.Notification)
+			if err != nil {
+				return nil, err
+			}
+			result.PushActiveDeviceCount += pushResult.ActiveDeviceCount
+			result.PushSentCount += pushResult.SentCount
+			result.PushFailedCount += pushResult.FailedCount
+			result.InvalidTokenCount += pushResult.InvalidTokenCount
+		}
+	}
+
+	slog.InfoContext(ctx, "admin custom notifications sent",
+		"operation", "admin.notifications.send",
+		"delivery_mode", input.DeliveryMode.String(),
+		"target_user_count", result.TargetUserCount,
+		"created_count", result.CreatedCount,
+		"idempotent_count", result.IdempotentCount,
+		"sse_delivery_count", result.SSEDeliveryCount,
+		"push_active_device_count", result.PushActiveDeviceCount,
+		"push_sent_count", result.PushSentCount,
+		"push_failed_count", result.PushFailedCount,
+		"invalid_token_count", result.InvalidTokenCount,
+	)
+
+	return result, nil
+}
+
 func (s *Service) SendPushToUsers(ctx context.Context, input SendPushInput) (*SendPushResult, error) {
 	if appErr := validateSendPushInput(input); appErr != nil {
 		return nil, appErr

@@ -1,6 +1,7 @@
 package admin_handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http/httptest"
@@ -18,6 +19,9 @@ type stubAdminService struct {
 	lastEvents         admin.ListEventsInput
 	lastParticipations admin.ListParticipationsInput
 	lastTickets        admin.ListTicketsInput
+	lastNotification   admin.SendCustomNotificationInput
+	lastCreate         admin.CreateManualParticipationInput
+	lastCancel         admin.CancelParticipationInput
 }
 
 func (s *stubAdminService) ListUsers(_ context.Context, input admin.ListUsersInput) (*admin.ListUsersResult, error) {
@@ -38,6 +42,21 @@ func (s *stubAdminService) ListParticipations(_ context.Context, input admin.Lis
 func (s *stubAdminService) ListTickets(_ context.Context, input admin.ListTicketsInput) (*admin.ListTicketsResult, error) {
 	s.lastTickets = input
 	return &admin.ListTicketsResult{Items: []admin.AdminTicketItem{}, PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
+}
+
+func (s *stubAdminService) SendCustomNotification(_ context.Context, input admin.SendCustomNotificationInput) (*admin.SendCustomNotificationResult, error) {
+	s.lastNotification = input
+	return &admin.SendCustomNotificationResult{TargetUserCount: len(input.UserIDs), CreatedCount: len(input.UserIDs)}, nil
+}
+
+func (s *stubAdminService) CreateManualParticipation(_ context.Context, input admin.CreateManualParticipationInput) (*admin.CreateManualParticipationResult, error) {
+	s.lastCreate = input
+	return &admin.CreateManualParticipationResult{ParticipationID: uuid.New(), EventID: input.EventID, UserID: input.UserID, Status: input.Status}, nil
+}
+
+func (s *stubAdminService) CancelParticipation(_ context.Context, input admin.CancelParticipationInput) (*admin.CancelParticipationResult, error) {
+	s.lastCancel = input
+	return &admin.CancelParticipationResult{ParticipationID: input.ParticipationID, Status: domain.ParticipationStatusCanceled}, nil
 }
 
 func adminHandlerTestApp(service admin.UseCase) *fiber.App {
@@ -162,5 +181,124 @@ func TestListTicketsParsesIDsAndStatus(t *testing.T) {
 	}
 	if service.lastTickets.Status == nil || *service.lastTickets.Status != domain.TicketStatusActive {
 		t.Fatalf("expected ACTIVE status, got %#v", service.lastTickets.Status)
+	}
+}
+
+func TestCreateNotificationValidatesBody(t *testing.T) {
+	// given
+	app := adminHandlerTestApp(&stubAdminService{})
+	req := httptest.NewRequest(fiber.MethodPost, "/admin/notifications", bytes.NewBufferString(`{"user_ids":[],"delivery_mode":"EMAIL","title":"","body":""}`))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+	var body struct {
+		Error struct {
+			Details map[string]string `json:"details"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	for _, field := range []string{"user_ids", "delivery_mode", "title", "body"} {
+		if body.Error.Details[field] == "" {
+			t.Fatalf("expected %s validation detail, got %#v", field, body.Error.Details)
+		}
+	}
+}
+
+func TestCreateNotificationParsesInput(t *testing.T) {
+	// given
+	service := &stubAdminService{}
+	app := adminHandlerTestApp(service)
+	userID := uuid.New()
+	eventID := uuid.New()
+	payload := `{"user_ids":["` + userID.String() + `"],"delivery_mode":"BOTH","title":"Ops","body":"Update","type":"ADMIN","deep_link":"sem://events/1","event_id":"` + eventID.String() + `","data":{"k":"v"},"idempotency_key":"custom-key"}`
+	req := httptest.NewRequest(fiber.MethodPost, "/admin/notifications", bytes.NewBufferString(payload))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+	if len(service.lastNotification.UserIDs) != 1 || service.lastNotification.UserIDs[0] != userID {
+		t.Fatalf("unexpected user IDs: %#v", service.lastNotification.UserIDs)
+	}
+	if service.lastNotification.DeliveryMode != domain.NotificationDeliveryModeBoth {
+		t.Fatalf("unexpected delivery mode %q", service.lastNotification.DeliveryMode)
+	}
+	if service.lastNotification.EventID == nil || *service.lastNotification.EventID != eventID {
+		t.Fatalf("expected event id %s, got %#v", eventID, service.lastNotification.EventID)
+	}
+	if service.lastNotification.Data["k"] != "v" {
+		t.Fatalf("expected data payload, got %#v", service.lastNotification.Data)
+	}
+}
+
+func TestCreateParticipationDefaultsApproved(t *testing.T) {
+	// given
+	service := &stubAdminService{}
+	app := adminHandlerTestApp(service)
+	eventID := uuid.New()
+	userID := uuid.New()
+	payload := `{"event_id":"` + eventID.String() + `","user_id":"` + userID.String() + `"}`
+	req := httptest.NewRequest(fiber.MethodPost, "/admin/participations", bytes.NewBufferString(payload))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+	if service.lastCreate.EventID != eventID || service.lastCreate.UserID != userID {
+		t.Fatalf("unexpected create input %#v", service.lastCreate)
+	}
+	if service.lastCreate.Status != domain.ParticipationStatusApproved {
+		t.Fatalf("expected APPROVED default, got %q", service.lastCreate.Status)
+	}
+}
+
+func TestCancelParticipationParsesID(t *testing.T) {
+	// given
+	service := &stubAdminService{}
+	app := adminHandlerTestApp(service)
+	participationID := uuid.New()
+	req := httptest.NewRequest(fiber.MethodPost, "/admin/participations/"+participationID.String()+"/cancel", nil)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if service.lastCancel.ParticipationID != participationID {
+		t.Fatalf("expected participation id %s, got %s", participationID, service.lastCancel.ParticipationID)
 	}
 }

@@ -18,5 +18,6 @@ type UseCase interface {
 	DeleteAllNotifications(ctx context.Context, userID uuid.UUID) error
 	DeleteExpiredNotifications(ctx context.Context) (int, error)
 	SendNotificationToUsers(ctx context.Context, input SendNotificationInput) (*SendNotificationResult, error)
+	SendCustomNotificationToUsers(ctx context.Context, input SendCustomNotificationInput) (*SendNotificationResult, error)
 	SendPushToUsers(ctx context.Context, input SendPushInput) (*SendPushResult, error)
 }

@@ -3,7 +3,7 @@ info:
   title: Social Event Mapper Admin Backoffice API
   version: 0.1.0
   description: |
-    Web-only read APIs for the admin backoffice.
+    Web-only admin backoffice APIs for read tables and privileged mutations.
 
     All endpoints require a bearer access token whose `role` claim is `ADMIN`.
     Anonymous callers receive `401`; authenticated non-admin callers receive `403`.
@@ -13,7 +13,7 @@ security:
   - bearerAuth: []
 tags:
   - name: Admin
-    description: Read-only admin table endpoints.
+    description: Admin table and mutation endpoints.
 paths:
   /admin/users:
     get:
@@ -138,6 +138,77 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Admin]
+      summary: Create a manual participation
+      operationId: adminCreateParticipation
+      description: |
+        Creates or reactivates a manual participation for the selected event/user pair.
+        `status` defaults to `APPROVED`. Only `APPROVED` and `PENDING` are accepted.
+
+        The event and user must exist. If the user already has an active
+        `APPROVED` or `PENDING` participation for the event, the API returns `409`.
+        For `PROTECTED` events, creating an `APPROVED` participation also creates
+        or reactivates the linked `ACTIVE` ticket in the same application mutation.
+        Event participant counts are maintained by the existing participation count triggers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCreateParticipationRequest' }
+      responses:
+        '201':
+          description: Manual participation created or reactivated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCreateParticipationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: The event or user does not exist.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: The user already has an active participation for this event.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+  /admin/participations/{participation_id}/cancel:
+    post:
+      tags: [Admin]
+      summary: Cancel a participation
+      operationId: adminCancelParticipation
+      description: |
+        Marks the participation `CANCELED` and cancels linked `ACTIVE` or `PENDING`
+        tickets in the same application mutation. If the participation is already
+        `CANCELED`, the endpoint is idempotent: it returns `200` with
+        `already_canceled: true` and does not perform another ticket mutation.
+      parameters:
+        - name: participation_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCancelParticipationRequest' }
+      responses:
+        '200':
+          description: Participation is canceled.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCancelParticipationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: The participation does not exist.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
   /admin/tickets:
     get:
       tags: [Admin]
@@ -182,6 +253,40 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/notifications:
+    post:
+      tags: [Admin]
+      summary: Send a custom notification
+      operationId: adminCreateNotification
+      description: |
+        Sends a custom notification to explicit user IDs selected by an admin.
+        `delivery_mode` controls delivery attempts: `IN_APP` creates inbox rows
+        and attempts SSE delivery, `PUSH` creates inbox rows and attempts push
+        delivery to active devices, and `BOTH` attempts both SSE and push.
+
+        The API does not log notification body text or other sensitive free-form
+        content. `idempotency_key` is optional; when supplied, duplicate calls with
+        the same key for the same receiver return existing rows and increment
+        `idempotent_count`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCreateNotificationRequest' }
+      responses:
+        '201':
+          description: Notification processing summary.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCreateNotificationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: A target user or referenced event does not exist.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 components:
   securitySchemes:
     bearerAuth:
@@ -279,6 +384,90 @@ components:
         canceled_at: { type: [string, 'null'], format: date-time }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+    AdminCreateNotificationRequest:
+      type: object
+      additionalProperties: false
+      required: [user_ids, delivery_mode, title, body]
+      properties:
+        user_ids:
+          type: array
+          minItems: 1
+          items: { type: string, format: uuid }
+        delivery_mode: { type: string, enum: [IN_APP, PUSH, BOTH] }
+        title: { type: string, minLength: 1 }
+        body: { type: string, minLength: 1 }
+        type: { type: [string, 'null'] }
+        deep_link: { type: [string, 'null'] }
+        event_id: { type: [string, 'null'], format: uuid }
+        data:
+          type: object
+          additionalProperties: { type: string }
+        idempotency_key:
+          type: [string, 'null']
+          description: Optional caller-provided key for receiver-level idempotency.
+    AdminCreateNotificationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - target_user_count
+        - created_count
+        - idempotent_count
+        - sse_delivery_count
+        - push_active_device_count
+        - push_sent_count
+        - push_failed_count
+        - invalid_token_count
+      properties:
+        target_user_count: { type: integer }
+        created_count: { type: integer }
+        idempotent_count: { type: integer }
+        sse_delivery_count: { type: integer }
+        push_active_device_count: { type: integer }
+        push_sent_count: { type: integer }
+        push_failed_count: { type: integer }
+        invalid_token_count: { type: integer }
+    AdminCreateParticipationRequest:
+      type: object
+      additionalProperties: false
+      required: [event_id, user_id]
+      properties:
+        event_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [APPROVED, PENDING]
+          default: APPROVED
+        reason:
+          type: [string, 'null']
+          description: Optional admin note/reason. It is accepted for audit-aware clients but is not persisted yet.
+    AdminCreateParticipationResponse:
+      type: object
+      additionalProperties: false
+      required: [participation_id, event_id, user_id, status]
+      properties:
+        participation_id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        status: { type: string, enum: [APPROVED, PENDING] }
+        ticket_id: { type: string, format: uuid }
+        ticket_status: { type: string, enum: [ACTIVE, PENDING, EXPIRED, USED, CANCELED] }
+    AdminCancelParticipationRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: [string, 'null']
+          description: Optional admin note/reason. It is accepted for audit-aware clients but is not persisted yet.
+    AdminCancelParticipationResponse:
+      type: object
+      additionalProperties: false
+      required: [participation_id, event_id, user_id, status, already_canceled]
+      properties:
+        participation_id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        status: { type: string, enum: [CANCELED] }
+        already_canceled: { type: boolean }
     ErrorResponse:
       type: object
       additionalProperties: false

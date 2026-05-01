@@ -49,6 +49,19 @@ type SendNotificationInput struct {
 	IdempotencyKey string
 }
 
+type SendCustomNotificationInput struct {
+	UserIDs        []uuid.UUID
+	DeliveryMode   domain.NotificationDeliveryMode
+	Title          string
+	Body           string
+	Type           *string
+	DeepLink       *string
+	Data           map[string]string
+	EventID        *uuid.UUID
+	ImageURL       *string
+	IdempotencyKey string
+}
+
 type SendPushResult struct {
 	TargetUserCount   int
 	ActiveDeviceCount int

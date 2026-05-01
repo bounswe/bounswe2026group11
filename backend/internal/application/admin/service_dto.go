@@ -154,6 +154,66 @@ type ListTicketsResult struct {
 	PageMeta
 }
 
+type SendCustomNotificationInput struct {
+	AdminUserID    uuid.UUID
+	UserIDs        []uuid.UUID
+	DeliveryMode   domain.NotificationDeliveryMode
+	Title          string
+	Body           string
+	Type           *string
+	DeepLink       *string
+	EventID        *uuid.UUID
+	Data           map[string]string
+	IdempotencyKey *string
+}
+
+type SendCustomNotificationResult struct {
+	TargetUserCount       int `json:"target_user_count"`
+	CreatedCount          int `json:"created_count"`
+	IdempotentCount       int `json:"idempotent_count"`
+	SSEDeliveryCount      int `json:"sse_delivery_count"`
+	PushActiveDeviceCount int `json:"push_active_device_count"`
+	PushSentCount         int `json:"push_sent_count"`
+	PushFailedCount       int `json:"push_failed_count"`
+	InvalidTokenCount     int `json:"invalid_token_count"`
+}
+
+type CreateManualParticipationInput struct {
+	AdminUserID uuid.UUID
+	EventID     uuid.UUID
+	UserID      uuid.UUID
+	Status      domain.ParticipationStatus
+	Reason      *string
+}
+
+type CreateManualParticipationResult struct {
+	ParticipationID uuid.UUID                  `json:"participation_id"`
+	EventID         uuid.UUID                  `json:"event_id"`
+	UserID          uuid.UUID                  `json:"user_id"`
+	Status          domain.ParticipationStatus `json:"status"`
+	TicketID        *uuid.UUID                 `json:"ticket_id,omitempty"`
+	TicketStatus    *domain.TicketStatus       `json:"ticket_status,omitempty"`
+}
+
+type CancelParticipationInput struct {
+	AdminUserID     uuid.UUID
+	ParticipationID uuid.UUID
+	Reason          *string
+}
+
+type CancelParticipationResult struct {
+	ParticipationID uuid.UUID                  `json:"participation_id"`
+	EventID         uuid.UUID                  `json:"event_id"`
+	UserID          uuid.UUID                  `json:"user_id"`
+	Status          domain.ParticipationStatus `json:"status"`
+	AlreadyCanceled bool                       `json:"already_canceled"`
+}
+
+type AdminEventState struct {
+	ID           uuid.UUID
+	PrivacyLevel domain.EventPrivacyLevel
+}
+
 func (s *Service) ListUsers(ctx context.Context, input ListUsersInput) (*ListUsersResult, error) {
 	return s.repo.ListUsers(ctx, input)
 }
