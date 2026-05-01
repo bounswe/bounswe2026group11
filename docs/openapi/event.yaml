@@ -412,6 +412,63 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+    post:
+      tags: [Events]
+      summary: Invite users to a private event
+      description: |
+        Allows the authenticated event host to invite up to 100 users by exact username.
+        This endpoint is supported only for `PRIVATE` events. The request is partial-success
+        for per-username business outcomes: unknown or syntactically invalid usernames are
+        returned in `invalid_usernames`, and known but ineligible usernames are returned in
+        `failed` with a stable reason code. System errors still fail the whole request.
+      operationId: createEventInvitations
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventInvitationsRequest'
+      responses:
+        '201':
+          description: Invitation batch processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateEventInvitationsResponse'
+        '400':
+          description: Invalid event id, JSON body, or username count.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Event is not private or is no longer joinable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
 
   /events/{id}/image/upload-url:
     post:
@@ -2484,6 +2541,85 @@ components:
             $ref: '#/components/schemas/EventDetailInvitation'
         page_info:
           $ref: '#/components/schemas/EventCollectionPageInfo'
+
+    CreateEventInvitationsRequest:
+      type: object
+      additionalProperties: false
+      required: [usernames]
+      properties:
+        usernames:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: string
+          description: Exact usernames to invite. Unknown and syntactically invalid values are reported in the response.
+        message:
+          type:
+            - string
+            - "null"
+          description: Optional message stored on each successful invitation.
+
+    CreateEventInvitationsResponse:
+      type: object
+      additionalProperties: false
+      required: [success_count, invalid_username_count, failed_count, successful_invitations, invalid_usernames, failed]
+      properties:
+        success_count:
+          type: integer
+          minimum: 0
+        invalid_username_count:
+          type: integer
+          minimum: 0
+        failed_count:
+          type: integer
+          minimum: 0
+        successful_invitations:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreatedEventInvitation'
+        invalid_usernames:
+          type: array
+          items:
+            type: string
+        failed:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventInvitationFailure'
+
+    CreatedEventInvitation:
+      type: object
+      additionalProperties: false
+      required: [invitation_id, event_id, invited_user_id, username, status, created_at]
+      properties:
+        invitation_id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        invited_user_id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        status:
+          type: string
+          enum: [PENDING]
+        created_at:
+          type: string
+          format: date-time
+
+    EventInvitationFailure:
+      type: object
+      additionalProperties: false
+      required: [username, code]
+      properties:
+        username:
+          type: string
+        code:
+          type: string
+          enum: [ALREADY_INVITED, ALREADY_PARTICIPATING, HOST_USER, DECLINE_COOLDOWN_ACTIVE, CAPACITY_EXCEEDED, DUPLICATE_USERNAME]
 
     EventDetailCategory:
       type: object

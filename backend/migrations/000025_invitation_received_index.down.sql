@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_invitation_invited_status_created;

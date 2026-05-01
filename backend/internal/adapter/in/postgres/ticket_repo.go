@@ -30,7 +30,7 @@ func NewTicketRepository(pool *pgxpool.Pool) *TicketRepository {
 	}
 }
 
-// CreateTicketForParticipation creates or reactivates a non-terminal ticket for a protected participation.
+// CreateTicketForParticipation creates or reactivates a non-terminal ticket for an invite-gated participation.
 func (r *TicketRepository) CreateTicketForParticipation(ctx context.Context, participationID uuid.UUID, status domain.TicketStatus) (*domain.Ticket, error) {
 	row := r.db.QueryRow(ctx, `
 		WITH participation_event AS (
@@ -39,7 +39,7 @@ func (r *TicketRepository) CreateTicketForParticipation(ctx context.Context, par
 			FROM participation p
 			JOIN event e ON e.id = p.event_id
 			WHERE p.id = $1
-			  AND e.privacy_level = $3
+			  AND e.privacy_level IN ($3, $7)
 		),
 		reactivated AS (
 			UPDATE ticket t
@@ -73,7 +73,7 @@ func (r *TicketRepository) CreateTicketForParticipation(ctx context.Context, par
 		       expires_at, used_at, canceled_at, created_at, updated_at
 		FROM inserted
 		LIMIT 1
-	`, participationID, status, domain.PrivacyProtected, domain.TicketStatusExpired, domain.TicketStatusCanceled, domain.TicketStatusUsed)
+	`, participationID, status, domain.PrivacyProtected, domain.TicketStatusExpired, domain.TicketStatusCanceled, domain.TicketStatusUsed, domain.PrivacyPrivate)
 
 	ticket, err := scanTicket(row)
 	if err != nil {

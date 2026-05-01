@@ -77,3 +77,25 @@ type UpdateProfileParams struct {
 	Bio                    *string
 	AvatarURL              *string
 }
+
+type UserSearchInput struct {
+	Query string
+}
+
+type UserSearchResult struct {
+	Items []UserSearchItem `json:"items"`
+}
+
+type UserSearchItem struct {
+	ID          string  `json:"id"`
+	Username    string  `json:"username"`
+	DisplayName *string `json:"display_name"`
+	AvatarURL   *string `json:"avatar_url"`
+}
+
+type UserSearchRecord struct {
+	ID          uuid.UUID
+	Username    string
+	DisplayName *string
+	AvatarURL   *string
+}
