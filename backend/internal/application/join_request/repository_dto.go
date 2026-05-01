@@ -1,6 +1,10 @@
 package join_request
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // CreateJoinRequestParams carries the data needed to persist a join request.
 type CreateJoinRequestParams struct {
@@ -27,4 +31,18 @@ type RejectJoinRequestParams struct {
 	EventID       uuid.UUID
 	JoinRequestID uuid.UUID
 	HostUserID    uuid.UUID
+}
+
+type NotificationContext struct {
+	JoinRequestID        uuid.UUID
+	EventID              uuid.UUID
+	EventTitle           string
+	EventImageURL        *string
+	EventStartTime       time.Time
+	HostUserID           uuid.UUID
+	HostUsername         string
+	HostDisplayName      *string
+	RequesterUserID      uuid.UUID
+	RequesterUsername    string
+	RequesterDisplayName *string
 }

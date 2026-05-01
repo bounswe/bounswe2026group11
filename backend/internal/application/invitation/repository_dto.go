@@ -40,6 +40,20 @@ type CreateInvitationsRecord struct {
 	Failed                []InvitationFailureRecord
 }
 
+type InvitationNotificationContext struct {
+	InvitationID       uuid.UUID
+	EventID            uuid.UUID
+	EventTitle         string
+	EventImageURL      *string
+	EventStartTime     time.Time
+	HostUserID         uuid.UUID
+	HostUsername       string
+	HostDisplayName    *string
+	InvitedUserID      uuid.UUID
+	InvitedUsername    string
+	InvitedDisplayName *string
+}
+
 type ReceivedInvitationRecord struct {
 	InvitationID uuid.UUID
 	Status       domain.InvitationStatus

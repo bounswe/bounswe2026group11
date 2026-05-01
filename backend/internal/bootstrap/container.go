@@ -115,17 +115,17 @@ func New(ctx context.Context) (*Container, error) {
 	container.categoryRepo = postgres.NewCategoryRepository(container.DB)
 	container.profileRepo = postgres.NewProfileRepository(container.DB)
 	container.favoriteLocationRepo = postgres.NewFavoriteLocationRepository(container.DB)
-	container.ParticipationService = newParticipationService(container)
-	container.TicketService = newTicketService(container)
-	container.InvitationService = newInvitationService(container)
-	container.JoinRequestService = newJoinRequestService(container)
-	container.RatingService = newRatingService(container)
 	notificationService, err := newNotificationService(ctx, container)
 	if err != nil {
 		db.Close()
 		return nil, err
 	}
 	container.NotificationService = notificationService
+	container.ParticipationService = newParticipationService(container)
+	container.TicketService = newTicketService(container)
+	container.InvitationService = newInvitationService(container)
+	container.JoinRequestService = newJoinRequestService(container)
+	container.RatingService = newRatingService(container)
 	container.AuthService = newAuthService(container)
 	container.AdminService = newAdminService(container)
 	container.EventService = newEventService(container)
@@ -263,13 +263,17 @@ func newParticipationService(c *Container) participation.UseCase {
 }
 
 func newInvitationService(c *Container) invitation.UseCase {
-	return invitation.NewService(c.invitationRepo, c.UnitOfWork, c.TicketService)
+	service := invitation.NewService(c.invitationRepo, c.UnitOfWork, c.TicketService)
+	service.SetNotificationService(c.NotificationService)
+	return service
 }
 
 // newJoinRequestService wires the join request use-case service with its
 // driven adapter.
 func newJoinRequestService(c *Container) join_request.UseCase {
-	return join_request.NewService(c.joinRequestRepo, c.UnitOfWork, c.TicketService)
+	service := join_request.NewService(c.joinRequestRepo, c.UnitOfWork, c.TicketService)
+	service.SetNotificationService(c.NotificationService)
+	return service
 }
 
 // newTicketService wires the ticket use-case service with its driven adapters.

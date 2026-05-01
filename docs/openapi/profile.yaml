@@ -148,7 +148,7 @@ paths:
   /me/invitations/{invitation_id}/accept:
     post:
       summary: Accept a private-event invitation
-      description: Accepts a `PENDING` invitation owned by the authenticated user and creates an approved participation.
+      description: Accepts a `PENDING` invitation owned by the authenticated user and creates an approved participation. After success, the event host receives an event notification with the event image URL when present; notification delivery failures do not fail acceptance.
       tags:
         - Profile
       security:
@@ -174,7 +174,7 @@ paths:
   /me/invitations/{invitation_id}/decline:
     post:
       summary: Decline a private-event invitation
-      description: Declines a `PENDING` invitation owned by the authenticated user. No participation is created.
+      description: Declines a `PENDING` invitation owned by the authenticated user. No participation is created. After success, the event host receives an event notification with the event image URL when present; notification delivery failures do not fail decline.
       tags:
         - Profile
       security:

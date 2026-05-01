@@ -10,6 +10,7 @@ import (
 
 	eventapp "github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	invitationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/invitation"
+	notificationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/bounswe/bounswe2026group11/backend/tests_integration/common"
 	"github.com/google/uuid"
@@ -1468,6 +1469,78 @@ func TestCreateInvitationsCreatesValidAndReportsInvalidAndFailed(t *testing.T) {
 	}
 }
 
+func TestInvitationFlowCreatesEventNotifications(t *testing.T) {
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("notif_host_"+uuid.NewString()[:8]))
+	invited := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("notif_guest_"+uuid.NewString()[:8]))
+	categoryID := common.GivenEventCategory(t)
+	imageURL := "https://cdn.example.com/integration-event.jpg"
+	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Notification Private Event",
+		Description:  "private notification event",
+		CategoryID:   categoryID,
+		Lat:          41,
+		Lon:          29,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPrivate,
+	})
+	setEventImageURL(t, eventID, imageURL)
+
+	// when
+	invitations, err := harness.InvitationService.CreateInvitations(context.Background(), host.ID, eventID, invitationapp.CreateInvitationsInput{
+		Usernames: []string{invited.Username},
+	})
+	if err != nil {
+		t.Fatalf("CreateInvitations() error = %v", err)
+	}
+	invitationID := uuid.MustParse(invitations.SuccessfulInvitations[0].InvitationID)
+	if _, err := harness.InvitationService.AcceptInvitation(context.Background(), invited.ID, invitationID); err != nil {
+		t.Fatalf("AcceptInvitation() error = %v", err)
+	}
+
+	// then
+	invitedNotifications, err := harness.NotificationService.ListNotifications(context.Background(), notificationapp.ListNotificationsInput{UserID: invited.ID})
+	if err != nil {
+		t.Fatalf("ListNotifications(invited) error = %v", err)
+	}
+	if len(invitedNotifications.Items) != 1 {
+		t.Fatalf("expected one invited-user notification, got %d", len(invitedNotifications.Items))
+	}
+	received := invitedNotifications.Items[0]
+	if received.Type == nil || *received.Type != "PRIVATE_EVENT_INVITATION_RECEIVED" {
+		t.Fatalf("unexpected invitation notification type %#v", received.Type)
+	}
+	if received.EventID == nil || *received.EventID != eventID || received.ImageURL == nil || *received.ImageURL != imageURL {
+		t.Fatalf("unexpected invitation notification event/image: %#v", received)
+	}
+	if received.Data["invitation_id"] != invitationID.String() || received.Data["actor_user_id"] != host.ID.String() {
+		t.Fatalf("unexpected invitation notification data %#v", received.Data)
+	}
+	if received.IdempotencyKey != "INVITATION_RECEIVED:"+invitationID.String() {
+		t.Fatalf("unexpected invitation idempotency key %q", received.IdempotencyKey)
+	}
+
+	hostNotifications, err := harness.NotificationService.ListNotifications(context.Background(), notificationapp.ListNotificationsInput{UserID: host.ID})
+	if err != nil {
+		t.Fatalf("ListNotifications(host) error = %v", err)
+	}
+	if len(hostNotifications.Items) != 1 {
+		t.Fatalf("expected one host notification, got %d", len(hostNotifications.Items))
+	}
+	accepted := hostNotifications.Items[0]
+	if accepted.Type == nil || *accepted.Type != "PRIVATE_EVENT_INVITATION_ACCEPTED" {
+		t.Fatalf("unexpected accepted notification type %#v", accepted.Type)
+	}
+	if accepted.ImageURL == nil || *accepted.ImageURL != imageURL {
+		t.Fatalf("expected accepted notification image URL %q, got %#v", imageURL, accepted.ImageURL)
+	}
+	if accepted.Data["status"] != domain.InvitationStatusAccepted.String() || accepted.Data["actor_user_id"] != invited.ID.String() {
+		t.Fatalf("unexpected accepted notification data %#v", accepted.Data)
+	}
+}
+
 func TestAcceptInvitationCreatesParticipationAndAllowsPrivateDetail(t *testing.T) {
 	t.Parallel()
 
@@ -2242,6 +2315,48 @@ func TestApproveJoinRequestSuccessPath(t *testing.T) {
 	}
 }
 
+func TestApproveJoinRequestCreatesRequesterNotification(t *testing.T) {
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("join_host_"+uuid.NewString()[:8]))
+	requester := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("join_guest_"+uuid.NewString()[:8]))
+	event := common.GivenProtectedEvent(t, harness.Service, host.ID)
+	imageURL := "https://cdn.example.com/protected-event.jpg"
+	setEventImageURL(t, event.ID, imageURL)
+	createdRequest, err := harness.Service.RequestJoin(context.Background(), requester.ID, event.ID, eventapp.RequestJoinInput{})
+	if err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+	joinRequestID := uuid.MustParse(createdRequest.JoinRequestID)
+
+	// when
+	if _, err := harness.Service.ApproveJoinRequest(context.Background(), host.ID, event.ID, joinRequestID); err != nil {
+		t.Fatalf("ApproveJoinRequest() error = %v", err)
+	}
+
+	// then
+	notifications, err := harness.NotificationService.ListNotifications(context.Background(), notificationapp.ListNotificationsInput{UserID: requester.ID})
+	if err != nil {
+		t.Fatalf("ListNotifications() error = %v", err)
+	}
+	if len(notifications.Items) != 1 {
+		t.Fatalf("expected one requester notification, got %d", len(notifications.Items))
+	}
+	item := notifications.Items[0]
+	if item.Type == nil || *item.Type != "PROTECTED_EVENT_JOIN_REQUEST_APPROVED" {
+		t.Fatalf("unexpected join request notification type %#v", item.Type)
+	}
+	if item.EventID == nil || *item.EventID != event.ID || item.ImageURL == nil || *item.ImageURL != imageURL {
+		t.Fatalf("unexpected join request notification event/image: %#v", item)
+	}
+	if item.Data["join_request_id"] != joinRequestID.String() || item.Data["actor_user_id"] != host.ID.String() || item.Data["status"] != string(domain.JoinRequestStatusApproved) {
+		t.Fatalf("unexpected join request notification data %#v", item.Data)
+	}
+	if item.IdempotencyKey != "JOIN_REQUEST_APPROVED:"+joinRequestID.String() {
+		t.Fatalf("unexpected join request idempotency key %q", item.IdempotencyKey)
+	}
+}
+
 func TestRejectJoinRequestSuccessPath(t *testing.T) {
 	t.Parallel()
 
@@ -2823,6 +2938,19 @@ func setJoinRequestUpdatedAt(t *testing.T, joinRequestID uuid.UUID, updatedAt ti
 		updatedAt,
 	); err != nil {
 		t.Fatalf("update join_request updated_at error = %v", err)
+	}
+}
+
+func setEventImageURL(t *testing.T, eventID uuid.UUID, imageURL string) {
+	t.Helper()
+
+	if _, err := common.RequirePool(t).Exec(
+		context.Background(),
+		`UPDATE event SET image_url = $2, updated_at = now() WHERE id = $1`,
+		eventID,
+		imageURL,
+	); err != nil {
+		t.Fatalf("set event image_url error = %v", err)
 	}
 }
 

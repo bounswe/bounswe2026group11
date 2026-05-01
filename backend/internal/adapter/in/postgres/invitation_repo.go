@@ -246,6 +246,61 @@ func (r *InvitationRepository) DeclineInvitation(
 	return r.updateInvitationStatus(ctx, invitationID, domain.InvitationStatusDeclined)
 }
 
+func (r *InvitationRepository) GetInvitationNotificationContext(
+	ctx context.Context,
+	invitationID uuid.UUID,
+) (*invitationapp.InvitationNotificationContext, error) {
+	var (
+		record             invitationapp.InvitationNotificationContext
+		eventImageURL      pgtype.Text
+		hostDisplayName    pgtype.Text
+		invitedDisplayName pgtype.Text
+	)
+	err := r.db.QueryRow(ctx, `
+		SELECT
+			inv.id,
+			inv.event_id,
+			e.title,
+			e.image_url,
+			e.start_time,
+			inv.host_id,
+			host.username,
+			host_profile.display_name,
+			inv.invited_user_id,
+			invited.username,
+			invited_profile.display_name
+		FROM invitation inv
+		JOIN event e ON e.id = inv.event_id
+		JOIN app_user host ON host.id = inv.host_id
+		LEFT JOIN profile host_profile ON host_profile.user_id = host.id
+		JOIN app_user invited ON invited.id = inv.invited_user_id
+		LEFT JOIN profile invited_profile ON invited_profile.user_id = invited.id
+		WHERE inv.id = $1
+	`, invitationID).Scan(
+		&record.InvitationID,
+		&record.EventID,
+		&record.EventTitle,
+		&eventImageURL,
+		&record.EventStartTime,
+		&record.HostUserID,
+		&record.HostUsername,
+		&hostDisplayName,
+		&record.InvitedUserID,
+		&record.InvitedUsername,
+		&invitedDisplayName,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.NotFoundError(domain.ErrorCodeInvitationNotFound, "The requested invitation does not exist.")
+		}
+		return nil, fmt.Errorf("load invitation notification context: %w", err)
+	}
+	record.EventImageURL = textPtr(eventImageURL)
+	record.HostDisplayName = textPtr(hostDisplayName)
+	record.InvitedDisplayName = textPtr(invitedDisplayName)
+	return &record, nil
+}
+
 func uniqueUsernames(usernames []string) ([]string, []string) {
 	seen := make(map[string]struct{}, len(usernames))
 	ordered := make([]string, 0, len(usernames))

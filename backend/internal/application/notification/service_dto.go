@@ -11,6 +11,7 @@ const MaxActiveDevicesPerUser = 2
 const DefaultNotificationLimit = 25
 const MaxNotificationLimit = 50
 const NotificationRetentionDays = 90
+const MaxPushDeliveryRetries = 2
 
 type RegisterDeviceInput struct {
 	UserID         uuid.UUID
