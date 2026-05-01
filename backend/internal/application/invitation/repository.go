@@ -12,4 +12,5 @@ type Repository interface {
 	ListReceivedPendingInvitations(ctx context.Context, userID uuid.UUID) ([]ReceivedInvitationRecord, error)
 	AcceptInvitation(ctx context.Context, userID, invitationID uuid.UUID) (*AcceptInvitationRecord, error)
 	DeclineInvitation(ctx context.Context, userID, invitationID uuid.UUID) (*domain.Invitation, error)
+	GetInvitationNotificationContext(ctx context.Context, invitationID uuid.UUID) (*InvitationNotificationContext, error)
 }

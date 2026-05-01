@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	notificationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 )
@@ -56,6 +57,7 @@ type fakeJoinRequestRepo struct {
 	result            *domain.JoinRequest
 	approveResult     *ApproveJoinRequestResult
 	rejectResult      *RejectJoinRequestResult
+	notificationCtx   *NotificationContext
 }
 
 func (r *fakeJoinRequestRepo) CreateJoinRequest(_ context.Context, params CreateJoinRequestParams) (*domain.JoinRequest, error) {
@@ -140,6 +142,13 @@ func (r *fakeJoinRequestRepo) RejectJoinRequest(_ context.Context, params Reject
 		},
 		CooldownEndsAt: now.Add(domain.JoinRequestCooldown),
 	}, nil
+}
+
+func (r *fakeJoinRequestRepo) GetNotificationContext(context.Context, uuid.UUID) (*NotificationContext, error) {
+	if r.notificationCtx == nil {
+		return nil, domain.ErrNotFound
+	}
+	return r.notificationCtx, nil
 }
 
 func TestCreatePendingJoinRequestDelegatesToRepo(t *testing.T) {
@@ -266,4 +275,163 @@ func TestRejectJoinRequestDelegatesToRepo(t *testing.T) {
 	if repo.lastRejectParams.EventID != eventID || repo.lastRejectParams.JoinRequestID != joinRequestID || repo.lastRejectParams.HostUserID != hostUserID {
 		t.Fatalf("expected reject params to match event %s, join request %s, host %s", eventID, joinRequestID, hostUserID)
 	}
+}
+
+func TestApproveJoinRequestNotifiesRequester(t *testing.T) {
+	// given
+	eventID := uuid.New()
+	joinRequestID := uuid.New()
+	hostUserID := uuid.New()
+	requesterID := uuid.New()
+	participationID := uuid.New()
+	imageURL := "https://cdn.example.com/event.jpg"
+	now := time.Now().UTC()
+	repo := &fakeJoinRequestRepo{
+		approveResult: &ApproveJoinRequestResult{
+			JoinRequest: &domain.JoinRequest{
+				ID:              joinRequestID,
+				EventID:         eventID,
+				UserID:          requesterID,
+				ParticipationID: &participationID,
+				HostUserID:      hostUserID,
+				Status:          domain.JoinRequestStatusApproved,
+				UpdatedAt:       now,
+			},
+			Participation: &domain.Participation{ID: participationID, EventID: eventID, UserID: requesterID, Status: domain.ParticipationStatusApproved},
+		},
+		notificationCtx: &NotificationContext{
+			JoinRequestID:     joinRequestID,
+			EventID:           eventID,
+			EventTitle:        "Trail Run",
+			EventImageURL:     &imageURL,
+			EventStartTime:    now,
+			HostUserID:        hostUserID,
+			HostUsername:      "host",
+			RequesterUserID:   requesterID,
+			RequesterUsername: "guest",
+		},
+	}
+	notifications := &fakeNotificationUseCase{}
+	service := NewService(repo, &fakeUnitOfWork{})
+	service.SetNotificationService(notifications)
+
+	// when
+	_, err := service.ApproveJoinRequest(context.Background(), eventID, joinRequestID, hostUserID)
+
+	// then
+	if err != nil {
+		t.Fatalf("ApproveJoinRequest() error = %v", err)
+	}
+	if len(notifications.inputs) != 1 {
+		t.Fatalf("expected one notification, got %d", len(notifications.inputs))
+	}
+	input := notifications.inputs[0]
+	if input.UserIDs[0] != requesterID || input.EventID == nil || *input.EventID != eventID {
+		t.Fatalf("unexpected notification target/event %#v", input)
+	}
+	if input.ImageURL == nil || *input.ImageURL != imageURL {
+		t.Fatalf("expected event image URL, got %#v", input.ImageURL)
+	}
+	if input.Type == nil || *input.Type != "PROTECTED_EVENT_JOIN_REQUEST_APPROVED" {
+		t.Fatalf("unexpected notification type %#v", input.Type)
+	}
+	if input.IdempotencyKey != "JOIN_REQUEST_APPROVED:"+joinRequestID.String() {
+		t.Fatalf("unexpected idempotency key %q", input.IdempotencyKey)
+	}
+}
+
+func TestRejectJoinRequestNotifiesRequesterWithoutFailingAction(t *testing.T) {
+	// given
+	eventID := uuid.New()
+	joinRequestID := uuid.New()
+	hostUserID := uuid.New()
+	requesterID := uuid.New()
+	now := time.Now().UTC()
+	cooldownEndsAt := now.Add(domain.JoinRequestCooldown)
+	repo := &fakeJoinRequestRepo{
+		rejectResult: &RejectJoinRequestResult{
+			JoinRequest:    &domain.JoinRequest{ID: joinRequestID, EventID: eventID, UserID: requesterID, HostUserID: hostUserID, Status: domain.JoinRequestStatusRejected, UpdatedAt: now},
+			CooldownEndsAt: cooldownEndsAt,
+		},
+		notificationCtx: &NotificationContext{
+			JoinRequestID:     joinRequestID,
+			EventID:           eventID,
+			EventTitle:        "Trail Run",
+			EventStartTime:    now,
+			HostUserID:        hostUserID,
+			HostUsername:      "host",
+			RequesterUserID:   requesterID,
+			RequesterUsername: "guest",
+		},
+	}
+	notifications := &fakeNotificationUseCase{err: errors.New("send failed")}
+	service := NewService(repo, &fakeUnitOfWork{})
+	service.SetNotificationService(notifications)
+
+	// when
+	result, err := service.RejectJoinRequest(context.Background(), eventID, joinRequestID, hostUserID)
+
+	// then
+	if err != nil {
+		t.Fatalf("RejectJoinRequest() error = %v", err)
+	}
+	if !result.CooldownEndsAt.Equal(cooldownEndsAt) {
+		t.Fatalf("unexpected cooldown %s", result.CooldownEndsAt)
+	}
+	if len(notifications.inputs) != 1 {
+		t.Fatalf("expected one notification attempt, got %d", len(notifications.inputs))
+	}
+	input := notifications.inputs[0]
+	if input.Type == nil || *input.Type != "PROTECTED_EVENT_JOIN_REQUEST_REJECTED" {
+		t.Fatalf("unexpected notification type %#v", input.Type)
+	}
+	if input.Data["status"] != string(domain.JoinRequestStatusRejected) || input.Data["cooldown_ends_at"] == "" {
+		t.Fatalf("unexpected notification data %#v", input.Data)
+	}
+}
+
+type fakeNotificationUseCase struct {
+	inputs []notificationapp.SendNotificationInput
+	err    error
+}
+
+func (f *fakeNotificationUseCase) RegisterDevice(context.Context, notificationapp.RegisterDeviceInput) (*notificationapp.RegisterDeviceResult, error) {
+	return nil, nil
+}
+func (f *fakeNotificationUseCase) UnregisterDevice(context.Context, uuid.UUID, uuid.UUID) error {
+	return nil
+}
+func (f *fakeNotificationUseCase) ListNotifications(context.Context, notificationapp.ListNotificationsInput) (*notificationapp.ListNotificationsResult, error) {
+	return nil, nil
+}
+func (f *fakeNotificationUseCase) CountUnreadNotifications(context.Context, uuid.UUID) (*notificationapp.UnreadCountResult, error) {
+	return nil, nil
+}
+func (f *fakeNotificationUseCase) MarkNotificationRead(context.Context, uuid.UUID, uuid.UUID) error {
+	return nil
+}
+func (f *fakeNotificationUseCase) MarkAllNotificationsRead(context.Context, uuid.UUID) (*notificationapp.MarkAllReadResult, error) {
+	return nil, nil
+}
+func (f *fakeNotificationUseCase) DeleteNotification(context.Context, uuid.UUID, uuid.UUID) error {
+	return nil
+}
+func (f *fakeNotificationUseCase) DeleteAllNotifications(context.Context, uuid.UUID) error {
+	return nil
+}
+func (f *fakeNotificationUseCase) DeleteExpiredNotifications(context.Context) (int, error) {
+	return 0, nil
+}
+func (f *fakeNotificationUseCase) SendNotificationToUsers(_ context.Context, input notificationapp.SendNotificationInput) (*notificationapp.SendNotificationResult, error) {
+	f.inputs = append(f.inputs, input)
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &notificationapp.SendNotificationResult{TargetUserCount: len(input.UserIDs), CreatedCount: len(input.UserIDs)}, nil
+}
+func (f *fakeNotificationUseCase) SendCustomNotificationToUsers(context.Context, notificationapp.SendCustomNotificationInput) (*notificationapp.SendNotificationResult, error) {
+	return nil, nil
+}
+func (f *fakeNotificationUseCase) SendPushToUsers(context.Context, notificationapp.SendPushInput) (*notificationapp.SendPushResult, error) {
+	return nil, nil
 }

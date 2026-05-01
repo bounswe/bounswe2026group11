@@ -2,7 +2,10 @@ openapi: 3.1.0
 info:
   title: Social Event Mapper - Notification API
   version: 0.2.0
-  description: Authenticated endpoints for mobile push-device registration and the in-app notification inbox.
+  description: |
+    Authenticated endpoints for mobile push-device registration and the in-app notification inbox.
+    Event-related system notifications include `event_id`, the event `image_url` when present,
+    and stable string metadata in `data` so clients can route without an extra lookup.
 
 servers:
   - url: /api
@@ -314,6 +317,13 @@ components:
           type:
             - string
             - "null"
+          description: |
+            Notification category. Event workflow notifications currently use:
+            `PRIVATE_EVENT_INVITATION_RECEIVED`,
+            `PRIVATE_EVENT_INVITATION_ACCEPTED`,
+            `PRIVATE_EVENT_INVITATION_DECLINED`,
+            `PROTECTED_EVENT_JOIN_REQUEST_APPROVED`, and
+            `PROTECTED_EVENT_JOIN_REQUEST_REJECTED`.
         deep_link:
           type:
             - string
@@ -323,10 +333,18 @@ components:
             - string
             - "null"
           format: uri
+          description: Event image URL for event-related notifications when the event has one.
         data:
           type: object
           additionalProperties:
             type: string
+          description: |
+            String metadata for routing and UI labels. Event workflow notifications include
+            `event_id`, `event_title`, `event_start_time`, `actor_user_id`,
+            `actor_username`, optional `actor_display_name`, and `status`.
+            Invitation notifications also include `invitation_id`; join-request
+            notifications include `join_request_id`, and rejection notifications include
+            `cooldown_ends_at`.
         is_read:
           type: boolean
         read_at:

@@ -421,6 +421,9 @@ paths:
         for per-username business outcomes: unknown or syntactically invalid usernames are
         returned in `invalid_usernames`, and known but ineligible usernames are returned in
         `failed` with a stable reason code. System errors still fail the whole request.
+        Each successfully created invitation creates a notification for the invited user with
+        the event image URL when present. Notification delivery failures do not fail the
+        invitation batch.
       operationId: createEventInvitations
       security:
         - bearerAuth: []
@@ -1371,7 +1374,8 @@ paths:
         **PROTECTED** event. Approval updates the join request to `APPROVED` and creates an
         `APPROVED` participation row atomically. If the requester had left before
         `start_time`, approval reactivates the same participation row instead of creating a
-        second one.
+        second one. After success, the requester receives an event notification with the
+        event image URL when present; notification delivery failures do not fail approval.
       operationId: approveJoinRequest
       security:
         - bearerAuth: []
@@ -1494,7 +1498,9 @@ paths:
       description: |
         Allows the authenticated event host to reject a **PENDING** join request for a
         **PROTECTED** event. Rejection updates the join request to `REJECTED` and starts a
-        **3-day** re-request cooldown for the same user and event.
+        **3-day** re-request cooldown for the same user and event. After success, the
+        requester receives an event notification with the event image URL when present;
+        notification delivery failures do not fail rejection.
       operationId: rejectJoinRequest
       security:
         - bearerAuth: []
