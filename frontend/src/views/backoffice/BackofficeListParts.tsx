@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 export function formatAdminDate(value: string | null | undefined): string {
   if (!value) return '-';
@@ -31,6 +31,35 @@ export function BackofficePageShell({ title, subtitle, filters, children }: Shel
       </div>
       <div className="bo-filter-bar">{filters}</div>
       {children}
+    </div>
+  );
+}
+
+export function BackofficeIdCell({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyId() {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="bo-id-cell">
+      <button type="button" onClick={copyId} aria-label={`Copy ID ${id}`} title={id}>
+        {copied ? (
+          <span className="bo-copy-check" aria-hidden="true">✓</span>
+        ) : (
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="9" y="9" width="10" height="10" rx="2" />
+            <path d="M5 15V7a2 2 0 0 1 2-2h8" />
+          </svg>
+        )}
+      </button>
     </div>
   );
 }

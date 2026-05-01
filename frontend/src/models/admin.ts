@@ -53,6 +53,16 @@ export interface AdminTicketFilters {
   created_to?: string;
 }
 
+export interface AdminNotificationFilters {
+  q?: string;
+  user_id?: string;
+  event_id?: string;
+  type?: string;
+  is_read?: string;
+  created_from?: string;
+  created_to?: string;
+}
+
 export interface AdminUser {
   id: string;
   username: string;
@@ -111,4 +121,78 @@ export interface AdminTicket {
   canceled_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface AdminNotification {
+  id: string;
+  receiver_user_id: string;
+  username: string;
+  user_email: string;
+  event_id: string | null;
+  event_title: string | null;
+  title: string;
+  type: string | null;
+  body: string;
+  deep_link: string | null;
+  data: Record<string, string>;
+  is_read: boolean;
+  read_at: string | null;
+  deleted_at: string | null;
+  sse_sent_count: number;
+  push_sent_count: number;
+  push_failed_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AdminNotificationDeliveryMode = 'IN_APP' | 'PUSH' | 'BOTH';
+
+export interface AdminCreateNotificationRequest {
+  user_ids: string[];
+  delivery_mode: AdminNotificationDeliveryMode;
+  title: string;
+  body: string;
+  type?: string | null;
+  deep_link?: string | null;
+  event_id?: string | null;
+  data?: Record<string, string>;
+}
+
+export interface AdminCreateNotificationResponse {
+  target_user_count: number;
+  created_count: number;
+  idempotent_count: number;
+  sse_delivery_count: number;
+  push_active_device_count: number;
+  push_sent_count: number;
+  push_failed_count: number;
+  invalid_token_count: number;
+}
+
+export interface AdminCreateParticipationRequest {
+  event_id: string;
+  user_id: string;
+  status?: 'APPROVED' | 'PENDING';
+  reason?: string | null;
+}
+
+export interface AdminCreateParticipationResponse {
+  participation_id: string;
+  event_id: string;
+  user_id: string;
+  status: 'APPROVED' | 'PENDING';
+  ticket_id?: string;
+  ticket_status?: 'ACTIVE' | 'PENDING' | 'EXPIRED' | 'USED' | 'CANCELED';
+}
+
+export interface AdminCancelParticipationRequest {
+  reason?: string | null;
+}
+
+export interface AdminCancelParticipationResponse {
+  participation_id: string;
+  event_id: string;
+  user_id: string;
+  status: 'CANCELED';
+  already_canceled: boolean;
 }

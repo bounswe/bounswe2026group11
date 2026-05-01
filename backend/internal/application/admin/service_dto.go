@@ -154,6 +154,43 @@ type ListTicketsResult struct {
 	PageMeta
 }
 
+type ListNotificationsInput struct {
+	PageInput
+	CreatedRange
+	Query   *string
+	UserID  *uuid.UUID
+	EventID *uuid.UUID
+	Type    *string
+	IsRead  *bool
+}
+
+type AdminNotificationItem struct {
+	ID              uuid.UUID         `json:"id"`
+	ReceiverUserID  uuid.UUID         `json:"receiver_user_id"`
+	Username        string            `json:"username"`
+	UserEmail       string            `json:"user_email"`
+	EventID         *uuid.UUID        `json:"event_id"`
+	EventTitle      *string           `json:"event_title"`
+	Title           string            `json:"title"`
+	Type            *string           `json:"type"`
+	Body            string            `json:"body"`
+	DeepLink        *string           `json:"deep_link"`
+	Data            map[string]string `json:"data"`
+	IsRead          bool              `json:"is_read"`
+	ReadAt          *time.Time        `json:"read_at"`
+	DeletedAt       *time.Time        `json:"deleted_at"`
+	SSESentCount    int               `json:"sse_sent_count"`
+	PushSentCount   int               `json:"push_sent_count"`
+	PushFailedCount int               `json:"push_failed_count"`
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
+}
+
+type ListNotificationsResult struct {
+	Items []AdminNotificationItem `json:"items"`
+	PageMeta
+}
+
 type SendCustomNotificationInput struct {
 	AdminUserID    uuid.UUID
 	UserIDs        []uuid.UUID
@@ -228,4 +265,8 @@ func (s *Service) ListParticipations(ctx context.Context, input ListParticipatio
 
 func (s *Service) ListTickets(ctx context.Context, input ListTicketsInput) (*ListTicketsResult, error) {
 	return s.repo.ListTickets(ctx, input)
+}
+
+func (s *Service) ListNotifications(ctx context.Context, input ListNotificationsInput) (*ListNotificationsResult, error) {
+	return s.repo.ListNotifications(ctx, input)
 }

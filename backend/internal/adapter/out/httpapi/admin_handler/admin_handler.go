@@ -32,6 +32,7 @@ func RegisterRoutes(router fiber.Router, handler *Handler, adminAuth fiber.Handl
 	group.Post("/participations", handler.CreateParticipation)
 	group.Post("/participations/:participation_id/cancel", handler.CancelParticipation)
 	group.Get("/tickets", handler.ListTickets)
+	group.Get("/notifications", handler.ListNotifications)
 	group.Post("/notifications", handler.CreateNotification)
 }
 
@@ -84,6 +85,19 @@ func (h *Handler) ListTickets(c *fiber.Ctx) error {
 		return httpapi.WriteError(c, err)
 	}
 	logAdminList(c, "admin.tickets.list", len(result.Items), result.PageMeta, summarizeTickets(input))
+	return c.JSON(result)
+}
+
+func (h *Handler) ListNotifications(c *fiber.Ctx) error {
+	input, errs := parseListNotificationsInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.ListNotifications(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	logAdminList(c, "admin.notifications.list", len(result.Items), result.PageMeta, summarizeNotifications(input))
 	return c.JSON(result)
 }
 
@@ -350,6 +364,26 @@ func parseListTicketsInput(c *fiber.Ctx) (admin.ListTicketsInput, map[string]str
 	return input, errs
 }
 
+func parseListNotificationsInput(c *fiber.Ctx) (admin.ListNotificationsInput, map[string]string) {
+	page, errs := parsePage(c)
+	input := admin.ListNotificationsInput{PageInput: page}
+	input.Query = optionalTrimmed(c.Query("q"))
+	input.UserID = parseOptionalUUID(c, "user_id", errs)
+	input.EventID = parseOptionalUUID(c, "event_id", errs)
+	input.CreatedFrom = parseOptionalTime(c, "created_from", errs)
+	input.CreatedTo = parseOptionalTime(c, "created_to", errs)
+	input.Type = optionalTrimmed(c.Query("type"))
+	if raw := strings.TrimSpace(c.Query("is_read")); raw != "" {
+		value, err := strconv.ParseBool(raw)
+		if err != nil {
+			errs["is_read"] = "must be true or false"
+		} else {
+			input.IsRead = &value
+		}
+	}
+	return input, errs
+}
+
 func parsePage(c *fiber.Ctx) (admin.PageInput, map[string]string) {
 	errs := map[string]string{}
 	page := admin.PageInput{Limit: admin.DefaultLimit}
@@ -494,6 +528,20 @@ func summarizeTickets(input admin.ListTicketsInput) string {
 	)
 }
 
+func summarizeNotifications(input admin.ListNotificationsInput) string {
+	return httpapi.JoinSummary(
+		httpapi.CountSummary("limit", input.Limit),
+		httpapi.CountSummary("offset", input.Offset),
+		httpapi.StringPtrSummary("q", input.Query),
+		uuidPointerSummary("user_id", input.UserID),
+		uuidPointerSummary("event_id", input.EventID),
+		httpapi.StringPtrSummary("type", input.Type),
+		boolPointerSummary("is_read", input.IsRead),
+		timePointerSummary("created_from", input.CreatedFrom),
+		timePointerSummary("created_to", input.CreatedTo),
+	)
+}
+
 func pointerSummary[T ~string](label string, value *T) string {
 	if value == nil {
 		return label + "=<nil>"
@@ -513,6 +561,13 @@ func intPointerSummary(label string, value *int) string {
 		return label + "=<nil>"
 	}
 	return httpapi.CountSummary(label, *value)
+}
+
+func boolPointerSummary(label string, value *bool) string {
+	if value == nil {
+		return label + "=<nil>"
+	}
+	return httpapi.BoolSummary(label, *value)
 }
 
 func timePointerSummary(label string, value *time.Time) string {

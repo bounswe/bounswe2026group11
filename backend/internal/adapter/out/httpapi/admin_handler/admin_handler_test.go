@@ -19,6 +19,7 @@ type stubAdminService struct {
 	lastEvents         admin.ListEventsInput
 	lastParticipations admin.ListParticipationsInput
 	lastTickets        admin.ListTicketsInput
+	lastNotifications  admin.ListNotificationsInput
 	lastNotification   admin.SendCustomNotificationInput
 	lastCreate         admin.CreateManualParticipationInput
 	lastCancel         admin.CancelParticipationInput
@@ -42,6 +43,11 @@ func (s *stubAdminService) ListParticipations(_ context.Context, input admin.Lis
 func (s *stubAdminService) ListTickets(_ context.Context, input admin.ListTicketsInput) (*admin.ListTicketsResult, error) {
 	s.lastTickets = input
 	return &admin.ListTicketsResult{Items: []admin.AdminTicketItem{}, PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
+}
+
+func (s *stubAdminService) ListNotifications(_ context.Context, input admin.ListNotificationsInput) (*admin.ListNotificationsResult, error) {
+	s.lastNotifications = input
+	return &admin.ListNotificationsResult{Items: []admin.AdminNotificationItem{}, PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
 }
 
 func (s *stubAdminService) SendCustomNotification(_ context.Context, input admin.SendCustomNotificationInput) (*admin.SendCustomNotificationResult, error) {
@@ -213,6 +219,67 @@ func TestCreateNotificationValidatesBody(t *testing.T) {
 		if body.Error.Details[field] == "" {
 			t.Fatalf("expected %s validation detail, got %#v", field, body.Error.Details)
 		}
+	}
+}
+
+func TestListNotificationsParsesFilters(t *testing.T) {
+	// given
+	service := &stubAdminService{}
+	app := adminHandlerTestApp(service)
+	userID := uuid.New()
+	eventID := uuid.New()
+	from := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	req := httptest.NewRequest(fiber.MethodGet, "/admin/notifications?limit=10&offset=20&q=ops&user_id="+userID.String()+"&event_id="+eventID.String()+"&type=ADMIN&is_read=false&created_from="+from.Format(time.RFC3339), nil)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if service.lastNotifications.Limit != 10 || service.lastNotifications.Offset != 20 {
+		t.Fatalf("unexpected pagination: %#v", service.lastNotifications.PageInput)
+	}
+	if service.lastNotifications.Query == nil || *service.lastNotifications.Query != "ops" {
+		t.Fatalf("expected query ops, got %#v", service.lastNotifications.Query)
+	}
+	if service.lastNotifications.UserID == nil || *service.lastNotifications.UserID != userID {
+		t.Fatalf("expected user_id %s, got %#v", userID, service.lastNotifications.UserID)
+	}
+	if service.lastNotifications.EventID == nil || *service.lastNotifications.EventID != eventID {
+		t.Fatalf("expected event_id %s, got %#v", eventID, service.lastNotifications.EventID)
+	}
+	if service.lastNotifications.Type == nil || *service.lastNotifications.Type != "ADMIN" {
+		t.Fatalf("expected type ADMIN, got %#v", service.lastNotifications.Type)
+	}
+	if service.lastNotifications.IsRead == nil || *service.lastNotifications.IsRead {
+		t.Fatalf("expected is_read false, got %#v", service.lastNotifications.IsRead)
+	}
+	if service.lastNotifications.CreatedFrom == nil || !service.lastNotifications.CreatedFrom.Equal(from) {
+		t.Fatalf("expected created_from %s, got %#v", from, service.lastNotifications.CreatedFrom)
+	}
+}
+
+func TestListNotificationsValidatesFilters(t *testing.T) {
+	// given
+	app := adminHandlerTestApp(&stubAdminService{})
+	req := httptest.NewRequest(fiber.MethodGet, "/admin/notifications?user_id=nope&is_read=maybe", nil)
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
 	}
 }
 

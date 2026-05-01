@@ -1,8 +1,16 @@
-import { apiGetAuth } from '@/services/api';
+import { apiGetAuth, apiPostAuth } from '@/services/api';
 import type {
+  AdminCancelParticipationRequest,
+  AdminCancelParticipationResponse,
+  AdminCreateNotificationRequest,
+  AdminCreateNotificationResponse,
+  AdminCreateParticipationRequest,
+  AdminCreateParticipationResponse,
   AdminEvent,
   AdminEventFilters,
   AdminListResponse,
+  AdminNotification,
+  AdminNotificationFilters,
   AdminPageParams,
   AdminParticipation,
   AdminParticipationFilters,
@@ -70,4 +78,37 @@ export function listAdminTickets(
   params: AdminPageParams & AdminTicketFilters,
 ): Promise<AdminListResponse<AdminTicket>> {
   return apiGetAuth<AdminListResponse<AdminTicket>>(buildAdminListPath('/admin/tickets', params), token);
+}
+
+export function listAdminNotifications(
+  token: string,
+  params: AdminPageParams & AdminNotificationFilters,
+): Promise<AdminListResponse<AdminNotification>> {
+  return apiGetAuth<AdminListResponse<AdminNotification>>(buildAdminListPath('/admin/notifications', params), token);
+}
+
+export function createAdminNotification(
+  token: string,
+  body: AdminCreateNotificationRequest,
+): Promise<AdminCreateNotificationResponse> {
+  return apiPostAuth<AdminCreateNotificationResponse>('/admin/notifications', body, token);
+}
+
+export function createAdminParticipation(
+  token: string,
+  body: AdminCreateParticipationRequest,
+): Promise<AdminCreateParticipationResponse> {
+  return apiPostAuth<AdminCreateParticipationResponse>('/admin/participations', body, token);
+}
+
+export function cancelAdminParticipation(
+  token: string,
+  participationId: string,
+  body: AdminCancelParticipationRequest = {},
+): Promise<AdminCancelParticipationResponse> {
+  return apiPostAuth<AdminCancelParticipationResponse>(
+    `/admin/participations/${encodeURIComponent(participationId)}/cancel`,
+    body,
+    token,
+  );
 }

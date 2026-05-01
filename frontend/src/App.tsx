@@ -46,18 +46,18 @@ export default function App() {
         <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route
-          path="/admin-panel"
+          path="/backoffice"
           element={<AdminRoute><BackofficeLayout /></AdminRoute>}
         >
-          <Route index element={<Navigate to="/admin-panel/users" replace />} />
+          <Route index element={<Navigate to="/backoffice/users" replace />} />
           <Route path="users" element={<UsersAdminPage />} />
           <Route path="events" element={<EventsAdminPage />} />
           <Route path="participations" element={<ParticipationsAdminPage />} />
           <Route path="tickets" element={<TicketsAdminPage />} />
           <Route path="notifications" element={<NotificationsAdminPage />} />
         </Route>
-        <Route path="/backoffice" element={<Navigate to="/admin-panel" replace />} />
-        <Route path="/backoffice/*" element={<Navigate to="/admin-panel" replace />} />
+        <Route path="/admin-panel" element={<Navigate to="/backoffice" replace />} />
+        <Route path="/admin-panel/*" element={<Navigate to="/backoffice" replace />} />
       </Route>
 
       {/* Auth pages (no shell) */}

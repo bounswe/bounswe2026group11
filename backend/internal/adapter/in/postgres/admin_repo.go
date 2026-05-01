@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -356,6 +357,122 @@ func (r *AdminRepository) ListTickets(ctx context.Context, input adminapp.ListTi
 	}
 
 	return &adminapp.ListTicketsResult{Items: items, PageMeta: pageMeta(input.PageInput, totalCount, len(items))}, nil
+}
+
+func (r *AdminRepository) ListNotifications(ctx context.Context, input adminapp.ListNotificationsInput) (*adminapp.ListNotificationsResult, error) {
+	args := []any{}
+	where := []string{"TRUE"}
+	add := func(value any) string {
+		args = append(args, value)
+		return fmt.Sprintf("$%d", len(args))
+	}
+
+	if input.Query != nil {
+		placeholder := add("%" + *input.Query + "%")
+		where = append(where, "(n.title ILIKE "+placeholder+" OR n.body ILIKE "+placeholder+" OR u.username ILIKE "+placeholder+" OR u.email ILIKE "+placeholder+")")
+	}
+	if input.UserID != nil {
+		where = append(where, "n.receiver_user_id = "+add(*input.UserID))
+	}
+	if input.EventID != nil {
+		where = append(where, "n.event_id = "+add(*input.EventID))
+	}
+	if input.Type != nil {
+		where = append(where, "n.type = "+add(*input.Type))
+	}
+	if input.IsRead != nil {
+		where = append(where, "n.is_read = "+add(*input.IsRead))
+	}
+	if input.CreatedFrom != nil {
+		where = append(where, "n.created_at >= "+add(*input.CreatedFrom))
+	}
+	if input.CreatedTo != nil {
+		where = append(where, "n.created_at <= "+add(*input.CreatedTo))
+	}
+
+	limitPlaceholder := add(input.Limit)
+	offsetPlaceholder := add(input.Offset)
+	query := `
+		SELECT n.id, n.receiver_user_id, u.username, u.email, n.event_id, e.title, n.title, n.type,
+		       n.body, n.deep_link, n.data, n.is_read, n.read_at, n.deleted_at,
+		       COUNT(a.id) FILTER (WHERE a.method = 'SSE' AND a.status = 'SENT') AS sse_sent_count,
+		       COUNT(a.id) FILTER (WHERE a.method = 'FCM' AND a.status = 'SENT') AS push_sent_count,
+		       COUNT(a.id) FILTER (WHERE a.method = 'FCM' AND a.status = 'FAILED') AS push_failed_count,
+		       n.created_at, n.updated_at, COUNT(*) OVER()
+		FROM notification n
+		JOIN app_user u ON u.id = n.receiver_user_id
+		LEFT JOIN event e ON e.id = n.event_id
+		LEFT JOIN notification_delivery_attempt a ON a.notification_id = n.id
+		WHERE ` + strings.Join(where, " AND ") + `
+		GROUP BY n.id, u.username, u.email, e.title
+		ORDER BY n.created_at DESC, n.id DESC
+		LIMIT ` + limitPlaceholder + ` OFFSET ` + offsetPlaceholder
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("admin list notifications: %w", err)
+	}
+	defer rows.Close()
+
+	items := []adminapp.AdminNotificationItem{}
+	totalCount := 0
+	for rows.Next() {
+		var (
+			item       adminapp.AdminNotificationItem
+			eventID    pgtype.UUID
+			eventTitle pgtype.Text
+			typ        pgtype.Text
+			deepLink   pgtype.Text
+			data       []byte
+			readAt     pgtype.Timestamptz
+			deletedAt  pgtype.Timestamptz
+		)
+		if err := rows.Scan(
+			&item.ID,
+			&item.ReceiverUserID,
+			&item.Username,
+			&item.UserEmail,
+			&eventID,
+			&eventTitle,
+			&item.Title,
+			&typ,
+			&item.Body,
+			&deepLink,
+			&data,
+			&item.IsRead,
+			&readAt,
+			&deletedAt,
+			&item.SSESentCount,
+			&item.PushSentCount,
+			&item.PushFailedCount,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+			&totalCount,
+		); err != nil {
+			return nil, fmt.Errorf("admin scan notification: %w", err)
+		}
+		item.EventID = uuidPtr(eventID)
+		item.EventTitle = textPtr(eventTitle)
+		item.Type = textPtr(typ)
+		item.DeepLink = textPtr(deepLink)
+		item.ReadAt = timestamptzPtr(readAt)
+		item.DeletedAt = timestamptzPtr(deletedAt)
+		item.Data = map[string]string{}
+		if len(data) > 0 {
+			if err := json.Unmarshal(data, &item.Data); err != nil {
+				return nil, fmt.Errorf("admin unmarshal notification data: %w", err)
+			}
+		}
+		if item.Data == nil {
+			item.Data = map[string]string{}
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("admin list notifications rows: %w", err)
+	}
+
+	return &adminapp.ListNotificationsResult{Items: items, PageMeta: pageMeta(input.PageInput, totalCount, len(items))}, nil
 }
 
 func (r *AdminRepository) CountExistingUsers(ctx context.Context, userIDs []uuid.UUID) (int, error) {

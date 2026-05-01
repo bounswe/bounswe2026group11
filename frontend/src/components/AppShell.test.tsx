@@ -50,7 +50,7 @@ describe('AppShell admin entry', () => {
 
     renderShell();
 
-    expect(screen.getByRole('link', { name: 'Admin Panel' }).getAttribute('href')).toBe('/admin-panel');
+    expect(screen.getByRole('link', { name: 'Admin Panel' }).getAttribute('href')).toBe('/backoffice');
   });
 
   it('hides Admin Panel for regular authenticated users', () => {
