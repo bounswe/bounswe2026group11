@@ -16,6 +16,7 @@ import (
 	authapp "github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
 	eventapp "github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	favoritelocationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location"
+	invitationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/invitation"
 	joinrequestapp "github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	notificationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
 	participationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
@@ -84,12 +85,13 @@ func NewAuthHarness(t *testing.T) *AuthHarness {
 
 // EventHarness bundles the shared wiring used by event integration tests.
 type EventHarness struct {
-	Service        eventapp.UseCase
-	EventRepo      *postgresrepo.EventRepository
-	TicketService  ticketapp.UseCase
-	RatingService  ratingapp.UseCase
-	ProfileService profileapp.UseCase
-	AuthRepo       authapp.Repository
+	Service           eventapp.UseCase
+	InvitationService invitationapp.UseCase
+	EventRepo         *postgresrepo.EventRepository
+	TicketService     ticketapp.UseCase
+	RatingService     ratingapp.UseCase
+	ProfileService    profileapp.UseCase
+	AuthRepo          authapp.Repository
 }
 
 // FavoriteLocationHarness bundles the shared wiring used by favorite-location integration tests.
@@ -114,6 +116,7 @@ func NewEventHarness(t *testing.T) *EventHarness {
 	pool := RequirePool(t)
 	eventRepo := postgresrepo.NewEventRepository(pool)
 	participationRepo := postgresrepo.NewParticipationRepository(pool)
+	invitationRepo := postgresrepo.NewInvitationRepository(pool)
 	joinRequestRepo := postgresrepo.NewJoinRequestRepository(pool)
 	ticketRepo := postgresrepo.NewTicketRepository(pool)
 	ratingRepo := postgresrepo.NewRatingRepository(pool)
@@ -130,11 +133,13 @@ func NewEventHarness(t *testing.T) *EventHarness {
 		},
 	)
 	joinRequestService := joinrequestapp.NewService(joinRequestRepo, unitOfWork, ticketService)
+	invitationService := invitationapp.NewService(invitationRepo, unitOfWork, ticketService)
 
 	return &EventHarness{
-		Service:       eventapp.NewService(eventRepo, participationService, joinRequestService, unitOfWork, ticketService),
-		EventRepo:     eventRepo,
-		TicketService: ticketService,
+		Service:           eventapp.NewService(eventRepo, participationService, joinRequestService, unitOfWork, ticketService),
+		InvitationService: invitationService,
+		EventRepo:         eventRepo,
+		TicketService:     ticketService,
 		RatingService: ratingapp.NewService(ratingRepo, unitOfWork, ratingapp.Settings{
 			GlobalPrior: 4.0,
 			BayesianM:   5,

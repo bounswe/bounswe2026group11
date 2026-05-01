@@ -14,4 +14,5 @@ type UseCase interface {
 	GetMyUpcomingEvents(ctx context.Context, userID uuid.UUID) ([]EventSummary, error)
 	GetMyCompletedEvents(ctx context.Context, userID uuid.UUID) ([]EventSummary, error)
 	GetMyCanceledEvents(ctx context.Context, userID uuid.UUID) ([]EventSummary, error)
+	SearchUsers(ctx context.Context, input UserSearchInput) (*UserSearchResult, error)
 }

@@ -258,6 +258,43 @@ func (r *ProfileRepository) GetCanceledEvents(ctx context.Context, userID uuid.U
 	return scanEventSummaries(rows)
 }
 
+// SearchUsers returns lightweight user summaries ordered for username picker relevance.
+func (r *ProfileRepository) SearchUsers(ctx context.Context, query string, limit int) ([]profileapp.UserSearchRecord, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT u.id, u.username, p.display_name, p.avatar_url
+		FROM app_user u
+		LEFT JOIN profile p ON p.user_id = u.id
+		WHERE u.username ILIKE '%' || $1 || '%'
+		ORDER BY
+			CASE WHEN u.username = $1 THEN 0 WHEN u.username ILIKE $1 || '%' THEN 1 ELSE 2 END,
+			u.username ASC
+		LIMIT $2
+	`, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("search users: %w", err)
+	}
+	defer rows.Close()
+
+	records := make([]profileapp.UserSearchRecord, 0)
+	for rows.Next() {
+		var (
+			record      profileapp.UserSearchRecord
+			displayName pgtype.Text
+			avatarURL   pgtype.Text
+		)
+		if err := rows.Scan(&record.ID, &record.Username, &displayName, &avatarURL); err != nil {
+			return nil, fmt.Errorf("scan user search result: %w", err)
+		}
+		record.DisplayName = textPtr(displayName)
+		record.AvatarURL = textPtr(avatarURL)
+		records = append(records, record)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate user search results: %w", err)
+	}
+	return records, nil
+}
+
 func scanEventSummaries(rows interface {
 	Next() bool
 	Scan(...any) error

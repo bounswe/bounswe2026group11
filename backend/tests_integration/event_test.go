@@ -9,6 +9,7 @@ import (
 	"time"
 
 	eventapp "github.com/bounswe/bounswe2026group11/backend/internal/application/event"
+	invitationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/invitation"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/bounswe/bounswe2026group11/backend/tests_integration/common"
 	"github.com/google/uuid"
@@ -1422,6 +1423,196 @@ func TestGetEventDetailReturnsHostOnlyManagementLists(t *testing.T) {
 	}
 	if nonHostResult.HostContext != nil {
 		t.Fatal("expected non-host response to omit host_context")
+	}
+}
+
+func TestCreateInvitationsCreatesValidAndReportsInvalidAndFailed(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("private_host_batch"))
+	invitee := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("private_invitee_batch"))
+	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Batch Invite Event",
+		Description:  "batch invite",
+		CategoryID:   common.GivenEventCategory(t),
+		Lat:          41.71,
+		Lon:          29.71,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPrivate,
+	})
+
+	// when
+	result, err := harness.InvitationService.CreateInvitations(context.Background(), host.ID, eventID, invitationapp.CreateInvitationsInput{
+		Usernames: []string{invitee.Username, "missing_invitee_batch", host.Username},
+		Message:   common.StringPtr("Join this private event"),
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("CreateInvitations() error = %v", err)
+	}
+	if result.SuccessCount != 1 || result.InvalidUsernameCount != 1 || result.FailedCount != 1 {
+		t.Fatalf("unexpected invite result counts: %+v", result)
+	}
+	if result.SuccessfulInvitations[0].Username != invitee.Username {
+		t.Fatalf("expected successful username %q, got %q", invitee.Username, result.SuccessfulInvitations[0].Username)
+	}
+	if result.InvalidUsernames[0] != "missing_invitee_batch" {
+		t.Fatalf("expected missing username, got %+v", result.InvalidUsernames)
+	}
+	if result.Failed[0].Code != invitationapp.FailureHostUser {
+		t.Fatalf("expected host failure code %q, got %q", invitationapp.FailureHostUser, result.Failed[0].Code)
+	}
+}
+
+func TestAcceptInvitationCreatesParticipationAndAllowsPrivateDetail(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	invitee := common.GivenUser(t, harness.AuthRepo)
+	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Accept Invite Event",
+		Description:  "accept invite",
+		CategoryID:   common.GivenEventCategory(t),
+		Lat:          41.72,
+		Lon:          29.72,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPrivate,
+	})
+	invitationID := insertInvitation(t, eventID, host.ID, invitee.ID, domain.InvitationStatusPending, nil, nil)
+
+	// when
+	result, err := harness.InvitationService.AcceptInvitation(context.Background(), invitee.ID, invitationID)
+
+	// then
+	if err != nil {
+		t.Fatalf("AcceptInvitation() error = %v", err)
+	}
+	if result.InvitationStatus != string(domain.InvitationStatusAccepted) {
+		t.Fatalf("expected invitation status ACCEPTED, got %q", result.InvitationStatus)
+	}
+	detail, err := harness.Service.GetEventDetail(context.Background(), invitee.ID, eventID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if detail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
+		t.Fatalf("expected participation_status JOINED, got %q", detail.ViewerContext.ParticipationStatus)
+	}
+}
+
+func TestDeclineInvitationCreatesCooldownAndNoParticipation(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("decline_host"))
+	invitee := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("decline_invitee"))
+	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Decline Invite Event",
+		Description:  "decline invite",
+		CategoryID:   common.GivenEventCategory(t),
+		Lat:          41.73,
+		Lon:          29.73,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPrivate,
+	})
+	invitationID := insertInvitation(t, eventID, host.ID, invitee.ID, domain.InvitationStatusPending, nil, nil)
+
+	// when
+	if _, err := harness.InvitationService.DeclineInvitation(context.Background(), invitee.ID, invitationID); err != nil {
+		t.Fatalf("DeclineInvitation() error = %v", err)
+	}
+	retry, err := harness.InvitationService.CreateInvitations(context.Background(), host.ID, eventID, invitationapp.CreateInvitationsInput{
+		Usernames: []string{invitee.Username},
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("CreateInvitations() retry error = %v", err)
+	}
+	if retry.FailedCount != 1 || retry.Failed[0].Code != invitationapp.FailureDeclineCooldown {
+		t.Fatalf("expected decline cooldown failure, got %+v", retry)
+	}
+	var count int
+	if err := common.RequirePool(t).QueryRow(
+		context.Background(),
+		`SELECT COUNT(*) FROM participation WHERE event_id = $1 AND user_id = $2`,
+		eventID,
+		invitee.ID,
+	).Scan(&count); err != nil {
+		t.Fatalf("count participation rows error = %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no participation after decline, got %d", count)
+	}
+
+	if _, err := common.RequirePool(t).Exec(
+		context.Background(),
+		`UPDATE invitation SET updated_at = NOW() - INTERVAL '15 days' WHERE id = $1`,
+		invitationID,
+	); err != nil {
+		t.Fatalf("age declined invitation error = %v", err)
+	}
+	afterCooldown, err := harness.InvitationService.CreateInvitations(context.Background(), host.ID, eventID, invitationapp.CreateInvitationsInput{
+		Usernames: []string{invitee.Username},
+	})
+	if err != nil {
+		t.Fatalf("CreateInvitations() after cooldown error = %v", err)
+	}
+	if afterCooldown.SuccessCount != 1 {
+		t.Fatalf("expected re-invite success after cooldown, got %+v", afterCooldown)
+	}
+}
+
+func TestListReceivedInvitationsReturnsCurrentPendingOnly(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	invitee := common.GivenUser(t, harness.AuthRepo)
+	pendingEventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Pending Invite Event",
+		Description:  "pending invite",
+		CategoryID:   common.GivenEventCategory(t),
+		Lat:          41.74,
+		Lon:          29.74,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPrivate,
+	})
+	declinedEventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Declined Invite Event",
+		Description:  "declined invite",
+		CategoryID:   common.GivenEventCategory(t),
+		Lat:          41.75,
+		Lon:          29.75,
+		StartTime:    time.Now().UTC().Add(25 * time.Hour),
+		PrivacyLevel: domain.PrivacyPrivate,
+	})
+	insertInvitation(t, pendingEventID, host.ID, invitee.ID, domain.InvitationStatusPending, nil, nil)
+	insertInvitation(t, declinedEventID, host.ID, invitee.ID, domain.InvitationStatusDeclined, nil, nil)
+
+	// when
+	result, err := harness.InvitationService.ListReceivedInvitations(context.Background(), invitee.ID)
+
+	// then
+	if err != nil {
+		t.Fatalf("ListReceivedInvitations() error = %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected 1 current invitation, got %d", len(result.Items))
+	}
+	if result.Items[0].Event.ID != pendingEventID.String() {
+		t.Fatalf("expected pending event %s, got %s", pendingEventID, result.Items[0].Event.ID)
 	}
 }
 

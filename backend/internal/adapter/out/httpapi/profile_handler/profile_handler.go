@@ -6,20 +6,27 @@ import (
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/invitation"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/profile"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 // ProfileHandler groups HTTP handlers that delegate to the profile use-case port.
 type ProfileHandler struct {
-	service      profile.UseCase
-	eventService event.UseCase
+	service           profile.UseCase
+	eventService      event.UseCase
+	invitationService invitation.UseCase
 }
 
 // NewProfileHandler creates a profile handler backed by the given use cases.
-func NewProfileHandler(service profile.UseCase, eventService event.UseCase) *ProfileHandler {
-	return &ProfileHandler{service: service, eventService: eventService}
+func NewProfileHandler(service profile.UseCase, eventService event.UseCase, invitationService ...invitation.UseCase) *ProfileHandler {
+	handler := &ProfileHandler{service: service, eventService: eventService}
+	if len(invitationService) > 0 {
+		handler.invitationService = invitationService[0]
+	}
+	return handler
 }
 
 // RegisterProfileRoutes mounts all profile endpoints under /me.
@@ -32,6 +39,9 @@ func RegisterProfileRoutes(router fiber.Router, handler *ProfileHandler, auth fi
 	me.Get("/events/completed", handler.GetMyCompletedEvents)
 	me.Get("/events/canceled", handler.GetMyCanceledEvents)
 	me.Get("/favorites", handler.ListFavoriteEvents)
+	me.Get("/invitations", handler.ListReceivedInvitations)
+	me.Post("/invitations/:invitationId/accept", handler.AcceptInvitation)
+	me.Post("/invitations/:invitationId/decline", handler.DeclineInvitation)
 }
 
 // GetMyProfile handles GET /me.
@@ -190,6 +200,86 @@ func (h *ProfileHandler) ListFavoriteEvents(c *fiber.Ctx) error {
 	)
 
 	return c.JSON(result)
+}
+
+// ListReceivedInvitations handles GET /me/invitations.
+func (h *ProfileHandler) ListReceivedInvitations(c *fiber.Ctx) error {
+	if h.invitationService == nil {
+		return httpapi.WriteError(c, domain.ConflictError(domain.ErrorCodeInvitationNotAllowed, "Invitations are not available."))
+	}
+	claims := httpapi.UserClaims(c)
+	result, err := h.invitationService.ListReceivedInvitations(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"my invitations fetched",
+		httpapi.OperationAttr("profile.invitations.list"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.Int("result_count", len(result.Items)),
+	)
+	return c.JSON(result)
+}
+
+// AcceptInvitation handles POST /me/invitations/:invitationId/accept.
+func (h *ProfileHandler) AcceptInvitation(c *fiber.Ctx) error {
+	if h.invitationService == nil {
+		return httpapi.WriteError(c, domain.ConflictError(domain.ErrorCodeInvitationNotAllowed, "Invitations are not available."))
+	}
+	invitationID, err := parseInvitationIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	claims := httpapi.UserClaims(c)
+	result, err := h.invitationService.AcceptInvitation(c.UserContext(), claims.UserID, invitationID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"invitation accepted",
+		httpapi.OperationAttr("profile.invitations.accept"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.String("invitation_id", invitationID.String()),
+		slog.String("participation_id", result.ParticipationID),
+	)
+	return c.JSON(result)
+}
+
+// DeclineInvitation handles POST /me/invitations/:invitationId/decline.
+func (h *ProfileHandler) DeclineInvitation(c *fiber.Ctx) error {
+	if h.invitationService == nil {
+		return httpapi.WriteError(c, domain.ConflictError(domain.ErrorCodeInvitationNotAllowed, "Invitations are not available."))
+	}
+	invitationID, err := parseInvitationIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	claims := httpapi.UserClaims(c)
+	result, err := h.invitationService.DeclineInvitation(c.UserContext(), claims.UserID, invitationID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"invitation declined",
+		httpapi.OperationAttr("profile.invitations.decline"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.String("invitation_id", invitationID.String()),
+	)
+	return c.JSON(result)
+}
+
+func parseInvitationIDParam(c *fiber.Ctx) (uuid.UUID, error) {
+	id, err := uuid.Parse(c.Params("invitationId"))
+	if err != nil {
+		return uuid.Nil, domain.ValidationError(map[string]string{"invitation_id": "must be a valid UUID"})
+	}
+	return id, nil
 }
 
 func summarizeUpdatedProfileFields(body updateProfileBody) string {

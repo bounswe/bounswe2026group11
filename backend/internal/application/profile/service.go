@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"strings"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
@@ -101,6 +102,28 @@ func (s *Service) GetMyCanceledEvents(ctx context.Context, userID uuid.UUID) ([]
 		return nil, err
 	}
 	return toEventSummaries(events), nil
+}
+
+// SearchUsers returns lightweight user summaries for username picker UIs.
+func (s *Service) SearchUsers(ctx context.Context, input UserSearchInput) (*UserSearchResult, error) {
+	query := strings.TrimSpace(input.Query)
+	if len(query) < 1 || len(query) > 32 {
+		return nil, domain.ValidationError(map[string]string{"query": "must be between 1 and 32 characters"})
+	}
+	records, err := s.repo.SearchUsers(ctx, query, 10)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]UserSearchItem, len(records))
+	for i, record := range records {
+		items[i] = UserSearchItem{
+			ID:          record.ID.String(),
+			Username:    record.Username,
+			DisplayName: record.DisplayName,
+			AvatarURL:   record.AvatarURL,
+		}
+	}
+	return &UserSearchResult{Items: items}, nil
 }
 
 func toEventSummaries(events []domain.EventSummary) []EventSummary {

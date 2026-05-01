@@ -12,6 +12,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/profile_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/rating_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/ticket_handler"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/user_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/bootstrap"
 	"github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
@@ -50,7 +51,7 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 	adminHandler := admin_handler.NewHandler(container.AdminService)
 	admin_handler.RegisterRoutes(app, adminHandler, adminAuth)
 
-	eventHandler := event_handler.NewEventHandler(container.EventService)
+	eventHandler := event_handler.NewEventHandler(container.EventService, container.InvitationService)
 	event_handler.RegisterEventRoutes(app, eventHandler, auth, optionalAuth)
 
 	// Rating routes
@@ -66,8 +67,11 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 	category_handler.RegisterCategoryRoutes(app, categoryHandler)
 
 	// Profile routes (authenticated)
-	profileHandler := profile_handler.NewProfileHandler(container.ProfileService, container.EventService)
+	profileHandler := profile_handler.NewProfileHandler(container.ProfileService, container.EventService, container.InvitationService)
 	profile_handler.RegisterProfileRoutes(app, profileHandler, auth)
+
+	userHandler := user_handler.NewHandler(container.ProfileService)
+	user_handler.RegisterRoutes(app, userHandler, auth)
 
 	// Favorite location routes (authenticated)
 	favoriteLocationHandler := favorite_location_handler.NewHandler(container.FavoriteLocationService)
