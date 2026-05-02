@@ -15,4 +15,5 @@ type Repository interface {
 	GetUpcomingEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error)
 	GetCompletedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error)
 	GetCanceledEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error)
+	SearchUsers(ctx context.Context, query string, limit int) ([]UserSearchRecord, error)
 }

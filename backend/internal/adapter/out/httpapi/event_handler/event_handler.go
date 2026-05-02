@@ -10,6 +10,7 @@ import (
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/invitation"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -17,12 +18,17 @@ import (
 
 // EventHandler groups HTTP handlers that delegate to the event use-case port.
 type EventHandler struct {
-	service event.UseCase
+	service           event.UseCase
+	invitationService invitation.UseCase
 }
 
 // NewEventHandler creates an event handler backed by the given event use case.
-func NewEventHandler(service event.UseCase) *EventHandler {
-	return &EventHandler{service: service}
+func NewEventHandler(service event.UseCase, invitationService ...invitation.UseCase) *EventHandler {
+	handler := &EventHandler{service: service}
+	if len(invitationService) > 0 {
+		handler.invitationService = invitationService[0]
+	}
+	return handler
 }
 
 // RegisterEventRoutes mounts all event endpoints under /events.
@@ -38,6 +44,7 @@ func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.
 	group.Get("/:id/join-requests", auth, handler.ListEventPendingJoinRequests)
 	group.Get("/:id/invitations", auth, handler.ListEventInvitations)
 	group.Post("/", auth, handler.CreateEvent)
+	group.Post("/:id/invitations", auth, handler.CreateInvitations)
 	group.Post("/:id/join", auth, handler.JoinEvent)
 	group.Patch("/:id/leave", auth, handler.LeaveEvent)
 	group.Post("/:id/join-request", auth, handler.RequestJoin)
@@ -219,6 +226,51 @@ func (h *EventHandler) ListEventInvitations(c *fiber.Ctx) error {
 	)
 
 	return c.JSON(result)
+}
+
+type createInvitationsBody struct {
+	Usernames []string `json:"usernames"`
+	Message   *string  `json:"message"`
+}
+
+// CreateInvitations handles POST /events/:id/invitations.
+func (h *EventHandler) CreateInvitations(c *fiber.Ctx) error {
+	if h.invitationService == nil {
+		return httpapi.WriteError(c, domain.ConflictError(domain.ErrorCodeInvitationNotAllowed, "Invitations are not available."))
+	}
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	var body createInvitationsBody
+	if err := c.BodyParser(&body); err != nil {
+		return httpapi.WriteError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.invitationService.CreateInvitations(c.UserContext(), claims.UserID, eventID, invitation.CreateInvitationsInput{
+		Usernames: body.Usernames,
+		Message:   body.Message,
+	})
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event invitations created",
+		httpapi.OperationAttr("event.invitations.create"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		httpapi.QuerySummaryAttr(httpapi.JoinSummary(
+			httpapi.CountSummary("success_count", result.SuccessCount),
+			httpapi.CountSummary("invalid_username_count", result.InvalidUsernameCount),
+			httpapi.CountSummary("failed_count", result.FailedCount),
+		)),
+	)
+
+	return c.Status(fiber.StatusCreated).JSON(result)
 }
 
 // callerID returns the authenticated user's ID, or uuid.Nil for anonymous requests.

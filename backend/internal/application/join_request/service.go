@@ -3,8 +3,12 @@ package join_request
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"strings"
+	"time"
 
+	notificationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/ticket"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
@@ -18,9 +22,10 @@ var tracer = otel.Tracer("github.com/bounswe/bounswe2026group11/backend/internal
 
 // Service owns join-request-specific application behavior.
 type Service struct {
-	repo       Repository
-	unitOfWork uow.UnitOfWork
-	tickets    ticket.LifecycleUseCase
+	repo          Repository
+	unitOfWork    uow.UnitOfWork
+	tickets       ticket.LifecycleUseCase
+	notifications notificationapp.UseCase
 }
 
 var _ UseCase = (*Service)(nil)
@@ -35,6 +40,10 @@ func NewService(repo Repository, unitOfWork uow.UnitOfWork, ticketLifecycle ...t
 		service.tickets = ticketLifecycle[0]
 	}
 	return service
+}
+
+func (s *Service) SetNotificationService(notifications notificationapp.UseCase) {
+	s.notifications = notifications
 }
 
 // CreatePendingJoinRequest persists a PENDING join request for the given event,
@@ -143,6 +152,7 @@ func (s *Service) ApproveJoinRequest(
 			attribute.String("participant_user_id", result.Participation.UserID.String()),
 		)
 	}
+	s.notifyModeratedJoinRequest(ctx, joinRequestID, domain.JoinRequestStatusApproved, nil)
 
 	return result, nil
 }
@@ -167,5 +177,84 @@ func (s *Service) RejectJoinRequest(
 		return nil, err
 	}
 
+	s.notifyModeratedJoinRequest(ctx, joinRequestID, domain.JoinRequestStatusRejected, &result.CooldownEndsAt)
+
 	return result, nil
+}
+
+func (s *Service) notifyModeratedJoinRequest(ctx context.Context, joinRequestID uuid.UUID, status domain.JoinRequestStatus, cooldownEndsAt *time.Time) {
+	if s.notifications == nil {
+		return
+	}
+	notificationCtx, err := s.repo.GetNotificationContext(ctx, joinRequestID)
+	if err != nil {
+		slog.ErrorContext(ctx, "join request notification context load failed",
+			"operation", "join_request.notification.context",
+			"join_request_id", joinRequestID.String(),
+			"status", string(status),
+			"error", err,
+		)
+		return
+	}
+
+	notificationType := "PROTECTED_EVENT_JOIN_REQUEST_APPROVED"
+	title := "Join request approved"
+	body := fmt.Sprintf("%s approved your request to join %s.", displayLabel(notificationCtx.HostDisplayName, notificationCtx.HostUsername), notificationCtx.EventTitle)
+	idempotencyKey := fmt.Sprintf("JOIN_REQUEST_APPROVED:%s", notificationCtx.JoinRequestID.String())
+	if status == domain.JoinRequestStatusRejected {
+		notificationType = "PROTECTED_EVENT_JOIN_REQUEST_REJECTED"
+		title = "Join request rejected"
+		body = fmt.Sprintf("%s rejected your request to join %s.", displayLabel(notificationCtx.HostDisplayName, notificationCtx.HostUsername), notificationCtx.EventTitle)
+		idempotencyKey = fmt.Sprintf("JOIN_REQUEST_REJECTED:%s", notificationCtx.JoinRequestID.String())
+	}
+
+	deepLink := fmt.Sprintf("/events/%s", notificationCtx.EventID.String())
+	data := joinRequestNotificationData(notificationCtx, status)
+	if cooldownEndsAt != nil {
+		data["cooldown_ends_at"] = cooldownEndsAt.UTC().Format(time.RFC3339)
+	}
+	_, err = s.notifications.SendNotificationToUsers(ctx, notificationapp.SendNotificationInput{
+		UserIDs:        []uuid.UUID{notificationCtx.RequesterUserID},
+		Title:          title,
+		Type:           &notificationType,
+		Body:           body,
+		DeepLink:       &deepLink,
+		EventID:        &notificationCtx.EventID,
+		ImageURL:       notificationCtx.EventImageURL,
+		Data:           data,
+		IdempotencyKey: idempotencyKey,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "join request notification send failed",
+			"operation", "join_request.notification.send",
+			"join_request_id", notificationCtx.JoinRequestID.String(),
+			"event_id", notificationCtx.EventID.String(),
+			"receiver_user_id", notificationCtx.RequesterUserID.String(),
+			"status", string(status),
+			"error", err,
+		)
+	}
+}
+
+func joinRequestNotificationData(notificationCtx *NotificationContext, status domain.JoinRequestStatus) map[string]string {
+	data := map[string]string{
+		"event_id":         notificationCtx.EventID.String(),
+		"event_title":      notificationCtx.EventTitle,
+		"event_start_time": notificationCtx.EventStartTime.UTC().Format(time.RFC3339),
+		"join_request_id":  notificationCtx.JoinRequestID.String(),
+		"actor_user_id":    notificationCtx.HostUserID.String(),
+		"actor_username":   notificationCtx.HostUsername,
+		"status":           string(status),
+	}
+	if notificationCtx.HostDisplayName != nil && strings.TrimSpace(*notificationCtx.HostDisplayName) != "" {
+		data["actor_display_name"] = strings.TrimSpace(*notificationCtx.HostDisplayName)
+	}
+	return data
+}
+
+func displayLabel(displayName *string, username string) string {
+	if displayName != nil && strings.TrimSpace(*displayName) != "" {
+		return strings.TrimSpace(*displayName)
+	}
+	return username
 }

@@ -188,6 +188,73 @@ func TestSendNotificationToUsersIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestSendNotificationRetriesPushUntilSuccess(t *testing.T) {
+	// given
+	repo := newFakeNotificationRepo()
+	sender := &flakyPushSender{failuresBeforeSuccess: 2}
+	svc := NewService(repo, sender, fakeUnitOfWork{})
+	svc.now = func() time.Time { return time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC) }
+	userID := uuid.New()
+	repo.addDevice(userID, uuid.New(), "push-token", svc.now())
+
+	// when
+	result, err := svc.SendNotificationToUsers(context.Background(), SendNotificationInput{
+		UserIDs:        []uuid.UUID{userID},
+		Title:          "Event update",
+		Body:           "A new update is available.",
+		IdempotencyKey: "event:update:retry-success",
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("SendNotificationToUsers() error = %v", err)
+	}
+	if result.PushSentCount != 1 || result.PushFailedCount != 0 {
+		t.Fatalf("expected final push success, got %#v", result)
+	}
+	if sender.sentCount != 3 {
+		t.Fatalf("expected three send attempts, got %d", sender.sentCount)
+	}
+	if len(repo.deliveryAttempts) != 3 {
+		t.Fatalf("expected three delivery attempt rows, got %d", len(repo.deliveryAttempts))
+	}
+	if repo.deliveryAttempts[2].Status != domain.NotificationDeliveryStatusSent {
+		t.Fatalf("expected final delivery attempt SENT, got %q", repo.deliveryAttempts[2].Status)
+	}
+}
+
+func TestSendNotificationStopsAfterTwoPushRetries(t *testing.T) {
+	// given
+	repo := newFakeNotificationRepo()
+	sender := &flakyPushSender{failuresBeforeSuccess: 99}
+	svc := NewService(repo, sender, fakeUnitOfWork{})
+	svc.now = func() time.Time { return time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC) }
+	userID := uuid.New()
+	repo.addDevice(userID, uuid.New(), "push-token", svc.now())
+
+	// when
+	result, err := svc.SendNotificationToUsers(context.Background(), SendNotificationInput{
+		UserIDs:        []uuid.UUID{userID},
+		Title:          "Event update",
+		Body:           "A new update is available.",
+		IdempotencyKey: "event:update:retry-fail",
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("SendNotificationToUsers() error = %v", err)
+	}
+	if result.PushSentCount != 0 || result.PushFailedCount != 1 {
+		t.Fatalf("expected one final push failure, got %#v", result)
+	}
+	if sender.sentCount != 3 {
+		t.Fatalf("expected three send attempts, got %d", sender.sentCount)
+	}
+	if len(repo.deliveryAttempts) != 3 {
+		t.Fatalf("expected three delivery attempt rows, got %d", len(repo.deliveryAttempts))
+	}
+}
+
 func TestSendCustomNotificationBothUsesSSEAndPush(t *testing.T) {
 	// given
 	repo := newFakeNotificationRepo()
@@ -540,6 +607,19 @@ type recordingPushSender struct {
 
 func (s *recordingPushSender) Send(_ context.Context, _ PushSendMessage) (*PushSendResult, error) {
 	s.sentCount++
+	return &PushSendResult{}, nil
+}
+
+type flakyPushSender struct {
+	sentCount             int
+	failuresBeforeSuccess int
+}
+
+func (s *flakyPushSender) Send(context.Context, PushSendMessage) (*PushSendResult, error) {
+	s.sentCount++
+	if s.sentCount <= s.failuresBeforeSuccess {
+		return &PushSendResult{}, errors.New("temporary push failure")
+	}
 	return &PushSendResult{}, nil
 }
 

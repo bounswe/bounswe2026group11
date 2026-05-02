@@ -25,6 +25,7 @@ type fakeProfileRepo struct {
 	upcomingEvents  []domain.EventSummary
 	completedEvents []domain.EventSummary
 	canceledEvents  []domain.EventSummary
+	searchUsers     []UserSearchRecord
 	eventsErr       error
 }
 
@@ -50,6 +51,10 @@ func (r *fakeProfileRepo) GetCompletedEvents(_ context.Context, _ uuid.UUID) ([]
 
 func (r *fakeProfileRepo) GetCanceledEvents(_ context.Context, _ uuid.UUID) ([]domain.EventSummary, error) {
 	return r.canceledEvents, r.eventsErr
+}
+
+func (r *fakeProfileRepo) SearchUsers(_ context.Context, _ string, _ int) ([]UserSearchRecord, error) {
+	return r.searchUsers, r.eventsErr
 }
 
 func newService(repo *fakeProfileRepo) *Service {

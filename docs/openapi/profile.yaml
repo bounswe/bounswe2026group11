@@ -127,6 +127,104 @@ paths:
         "401":
           description: Missing or invalid access token.
 
+  /me/invitations:
+    get:
+      summary: Get current private-event invitations
+      description: Returns the authenticated user's current `PENDING` invitations for active private events.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Invitations retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceivedInvitationsResponse"
+        "401":
+          description: Missing or invalid access token.
+
+  /me/invitations/{invitation_id}/accept:
+    post:
+      summary: Accept a private-event invitation
+      description: Accepts a `PENDING` invitation owned by the authenticated user and creates an approved participation. After success, the event host receives an event notification with the event image URL when present; notification delivery failures do not fail acceptance.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/InvitationIdParam"
+      responses:
+        "200":
+          description: Invitation accepted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcceptInvitationResponse"
+        "400":
+          description: Invalid invitation id.
+        "401":
+          description: Missing or invalid access token.
+        "404":
+          description: Invitation not found.
+        "409":
+          description: Invitation state, capacity, or eligibility conflict.
+
+  /me/invitations/{invitation_id}/decline:
+    post:
+      summary: Decline a private-event invitation
+      description: Declines a `PENDING` invitation owned by the authenticated user. No participation is created. After success, the event host receives an event notification with the event image URL when present; notification delivery failures do not fail decline.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/InvitationIdParam"
+      responses:
+        "200":
+          description: Invitation declined successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeclineInvitationResponse"
+        "400":
+          description: Invalid invitation id.
+        "401":
+          description: Missing or invalid access token.
+        "404":
+          description: Invitation not found.
+        "409":
+          description: Invitation state conflict.
+
+  /users/search:
+    get:
+      summary: Search users by username
+      description: Authenticated username picker endpoint. Returns at most 10 lightweight user summaries ordered by username relevance.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 32
+      responses:
+        "200":
+          description: Users retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSearchResponse"
+        "400":
+          description: Invalid query.
+        "401":
+          description: Missing or invalid access token.
+
   /me/avatar/upload-url:
     post:
       summary: Create direct-upload URLs for the current user's avatar
@@ -204,6 +302,15 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+  parameters:
+    InvitationIdParam:
+      name: invitation_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
 
   schemas:
     UserProfile:
@@ -374,6 +481,154 @@ components:
             - "null"
           description: Event location address text.
           example: "Maçka Democracy Park, Istanbul"
+
+    ReceivedInvitationsResponse:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReceivedInvitation"
+
+    ReceivedInvitation:
+      type: object
+      additionalProperties: false
+      required: [invitation_id, status, created_at, updated_at, event, host]
+      properties:
+        invitation_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING]
+        message:
+          type:
+            - string
+            - "null"
+        expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        event:
+          $ref: "#/components/schemas/InvitationEventSummary"
+        host:
+          $ref: "#/components/schemas/UserSearchItem"
+
+    InvitationEventSummary:
+      type: object
+      additionalProperties: false
+      required: [id, title, start_time, status, privacy_level, approved_participant_count]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        image_url:
+          type:
+            - string
+            - "null"
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type:
+            - string
+            - "null"
+          format: date-time
+        status:
+          type: string
+          enum: [ACTIVE, IN_PROGRESS]
+        privacy_level:
+          type: string
+          enum: [PRIVATE]
+        approved_participant_count:
+          type: integer
+          minimum: 0
+
+    AcceptInvitationResponse:
+      type: object
+      additionalProperties: false
+      required: [invitation_id, event_id, invitation_status, participation_id, participation_status, updated_at]
+      properties:
+        invitation_id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        invitation_status:
+          type: string
+          enum: [ACCEPTED]
+        participation_id:
+          type: string
+          format: uuid
+        participation_status:
+          type: string
+          enum: [APPROVED]
+        updated_at:
+          type: string
+          format: date-time
+
+    DeclineInvitationResponse:
+      type: object
+      additionalProperties: false
+      required: [invitation_id, event_id, status, updated_at, cooldown_ends_at]
+      properties:
+        invitation_id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [DECLINED]
+        updated_at:
+          type: string
+          format: date-time
+        cooldown_ends_at:
+          type: string
+          format: date-time
+
+    UserSearchResponse:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/UserSearchItem"
+
+    UserSearchItem:
+      type: object
+      additionalProperties: false
+      required: [id, username]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        display_name:
+          type:
+            - string
+            - "null"
+        avatar_url:
+          type:
+            - string
+            - "null"
 
     UpdateProfileRequest:
       type: object

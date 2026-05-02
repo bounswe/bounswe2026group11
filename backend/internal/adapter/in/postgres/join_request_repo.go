@@ -170,6 +170,61 @@ func (r *JoinRequestRepository) RejectJoinRequest(
 	}, nil
 }
 
+func (r *JoinRequestRepository) GetNotificationContext(
+	ctx context.Context,
+	joinRequestID uuid.UUID,
+) (*joinrequestapp.NotificationContext, error) {
+	var (
+		record               joinrequestapp.NotificationContext
+		eventImageURL        pgtype.Text
+		hostDisplayName      pgtype.Text
+		requesterDisplayName pgtype.Text
+	)
+	err := r.db.QueryRow(ctx, `
+		SELECT
+			jr.id,
+			jr.event_id,
+			e.title,
+			e.image_url,
+			e.start_time,
+			jr.host_user_id,
+			host.username,
+			host_profile.display_name,
+			jr.user_id,
+			requester.username,
+			requester_profile.display_name
+		FROM join_request jr
+		JOIN event e ON e.id = jr.event_id
+		JOIN app_user host ON host.id = jr.host_user_id
+		LEFT JOIN profile host_profile ON host_profile.user_id = host.id
+		JOIN app_user requester ON requester.id = jr.user_id
+		LEFT JOIN profile requester_profile ON requester_profile.user_id = requester.id
+		WHERE jr.id = $1
+	`, joinRequestID).Scan(
+		&record.JoinRequestID,
+		&record.EventID,
+		&record.EventTitle,
+		&eventImageURL,
+		&record.EventStartTime,
+		&record.HostUserID,
+		&record.HostUsername,
+		&hostDisplayName,
+		&record.RequesterUserID,
+		&record.RequesterUsername,
+		&requesterDisplayName,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.NotFoundError(domain.ErrorCodeJoinRequestNotFound, "The requested join request does not exist.")
+		}
+		return nil, fmt.Errorf("load join request notification context: %w", err)
+	}
+	record.EventImageURL = textPtr(eventImageURL)
+	record.HostDisplayName = textPtr(hostDisplayName)
+	record.RequesterDisplayName = textPtr(requesterDisplayName)
+	return &record, nil
+}
+
 func (r *JoinRequestRepository) handleExistingJoinRequestForCreate(
 	ctx context.Context,
 	existing *domain.JoinRequest,

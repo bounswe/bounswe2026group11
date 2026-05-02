@@ -22,6 +22,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	favoritelocation "github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/invitation"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
@@ -48,6 +49,7 @@ type Container struct {
 	adminRepo               *postgres.AdminRepository
 	eventRepo               *postgres.EventRepository
 	participationRepo       *postgres.ParticipationRepository
+	invitationRepo          *postgres.InvitationRepository
 	joinRequestRepo         *postgres.JoinRequestRepository
 	ticketRepo              *postgres.TicketRepository
 	ratingRepo              *postgres.RatingRepository
@@ -59,6 +61,7 @@ type Container struct {
 	AdminService            admin.UseCase
 	EventService            event.UseCase
 	ParticipationService    participation.UseCase
+	InvitationService       invitation.UseCase
 	JoinRequestService      join_request.UseCase
 	TicketService           ticket.UseCase
 	RatingService           rating.UseCase
@@ -103,6 +106,7 @@ func New(ctx context.Context) (*Container, error) {
 	container.adminRepo = postgres.NewAdminRepository(container.DB)
 	container.eventRepo = postgres.NewEventRepository(container.DB)
 	container.participationRepo = postgres.NewParticipationRepository(container.DB)
+	container.invitationRepo = postgres.NewInvitationRepository(container.DB)
 	container.joinRequestRepo = postgres.NewJoinRequestRepository(container.DB)
 	container.ticketRepo = postgres.NewTicketRepository(container.DB)
 	container.ratingRepo = postgres.NewRatingRepository(container.DB)
@@ -111,16 +115,17 @@ func New(ctx context.Context) (*Container, error) {
 	container.categoryRepo = postgres.NewCategoryRepository(container.DB)
 	container.profileRepo = postgres.NewProfileRepository(container.DB)
 	container.favoriteLocationRepo = postgres.NewFavoriteLocationRepository(container.DB)
-	container.ParticipationService = newParticipationService(container)
-	container.TicketService = newTicketService(container)
-	container.JoinRequestService = newJoinRequestService(container)
-	container.RatingService = newRatingService(container)
 	notificationService, err := newNotificationService(ctx, container)
 	if err != nil {
 		db.Close()
 		return nil, err
 	}
 	container.NotificationService = notificationService
+	container.ParticipationService = newParticipationService(container)
+	container.TicketService = newTicketService(container)
+	container.InvitationService = newInvitationService(container)
+	container.JoinRequestService = newJoinRequestService(container)
+	container.RatingService = newRatingService(container)
 	container.AuthService = newAuthService(container)
 	container.AdminService = newAdminService(container)
 	container.EventService = newEventService(container)
@@ -257,10 +262,18 @@ func newParticipationService(c *Container) participation.UseCase {
 	return participation.NewService(c.participationRepo)
 }
 
+func newInvitationService(c *Container) invitation.UseCase {
+	service := invitation.NewService(c.invitationRepo, c.UnitOfWork, c.TicketService)
+	service.SetNotificationService(c.NotificationService)
+	return service
+}
+
 // newJoinRequestService wires the join request use-case service with its
 // driven adapter.
 func newJoinRequestService(c *Container) join_request.UseCase {
-	return join_request.NewService(c.joinRequestRepo, c.UnitOfWork, c.TicketService)
+	service := join_request.NewService(c.joinRequestRepo, c.UnitOfWork, c.TicketService)
+	service.SetNotificationService(c.NotificationService)
+	return service
 }
 
 // newTicketService wires the ticket use-case service with its driven adapters.

@@ -381,6 +381,35 @@ func (s *Service) sendPushForNotification(ctx context.Context, notification doma
 	now := s.now().UTC()
 
 	for _, device := range devices {
+		sendResult, sendErr := s.sendPushWithRetries(ctx, notification, device, now)
+		if sendResult != nil && sendResult.InvalidToken {
+			result.InvalidTokenCount++
+			if err := s.repo.RevokeDeviceByID(ctx, device.ID, now); err != nil {
+				return nil, fmt.Errorf("revoke invalid push device: %w", err)
+			}
+		}
+		if sendErr != nil {
+			result.FailedCount++
+			continue
+		}
+		result.SentCount++
+	}
+
+	return result, nil
+}
+
+func (s *Service) sendPushWithRetries(
+	ctx context.Context,
+	notification domain.Notification,
+	device domain.PushDevice,
+	now time.Time,
+) (*PushSendResult, error) {
+	var (
+		lastResult *PushSendResult
+		lastErr    error
+	)
+
+	for attempt := 0; attempt <= MaxPushDeliveryRetries; attempt++ {
 		sendResult, sendErr := s.sender.Send(ctx, PushSendMessage{
 			Token:    device.FCMToken,
 			Title:    notification.Title,
@@ -398,20 +427,12 @@ func (s *Service) sendPushForNotification(ctx context.Context, notification doma
 				"operation", "notification.push.device_send",
 				"user_id", device.UserID.String(),
 				"device_id", device.ID.String(),
+				"attempt", attempt+1,
 				"error", sendErr,
 			)
 			status = domain.NotificationDeliveryStatusFailed
 			sentAt = nil
 			errorSummary = shortErrorSummary(sendErr)
-			result.FailedCount++
-		} else {
-			result.SentCount++
-		}
-		if sendResult != nil && sendResult.InvalidToken {
-			result.InvalidTokenCount++
-			if err := s.repo.RevokeDeviceByID(ctx, device.ID, now); err != nil {
-				return nil, fmt.Errorf("revoke invalid push device: %w", err)
-			}
 		}
 
 		if err := s.repo.CreateDeliveryAttempt(ctx, CreateDeliveryAttemptParams{
@@ -425,9 +446,15 @@ func (s *Service) sendPushForNotification(ctx context.Context, notification doma
 		}); err != nil {
 			return nil, fmt.Errorf("store push delivery attempt: %w", err)
 		}
+
+		lastResult = sendResult
+		lastErr = sendErr
+		if sendErr == nil || (sendResult != nil && sendResult.InvalidToken) {
+			return sendResult, sendErr
+		}
 	}
 
-	return result, nil
+	return lastResult, lastErr
 }
 
 func uniqueUserIDs(userIDs []uuid.UUID) map[uuid.UUID]struct{} {
