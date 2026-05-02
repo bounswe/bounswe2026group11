@@ -11,12 +11,18 @@ import { useMyEventsViewModel } from '@/viewmodels/event/useMyEventsViewModel';
 
 const mockPush = jest.fn();
 
-jest.mock('expo-router', () => ({
-  router: {
-    push: (...args: unknown[]) => mockPush(...args),
-  },
-  usePathname: () => '/events',
-}));
+jest.mock('expo-router', () => {
+  const ReactLocal = require('react');
+  return {
+    router: {
+      push: (...args: unknown[]) => mockPush(...args),
+    },
+    usePathname: () => '/events',
+    useFocusEffect: (callback: () => void) => {
+      ReactLocal.useEffect(callback, [callback]);
+    },
+  };
+});
 
 jest.mock('react-native-safe-area-context', () => {
   const ReactLocal = require('react');
@@ -96,9 +102,9 @@ function buildViewModel(
     emptyTitle: 'No active events right now',
     emptySubtitle: 'Hosted plans and upcoming participations will appear here.',
     setActiveStatus: jest.fn(),
-    reload: jest.fn().mockResolvedValue(undefined),
+    reload: jest.fn().mockImplementation(() => Promise.resolve()),
     ...overrides,
-  };
+  } as MyEventsViewModel;
 }
 
 describe('MyEventsView', () => {
@@ -108,10 +114,10 @@ describe('MyEventsView', () => {
 
   it('renders the my events page and event cards', () => {
     const event = makeEvent();
-    mockUseMyEventsViewModel.mockReturnValue(
+    (mockUseMyEventsViewModel as any).mockReturnValue(
       buildViewModel({
         visibleEvents: [event],
-      }),
+      }) as any,
     );
 
     render(<MyEventsView />);
@@ -129,8 +135,8 @@ describe('MyEventsView', () => {
 
   it('updates the selected status tab when a segment is pressed', () => {
     const setActiveStatus = jest.fn();
-    mockUseMyEventsViewModel.mockReturnValue(
-      buildViewModel({ setActiveStatus }),
+    (mockUseMyEventsViewModel as any).mockReturnValue(
+      buildViewModel({ setActiveStatus }) as any,
     );
 
     render(<MyEventsView />);
@@ -141,12 +147,12 @@ describe('MyEventsView', () => {
   });
 
   it('renders the empty state for the selected status', () => {
-    mockUseMyEventsViewModel.mockReturnValue(
+    (mockUseMyEventsViewModel as any).mockReturnValue(
       buildViewModel({
         visibleEvents: [],
         emptyTitle: 'No completed events yet',
         emptySubtitle: 'Your hosted wrap-ups and participation history will build here.',
-      }),
+      }) as any,
     );
 
     render(<MyEventsView />);
@@ -158,7 +164,7 @@ describe('MyEventsView', () => {
   });
 
   it('shows summary fallbacks when /me does not provide location or attendee count', () => {
-    mockUseMyEventsViewModel.mockReturnValue(
+    (mockUseMyEventsViewModel as any).mockReturnValue(
       buildViewModel({
         visibleEvents: [
           makeEvent({
@@ -166,7 +172,7 @@ describe('MyEventsView', () => {
             approved_participant_count: null,
           }),
         ],
-      }),
+      }) as any,
     );
 
     render(<MyEventsView />);
@@ -176,13 +182,13 @@ describe('MyEventsView', () => {
   });
 
   it('renders a retryable error state', () => {
-    const reload = jest.fn().mockResolvedValue(undefined);
-    mockUseMyEventsViewModel.mockReturnValue(
+    const reload = jest.fn().mockImplementation(() => Promise.resolve());
+    (mockUseMyEventsViewModel as any).mockReturnValue(
       buildViewModel({
         errorMessage: 'Failed to load your events. Please try again.',
         visibleEvents: [],
         reload,
-      }),
+      }) as any,
     );
 
     render(<MyEventsView />);

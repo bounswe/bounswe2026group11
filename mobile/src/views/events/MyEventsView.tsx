@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { router, type Href } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
 import MyEventCard from '@/components/events/MyEventCard';
 import { useMyEventsViewModel } from '@/viewmodels/event/useMyEventsViewModel';
 
@@ -52,6 +52,12 @@ function StatePanel({
 
 export default function MyEventsView() {
   const vm = useMyEventsViewModel();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      void vm.reload();
+    }, [vm.reload]),
+  );
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>

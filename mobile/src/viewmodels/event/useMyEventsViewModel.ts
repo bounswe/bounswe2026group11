@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   MyEventStatus,
   MyEventSummary,
@@ -98,7 +98,7 @@ export function useMyEventsViewModel(): MyEventsViewModel {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  async function reload() {
+  const reload = React.useCallback(async () => {
     if (!token) {
       setHostedEvents([]);
       setAttendedEvents([]);
@@ -121,7 +121,7 @@ export function useMyEventsViewModel(): MyEventsViewModel {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [token]);
 
   useEffect(() => {
     void reload();
