@@ -312,8 +312,7 @@ export default function EditProfileView() {
                   mode="date"
                   display={Platform.OS === 'ios' ? 'inline' : 'default'}
                   maximumDate={new Date()}
-                  onValueChange={handleDateChange}
-                  onDismiss={() => setShowDatePicker(false)}
+                  onChange={handleDateChange}
                 />
               </View>
             ) : null}

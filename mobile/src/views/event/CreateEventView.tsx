@@ -104,7 +104,11 @@ export default function CreateEventView() {
   }, [activeDatePicker, vm.formData.startDate, parseDateString, getStartOfDay]);
 
   const handleDateValueChange = useCallback(
-    (_event: any, selectedDate: Date) => {
+    (_event: any, selectedDate?: Date) => {
+      if (!selectedDate) {
+        setActiveDatePicker(null);
+        return;
+      }
       const prevDate = getCurrentPickerDate();
       const onlyDayChanged =
         selectedDate.getDate() !== prevDate.getDate() &&
@@ -130,7 +134,11 @@ export default function CreateEventView() {
   );
 
   const handleTimeValueChange = useCallback(
-    (_event: any, selectedDate: Date) => {
+    (_event: any, selectedDate?: Date) => {
+      if (!selectedDate) {
+        setActiveTimePicker(null);
+        return;
+      }
       const hours = String(selectedDate.getHours()).padStart(2, '0');
       const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
       const formatted = `${hours}:${minutes}`;
@@ -479,8 +487,7 @@ export default function CreateEventView() {
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
                 minimumDate={getMinimumDatePickerDate()}
-                onValueChange={handleDateValueChange}
-                onDismiss={handleDateDismiss}
+                onChange={handleDateValueChange}
               />
             </View>
           )}
@@ -491,8 +498,7 @@ export default function CreateEventView() {
                 mode="time"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 is24Hour={true}
-                onValueChange={handleTimeValueChange}
-                onDismiss={handleTimeDismiss}
+                onChange={handleTimeValueChange}
               />
             </View>
           )}
@@ -576,8 +582,7 @@ export default function CreateEventView() {
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
                 minimumDate={getMinimumDatePickerDate()}
-                onValueChange={handleDateValueChange}
-                onDismiss={handleDateDismiss}
+                onChange={handleDateValueChange}
               />
             </View>
           )}
@@ -588,8 +593,7 @@ export default function CreateEventView() {
                 mode="time"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 is24Hour={true}
-                onValueChange={handleTimeValueChange}
-                onDismiss={handleTimeDismiss}
+                onChange={handleTimeValueChange}
               />
             </View>
           )}

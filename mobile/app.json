@@ -15,20 +15,26 @@
         }
       ],
       "@react-native-firebase/app",
-      "@react-native-firebase/messaging"
+      "@react-native-firebase/messaging",
+      "@react-native-community/datetimepicker",
+      "expo-secure-store"
     ],
     "ios": {
       "bundleIdentifier": "com.bounswe2026group11.socialeventmapper",
       "googleServicesFile": "./firebase/GoogleService-Info.plist",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
       "package": "com.bounswe2026group11.socialeventmapper",
       "versionCode": 1,
       "googleServicesFile": "./firebase/google-services.json",
-      "permissions": ["android.permission.POST_NOTIFICATIONS"]
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ]
     },
     "experiments": {
       "typedRoutes": true

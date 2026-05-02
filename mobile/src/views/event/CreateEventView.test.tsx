@@ -175,9 +175,9 @@ describe('CreateEventView', () => {
     expected.setHours(0, 0, 0, 0);
 
     expect(minimumDate.getTime()).toBe(expected.getTime());
-    expect(datePicker.getAttribute('data-has-on-change')).toBe('false');
-    expect(datePicker.getAttribute('data-has-on-value-change')).toBe('true');
-    expect(datePicker.getAttribute('data-has-on-dismiss')).toBe('true');
+    expect(datePicker.getAttribute('data-has-on-change')).toBe('true');
+    expect(datePicker.getAttribute('data-has-on-value-change')).toBe('false');
+    expect(datePicker.getAttribute('data-has-on-dismiss')).toBe('false');
 
     fireEvent.click(screen.getByLabelText('Pick start time'));
 
