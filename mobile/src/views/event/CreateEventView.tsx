@@ -642,6 +642,68 @@ export default function CreateEventView() {
           </View>
         </View>
 
+        {/* Invite Guests (Private Only) */}
+        {vm.formData.privacyLevel === 'PRIVATE' && (
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Invite Guests</Text>
+            <View style={styles.tagInputRow}>
+              <View style={{ flex: 1 }}>
+                <TextInput
+                  style={[styles.input, styles.tagInput]}
+                  placeholder="Username"
+                  placeholderTextColor="#9CA3AF"
+                  value={vm.userSearchQuery}
+                  onChangeText={(v) => vm.handleUserSearch(v, token ?? '')}
+                  editable={!vm.isLoading}
+                />
+                {vm.isSearchingUsers && (
+                  <ActivityIndicator size="small" color="#111827" style={styles.userSearchSpinner} />
+                )}
+                {vm.userSuggestions.length > 0 && (
+                  <View style={styles.userSuggestionsContainer}>
+                    {vm.userSuggestions.map((s) => (
+                      <TouchableOpacity
+                        key={s.id}
+                        style={styles.suggestionItem}
+                        onPress={() => vm.addInvitedUser(s.username)}
+                      >
+                        <Text style={styles.suggestionText}>{s.username}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.fileUploadButton}
+                onPress={vm.pickAndParseUserFile}
+                disabled={vm.isLoading}
+              >
+                <MaterialIcons name="upload-file" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            {vm.invitedUsers.length > 0 && (
+              <View style={styles.chipRow}>
+                {vm.invitedUsers.map((username, i) => (
+                  <View key={`${username}-${i}`} style={[styles.tagChip, styles.invitedUserChip]}>
+                    <Text style={styles.tagChipText}>{username}</Text>
+                    <TouchableOpacity
+                      style={styles.chipRemoveBtn}
+                      onPress={() => vm.removeInvitedUser(username)}
+                    >
+                      <MaterialIcons name="close" size={14} color="#6B7280" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+            <Text style={styles.helperText}>
+              Add guests by username or upload a .txt/.csv file (one username per line or comma-separated).
+            </Text>
+          </View>
+        )}
+
+
         {/* Tags */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Tags (max 5)</Text>
@@ -903,6 +965,7 @@ export default function CreateEventView() {
             <Text style={styles.fieldError}>{vm.errors.constraints}</Text>
           )}
         </View>
+
 
         {/* Submit Button */}
         <TouchableOpacity
@@ -1384,5 +1447,52 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#64748B',
     lineHeight: 18,
+  },
+  userSearchSpinner: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
+  },
+  userSuggestionsContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    zIndex: 10,
+    marginTop: 4,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  fileUploadButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  invitedUserChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingRight: 8,
+  },
+  chipRemoveBtn: {
+    padding: 2,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 8,
+    lineHeight: 16,
   },
 });

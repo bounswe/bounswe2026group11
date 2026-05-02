@@ -111,6 +111,14 @@ export async function listEventInvitations(
   );
 }
 
+export async function createEventInvitations(
+  id: string,
+  usernames: string[],
+  token: string,
+): Promise<any> {
+  return apiPostAuth<any>(`/events/${id}/invitations`, { usernames }, token);
+}
+
 export async function joinEvent(
   id: string,
   token: string,

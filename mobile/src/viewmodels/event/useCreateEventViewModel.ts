@@ -5,11 +5,16 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { ApiError } from '@/services/api';
 import {
   createEvent,
+  createEventInvitations,
   searchLocation,
   getEventImageUploadUrl,
   uploadFileToPresignedUrl,
   confirmEventImageUpload,
 } from '@/services/eventService';
+import { searchUsers } from '@/services/profileService';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { debounce } from 'lodash';
 import {
   PrivacyLevel,
   LocationSuggestion,
@@ -131,12 +136,13 @@ export interface CreateEventViewModel {
   pickImage: () => Promise<void>;
   removeImage: () => void;
   invitedUsers: string[];
-  searchQuery: string;
+  userSearchQuery: string;
+  userSuggestions: Array<{ id: string; username: string }>;
   isSearchingUsers: boolean;
-  setSearchQuery: (query: string) => void;
   addInvitedUser: (username: string) => void;
   removeInvitedUser: (username: string) => void;
-  handleSearchUser: () => Promise<void>;
+  handleUserSearch: (query: string, token: string) => void;
+  pickAndParseUserFile: () => Promise<void>;
   handleSubmit: (token: string) => Promise<CreateEventResponse | null>;
 }
 
@@ -578,10 +584,12 @@ export function useCreateEventViewModel(): CreateEventViewModel {
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
-  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [invitedUsers, setInvitedUsers] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userSuggestions, setUserSuggestions] = useState<Array<{ id: string; username: string }>>([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const userSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const imageUploadSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearImageUploadSuccessMessage = useCallback(() => {
@@ -629,27 +637,6 @@ export function useCreateEventViewModel(): CreateEventViewModel {
     },
     [clearImageUploadSuccessMessage],
   );
-
-  const addInvitedUser = useCallback((username: string) => {
-    const trimmed = username.trim().toLowerCase();
-    if (trimmed && !invitedUsers.includes(trimmed)) {
-      setInvitedUsers((prev) => [...prev, trimmed]);
-      setSearchQuery('');
-    }
-  }, [invitedUsers]);
-
-  const removeInvitedUser = useCallback((username: string) => {
-    setInvitedUsers((prev) => prev.filter((u) => u !== username));
-  }, []);
-
-  const handleSearchUser = useCallback(async () => {
-    if (!searchQuery.trim()) return;
-    setIsSearchingUsers(true);
-    // Mock search delay to simulate backend check
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    addInvitedUser(searchQuery);
-    setIsSearchingUsers(false);
-  }, [searchQuery, addInvitedUser]);
 
   const toggleCategoriesExpanded = useCallback(() => {
     setCategoriesExpanded((prev) => !prev);
@@ -928,6 +915,75 @@ export function useCreateEventViewModel(): CreateEventViewModel {
     setImageError(null);
   }, []);
 
+  const addInvitedUser = useCallback((username: string) => {
+    setInvitedUsers((prev) => {
+      if (prev.includes(username)) return prev;
+      return [...prev, username];
+    });
+    setUserSearchQuery('');
+    setUserSuggestions([]);
+  }, []);
+
+  const removeInvitedUser = useCallback((username: string) => {
+    setInvitedUsers((prev) => prev.filter((u) => u !== username));
+  }, []);
+
+  const handleUserSearch = useCallback((query: string, token: string) => {
+    setUserSearchQuery(query);
+    if (userSearchTimeoutRef.current) clearTimeout(userSearchTimeoutRef.current);
+
+    if (!query.trim()) {
+      setUserSuggestions([]);
+      setIsSearchingUsers(false);
+      return;
+    }
+
+    setIsSearchingUsers(true);
+    userSearchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const results = await searchUsers(query, token);
+        setUserSuggestions(results.items.map((i) => ({ id: i.id, username: i.username })));
+      } finally {
+        setIsSearchingUsers(false);
+      }
+    }, 500);
+  }, []);
+
+  const pickAndParseUserFile = useCallback(async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['text/plain', 'text/csv'],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      const fileUri = result.assets[0].uri;
+      const content = await FileSystem.readAsStringAsync(fileUri);
+
+      // Split by comma, newline or space and clean up
+      const usernames = content
+        .split(/[\n,\s]+/)
+        .map((u) => u.trim())
+        .filter((u) => u.length > 0 && /^[a-zA-Z0-9._]+$/.test(u));
+
+      if (usernames.length === 0) {
+        Alert.alert('Invalid File', 'No valid usernames found in the file.');
+        return;
+      }
+
+      setInvitedUsers((prev) => {
+        const combined = [...prev, ...usernames];
+        return [...new Set(combined)];
+      });
+
+      Alert.alert('Success', `Added ${usernames.length} usernames from file.`);
+    } catch (error) {
+      console.error('File read error:', error);
+      Alert.alert('Error', 'Failed to read the selected file.');
+    }
+  }, []);
+
   const uploadEventImage = useCallback(
     async (eventId: string, imageUri: string, token: string): Promise<void> => {
       setIsUploadingImage(true);
@@ -1052,6 +1108,14 @@ export function useCreateEventViewModel(): CreateEventViewModel {
         const result = await createEvent(request, token);
         setSuccessMessage('Event created successfully!');
 
+        if (formData.privacyLevel === 'PRIVATE' && invitedUsers.length > 0) {
+          try {
+            await createEventInvitations(result.id, invitedUsers, token);
+          } catch (error) {
+            // We don't fail the whole creation for this, but could show a warning
+          }
+        }
+
         // Upload image if one was selected
         if (selectedImageUri) {
           try {
@@ -1094,7 +1158,7 @@ export function useCreateEventViewModel(): CreateEventViewModel {
         setIsLoading(false);
       }
     },
-    [formData, selectedImageUri, uploadEventImage, clearImageUploadSuccessMessage],
+    [formData, selectedImageUri, invitedUsers, uploadEventImage, clearImageUploadSuccessMessage],
   );
 
   return {
@@ -1124,12 +1188,13 @@ export function useCreateEventViewModel(): CreateEventViewModel {
     pickImage,
     removeImage,
     invitedUsers,
-    searchQuery,
+    userSearchQuery,
+    userSuggestions,
     isSearchingUsers,
-    setSearchQuery,
     addInvitedUser,
     removeInvitedUser,
-    handleSearchUser,
+    handleUserSearch,
+    pickAndParseUserFile,
     handleSubmit,
   };
 }

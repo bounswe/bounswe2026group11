@@ -49,3 +49,10 @@ export function updateMyProfile(
 ): Promise<void> {
   return apiPatchAuth<void>('/me', data, token);
 }
+
+export function searchUsers(
+  query: string,
+  token: string,
+): Promise<{ items: Array<{ id: string; username: string; display_name: string | null; avatar_url: string | null }> }> {
+  return apiGetAuth<any>(`/users/search?query=${encodeURIComponent(query)}`, token);
+}
