@@ -25,6 +25,7 @@ import { formatEventLocation } from '@/utils/eventLocation';
 import { EventDetail } from '@/models/event';
 import JoinRequestsModal from '@/components/events/JoinRequestsModal';
 import ParticipantListModal from '@/components/events/ParticipantListModal';
+import InvitationsModal from '@/components/events/InvitationsModal';
 
 interface EventDetailViewProps {
   eventId: string;
@@ -728,6 +729,18 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   </TouchableOpacity>
                 )}
 
+                {vm.event.privacy_level === 'PRIVATE' && vm.event.status === 'ACTIVE' && (
+                  <TouchableOpacity
+                    style={[styles.hostActionBtn, styles.hostActionBtnPrimary]}
+                    onPress={() => vm.setShowInvitationsModal(true)}
+                  >
+                    <Feather name="send" size={18} color="#FFFFFF" />
+                    <Text style={styles.hostActionTextWhite}>
+                      Invite & Manage ({vm.hostContextSummary?.invitation_count ?? vm.invitations.length})
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
                 {vm.event.status === 'ACTIVE' && (
                   <TouchableOpacity
                     style={[styles.hostActionBtn, styles.hostActionBtnDanger]}
@@ -928,6 +941,20 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             onClose={() => vm.setShowRequestsModal(false)}
             onApprove={vm.handleApproveRequest}
             onReject={vm.handleRejectRequest}
+          />
+          <InvitationsModal
+            visible={vm.showInvitationsModal}
+            invitations={vm.invitations}
+            loading={vm.invitationsLoading}
+            hasMore={vm.invitationsHasNext}
+            onLoadMore={vm.loadMoreInvitations}
+            onClose={() => vm.setShowInvitationsModal(false)}
+            onInvite={vm.handleInviteUsers}
+            isInviting={vm.isInviting}
+            userSearchQuery={vm.userSearchQuery}
+            setUserSearchQuery={vm.setUserSearchQuery}
+            userSuggestions={vm.userSuggestions}
+            isSearchingUsers={vm.isSearchingUsers}
           />
           <ParticipantListModal
             visible={vm.showAttendeesModal}

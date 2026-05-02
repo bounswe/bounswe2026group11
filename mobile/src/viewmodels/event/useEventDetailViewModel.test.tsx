@@ -4,6 +4,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import * as eventService from '@/services/eventService';
 import * as favoriteService from '@/services/favoriteService';
+import * as profileService from '@/services/profileService';
 import { ApiError } from '@/services/api';
 import type {
   EventDetail,
@@ -19,6 +20,7 @@ import {
 
 jest.mock('@/services/eventService');
 jest.mock('@/services/favoriteService');
+jest.mock('@/services/profileService');
 
 const mockUser: UserSummary = {
   id: 'user-uuid-001',
@@ -60,6 +62,9 @@ const mockUpsertEventRating = jest.mocked(eventService.upsertEventRating);
 const mockUpsertParticipantRating = jest.mocked(eventService.upsertParticipantRating);
 const mockAddFavorite = jest.mocked(favoriteService.addFavorite);
 const mockRemoveFavorite = jest.mocked(favoriteService.removeFavorite);
+const mockListEventInvitations = jest.mocked(eventService.listEventInvitations);
+const mockCreateEventInvitations = jest.mocked(eventService.createEventInvitations);
+const mockSearchUsers = jest.mocked(profileService.searchUsers);
 
 const mockErrorBody = { error: { code: 'server_error', message: 'Unexpected error' } };
 
@@ -354,6 +359,19 @@ describe('useEventDetailViewModel', () => {
     });
     mockAddFavorite.mockResolvedValue(undefined);
     mockRemoveFavorite.mockResolvedValue(undefined);
+    mockListEventInvitations.mockResolvedValue({
+      items: [],
+      page_info: { next_cursor: null, has_next: false },
+    });
+    mockCreateEventInvitations.mockResolvedValue({
+      success_count: 1,
+      invalid_username_count: 0,
+      failed_count: 0,
+      successful_invitations: [],
+      invalid_usernames: [],
+      failed: [],
+    });
+    mockSearchUsers.mockResolvedValue({ items: [] });
   });
 
   // ─── Initial loading state ───
@@ -1393,6 +1411,129 @@ describe('useEventDetailViewModel', () => {
       });
 
       expect(result.current.participantRatingError).toBeNull();
+    });
+  });
+
+  // ─── Invitations ───
+  describe('invitations', () => {
+    it('loads invitations when modal is opened', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(hostedEventFixture);
+      mockListEventInvitations.mockResolvedValueOnce({
+        items: [
+          {
+            invitation_id: 'inv-1',
+            status: 'PENDING',
+            user: { id: 'u3', username: 'invited_user', display_name: null, avatar_url: null },
+          },
+        ] as any,
+        page_info: { next_cursor: null, has_next: false },
+      });
+
+      const { result } = renderHook(() => useEventDetailViewModel('event-uuid-003'));
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      act(() => {
+        result.current.setShowInvitationsModal(true);
+      });
+
+      await waitFor(() => expect(result.current.invitationsLoading).toBe(false));
+      expect(mockListEventInvitations).toHaveBeenCalledWith('event-uuid-003', 'mock-token', expect.any(Object));
+      expect(result.current.invitations).toHaveLength(1);
+      expect(result.current.invitations[0].invitation_id).toBe('inv-1');
+    });
+
+    it('successfully invites users and refreshes list', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(hostedEventFixture);
+      mockCreateEventInvitations.mockResolvedValueOnce({
+        success_count: 1,
+        invalid_username_count: 0,
+        failed_count: 0,
+        successful_invitations: [],
+        invalid_usernames: [],
+        failed: [],
+      });
+      mockListEventInvitations.mockResolvedValue({
+        items: [],
+        page_info: { next_cursor: null, has_next: false },
+      });
+
+      const { result } = renderHook(() => useEventDetailViewModel('event-uuid-003'));
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleInviteUsers(['newuser']);
+      });
+
+      expect(mockCreateEventInvitations).toHaveBeenCalledWith('event-uuid-003', ['newuser'], 'mock-token', undefined);
+      expect(mockGetEventHostContextSummary).toHaveBeenCalled();
+      await waitFor(() => expect(mockListEventInvitations).toHaveBeenCalled());
+    });
+
+    it('throws error with specific message when some usernames are invalid', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(hostedEventFixture);
+      mockCreateEventInvitations.mockResolvedValueOnce({
+        success_count: 0,
+        invalid_username_count: 1,
+        failed_count: 0,
+        invalid_usernames: ['baduser'],
+        failed: [],
+      } as any);
+
+      const { result } = renderHook(() => useEventDetailViewModel('event-uuid-003'));
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await expect(
+        act(async () => {
+          await result.current.handleInviteUsers(['baduser']);
+        }),
+      ).rejects.toThrow('User(s) not found: baduser');
+    });
+
+    it('throws error with specific message when users are already invited', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(hostedEventFixture);
+      mockCreateEventInvitations.mockResolvedValueOnce({
+        success_count: 0,
+        invalid_username_count: 0,
+        failed_count: 1,
+        invalid_usernames: [],
+        failed: [{ username: 'already_here', code: 'duplicate' }],
+      } as any);
+
+      const { result } = renderHook(() => useEventDetailViewModel('event-uuid-003'));
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await expect(
+        act(async () => {
+          await result.current.handleInviteUsers(['already_here']);
+        }),
+      ).rejects.toThrow('Already invited or participating: already_here');
+    });
+
+    it('searches for users when query changes', async () => {
+      jest.useFakeTimers();
+      mockGetEventDetail.mockResolvedValueOnce(hostedEventFixture);
+      mockSearchUsers.mockResolvedValueOnce({
+        items: [{ id: 'u4', username: 'search_result', display_name: null, avatar_url: null }],
+      });
+
+      const { result } = renderHook(() => useEventDetailViewModel('event-uuid-003'));
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      act(() => {
+        result.current.setUserSearchQuery('sea');
+      });
+
+      // Fast-forward debounce timer
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+
+      await waitFor(() => expect(result.current.isSearchingUsers).toBe(false));
+      expect(mockSearchUsers).toHaveBeenCalledWith('sea', 'mock-token');
+      expect(result.current.userSuggestions).toHaveLength(1);
+      expect(result.current.userSuggestions[0].username).toBe('search_result');
+      
+      jest.useRealTimers();
     });
   });
 });

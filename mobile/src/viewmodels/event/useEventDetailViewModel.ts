@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
   EventDetail,
   EventDetailApprovedParticipant,
   EventDetailPendingJoinRequest,
   EventHostContextSummary,
   ParticipationStatus,
+  EventDetailInvitation,
 } from '@/models/event';
 import {
   getEventDetail,
@@ -19,10 +20,13 @@ import {
   cancelEvent,
   upsertEventRating,
   upsertParticipantRating,
+  listEventInvitations,
+  createEventInvitations,
 } from '@/services/eventService';
 import { addFavorite, removeFavorite } from '@/services/favoriteService';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiError } from '@/services/api';
+import { searchUsers } from '@/services/profileService';
 
 export type ActionState =
   | 'idle'
@@ -63,6 +67,20 @@ export interface EventDetailViewModel {
   openJoinRequestModal: () => void;
   closeJoinRequestModal: () => void;
   setJoinRequestMessage: (message: string) => void;
+
+  userSearchQuery: string;
+  setUserSearchQuery: (query: string) => void;
+  userSuggestions: any[];
+  isSearchingUsers: boolean;
+
+  showInvitationsModal: boolean;
+  setShowInvitationsModal: (val: boolean) => void;
+  invitations: EventDetailInvitation[];
+  invitationsLoading: boolean;
+  invitationsHasNext: boolean;
+  loadMoreInvitations: () => Promise<void>;
+  handleInviteUsers: (usernames: string[]) => Promise<void>;
+  isInviting: boolean;
 
   canLeave: boolean;
   handleJoin: () => Promise<void>;
@@ -175,6 +193,17 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
 
   const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [showAttendeesModal, setShowAttendeesModal] = useState(false);
+  const [showInvitationsModal, setShowInvitationsModal] = useState(false);
+  const [invitations, setInvitations] = useState<EventDetailInvitation[]>([]);
+  const [invitationsLoading, setInvitationsLoading] = useState(false);
+  const [invitationsCursor, setInvitationsCursor] = useState<string | null>(null);
+  const [invitationsHasNext, setInvitationsHasNext] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const userSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isQuotaFull =
     event?.capacity != null &&
@@ -209,6 +238,9 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     setPendingJoinRequests([]);
     setPendingJoinRequestsNextCursor(null);
     setPendingJoinRequestsHasNext(false);
+    setInvitations([]);
+    setInvitationsCursor(null);
+    setInvitationsHasNext(false);
   }, []);
 
   const refreshHostContextSummary = useCallback(async () => {
@@ -217,6 +249,43 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     setHostContextSummary(summary);
     return summary;
   }, [eventId, token]);
+
+  const fetchEvent = useCallback(
+    async (silent = false) => {
+      if (!token) {
+        setApiError('You must be logged in to view this event.');
+        if (!silent) setIsLoading(false);
+        return;
+      }
+
+      if (!silent) setIsLoading(true);
+      setApiError(null);
+      if (!silent) resetHostManagement();
+
+      try {
+        const data = await getEventDetail(eventId, token);
+        setEvent(data);
+        setIsFavorited(data.viewer_context.is_favorited);
+        setParticipationStatus(data.viewer_context.participation_status);
+        if (data.viewer_context.is_host) {
+          void refreshHostContextSummary();
+        }
+      } catch (err) {
+        if (!silent) {
+          if (err instanceof ApiError && err.status === 404) {
+            setApiError(
+              'This event is either private or does not exist. You may need an invitation to view it.',
+            );
+          } else {
+            setApiError('Failed to load event details. Please try again.');
+          }
+        }
+      } finally {
+        if (!silent) setIsLoading(false);
+      }
+    },
+    [eventId, token, resetHostManagement, refreshHostContextSummary],
+  );
 
   const refreshApprovedParticipants = useCallback(async (cursor?: string | null, append = false) => {
     if (!token) return;
@@ -250,39 +319,117 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     }
   }, [eventId, token]);
 
-  const fetchEvent = useCallback(async (silent = false) => {
-    if (!token) {
-      setApiError('You must be logged in to view this event.');
-      if (!silent) setIsLoading(false);
+  const loadMoreInvitations = useCallback(async () => {
+    if (!token || invitationsLoading || (!invitationsCursor && invitations.length > 0)) return;
+
+    setInvitationsLoading(true);
+    try {
+      if (!invitationsCursor) void fetchEvent(true);
+      const resp = await listEventInvitations(eventId, token, {
+        cursor: invitationsCursor,
+        limit: 15,
+      });
+      setInvitations((prev) => (invitationsCursor ? [...prev, ...resp.items] : resp.items));
+      setInvitationsCursor(resp.page_info.next_cursor ?? null);
+      setInvitationsHasNext(resp.page_info.has_next);
+    } catch (err) {
+      console.error('Failed to load invitations', err);
+    } finally {
+      setInvitationsLoading(false);
+    }
+  }, [eventId, token, invitationsCursor, fetchEvent]);
+
+  const handleInviteUsers = useCallback(
+    async (usernames: string[], message?: string) => {
+      if (!token || isInviting || usernames.length === 0) return;
+
+      if (user?.username && usernames.includes(user.username)) {
+        throw new Error('You cannot invite yourself to your own event.');
+      }
+
+      setIsInviting(true);
+      setActionError(null);
+      try {
+        const resp = await createEventInvitations(eventId, usernames, token, message);
+        
+        // Check for partial failures returned by the backend
+        const invalidUsernames = resp.invalid_usernames || [];
+        const cooldownUsernames = (resp.failed || [])
+          .filter((f: any) => f.code === 'DECLINE_COOLDOWN_ACTIVE')
+          .map((f: any) => f.username);
+        const otherFailedUsernames = (resp.failed || [])
+          .filter((f: any) => f.code !== 'DECLINE_COOLDOWN_ACTIVE')
+          .map((f: any) => f.username);
+
+        if (invalidUsernames.length > 0 || cooldownUsernames.length > 0 || otherFailedUsernames.length > 0) {
+          let errorMessage = '';
+          if (invalidUsernames.length > 0) {
+            errorMessage += `User(s) not found: ${invalidUsernames.join(', ')}. `;
+          }
+          if (cooldownUsernames.length > 0) {
+            errorMessage += `Recently declined: ${cooldownUsernames.join(', ')} (wait 14 days). `;
+          }
+          if (otherFailedUsernames.length > 0) {
+            errorMessage += `Already invited or participating: ${otherFailedUsernames.join(', ')}.`;
+          }
+          throw new Error(errorMessage.trim());
+        }
+
+        void refreshHostContextSummary();
+        void fetchEvent(true);
+        setInvitations([]);
+        setInvitationsCursor(null);
+        setInvitationsHasNext(false);
+        void loadMoreInvitations();
+      } catch (err) {
+        let msg = 'Failed to send invitations';
+        if (err instanceof ApiError) {
+          msg = err.message;
+          if (err.code === 'validation_error' && err.details) {
+            const firstDetail = Object.values(err.details)[0];
+            if (firstDetail) msg = String(firstDetail);
+          }
+        } else if (err instanceof Error) {
+          msg = err.message;
+        }
+        // Do NOT setActionError(msg) here to keep it inside the modal
+        throw new Error(msg);
+      } finally {
+        setIsInviting(false);
+      }
+    },
+    [eventId, token, isInviting, refreshHostContextSummary],
+  );
+
+  useEffect(() => {
+    if (!token || userSearchQuery.length < 2) {
+      setUserSuggestions([]);
       return;
     }
 
-    if (!silent) setIsLoading(true);
-    setApiError(null);
-    resetHostManagement();
-
-    try {
-      const data = await getEventDetail(eventId, token);
-      setEvent(data);
-      setIsFavorited(data.viewer_context.is_favorited);
-      setParticipationStatus(data.viewer_context.participation_status);
-      if (data.viewer_context.is_host) {
-        void refreshHostContextSummary();
-      }
-    } catch (err) {
-      if (!silent) {
-        if (err instanceof ApiError && err.status === 404) {
-          setApiError(
-            'This event is either private or does not exist. You may need an invitation to view it.',
-          );
-        } else {
-          setApiError('Failed to load event details. Please try again.');
-        }
-      }
-    } finally {
-      if (!silent) setIsLoading(false);
+    if (userSearchTimeoutRef.current) {
+      clearTimeout(userSearchTimeoutRef.current);
     }
-  }, [eventId, token, resetHostManagement, refreshHostContextSummary]);
+
+    userSearchTimeoutRef.current = setTimeout(async () => {
+      setIsSearchingUsers(true);
+      try {
+        const resp = await searchUsers(userSearchQuery, token);
+        const filtered = (resp.items || []).filter((u: any) => u.username !== user?.username);
+        setUserSuggestions(filtered || []);
+      } catch (err) {
+        console.error('User search failed', err);
+      } finally {
+        setIsSearchingUsers(false);
+      }
+    }, 300);
+
+    return () => {
+      if (userSearchTimeoutRef.current) clearTimeout(userSearchTimeoutRef.current);
+    };
+  }, [userSearchQuery, token]);
+
+  // Note: fetchEvent moved up to fix hoisting issues with invitations logic
 
   useEffect(() => {
     void fetchEvent();
@@ -297,6 +444,12 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     if (!showRequestsModal || !event?.viewer_context.is_host || pendingJoinRequests.length > 0) return;
     void refreshPendingJoinRequests();
   }, [event?.viewer_context.is_host, pendingJoinRequests.length, refreshPendingJoinRequests, showRequestsModal]);
+
+  useEffect(() => {
+    if (showInvitationsModal && invitations.length === 0) {
+      void loadMoreInvitations();
+    }
+  }, [showInvitationsModal, invitations.length, loadMoreInvitations]);
 
   const handleJoin = useCallback(async () => {
     if (!token || !event) return;
@@ -599,6 +752,18 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     setShowRequestsModal,
     showAttendeesModal,
     setShowAttendeesModal,
+    showInvitationsModal,
+    setShowInvitationsModal,
+    invitations,
+    invitationsLoading,
+    invitationsHasNext,
+    loadMoreInvitations,
+    handleInviteUsers,
+    isInviting,
+    userSearchQuery,
+    setUserSearchQuery,
+    userSuggestions,
+    isSearchingUsers,
     loadMoreApprovedParticipants,
     loadMorePendingJoinRequests,
     handleApproveRequest,
