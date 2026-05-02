@@ -82,6 +82,9 @@ type DiscoverableEventItem struct {
 	StartTime                time.Time             `json:"start_time"`
 	Status                   string                `json:"status"`
 	LocationAddress          *string               `json:"location_address"`
+	LocationLat              *float64              `json:"location_lat,omitempty"`
+	LocationLon              *float64              `json:"location_lon,omitempty"`
+	IsLocationApproximate    bool                  `json:"is_location_approximate"`
 	PrivacyLevel             string                `json:"privacy_level"`
 	ApprovedParticipantCount int                   `json:"approved_participant_count"`
 	FavoriteCount            int                   `json:"favorite_count"`
@@ -152,10 +155,11 @@ type EventDetailHostContextUser struct {
 
 // EventDetailLocation is the event location payload used by the detail page.
 type EventDetailLocation struct {
-	Type        string             `json:"type"`
-	Address     *string            `json:"address"`
-	Point       *EventDetailPoint  `json:"point,omitempty"`
-	RoutePoints []EventDetailPoint `json:"route_points,omitempty"`
+	Type                  string             `json:"type"`
+	Address               *string            `json:"address"`
+	Point                 *EventDetailPoint  `json:"point,omitempty"`
+	RoutePoints           []EventDetailPoint `json:"route_points,omitempty"`
+	IsLocationApproximate bool               `json:"is_location_approximate"`
 }
 
 // EventDetailPoint is a single coordinate returned in event detail responses.

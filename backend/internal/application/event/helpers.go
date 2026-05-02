@@ -65,7 +65,7 @@ func toCreateEventParams(hostID uuid.UUID, input CreateEventInput) CreateEventPa
 }
 
 func toDiscoverableEventItem(record DiscoverableEventRecord) DiscoverableEventItem {
-	return DiscoverableEventItem{
+	item := DiscoverableEventItem{
 		ID:                       record.ID.String(),
 		Title:                    record.Title,
 		CategoryName:             record.CategoryName,
@@ -79,6 +79,17 @@ func toDiscoverableEventItem(record DiscoverableEventRecord) DiscoverableEventIt
 		IsFavorited:              record.IsFavorited,
 		HostScore:                toEventHostScoreSummary(record.HostScore),
 	}
+	if record.LocationLat != nil && record.LocationLon != nil {
+		lat, lon := *record.LocationLat, *record.LocationLon
+		if record.PrivacyLevel == domain.PrivacyProtected {
+			p := domain.ApproximateGeoPoint(domain.GeoPoint{Lat: lat, Lon: lon})
+			lat, lon = p.Lat, p.Lon
+			item.IsLocationApproximate = true
+		}
+		item.LocationLat = &lat
+		item.LocationLon = &lon
+	}
+	return item
 }
 
 func toEventDetailResult(record *EventDetailRecord, now time.Time) *GetEventDetailResult {
@@ -106,7 +117,7 @@ func toEventDetailResult(record *EventDetailRecord, now time.Time) *GetEventDeta
 		UpdatedAt:                record.UpdatedAt,
 		Host:                     toEventDetailPerson(record.Host),
 		HostScore:                toEventHostScoreSummary(record.HostScore),
-		Location:                 toEventDetailLocation(record.Location),
+		Location:                 toEventDetailLocation(record.Location, record.PrivacyLevel, record.ViewerContext.IsHost, record.ViewerContext.ParticipationStatus),
 		Tags:                     append([]string{}, record.Tags...),
 		Constraints:              toEventDetailConstraints(record.Constraints),
 		RatingWindow: EventDetailRatingWindow{
@@ -136,25 +147,36 @@ func toEventDetailResult(record *EventDetailRecord, now time.Time) *GetEventDeta
 	return result
 }
 
-func toEventDetailLocation(record EventDetailLocationRecord) EventDetailLocation {
+func toEventDetailLocation(
+	record EventDetailLocationRecord,
+	privacyLevel domain.EventPrivacyLevel,
+	isHost bool,
+	participationStatus domain.EventDetailParticipationStatus,
+) EventDetailLocation {
+	shouldApproximate := privacyLevel == domain.PrivacyProtected &&
+		!isHost &&
+		participationStatus != domain.EventDetailParticipationStatusJoined
+
 	location := EventDetailLocation{
-		Type:    string(record.Type),
-		Address: record.Address,
+		Type:                  string(record.Type),
+		Address:               record.Address,
+		IsLocationApproximate: shouldApproximate,
 	}
 
 	if record.Point != nil {
-		location.Point = &EventDetailPoint{
-			Lat: record.Point.Lat,
-			Lon: record.Point.Lon,
+		p := *record.Point
+		if shouldApproximate {
+			p = domain.ApproximateGeoPoint(p)
 		}
+		location.Point = &EventDetailPoint{Lat: p.Lat, Lon: p.Lon}
 	}
 	if len(record.RoutePoints) > 0 {
 		location.RoutePoints = make([]EventDetailPoint, len(record.RoutePoints))
-		for i, point := range record.RoutePoints {
-			location.RoutePoints[i] = EventDetailPoint{
-				Lat: point.Lat,
-				Lon: point.Lon,
+		for i, pt := range record.RoutePoints {
+			if shouldApproximate {
+				pt = domain.ApproximateGeoPoint(pt)
 			}
+			location.RoutePoints[i] = EventDetailPoint{Lat: pt.Lat, Lon: pt.Lon}
 		}
 	}
 

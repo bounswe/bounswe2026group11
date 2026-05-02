@@ -344,6 +344,8 @@ func (r *EventRepository) ListDiscoverableEvents(
 				e.start_time,
 				e.status,
 				el.address AS location_address,
+				CASE WHEN e.location_type = 'POINT' THEN ST_Y(el.geom::geometry) ELSE ST_Y(ST_StartPoint(el.geom::geometry)) END AS location_lat,
+				CASE WHEN e.location_type = 'POINT' THEN ST_X(el.geom::geometry) ELSE ST_X(ST_StartPoint(el.geom::geometry)) END AS location_lon,
 				e.privacy_level,
 				e.approved_participant_count,
 				e.favorite_count,
@@ -367,6 +369,8 @@ func (r *EventRepository) ListDiscoverableEvents(
 			start_time,
 			status,
 			location_address,
+			location_lat,
+			location_lon,
 			privacy_level,
 			approved_participant_count,
 			favorite_count,
@@ -397,6 +401,8 @@ func (r *EventRepository) ListDiscoverableEvents(
 			startTime                time.Time
 			eventStatus              string
 			locationAddress          pgtype.Text
+			locationLat              pgtype.Float8
+			locationLon              pgtype.Float8
 			privacyLevel             string
 			approvedParticipantCount int
 			favoriteCount            int
@@ -415,6 +421,8 @@ func (r *EventRepository) ListDiscoverableEvents(
 			&startTime,
 			&eventStatus,
 			&locationAddress,
+			&locationLat,
+			&locationLon,
 			&privacyLevel,
 			&approvedParticipantCount,
 			&favoriteCount,
@@ -447,6 +455,12 @@ func (r *EventRepository) ListDiscoverableEvents(
 		}
 		if locationAddress.Valid {
 			record.LocationAddress = &locationAddress.String
+		}
+		if locationLat.Valid {
+			record.LocationLat = &locationLat.Float64
+		}
+		if locationLon.Valid {
+			record.LocationLon = &locationLon.Float64
 		}
 		if relevanceScore.Valid {
 			record.RelevanceScore = &relevanceScore.Float64
