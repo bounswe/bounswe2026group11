@@ -14,6 +14,7 @@ import {
 import { searchUsers } from '@/services/profileService';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import { useAuth } from '@/contexts/AuthContext';
 import { debounce } from 'lodash';
 import {
   PrivacyLevel,
@@ -91,6 +92,7 @@ export interface CreateEventFormData {
   ageMaxInput: string;
   capacityInput: string;
   otherConstraintInput: string;
+  invitationMessage: string;
 }
 
 export interface CreateEventFormErrors {
@@ -137,7 +139,7 @@ export interface CreateEventViewModel {
   removeImage: () => void;
   invitedUsers: string[];
   userSearchQuery: string;
-  userSuggestions: Array<{ id: string; username: string }>;
+  userSuggestions: Array<{ id: string; username: string; display_name?: string | null }>;
   isSearchingUsers: boolean;
   addInvitedUser: (username: string) => void;
   removeInvitedUser: (username: string) => void;
@@ -223,6 +225,7 @@ export const INITIAL_FORM_DATA: CreateEventFormData = {
   ageMaxInput: '',
   capacityInput: '',
   otherConstraintInput: '',
+  invitationMessage: '',
 };
 
 export function formatTimeInput(current: string, previous: string): string {
@@ -586,11 +589,12 @@ export function useCreateEventViewModel(): CreateEventViewModel {
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [invitedUsers, setInvitedUsers] = useState<string[]>([]);
   const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [userSuggestions, setUserSuggestions] = useState<Array<{ id: string; username: string }>>([]);
+  const [userSuggestions, setUserSuggestions] = useState<Array<{ id: string; username: string; display_name?: string | null }>>([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const imageUploadSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { token, user } = useAuth();
 
   const clearImageUploadSuccessMessage = useCallback(() => {
     if (imageUploadSuccessTimerRef.current) {
@@ -916,13 +920,17 @@ export function useCreateEventViewModel(): CreateEventViewModel {
   }, []);
 
   const addInvitedUser = useCallback((username: string) => {
+    if (user && username === user.username) {
+      Alert.alert('Invalid Invitation', 'You cannot invite yourself to your own event.');
+      return;
+    }
     setInvitedUsers((prev) => {
       if (prev.includes(username)) return prev;
       return [...prev, username];
     });
     setUserSearchQuery('');
     setUserSuggestions([]);
-  }, []);
+  }, [user]);
 
   const removeInvitedUser = useCallback((username: string) => {
     setInvitedUsers((prev) => prev.filter((u) => u !== username));
@@ -942,7 +950,15 @@ export function useCreateEventViewModel(): CreateEventViewModel {
     userSearchTimeoutRef.current = setTimeout(async () => {
       try {
         const results = await searchUsers(query, token);
-        setUserSuggestions(results.items.map((i) => ({ id: i.id, username: i.username })));
+        setUserSuggestions(
+          results.items
+            .filter((i) => i.username !== user?.username)
+            .map((i) => ({ 
+              id: i.id, 
+              username: i.username,
+              display_name: i.display_name 
+            }))
+        );
       } finally {
         setIsSearchingUsers(false);
       }
@@ -965,7 +981,7 @@ export function useCreateEventViewModel(): CreateEventViewModel {
       const usernames = content
         .split(/[\n,\s]+/)
         .map((u) => u.trim())
-        .filter((u) => u.length > 0 && /^[a-zA-Z0-9._]+$/.test(u));
+        .filter((u) => u.length > 0 && /^[a-zA-Z0-9._]+$/.test(u) && u !== user?.username);
 
       if (usernames.length === 0) {
         Alert.alert('Invalid File', 'No valid usernames found in the file.');
@@ -1110,7 +1126,7 @@ export function useCreateEventViewModel(): CreateEventViewModel {
 
         if (formData.privacyLevel === 'PRIVATE' && invitedUsers.length > 0) {
           try {
-            await createEventInvitations(result.id, invitedUsers, token);
+            await createEventInvitations(result.id, invitedUsers, token, formData.invitationMessage);
           } catch (error) {
             // We don't fail the whole creation for this, but could show a warning
           }

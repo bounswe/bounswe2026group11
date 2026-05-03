@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -16,6 +16,9 @@ import {
 } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { EventDetailInvitation } from '@/models/event';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface InvitationsModalProps {
   visible: boolean;
@@ -46,6 +49,7 @@ export default function InvitationsModal({
   userSuggestions,
   isSearchingUsers,
 }: InvitationsModalProps) {
+  const { user } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [inviteMessage, setInviteMessage] = useState('');
 
@@ -79,27 +83,32 @@ export default function InvitationsModal({
     })
   ).current;
 
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+
   React.useEffect(() => {
     if (visible) {
       panY.setValue(0);
       setUserSearchQuery('');
+      setSelectedUsers([]);
       setError(null);
     }
   }, [visible, setUserSearchQuery]);
 
   const handleInvite = async () => {
-    if (!userSearchQuery.trim()) return;
+    const rawQueryUsers = userSearchQuery
+      .split(/[ ,]+/)
+      .map((u) => u.trim().replace(/^@/, ''))
+      .filter((u) => u.length > 0 && u !== user?.username);
+
+    const allUsers = [...new Set([...selectedUsers, ...rawQueryUsers])];
+
+    if (allUsers.length === 0) return;
+
     setError(null);
     try {
-      const usernames = userSearchQuery
-        .split(/[ ,]+/)
-        .map((u) => u.trim().replace(/^@/, ''))
-        .filter((u) => u.length > 0);
-
-      if (usernames.length === 0) return;
-
-      await onInvite(usernames, inviteMessage.trim() || undefined);
+      await onInvite(allUsers, inviteMessage.trim() || undefined);
       setUserSearchQuery('');
+      setSelectedUsers([]);
       setInviteMessage('');
     } catch (err: any) {
       setError(err.message || 'Failed to send invitation');
@@ -107,11 +116,52 @@ export default function InvitationsModal({
   };
 
   const handleSelectSuggestion = (username: string) => {
-    // Replace the last typed username part with the selected one
-    const parts = userSearchQuery.split(/[ ,]+/);
-    parts[parts.length - 1] = username;
-    setUserSearchQuery(parts.join(', ') + ', ');
+    setSelectedUsers((prev) => {
+      if (prev.includes(username)) return prev;
+      return [...prev, username];
+    });
+    setUserSearchQuery('');
   };
+
+  const removeSelectedUser = (username: string) => {
+    setSelectedUsers((prev) => prev.filter(u => u !== username));
+  };
+
+  const pickAndParseUserFile = useCallback(async () => {
+    try {
+      setError(null);
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['text/plain', 'text/csv'],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      const fileUri = result.assets[0].uri;
+      const content = await FileSystem.readAsStringAsync(fileUri);
+
+      // Split by comma, newline or space and clean up
+      const usernames = content
+        .split(/[\n,\s]+/)
+        .map((u) => u.trim().replace(/^@/, ''))
+        .filter((u) => u.length > 0 && /^[a-zA-Z0-9._]+$/.test(u) && u !== user?.username);
+
+      if (usernames.length === 0) {
+        setError('No valid usernames found in the file.');
+        return;
+      }
+
+      // Append to existing array instead of string
+      setSelectedUsers((prev) => {
+        const combined = [...prev, ...usernames];
+        return [...new Set(combined)];
+      });
+      setUserSearchQuery('');
+    } catch (err) {
+      console.error('File read error:', err);
+      setError('Failed to read the selected file.');
+    }
+  }, [userSearchQuery, setUserSearchQuery, user?.username]);
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -149,7 +199,7 @@ export default function InvitationsModal({
             <View {...panResponder.panHandlers}>
               <View style={styles.handle} />
             </View>
-            
+
             <View style={styles.header}>
               <Text style={styles.title}>Manage Invitations</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -159,7 +209,13 @@ export default function InvitationsModal({
 
             {/* Invite Form */}
             <View style={styles.inviteForm}>
-              <Text style={styles.label}>Invite by Username</Text>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Invite by Username</Text>
+                <TouchableOpacity onPress={pickAndParseUserFile} style={styles.uploadBtn}>
+                  <Feather name="upload" size={16} color="#6B7280" />
+                  <Text style={styles.uploadBtnText}>Upload file</Text>
+                </TouchableOpacity>
+              </View>
               <View style={styles.inputWrapper}>
                 <View style={{ flex: 1 }}>
                   <TextInput
@@ -193,9 +249,9 @@ export default function InvitationsModal({
                   )}
                 </View>
                 <TouchableOpacity
-                  style={[styles.inviteBtn, (!userSearchQuery.trim() || isInviting) && styles.inviteBtnDisabled]}
+                  style={[styles.inviteBtn, (selectedUsers.length === 0 && !userSearchQuery.trim() || isInviting) && styles.inviteBtnDisabled]}
                   onPress={handleInvite}
-                  disabled={!userSearchQuery.trim() || isInviting}
+                  disabled={selectedUsers.length === 0 && !userSearchQuery.trim() || isInviting}
                 >
                   {isInviting ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
@@ -204,6 +260,22 @@ export default function InvitationsModal({
                   )}
                 </TouchableOpacity>
               </View>
+
+              {selectedUsers.length > 0 && (
+                <View style={styles.chipRow}>
+                  {selectedUsers.map((username, i) => (
+                    <View key={`${username}-${i}`} style={styles.userChip}>
+                      <Text style={styles.userChipText}>{username}</Text>
+                      <TouchableOpacity
+                        style={styles.chipRemoveBtn}
+                        onPress={() => removeSelectedUser(username)}
+                      >
+                        <MaterialIcons name="close" size={14} color="#6B7280" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
               <Text style={styles.hint}>Separate usernames with a space or comma.</Text>
 
@@ -331,6 +403,53 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
     marginBottom: 8,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  uploadBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  userChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: 12,
+    paddingRight: 6,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  userChipText: {
+    fontSize: 13,
+    color: '#111827',
+  },
+  chipRemoveBtn: {
+    padding: 2,
   },
   inputWrapper: {
     flexDirection: 'row',

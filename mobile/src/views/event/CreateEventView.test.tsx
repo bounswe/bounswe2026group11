@@ -91,6 +91,7 @@ function buildViewModel(
       ageMaxInput: '',
       capacityInput: '',
       otherConstraintInput: '',
+      invitationMessage: '',
     },
     errors: {},
     isLoading: false,

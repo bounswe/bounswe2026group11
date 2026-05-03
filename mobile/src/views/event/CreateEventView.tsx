@@ -664,10 +664,13 @@ export default function CreateEventView() {
                     {vm.userSuggestions.map((s) => (
                       <TouchableOpacity
                         key={s.id}
-                        style={styles.suggestionItem}
+                        style={styles.userSuggestionItem}
                         onPress={() => vm.addInvitedUser(s.username)}
                       >
-                        <Text style={styles.suggestionText}>{s.username}</Text>
+                        <Text style={styles.userSuggestionText}>@{s.username}</Text>
+                        {s.display_name && (
+                          <Text style={styles.userSuggestionSubtext}>{s.display_name}</Text>
+                        )}
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -700,6 +703,26 @@ export default function CreateEventView() {
             <Text style={styles.helperText}>
               Add guests by username or upload a .txt/.csv file (one username per line or comma-separated).
             </Text>
+
+            {vm.invitedUsers.length > 0 && (
+              <View style={[styles.fieldGroup, { marginTop: 16, marginBottom: 0 }]}>
+                <Text style={styles.label}>Invitation Message (Optional)</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea, { minHeight: 80 }]}
+                  placeholder="Personalize your invitation..."
+                  placeholderTextColor="#9CA3AF"
+                  value={vm.formData.invitationMessage}
+                  onChangeText={(v) => vm.updateField('invitationMessage', v)}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  editable={!vm.isLoading}
+                />
+                <Text style={styles.helperText}>
+                  This message will be sent to all invited guests.
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -1459,16 +1482,36 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    zIndex: 10,
+    zIndex: 1000,
     marginTop: 4,
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    maxHeight: 200,
+    overflow: 'hidden',
+  },
+  userSuggestionItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  userSuggestionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  userSuggestionSubtext: {
+    fontSize: 13,
+    color: '#6B7280',
   },
   fileUploadButton: {
     width: 44,

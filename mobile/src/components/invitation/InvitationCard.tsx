@@ -47,7 +47,7 @@ export default function InvitationCard({
             <View style={styles.statusBadgeRow}>
               <View style={[styles.statusBadge, { backgroundColor: '#EDE9FE' }]}>
                 <Text style={[styles.statusBadgeText, { color: '#5B21B6' }]}>
-                  INVITED
+                  Invited
                 </Text>
               </View>
 

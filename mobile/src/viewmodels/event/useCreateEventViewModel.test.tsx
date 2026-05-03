@@ -24,6 +24,21 @@ import {
 
 jest.mock('@/services/eventService');
 
+jest.mock('expo-router', () => ({
+  router: {
+    back: jest.fn(),
+    replace: jest.fn(),
+    push: jest.fn(),
+  },
+}));
+
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: { username: 'testuser' },
+    token: 'test-token',
+  }),
+}));
+
 const ImagePicker = require('expo-image-picker');
 const ImageManipulator = require('expo-image-manipulator');
 const { Alert } = require('react-native');
