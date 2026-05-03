@@ -4,6 +4,7 @@ import {
   FlatList,
   Image,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -14,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ProfileEventCard from '@/components/profile/ProfileEventCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLogoutViewModel } from '@/viewmodels/auth/useLogoutViewModel';
+import { usePushNotificationPreference } from '@/viewmodels/notifications/usePushNotificationPreference';
 import { useProfileViewModel } from '@/viewmodels/profile/useProfileViewModel';
 import { formatEventLocation } from '@/utils/eventLocation';
 
@@ -22,6 +24,7 @@ type ProfileEventTab = 'hosted' | 'attended';
 export default function ProfileView() {
   const { refreshToken, clearAuth } = useAuth();
   const vm = useProfileViewModel();
+  const notificationSettings = usePushNotificationPreference();
   const [activeTab, setActiveTab] = useState<ProfileEventTab>('hosted');
   const { isLoggingOut, logoutError, handleLogout } = useLogoutViewModel(
     refreshToken,
@@ -218,6 +221,59 @@ export default function ProfileView() {
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
+
+            <View style={styles.menuDivider} />
+
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => router.push('/notifications' as Href)}
+              accessibilityRole="button"
+              accessibilityLabel="Open notifications"
+            >
+              <View style={styles.menuRowLeft}>
+                <Ionicons name="notifications-outline" size={20} color="#111827" />
+                <Text style={styles.menuRowText}>Notifications</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <View style={styles.menuDivider} />
+
+            <View style={styles.settingRow}>
+              <View style={styles.menuRowLeft}>
+                <Ionicons name="phone-portrait-outline" size={20} color="#111827" />
+                <View style={styles.settingTextBlock}>
+                  <Text style={styles.menuRowText}>Push Notifications</Text>
+                  <Text style={styles.settingSubtitle}>
+                    Receive alerts on this device
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                value={notificationSettings.pushNotificationsEnabled}
+                onValueChange={(enabled) =>
+                  void notificationSettings.setPushNotificationsEnabled(enabled)
+                }
+                disabled={
+                  notificationSettings.isHydrating ||
+                  notificationSettings.isSaving
+                }
+                trackColor={{ false: '#CBD5E1', true: '#BAE6FD' }}
+                thumbColor={
+                  notificationSettings.pushNotificationsEnabled
+                    ? '#0284C7'
+                    : '#F8FAFC'
+                }
+                ios_backgroundColor="#CBD5E1"
+                accessibilityLabel="Toggle push notifications"
+              />
+            </View>
+
+            {notificationSettings.errorMessage ? (
+              <Text style={styles.settingError}>
+                {notificationSettings.errorMessage}
+              </Text>
+            ) : null}
 
             <View style={styles.menuDivider} />
 
@@ -575,6 +631,29 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontSize: 17,
     fontWeight: '600',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 18,
+  },
+  settingTextBlock: {
+    flex: 1,
+  },
+  settingSubtitle: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 3,
+  },
+  settingError: {
+    color: '#DC2626',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: -6,
+    marginBottom: 12,
   },
   menuDivider: {
     height: 1,

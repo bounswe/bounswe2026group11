@@ -231,6 +231,25 @@ const ActivityIndicator = React.forwardRef(function MockActivityIndicator(
   });
 });
 
+const Switch = React.forwardRef(function MockSwitch(
+  { value, onValueChange, accessibilityLabel, testID, disabled, style, ...props },
+  ref,
+) {
+  return React.createElement('input', {
+    ref,
+    type: 'checkbox',
+    checked: Boolean(value),
+    'aria-label': accessibilityLabel,
+    'data-testid': testID,
+    style: mergeStyle(style),
+    disabled,
+    onChange: disabled
+      ? undefined
+      : (event) => onValueChange?.(event.target.checked),
+    ...stripReactNativeOnlyProps(props),
+  });
+});
+
 module.exports = {
   Alert: {
     alert: jest.fn(),
@@ -261,4 +280,5 @@ module.exports = {
   KeyboardAvoidingView,
   Modal,
   Image,
+  Switch,
 };

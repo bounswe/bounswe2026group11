@@ -10,6 +10,7 @@ const messagingStub = {
   onMessage: jest.fn(() => unsub),
   onNotificationOpenedApp: jest.fn(() => unsub),
   getInitialNotification: jest.fn(() => Promise.resolve(null)),
+  setBackgroundMessageHandler: jest.fn(),
 };
 
 module.exports = {
@@ -30,4 +31,6 @@ module.exports = {
   onNotificationOpenedApp: (messaging, listener) =>
     messaging.onNotificationOpenedApp(listener),
   getInitialNotification: (messaging) => messaging.getInitialNotification(),
+  setBackgroundMessageHandler: (messaging, listener) =>
+    messaging.setBackgroundMessageHandler(listener),
 };
