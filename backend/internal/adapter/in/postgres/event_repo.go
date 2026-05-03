@@ -854,7 +854,7 @@ func (r *EventRepository) loadEventDetailCore(
 				FROM invitation inv
 				WHERE inv.event_id = e.id
 				  AND inv.invited_user_id = $2
-				  AND inv.status = $13
+				  AND inv.status IN ($13, $16)
 			)
 		  )
 	`,
@@ -873,6 +873,7 @@ func (r *EventRepository) loadEventDetailCore(
 		string(domain.InvitationStatusAccepted),
 		domain.ParticipationStatusCanceled,
 		string(domain.EventDetailParticipationStatusCanceled),
+		string(domain.InvitationStatusPending),
 	).Scan(
 		&id,
 		&title,
