@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { logout } from '@/services/authService';
 import SemLogo from '@/components/SemLogo';
@@ -15,6 +16,7 @@ const AUTH_NAV = [
 
 export default function AppShell() {
   const { token, username, role, avatarUrl, displayName, refreshToken, clearAuth } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -24,6 +26,7 @@ export default function AppShell() {
   const isLoggedIn = !!token;
   const navItems = isLoggedIn ? AUTH_NAV : [];
   const isAdminPanel = location.pathname.startsWith('/backoffice') || location.pathname.startsWith('/admin-panel');
+  const isDarkMode = theme === 'dark';
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -54,7 +57,7 @@ export default function AppShell() {
       <header className="shell-header">
         <div className="shell-header-inner">
           <NavLink to="/discover" className="shell-logo" onClick={closeMobileMenu}>
-            <SemLogo height={48} color="#111827" />
+            <SemLogo height={48} color={isDarkMode ? '#f9fafb' : '#111827'} />
           </NavLink>
 
           {navItems.length > 0 && (
@@ -75,6 +78,24 @@ export default function AppShell() {
           )}
 
           <div className="shell-header-right">
+            <button
+              type="button"
+              className="shell-theme-btn"
+              onClick={toggleTheme}
+              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDarkMode ? (
+                <svg className="shell-theme-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2.5M12 19.5V22M4.93 4.93 6.7 6.7M17.3 17.3l1.77 1.77M2 12h2.5M19.5 12H22M4.93 19.07 6.7 17.3M17.3 6.7l1.77-1.77" />
+                </svg>
+              ) : (
+                <svg className="shell-theme-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20.5 14.4A7.7 7.7 0 0 1 9.6 3.5 8.5 8.5 0 1 0 20.5 14.4Z" />
+                </svg>
+              )}
+            </button>
             {isLoggedIn ? (
               <>
                 <NavLink to="/events/create" className="shell-create-btn">
