@@ -62,7 +62,7 @@ export interface EventSummary {
   start_time: string;
   end_time?: string | null;
   location_address?: string | null;
-  privacy_level: Extract<PrivacyLevel, 'PUBLIC' | 'PROTECTED'>;
+  privacy_level: PrivacyLevel;
   approved_participant_count: number;
   is_favorited: boolean;
   host_score: HostScore;
@@ -96,6 +96,7 @@ export interface MyEventSummary {
   approved_participant_count?: number | null;
   status: MyEventStatus;
   relation: MyEventRelation;
+  privacy_level: PrivacyLevel;
   badges: MyEventBadge[];
 }
 

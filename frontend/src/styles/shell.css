@@ -4,6 +4,7 @@
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+  background-color: transparent;
 }
 
 /* Header */
@@ -13,6 +14,7 @@
   position: sticky;
   top: 0;
   z-index: 200;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .shell-header-inner {
@@ -31,6 +33,11 @@
   text-decoration: none;
   white-space: nowrap;
   line-height: 0;
+}
+
+.shell-logo svg,
+.shell-logo path {
+  transition: color 0.2s ease, fill 0.2s ease, stroke 0.2s ease;
 }
 
 /* Desktop navigation */
@@ -68,6 +75,37 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.shell-theme-btn {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #374151;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+}
+
+.shell-theme-btn:hover {
+  color: #111827;
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.shell-theme-icon {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* Create Event button */
@@ -398,6 +436,11 @@
   .shell-header-inner {
     padding: 0 12px;
   }
+
+  .shell-theme-btn {
+    width: 38px;
+    height: 38px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -447,4 +490,161 @@
 .placeholder-page p {
   font-size: 16px;
   color: #6b7280;
+}
+
+:root[data-theme='dark'] .shell-header {
+  background: #000000;
+  border-bottom-color: #202020;
+}
+
+:root[data-theme='dark'] .shell-nav-link {
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .shell-nav-link:hover,
+:root[data-theme='dark'] .shell-nav-link.active {
+  color: #f9fafb;
+  background-color: #1f2937;
+}
+
+:root[data-theme='dark'] .shell-theme-btn,
+:root[data-theme='dark'] .shell-user-btn,
+:root[data-theme='dark'] .shell-admin-btn,
+:root[data-theme='dark'] .shell-signin-btn {
+  color: #e5e7eb;
+  background: #050505;
+  border-color: #2a2a2a;
+}
+
+:root[data-theme='dark'] .shell-theme-btn:hover,
+:root[data-theme='dark'] .shell-user-btn:hover,
+:root[data-theme='dark'] .shell-admin-btn:hover,
+:root[data-theme='dark'] .shell-admin-btn.active,
+:root[data-theme='dark'] .shell-signin-btn:hover {
+  color: #ffffff;
+  background-color: #111111;
+  border-color: #4b5563;
+}
+
+:root[data-theme='dark'] .shell-create-btn,
+:root[data-theme='dark'] .shell-signup-btn {
+  color: #111827;
+  background-color: #f9fafb;
+}
+
+:root[data-theme='dark'] .shell-create-btn:hover,
+:root[data-theme='dark'] .shell-signup-btn:hover {
+  background-color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .shell-username {
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .shell-dropdown {
+  background: #080808;
+  border-color: #2a2a2a;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme='dark'] .shell-dropdown-item {
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .shell-dropdown-item:hover {
+  background-color: #111111;
+}
+
+:root[data-theme='dark'] .shell-dropdown-logout {
+  color: #fca5a5;
+}
+
+:root[data-theme='dark'] .shell-dropdown-logout:hover {
+  background-color: rgba(239, 68, 68, 0.14);
+}
+
+:root[data-theme='dark'] .hamburger-line {
+  background-color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .shell-fab {
+  color: #111827;
+  background: #f9fafb;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+@media (max-width: 768px) {
+  :root[data-theme='dark'] .shell-nav {
+    background: #000000;
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.28);
+  }
+
+  :root[data-theme='dark'] .shell-overlay.visible {
+    background: rgba(0, 0, 0, 0.55);
+  }
+}
+
+:root[data-theme='dark'] .shell-header {
+  background: #181818;
+  border-bottom-color: #3a3a3a;
+}
+
+:root[data-theme='dark'] .shell-nav-link {
+  color: #cfcfcf;
+}
+
+:root[data-theme='dark'] .shell-nav-link:hover,
+:root[data-theme='dark'] .shell-nav-link.active {
+  color: #eeeeee;
+  background-color: #2a2a2a;
+}
+
+:root[data-theme='dark'] .shell-theme-btn,
+:root[data-theme='dark'] .shell-user-btn,
+:root[data-theme='dark'] .shell-admin-btn,
+:root[data-theme='dark'] .shell-signin-btn,
+:root[data-theme='dark'] .shell-dropdown {
+  color: #e7e7e7;
+  background: #202020;
+  border-color: #555555;
+}
+
+:root[data-theme='dark'] .shell-theme-btn:hover,
+:root[data-theme='dark'] .shell-user-btn:hover,
+:root[data-theme='dark'] .shell-admin-btn:hover,
+:root[data-theme='dark'] .shell-admin-btn.active,
+:root[data-theme='dark'] .shell-signin-btn:hover,
+:root[data-theme='dark'] .shell-dropdown-item:hover {
+  color: #f3f3f3;
+  background-color: #303030;
+  border-color: #777777;
+}
+
+:root[data-theme='dark'] .shell-create-btn,
+:root[data-theme='dark'] .shell-signup-btn,
+:root[data-theme='dark'] .shell-fab {
+  color: #eeeeee;
+  background: #2a2a2a;
+  border: 1px solid #777777;
+}
+
+:root[data-theme='dark'] .shell-create-btn:hover,
+:root[data-theme='dark'] .shell-signup-btn:hover {
+  background: #363636;
+}
+
+:root[data-theme='dark'] .shell-dropdown-item,
+:root[data-theme='dark'] .shell-username {
+  color: #e7e7e7;
+}
+
+@media (max-width: 768px) {
+  :root[data-theme='dark'] .shell-nav {
+    background: #181818;
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.22);
+  }
+
+  :root[data-theme='dark'] .shell-overlay.visible {
+    background: rgba(0, 0, 0, 0.42);
+  }
 }

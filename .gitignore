@@ -14,6 +14,9 @@
 .idea/
 *.iml
 
+# Postman OpenAPI generator (local venv)
+docs/postman/.venv/
+
 # Local env: Compose reads deploy/.env (template: deploy/.env.example); Go reads repository-root .env
 .env
 

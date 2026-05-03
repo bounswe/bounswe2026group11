@@ -509,8 +509,7 @@ export default function FiltersBottomSheet({
                     mode="date"
                     display={Platform.OS === 'ios' ? 'inline' : 'default'}
                     minimumDate={getMinimumDatePickerDate()}
-                    onValueChange={handleValueChange}
-                    onDismiss={handleDismiss}
+                    onChange={handleValueChange}
                   />
                 </View>
               ) : null}

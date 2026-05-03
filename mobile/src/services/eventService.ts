@@ -1,6 +1,7 @@
 import { apiGet, apiGetAuth, apiPostAuth, apiPatchAuth, apiPutAuth } from '@/services/api';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
+  PrivacyLevel,
   CreateEventRequest,
   CreateEventResponse,
   EventDetail,
@@ -12,8 +13,8 @@ import {
   ListCategoriesResponse,
   MyEventRelation,
   MyEventStatus,
-  MyEventSummary,
-  MyEventsResponse,
+  type MyEventSummary,
+  type MyEventsResponse,
   PaginatedEventsResponse,
   RequestJoinRequest,
   RequestJoinResponse,
@@ -24,6 +25,7 @@ import {
   RatingWriteRequest,
   RatingResponse,
 } from '@/models/event';
+import { shouldShowProfileEvent } from '@/utils/eventStatus';
 
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
@@ -39,6 +41,7 @@ interface BackendEventSummary {
   image_url?: string | null;
   participants_count?: number | null;
   location_address?: string | null;
+  privacy_level: PrivacyLevel;
 }
 
 interface BackendEventsListResponse {
@@ -106,6 +109,15 @@ export async function listEventInvitations(
     buildCollectionPath(id, 'invitations', options.limit, options.cursor),
     token,
   );
+}
+
+export async function createEventInvitations(
+  id: string,
+  usernames: string[],
+  token: string,
+  message?: string,
+): Promise<any> {
+  return apiPostAuth<any>(`/events/${id}/invitations`, { usernames, message }, token);
 }
 
 export async function joinEvent(
@@ -366,6 +378,7 @@ function mapToMyEventSummary(
     approved_participant_count: summary.participants_count ?? null,
     status,
     relation,
+    privacy_level: summary.privacy_level,
     badges: relation === 'HOSTING' ? [{ type: 'HOST', label: 'Host' }] : [],
   };
 }

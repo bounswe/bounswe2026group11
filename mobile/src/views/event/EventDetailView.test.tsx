@@ -43,6 +43,7 @@ jest.mock('@expo/vector-icons', () => {
 
 jest.mock('@/components/events/JoinRequestsModal', () => () => null);
 jest.mock('@/components/events/ParticipantListModal', () => () => null);
+jest.mock('@/components/events/InvitationsModal', () => () => null);
 
 jest.mock('@/viewmodels/event/useEventDetailViewModel', () => ({
   useEventDetailViewModel: jest.fn(),
@@ -151,6 +152,18 @@ function buildViewModel(
     handleApproveRequest: jest.fn().mockResolvedValue(undefined),
     handleRejectRequest: jest.fn().mockResolvedValue(undefined),
     handleCancelEvent: jest.fn().mockResolvedValue(undefined),
+    showInvitationsModal: false,
+    setShowInvitationsModal: jest.fn(),
+    invitations: [],
+    invitationsLoading: false,
+    invitationsHasNext: false,
+    loadMoreInvitations: jest.fn().mockResolvedValue(undefined),
+    handleInviteUsers: jest.fn().mockResolvedValue(undefined),
+    isInviting: false,
+    userSearchQuery: '',
+    setUserSearchQuery: jest.fn(),
+    userSuggestions: [],
+    isSearchingUsers: false,
     ...overrides,
   };
 }
@@ -167,5 +180,33 @@ describe('EventDetailView', () => {
 
     expect(screen.getByText('Request sent — awaiting approval')).toBeTruthy();
     expect(screen.queryByText('Request to Join')).toBeNull();
+  });
+
+  it('shows the inaccessible state when apiError mentions private or missing events', () => {
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({
+        event: null,
+        apiError: 'This event is either private or does not exist. You may need an invitation to view it.',
+      }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByText('Event Inaccessible')).toBeTruthy();
+    expect(screen.getByText(/You may need an invitation/)).toBeTruthy();
+    expect(screen.getByText('Go Back to Discovery')).toBeTruthy();
+    
+    // Check for the lock icon
+    const lockIcon = screen.getByTestId('error-icon-lock');
+    expect(lockIcon).toBeTruthy();
+  });
+
+  it('hides the Invite & Manage button for non-host users on private events', () => {
+    const privateEvent = makeEvent({ privacy_level: 'PRIVATE', viewer_context: { is_host: false, is_favorited: false, participation_status: 'NONE' } });
+    mockUseEventDetailViewModel.mockReturnValue(buildViewModel({ event: privateEvent }));
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.queryByText('Invite & Manage')).toBeNull();
   });
 });
