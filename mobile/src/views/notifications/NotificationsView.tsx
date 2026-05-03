@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,13 +9,20 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, type Href } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NotificationItem } from '@/models/notification';
+import {
+  getNotificationPresentation,
+  isDedicatedParticipationNotification,
+} from '@/utils/notificationPresentation';
 import { resolveNotificationRoute } from '@/utils/notificationRouting';
 import { useNotificationsViewModel } from '@/viewmodels/notifications/useNotificationsViewModel';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+
+function formatNotificationTime(value: string): string {
+// ... existing helper remains same ...
 
 function formatNotificationTime(value: string): string {
   const timestamp = new Date(value).getTime();
@@ -37,16 +44,6 @@ function formatNotificationTime(value: string): string {
   });
 }
 
-function formatNotificationType(type: string | null): string | null {
-  if (!type) return null;
-
-  return type
-    .split('_')
-    .filter(Boolean)
-    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
-    .join(' ');
-}
-
 interface NotificationRowProps {
   item: NotificationItem;
   onOpen: (item: NotificationItem) => void;
@@ -56,12 +53,17 @@ interface NotificationRowProps {
 }
 
 function NotificationRow({ item, onOpen, onDelete, theme, styles }: NotificationRowProps) {
-  const typeLabel = formatNotificationType(item.type);
+  const presentation = getNotificationPresentation(item);
+  const isDedicated = isDedicatedParticipationNotification(item.type);
 
   return (
     <TouchableOpacity
       activeOpacity={0.88}
-      style={[styles.notificationRow, !item.is_read && styles.unreadRow]}
+      style={[
+        styles.notificationRow,
+        !item.is_read && styles.unreadRow,
+        isDedicated && styles.notificationRowDedicated,
+      ]}
       onPress={() => onOpen(item)}
       accessibilityRole="button"
       accessibilityLabel={`Open notification ${item.title}`}
@@ -73,8 +75,19 @@ function NotificationRow({ item, onOpen, onDelete, theme, styles }: Notification
           accessibilityLabel=""
         />
       ) : (
-        <View style={styles.notificationIcon}>
-          <Ionicons name="notifications-outline" size={22} color={theme.text} />
+        <View
+          style={[
+            styles.notificationIcon,
+            isDedicated && {
+              backgroundColor: presentation.accentBackgroundColor,
+            },
+          ]}
+        >
+          <Ionicons
+            name={presentation.iconName as any}
+            size={22}
+            color={isDedicated ? presentation.accentColor : theme.text}
+          />
         </View>
       )}
 
@@ -86,14 +99,58 @@ function NotificationRow({ item, onOpen, onDelete, theme, styles }: Notification
           {!item.is_read ? <View style={styles.unreadDot} /> : null}
         </View>
 
+        {presentation.badgeLabel ? (
+          <View
+            style={[
+              styles.typePill,
+              { backgroundColor: presentation.accentBackgroundColor },
+            ]}
+          >
+            <Text
+              style={[
+                styles.typePillText,
+                { color: presentation.accentColor },
+              ]}
+            >
+              {presentation.badgeLabel}
+            </Text>
+          </View>
+        ) : null}
+
+        {presentation.eventTitle ? (
+          <Text style={styles.notificationEventTitle} numberOfLines={2}>
+            {presentation.eventTitle}
+          </Text>
+        ) : null}
+
         <Text style={styles.notificationText} numberOfLines={3}>
-          {item.body}
+          {presentation.summary}
         </Text>
 
+        {presentation.metadata.length > 0 ? (
+          <View style={styles.notificationMetadataBlock}>
+            {presentation.metadata.map((line) => (
+              <Text
+                key={`${item.id}-${line}`}
+                style={styles.notificationMetadata}
+                numberOfLines={1}
+              >
+                {line}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+
         <View style={styles.notificationMetaRow}>
-          {typeLabel ? (
-            <Text style={styles.notificationType} numberOfLines={1}>
-              {typeLabel}
+          {presentation.actionLabel ? (
+            <Text
+              style={[
+                styles.notificationType,
+                isDedicated && { color: presentation.accentColor },
+              ]}
+              numberOfLines={1}
+            >
+              {presentation.actionLabel}
             </Text>
           ) : null}
           <Text style={styles.notificationTime}>
@@ -119,6 +176,17 @@ export default function NotificationsView() {
   const vm = useNotificationsViewModel();
   const { theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const hasFocusedOnceRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (hasFocusedOnceRef.current) {
+        void vm.refresh();
+      } else {
+        hasFocusedOnceRef.current = true;
+      }
+    }, [vm]),
+  );
 
   const openNotification = useCallback(
     (item: NotificationItem) => {
@@ -321,13 +389,16 @@ function makeStyles(t: Theme) {
     },
     notificationRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       gap: 12,
       backgroundColor: t.surface,
       borderWidth: 1,
       borderColor: t.border,
       borderRadius: 18,
       padding: 12,
+    },
+    notificationRowDedicated: {
+      borderColor: t.borderStrong,
     },
     unreadRow: {
       borderColor: t.unreadBorder,
@@ -350,10 +421,11 @@ function makeStyles(t: Theme) {
     notificationBody: {
       flex: 1,
       minWidth: 0,
+      gap: 5,
     },
     notificationHeader: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       gap: 8,
     },
     notificationTitle: {
@@ -369,11 +441,35 @@ function makeStyles(t: Theme) {
       borderRadius: 4,
       backgroundColor: t.unreadDot,
     },
+    typePill: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+    },
+    typePillText: {
+      fontSize: 11,
+      fontWeight: '800',
+    },
+    notificationEventTitle: {
+      color: t.text,
+      fontSize: 15,
+      fontWeight: '800',
+      lineHeight: 20,
+    },
     notificationText: {
-      marginTop: 4,
-      color: t.textMuted,
+      color: t.textSecondary,
       fontSize: 14,
       lineHeight: 19,
+    },
+    notificationMetadataBlock: {
+      gap: 2,
+    },
+    notificationMetadata: {
+      color: t.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+      fontWeight: '600',
     },
     notificationMetaRow: {
       flexDirection: 'row',

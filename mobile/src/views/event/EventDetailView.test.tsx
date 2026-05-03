@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { EventDetail } from '@/models/event';
 import type { EventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import EventDetailView from './EventDetailView';
@@ -137,6 +137,8 @@ function buildViewModel(
     handleJoin: jest.fn().mockResolvedValue(undefined),
     handleLeaveEvent: jest.fn().mockResolvedValue(undefined),
     handleRequestJoin: jest.fn().mockResolvedValue(undefined),
+    handleAcceptInvitation: jest.fn().mockResolvedValue(undefined),
+    handleDeclineInvitation: jest.fn().mockResolvedValue(undefined),
     handleToggleFavorite: jest.fn().mockResolvedValue(undefined),
     handleViewerRatingSubmit: jest.fn().mockResolvedValue(undefined),
     handleParticipantRatingSubmit: jest.fn().mockResolvedValue(undefined),
@@ -246,5 +248,35 @@ describe('EventDetailView', () => {
 
     expect(screen.getByText('Meeting Instructions')).toBeTruthy();
     expect(screen.getByText('Wait at the statue')).toBeTruthy();
+  });
+
+  it('shows accept and decline actions for invited users', () => {
+    const handleAcceptInvitation = jest.fn().mockResolvedValue(undefined);
+    const handleDeclineInvitation = jest.fn().mockResolvedValue(undefined);
+    const invitedEvent = makeEvent({
+      privacy_level: 'PRIVATE',
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'INVITED',
+      },
+    });
+
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({
+        event: invitedEvent,
+        participationStatus: 'INVITED',
+        handleAcceptInvitation,
+        handleDeclineInvitation,
+      }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    fireEvent.click(screen.getByText('Accept Invitation'));
+    fireEvent.click(screen.getByText('Decline'));
+
+    expect(handleAcceptInvitation).toHaveBeenCalledTimes(1);
+    expect(handleDeclineInvitation).toHaveBeenCalledTimes(1);
   });
 });
