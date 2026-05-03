@@ -8,6 +8,8 @@ import { listMyEvents } from '@/services/eventService';
 import { listMyInvitations, acceptInvitation, declineInvitation } from '@/services/invitationService';
 import { ReceivedInvitation } from '@/models/invitation';
 import { ApiError } from '@/services/api';
+import { listMyTickets } from '@/services/ticketService';
+import type { TicketListItem } from '@/models/ticket';
 
 type ExtendedStatus = MyEventStatus | 'INVITATIONS';
 
@@ -118,6 +120,8 @@ export function useMyEventsViewModel(): MyEventsViewModel {
     if (!token) {
       setHostedEvents([]);
       setAttendedEvents([]);
+      setInvitations([]);
+      setInvitationCount(0);
       setErrorMessage('You must be logged in to manage your events.');
       setIsLoading(false);
       return;
@@ -126,21 +130,60 @@ export function useMyEventsViewModel(): MyEventsViewModel {
     setIsLoading(true);
     setErrorMessage(null);
 
-    try {
-      const [eventsResponse, invitationsResponse] = await Promise.all([
-        listMyEvents(token),
-        listMyInvitations(token),
+    const withTimeout = <T>(promise: Promise<T>, timeoutMs = 10000): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error('Request timed out')), timeoutMs)
+        ),
       ]);
+    };
+
+    try {
+      const [eventsResponse, invitationsResponse, ticketsResponse] = await Promise.all([
+        withTimeout(listMyEvents(token)),
+        withTimeout(listMyInvitations(token)).catch(() => ({ pending: [] })),
+        withTimeout(listMyTickets(token)).catch(() => ({ items: [] })),
+      ]);
+
+      const ticketsByEventId = new Map<string, TicketListItem>();
+      for (const ticket of ticketsResponse?.items ?? []) {
+        if (ticket?.event?.id) {
+          ticketsByEventId.set(ticket.event.id, ticket);
+        }
+      }
+
+      const decoratedAttendedEvents = (eventsResponse?.attended_events ?? []).map((event) => {
+        const ticket = ticketsByEventId.get(event.id);
+        if (!ticket) return event;
+
+        const badges = event.badges.some((badge) => badge.type === 'TICKET')
+          ? event.badges
+          : [...event.badges, { type: 'TICKET' as const, label: 'Ticket' }];
+
+        return {
+          ...event,
+          ticket_id: ticket.ticket_id,
+          ticket_status: ticket.status,
+          badges,
+        };
+      });
+
       setHostedEvents(eventsResponse.hosted_events);
-      setAttendedEvents(eventsResponse.attended_events);
+      setAttendedEvents(decoratedAttendedEvents);
       setInvitations(invitationsResponse.pending);
       setInvitationCount(invitationsResponse.pending.length);
-    } catch {
+    } catch (error) {
+      console.error('Failed to load events:', error);
       setHostedEvents([]);
       setAttendedEvents([]);
       setInvitations([]);
       setInvitationCount(0);
-      setErrorMessage('Failed to load your events. Please try again.');
+      
+      const message = error instanceof ApiError ? error.message : 
+                     error instanceof Error ? error.message : 
+                     'Failed to load your events. Please try again.';
+      setErrorMessage(message);
     } finally {
       setIsLoading(false);
     }

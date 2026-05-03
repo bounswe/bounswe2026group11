@@ -4,18 +4,21 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import * as eventService from '@/services/eventService';
 import * as invitationService from '@/services/invitationService';
+import * as ticketService from '@/services/ticketService';
 import type { MyEventsResponse, MyEventSummary } from '@/models/event';
 import { useMyEventsViewModel } from './useMyEventsViewModel';
 import { useAuth } from '@/contexts/AuthContext';
 
 jest.mock('@/services/eventService');
 jest.mock('@/services/invitationService');
+jest.mock('@/services/ticketService');
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 
 const mockListMyEvents = jest.mocked(eventService.listMyEvents);
 const mockListMyInvitations = jest.mocked(invitationService.listMyInvitations);
+const mockListMyTickets = jest.mocked(ticketService.listMyTickets);
 const mockUseAuth = jest.mocked(useAuth);
 
 function makeEvent(
@@ -81,6 +84,30 @@ const myInvitationsResponse = {
   },
 };
 
+const myTicketsResponse = {
+  items: [
+    {
+      ticket_id: 'ticket-1',
+      status: 'USED',
+      expires_at: '2026-04-09T23:59:59+03:00',
+      event: {
+        id: 'attend-active',
+        title: 'Event attend-active',
+        status: 'ACTIVE',
+        privacy_level: 'PROTECTED',
+        start_time: '2026-04-09T20:00:00+03:00',
+        end_time: null,
+        location_type: 'POINT',
+        address: 'Kadikoy, Istanbul',
+      },
+      participation: {
+        id: 'participation-1',
+        status: 'APPROVED',
+      },
+    },
+  ],
+};
+
 describe('useMyEventsViewModel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -93,6 +120,7 @@ describe('useMyEventsViewModel', () => {
     });
     mockListMyEvents.mockResolvedValue(myEventsResponse);
     mockListMyInvitations.mockResolvedValue(myInvitationsResponse as any);
+    mockListMyTickets.mockResolvedValue(myTicketsResponse as any);
   });
 
   it('loads my events and invitations on mount', async () => {
@@ -102,9 +130,13 @@ describe('useMyEventsViewModel', () => {
 
     expect(mockListMyEvents).toHaveBeenCalledWith('mock-token');
     expect(mockListMyInvitations).toHaveBeenCalledWith('mock-token');
+    expect(mockListMyTickets).toHaveBeenCalledWith('mock-token');
     
     expect(result.current.invitations.length).toBe(1);
     expect(result.current.statusTabs.find(t => t.value === 'INVITATIONS')?.count).toBe(1);
+    expect(result.current.attendedEvents[0].ticket_id).toBe('ticket-1');
+    expect(result.current.attendedEvents[0].ticket_status).toBe('USED');
+    expect(result.current.attendedEvents[0].badges).toEqual([{ type: 'TICKET', label: 'Ticket' }]);
   });
 
   it('filters events when the selected status changes, including INVITATIONS', async () => {
@@ -185,7 +217,7 @@ describe('useMyEventsViewModel', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(result.current.errorMessage).toBe('Failed to load your events. Please try again.');
+    expect(result.current.errorMessage).toBe('network');
     expect(result.current.canRetry).toBe(true);
     expect(result.current.visibleEvents).toEqual([]);
   });

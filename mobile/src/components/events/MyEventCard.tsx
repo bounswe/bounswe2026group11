@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { MyEventBadge, MyEventSummary } from '@/models/event';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
@@ -10,6 +10,7 @@ import {
 } from '@/utils/eventStatus';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+import { getTicketStatusBadgeColors } from '@/utils/ticketStatus';
 
 interface MyEventCardProps {
   event: MyEventSummary;
@@ -20,13 +21,11 @@ function getAttendeeLabel(count?: number | null) {
   if (count == null) {
     return 'N/A';
   }
-  return String(count);
+  return `${count} attendees`;
 }
 
 function getLocationLabel(address?: string | null) {
-  if (!address) {
-    return 'Location available on event page';
-  }
+  if (!address) return 'Location available on event page';
   return formatEventLocation(address);
 }
 
@@ -36,46 +35,49 @@ export default function MyEventCard({ event, onPress }: MyEventCardProps) {
 
   const statusColors = getEventStatusBadgeColors(event.status);
 
-  const level = event.privacy_level;
-  let privacyBg = theme.badgePublicBg;
-  let privacyText = theme.badgePublicText;
-  let privacyIconName: 'globe' | 'lock' = 'globe';
-  let privacyIconColor = theme.badgePublicText;
+  function getBadgeStyle(
+    type: MyEventBadge['type'],
+    ticketStatus?: MyEventSummary['ticket_status'],
+  ) {
+    if (type === 'HOST') {
+      return {
+        container: styles.contextBadgeHost,
+        text: styles.contextBadgeTextHost,
+        iconColor: '#4338CA',
+      };
+    }
 
-  if (level === 'PROTECTED') {
-    privacyBg = theme.badgeProtectedBg;
-    privacyText = theme.badgeProtectedText;
-    privacyIconName = 'lock';
-    privacyIconColor = theme.badgeProtectedText;
-  } else if (level === 'PRIVATE') {
-    privacyBg = theme.badgePrivateBg;
-    privacyText = theme.badgePrivateText;
-    privacyIconName = 'lock';
-    privacyIconColor = theme.badgePrivateText;
-  }
+    if (type === 'TICKET') {
+      const colors = ticketStatus
+        ? getTicketStatusBadgeColors(ticketStatus)
+        : { backgroundColor: theme.successBg, textColor: theme.successText };
 
-  function getBadgeColors(type: MyEventBadge['type']) {
-    if (type === 'HOST') return { bg: theme.badgeHostBg, text: theme.badgeHostText };
-    if (type === 'TICKET') return { bg: theme.badgeTicketBg, text: theme.badgeTicketText };
-    return { bg: theme.badgeInvitedBg, text: theme.badgeInvitedText };
+      return {
+        container: [styles.contextBadgeTicket, { backgroundColor: colors.backgroundColor }],
+        text: [styles.contextBadgeTextTicket, { color: colors.textColor }],
+        iconColor: colors.textColor,
+      };
+    }
+
+    return {
+      container: styles.contextBadgeInvited,
+      text: styles.contextBadgeTextInvited,
+      iconColor: '#B45309',
+    };
   }
 
   return (
     <TouchableOpacity
-      activeOpacity={0.92}
+      activeOpacity={0.88}
       style={styles.card}
       onPress={() => onPress?.(event.id)}
     >
       <View style={styles.imageWrapper}>
         {event.image_url ? (
-          <Image
-            source={{ uri: event.image_url }}
-            style={styles.image}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: event.image_url }} style={styles.image} />
         ) : (
           <View style={styles.imagePlaceholder}>
-            <Feather name="calendar" size={28} color={theme.textTertiary} />
+            <Feather name="image" size={28} color={theme.borderStrong} />
           </View>
         )}
       </View>
@@ -98,13 +100,6 @@ export default function MyEventCard({ event, onPress }: MyEventCardProps) {
                 {formatEventStatusLabel(event.status)}
               </Text>
             </View>
-
-            <View style={[styles.privacyBadge, { backgroundColor: privacyBg }]}>
-              <Feather name={privacyIconName} size={10} color={privacyIconColor} />
-              <Text style={[styles.privacyBadgeText, { color: privacyText }]}>
-                {level ? level.charAt(0) + level.slice(1).toLowerCase() : ''}
-              </Text>
-            </View>
           </View>
 
           <View style={styles.attendeePill}>
@@ -122,14 +117,21 @@ export default function MyEventCard({ event, onPress }: MyEventCardProps) {
         {event.badges.length > 0 ? (
           <View style={styles.badgeRow}>
             {event.badges.map((badge) => {
-              const colors = getBadgeColors(badge.type);
+              const badgeStyle = getBadgeStyle(badge.type, event.ticket_status);
 
               return (
                 <View
                   key={`${event.id}-${badge.type}-${badge.label}`}
-                  style={[styles.contextBadge, { backgroundColor: colors.bg }]}
+                  style={[styles.contextBadge, badgeStyle.container]}
                 >
-                  <Text style={[styles.contextBadgeText, { color: colors.text }]}>
+                  {badge.type === 'TICKET' ? (
+                    <MaterialIcons
+                      name="qr-code-2"
+                      size={14}
+                      color={badgeStyle.iconColor as any}
+                    />
+                  ) : null}
+                  <Text style={[styles.contextBadgeText, badgeStyle.text]}>
                     {badge.label}
                   </Text>
                 </View>
@@ -214,18 +216,6 @@ function makeStyles(t: Theme) {
       fontSize: 12,
       fontWeight: '700',
     },
-    privacyBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 999,
-    },
-    privacyBadgeText: {
-      fontSize: 12,
-      fontWeight: '700',
-    },
     attendeePill: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -254,13 +244,34 @@ function makeStyles(t: Theme) {
       marginTop: 10,
     },
     contextBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
       borderRadius: 999,
       paddingHorizontal: 10,
       paddingVertical: 5,
     },
+    contextBadgeHost: {
+      backgroundColor: '#E0E7FF',
+    },
+    contextBadgeTicket: {
+      backgroundColor: '#DCFCE7',
+    },
+    contextBadgeInvited: {
+      backgroundColor: '#FEF3C7',
+    },
     contextBadgeText: {
       fontSize: 12,
       fontWeight: '700',
+    },
+    contextBadgeTextHost: {
+      color: '#4338CA',
+    },
+    contextBadgeTextTicket: {
+      color: '#166534',
+    },
+    contextBadgeTextInvited: {
+      color: '#B45309',
     },
     metaGroup: {
       marginTop: 12,

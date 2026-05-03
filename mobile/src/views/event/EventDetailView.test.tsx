@@ -8,6 +8,10 @@ import type { EventDetailViewModel } from '@/viewmodels/event/useEventDetailView
 import EventDetailView from './EventDetailView';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 
+jest.mock('expo-status-bar', () => ({
+  StatusBar: () => null,
+}));
+
 jest.mock('expo-router', () => ({
   router: {
     back: jest.fn(),
