@@ -10,9 +10,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -103,7 +104,11 @@ export default function CreateEventView() {
   }, [activeDatePicker, vm.formData.startDate, parseDateString, getStartOfDay]);
 
   const handleDateValueChange = useCallback(
-    (_event: any, selectedDate: Date) => {
+    (_event: any, selectedDate?: Date) => {
+      if (!selectedDate) {
+        setActiveDatePicker(null);
+        return;
+      }
       const prevDate = getCurrentPickerDate();
       const onlyDayChanged =
         selectedDate.getDate() !== prevDate.getDate() &&
@@ -129,7 +134,11 @@ export default function CreateEventView() {
   );
 
   const handleTimeValueChange = useCallback(
-    (_event: any, selectedDate: Date) => {
+    (_event: any, selectedDate?: Date) => {
+      if (!selectedDate) {
+        setActiveTimePicker(null);
+        return;
+      }
       const hours = String(selectedDate.getHours()).padStart(2, '0');
       const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
       const formatted = `${hours}:${minutes}`;
@@ -478,8 +487,7 @@ export default function CreateEventView() {
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
                 minimumDate={getMinimumDatePickerDate()}
-                onValueChange={handleDateValueChange}
-                onDismiss={handleDateDismiss}
+                onChange={handleDateValueChange}
               />
             </View>
           )}
@@ -490,8 +498,7 @@ export default function CreateEventView() {
                 mode="time"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 is24Hour={true}
-                onValueChange={handleTimeValueChange}
-                onDismiss={handleTimeDismiss}
+                onChange={handleTimeValueChange}
               />
             </View>
           )}
@@ -575,8 +582,7 @@ export default function CreateEventView() {
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
                 minimumDate={getMinimumDatePickerDate()}
-                onValueChange={handleDateValueChange}
-                onDismiss={handleDateDismiss}
+                onChange={handleDateValueChange}
               />
             </View>
           )}
@@ -587,8 +593,7 @@ export default function CreateEventView() {
                 mode="time"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 is24Hour={true}
-                onValueChange={handleTimeValueChange}
-                onDismiss={handleTimeDismiss}
+                onChange={handleTimeValueChange}
               />
             </View>
           )}
@@ -624,7 +629,103 @@ export default function CreateEventView() {
             ))}
           </View>
 
+          {/* Privacy Level Description */}
+          <View style={styles.privacyDescriptionContainer}>
+            <Text style={styles.privacyDescriptionText}>
+              {vm.formData.privacyLevel === 'PUBLIC' &&
+                'Visible to everyone. Anyone can join without approval.'}
+              {vm.formData.privacyLevel === 'PROTECTED' &&
+                'Visible to everyone, but people must send a join request and wait for your approval.'}
+              {vm.formData.privacyLevel === 'PRIVATE' &&
+                'Only visible to invited users. People can join only if you invite them.'}
+            </Text>
+          </View>
         </View>
+
+        {/* Invite Guests (Private Only) */}
+        {vm.formData.privacyLevel === 'PRIVATE' && (
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Invite Guests</Text>
+            <View style={styles.tagInputRow}>
+              <View style={{ flex: 1 }}>
+                <TextInput
+                  style={[styles.input, styles.tagInput]}
+                  placeholder="Username"
+                  placeholderTextColor="#9CA3AF"
+                  value={vm.userSearchQuery}
+                  onChangeText={(v) => vm.handleUserSearch(v, token ?? '')}
+                  editable={!vm.isLoading}
+                />
+                {vm.isSearchingUsers && (
+                  <ActivityIndicator size="small" color="#111827" style={styles.userSearchSpinner} />
+                )}
+                {vm.userSuggestions.length > 0 && (
+                  <View style={styles.userSuggestionsContainer}>
+                    {vm.userSuggestions.map((s) => (
+                      <TouchableOpacity
+                        key={s.id}
+                        style={styles.userSuggestionItem}
+                        onPress={() => vm.addInvitedUser(s.username)}
+                      >
+                        <Text style={styles.userSuggestionText}>@{s.username}</Text>
+                        {s.display_name && (
+                          <Text style={styles.userSuggestionSubtext}>{s.display_name}</Text>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.fileUploadButton}
+                onPress={vm.pickAndParseUserFile}
+                disabled={vm.isLoading}
+              >
+                <MaterialIcons name="upload-file" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            {vm.invitedUsers.length > 0 && (
+              <View style={styles.chipRow}>
+                {vm.invitedUsers.map((username, i) => (
+                  <View key={`${username}-${i}`} style={[styles.tagChip, styles.invitedUserChip]}>
+                    <Text style={styles.tagChipText}>{username}</Text>
+                    <TouchableOpacity
+                      style={styles.chipRemoveBtn}
+                      onPress={() => vm.removeInvitedUser(username)}
+                    >
+                      <MaterialIcons name="close" size={14} color="#6B7280" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+            <Text style={styles.helperText}>
+              Add guests by username or upload a .txt/.csv file (one username per line or comma-separated).
+            </Text>
+
+            {vm.invitedUsers.length > 0 && (
+              <View style={[styles.fieldGroup, { marginTop: 16, marginBottom: 0 }]}>
+                <Text style={styles.label}>Invitation Message (Optional)</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea, { minHeight: 80 }]}
+                  placeholder="Personalize your invitation..."
+                  placeholderTextColor="#9CA3AF"
+                  value={vm.formData.invitationMessage}
+                  onChangeText={(v) => vm.updateField('invitationMessage', v)}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  editable={!vm.isLoading}
+                />
+                <Text style={styles.helperText}>
+                  This message will be sent to all invited guests.
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
 
         {/* Tags */}
         <View style={styles.fieldGroup}>
@@ -887,6 +988,7 @@ export default function CreateEventView() {
             <Text style={styles.fieldError}>{vm.errors.constraints}</Text>
           )}
         </View>
+
 
         {/* Submit Button */}
         <TouchableOpacity
@@ -1222,6 +1324,62 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 8,
   },
+  inviteInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  inviteInput: {
+    flex: 1,
+    height: 48,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#111827',
+  },
+  invitedList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  invitedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 4,
+  },
+  invitedChipText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  uploadSection: {
+    marginTop: 12,
+  },
+  uploadHint: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadButtonText: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '600',
+  },
   tagInput: {
     flex: 1,
   },
@@ -1299,5 +1457,85 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  privacyDescriptionContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  privacyDescriptionText: {
+    fontSize: 13,
+    color: '#64748B',
+    lineHeight: 18,
+  },
+  userSearchSpinner: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
+  },
+  userSuggestionsContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    zIndex: 1000,
+    marginTop: 4,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    maxHeight: 200,
+    overflow: 'hidden',
+  },
+  userSuggestionItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  userSuggestionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  userSuggestionSubtext: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  fileUploadButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  invitedUserChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingRight: 8,
+  },
+  chipRemoveBtn: {
+    padding: 2,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 8,
+    lineHeight: 16,
   },
 });

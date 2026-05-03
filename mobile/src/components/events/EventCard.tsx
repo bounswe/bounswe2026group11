@@ -48,36 +48,34 @@ export default function EventCard({ event, onPress }: EventCardProps) {
         <View style={styles.imageOverlay}>
           <View style={styles.imageTopRow}>
             <View style={styles.topSpacer} />
-            <View
-              style={[
-                styles.visibilityBadge,
-                event.privacy_level === 'PROTECTED'
-                  ? styles.visibilityBadgeProtected
-                  : styles.visibilityBadgePublic,
-              ]}
-            >
-              <Feather
-                name={
-                  event.privacy_level === 'PROTECTED'
-                    ? 'lock'
-                    : 'globe'
-                }
-                size={12}
-                color={
-                  event.privacy_level === 'PROTECTED' ? '#92400E' : '#1E40AF'
-                }
-              />
-              <Text
-                style={[
-                  styles.visibilityBadgeText,
-                  event.privacy_level === 'PROTECTED'
-                    ? styles.visibilityBadgeTextProtected
-                    : styles.visibilityBadgeTextPublic,
-                ]}
-              >
-                {formatPrivacyLabel(event.privacy_level)}
-              </Text>
-            </View>
+            {(() => {
+              const level = event.privacy_level;
+              let badgeStyle = styles.visibilityBadgePublic;
+              let textStyle = styles.visibilityBadgeTextPublic;
+              let iconName: 'globe' | 'lock' = 'globe';
+              let iconColor = '#1E40AF';
+
+              if (level === 'PROTECTED') {
+                badgeStyle = styles.visibilityBadgeProtected;
+                textStyle = styles.visibilityBadgeTextProtected;
+                iconName = 'lock';
+                iconColor = '#92400E';
+              } else if (level === 'PRIVATE') {
+                badgeStyle = styles.visibilityBadgePrivate;
+                textStyle = styles.visibilityBadgeTextPrivate;
+                iconName = 'lock';
+                iconColor = '#5B21B6';
+              }
+
+              return (
+                <View style={[styles.visibilityBadge, badgeStyle]}>
+                  <Feather name={iconName} size={12} color={iconColor} />
+                  <Text style={[styles.visibilityBadgeText, textStyle]}>
+                    {formatPrivacyLabel(level)}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
 
           <View style={styles.imageBottomRow}>
@@ -191,6 +189,9 @@ const styles = StyleSheet.create({
   visibilityBadgeProtected: {
     backgroundColor: '#FEF3C7',
   },
+  visibilityBadgePrivate: {
+    backgroundColor: '#EDE9FE',
+  },
   visibilityBadgeText: {
     fontSize: 12,
     fontWeight: '700',
@@ -200,6 +201,9 @@ const styles = StyleSheet.create({
   },
   visibilityBadgeTextProtected: {
     color: '#92400E',
+  },
+  visibilityBadgeTextPrivate: {
+    color: '#5B21B6',
   },
   categoryBadge: {
     backgroundColor: 'rgba(15, 23, 42, 0.72)',

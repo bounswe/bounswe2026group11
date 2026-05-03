@@ -15,8 +15,10 @@ jest.mock('react-native', () => {
     'animationType',
     'contentContainerStyle',
     'keyboardShouldPersistTaps',
+    'keyboardType',
     'onRequestClose',
     'placeholderTextColor',
+    'showsVerticalScrollIndicator',
     'transparent',
     'visible',
   ]);

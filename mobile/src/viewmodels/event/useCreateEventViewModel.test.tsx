@@ -24,6 +24,21 @@ import {
 
 jest.mock('@/services/eventService');
 
+jest.mock('expo-router', () => ({
+  router: {
+    back: jest.fn(),
+    replace: jest.fn(),
+    push: jest.fn(),
+  },
+}));
+
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: { username: 'testuser' },
+    token: 'test-token',
+  }),
+}));
+
 const ImagePicker = require('expo-image-picker');
 const ImageManipulator = require('expo-image-manipulator');
 const { Alert } = require('react-native');
@@ -875,7 +890,7 @@ describe('useCreateEventViewModel', () => {
     expect(result.current.formData.privacyLevel).toBe('PUBLIC');
     // PRIVATE should not be in the exported options - tested via import
     const { PRIVACY_OPTIONS } = require('./useCreateEventViewModel');
-    expect(PRIVACY_OPTIONS.map((o: { value: string }) => o.value)).not.toContain('PRIVATE');
+    expect(PRIVACY_OPTIONS.map((o: { value: string }) => o.value)).toContain('PRIVATE');
   });
 
   describe('image picking', () => {

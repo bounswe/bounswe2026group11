@@ -76,20 +76,51 @@ export default function MyEventCard({ event, onPress }: MyEventCardProps) {
 
       <View style={styles.content}>
         <View style={styles.topRow}>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: statusColors.backgroundColor },
-            ]}
-          >
-            <Text
+          <View style={styles.statusBadgeRow}>
+            <View
               style={[
-                styles.statusBadgeText,
-                { color: statusColors.textColor },
+                styles.statusBadge,
+                { backgroundColor: statusColors.backgroundColor },
               ]}
             >
-              {formatEventStatusLabel(event.status)}
-            </Text>
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  { color: statusColors.textColor },
+                ]}
+              >
+                {formatEventStatusLabel(event.status)}
+              </Text>
+            </View>
+
+            {(() => {
+              const level = event.privacy_level;
+              let badgeStyle = styles.privacyBadgePublic;
+              let textStyle = styles.privacyBadgeTextPublic;
+              let iconName: 'globe' | 'lock' = 'globe';
+              let iconColor = '#1E40AF';
+
+              if (level === 'PROTECTED') {
+                badgeStyle = styles.privacyBadgeProtected;
+                textStyle = styles.privacyBadgeTextProtected;
+                iconName = 'lock';
+                iconColor = '#92400E';
+              } else if (level === 'PRIVATE') {
+                badgeStyle = styles.privacyBadgePrivate;
+                textStyle = styles.privacyBadgeTextPrivate;
+                iconName = 'lock';
+                iconColor = '#5B21B6';
+              }
+
+              return (
+                <View style={[styles.privacyBadge, badgeStyle]}>
+                  <Feather name={iconName} size={10} color={iconColor} />
+                  <Text style={[styles.privacyBadgeText, textStyle]}>
+                    {level ? level.charAt(0) + level.slice(1).toLowerCase() : ''}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
 
           <View style={styles.attendeePill}>
@@ -184,6 +215,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
+  statusBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   statusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -192,6 +228,36 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  privacyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  privacyBadgePublic: {
+    backgroundColor: '#DBEAFE',
+  },
+  privacyBadgeProtected: {
+    backgroundColor: '#FEF3C7',
+  },
+  privacyBadgePrivate: {
+    backgroundColor: '#EDE9FE',
+  },
+  privacyBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  privacyBadgeTextPublic: {
+    color: '#1E40AF',
+  },
+  privacyBadgeTextProtected: {
+    color: '#92400E',
+  },
+  privacyBadgeTextPrivate: {
+    color: '#5B21B6',
   },
   attendeePill: {
     flexDirection: 'row',
