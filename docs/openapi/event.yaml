@@ -33,8 +33,9 @@ paths:
         Visibility rules:
         - `PUBLIC` and `PROTECTED` events are readable by any caller, authenticated or not.
         - `PRIVATE` events are readable only by the host, users with an `APPROVED`
-          participation, or users with an `ACCEPTED` invitation. Anonymous callers cannot
-          read `PRIVATE` events.
+          participation, users with an `ACCEPTED` invitation, or users with a `PENDING`
+          invitation (so invited users can review the event before responding). Anonymous
+          callers cannot read `PRIVATE` events.
         - When a `PRIVATE` event is not readable by the caller, the API responds with
           `404 event_not_found` to avoid leaking the event's existence.
 
