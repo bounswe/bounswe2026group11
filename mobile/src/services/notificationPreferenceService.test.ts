@@ -20,7 +20,7 @@ describe('notificationPreferenceService', () => {
 
     await expect(getPushNotificationsEnabled()).resolves.toBe(false);
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
-      'sem:push-notifications-enabled',
+      'sem.push-notifications-enabled',
       'false',
     );
   });

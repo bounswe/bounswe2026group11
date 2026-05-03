@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-const PUSH_NOTIFICATIONS_ENABLED_KEY = 'sem:push-notifications-enabled';
+const PUSH_NOTIFICATIONS_ENABLED_KEY = 'sem.push-notifications-enabled';
 
 type PushPreferenceListener = (enabled: boolean) => void;
 
