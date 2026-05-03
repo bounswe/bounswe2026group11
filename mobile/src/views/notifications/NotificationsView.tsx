@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,6 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NotificationItem } from '@/models/notification';
 import { resolveNotificationRoute } from '@/utils/notificationRouting';
 import { useNotificationsViewModel } from '@/viewmodels/notifications/useNotificationsViewModel';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 function formatNotificationTime(value: string): string {
   const timestamp = new Date(value).getTime();
@@ -49,9 +51,11 @@ interface NotificationRowProps {
   item: NotificationItem;
   onOpen: (item: NotificationItem) => void;
   onDelete: (notificationId: string) => void;
+  theme: Theme;
+  styles: ReturnType<typeof makeStyles>;
 }
 
-function NotificationRow({ item, onOpen, onDelete }: NotificationRowProps) {
+function NotificationRow({ item, onOpen, onDelete, theme, styles }: NotificationRowProps) {
   const typeLabel = formatNotificationType(item.type);
 
   return (
@@ -70,7 +74,7 @@ function NotificationRow({ item, onOpen, onDelete }: NotificationRowProps) {
         />
       ) : (
         <View style={styles.notificationIcon}>
-          <Ionicons name="notifications-outline" size={22} color="#0F172A" />
+          <Ionicons name="notifications-outline" size={22} color={theme.text} />
         </View>
       )}
 
@@ -105,7 +109,7 @@ function NotificationRow({ item, onOpen, onDelete }: NotificationRowProps) {
         accessibilityRole="button"
         accessibilityLabel={`Delete notification ${item.title}`}
       >
-        <Ionicons name="trash-outline" size={18} color="#64748B" />
+        <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -113,6 +117,8 @@ function NotificationRow({ item, onOpen, onDelete }: NotificationRowProps) {
 
 export default function NotificationsView() {
   const vm = useNotificationsViewModel();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const openNotification = useCallback(
     (item: NotificationItem) => {
@@ -132,9 +138,11 @@ export default function NotificationsView() {
         item={item}
         onOpen={openNotification}
         onDelete={(notificationId) => void vm.removeNotification(notificationId)}
+        theme={theme}
+        styles={styles}
       />
     ),
-    [openNotification, vm],
+    [openNotification, vm, theme, styles],
   );
 
   return (
@@ -148,7 +156,7 @@ export default function NotificationsView() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="chevron-back" size={24} color="#111827" />
+            <Ionicons name="chevron-back" size={24} color={theme.text} />
           </TouchableOpacity>
 
           <View style={styles.titleBlock}>
@@ -174,7 +182,7 @@ export default function NotificationsView() {
             <Ionicons
               name="checkmark-done-outline"
               size={21}
-              color={vm.unreadCount === 0 ? '#CBD5E1' : '#111827'}
+              color={vm.unreadCount === 0 ? theme.border : theme.text}
             />
           </TouchableOpacity>
         </View>
@@ -187,7 +195,7 @@ export default function NotificationsView() {
 
         {vm.isLoading ? (
           <View style={styles.loadingPanel}>
-            <ActivityIndicator size="large" color="#111827" />
+            <ActivityIndicator size="large" color={theme.text} />
             <Text style={styles.loadingText}>Loading notifications...</Text>
           </View>
         ) : (
@@ -207,7 +215,7 @@ export default function NotificationsView() {
                   <Ionicons
                     name="notifications-off-outline"
                     size={42}
-                    color="#CBD5E1"
+                    color={theme.border}
                   />
                   <Text style={styles.emptyTitle}>No notifications yet</Text>
                   <Text style={styles.emptySubtitle}>
@@ -219,7 +227,7 @@ export default function NotificationsView() {
             ListFooterComponent={
               vm.isLoadingMore ? (
                 <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color="#111827" />
+                  <ActivityIndicator size="small" color={theme.text} />
                 </View>
               ) : null
             }
@@ -230,188 +238,190 @@ export default function NotificationsView() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 14,
-    paddingBottom: 18,
-    gap: 12,
-  },
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleBlock: {
-    flex: 1,
-  },
-  screenTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  screenSubtitle: {
-    marginTop: 2,
-    color: '#64748B',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  markAllButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markAllButtonDisabled: {
-    backgroundColor: '#F8FAFC',
-  },
-  errorBanner: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-  },
-  errorText: {
-    color: '#DC2626',
-    fontSize: 14,
-  },
-  loadingPanel: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 60,
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#64748B',
-    fontSize: 15,
-  },
-  listContent: {
-    paddingBottom: 24,
-    gap: 10,
-  },
-  notificationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 18,
-    padding: 12,
-  },
-  unreadRow: {
-    borderColor: '#BAE6FD',
-    backgroundColor: '#F0F9FF',
-  },
-  notificationImage: {
-    width: 54,
-    height: 54,
-    borderRadius: 12,
-    backgroundColor: '#E2E8F0',
-  },
-  notificationIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 12,
-    backgroundColor: '#E0F2FE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notificationBody: {
-    flex: 1,
-    minWidth: 0,
-  },
-  notificationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  notificationTitle: {
-    flex: 1,
-    color: '#111827',
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 20,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#0284C7',
-  },
-  notificationText: {
-    marginTop: 4,
-    color: '#475569',
-    fontSize: 14,
-    lineHeight: 19,
-  },
-  notificationMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 9,
-  },
-  notificationType: {
-    flex: 1,
-    color: '#0369A1',
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  notificationTime: {
-    color: '#64748B',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  deleteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footerLoader: {
-    paddingVertical: 16,
-  },
-  emptyState: {
-    paddingVertical: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: {
-    marginTop: 14,
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  emptySubtitle: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#64748B',
-    textAlign: 'center',
-    paddingHorizontal: 28,
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    container: {
+      flex: 1,
+      paddingHorizontal: 20,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingTop: 14,
+      paddingBottom: 18,
+      gap: 12,
+    },
+    backButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    titleBlock: {
+      flex: 1,
+    },
+    screenTitle: {
+      fontSize: 28,
+      fontWeight: '800',
+      color: t.text,
+    },
+    screenSubtitle: {
+      marginTop: 2,
+      color: t.textMuted,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    markAllButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    markAllButtonDisabled: {
+      backgroundColor: t.background,
+    },
+    errorBanner: {
+      backgroundColor: t.errorBg,
+      borderColor: t.errorBorder,
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 12,
+    },
+    errorText: {
+      color: t.errorText,
+      fontSize: 14,
+    },
+    loadingPanel: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingBottom: 60,
+    },
+    loadingText: {
+      marginTop: 12,
+      color: t.textMuted,
+      fontSize: 15,
+    },
+    listContent: {
+      paddingBottom: 24,
+      gap: 10,
+    },
+    notificationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 18,
+      padding: 12,
+    },
+    unreadRow: {
+      borderColor: t.unreadBorder,
+      backgroundColor: t.unreadBg,
+    },
+    notificationImage: {
+      width: 54,
+      height: 54,
+      borderRadius: 12,
+      backgroundColor: t.imagePlaceholder,
+    },
+    notificationIcon: {
+      width: 54,
+      height: 54,
+      borderRadius: 12,
+      backgroundColor: t.infoBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    notificationBody: {
+      flex: 1,
+      minWidth: 0,
+    },
+    notificationHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    notificationTitle: {
+      flex: 1,
+      color: t.text,
+      fontSize: 15,
+      fontWeight: '800',
+      lineHeight: 20,
+    },
+    unreadDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: t.unreadDot,
+    },
+    notificationText: {
+      marginTop: 4,
+      color: t.textMuted,
+      fontSize: 14,
+      lineHeight: 19,
+    },
+    notificationMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 9,
+    },
+    notificationType: {
+      flex: 1,
+      color: t.infoText,
+      fontSize: 11,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
+    notificationTime: {
+      color: t.textMuted,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    deleteButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    footerLoader: {
+      paddingVertical: 16,
+    },
+    emptyState: {
+      paddingVertical: 72,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emptyTitle: {
+      marginTop: 14,
+      fontSize: 18,
+      fontWeight: '800',
+      color: t.text,
+    },
+    emptySubtitle: {
+      marginTop: 8,
+      fontSize: 14,
+      lineHeight: 20,
+      color: t.textMuted,
+      textAlign: 'center',
+      paddingHorizontal: 28,
+    },
+  });
+}

@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { EventCategory } from '@/models/event';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 interface CategoryChipsProps {
   categories: readonly EventCategory[];
@@ -13,6 +15,9 @@ export default function CategoryChips({
   selectedCategoryId,
   onSelectCategory,
 }: CategoryChipsProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   return (
     <ScrollView
       horizontal
@@ -58,32 +63,34 @@ export default function CategoryChips({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    paddingBottom: 6,
-    paddingRight: 12,
-  },
-  chip: {
-    height: 38,
-    paddingHorizontal: 16,
-    marginRight: 10,
-    borderRadius: 19,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chipSelected: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
-  },
-  chipText: {
-    color: '#374151',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  chipTextSelected: {
-    color: '#FFFFFF',
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    container: {
+      paddingBottom: 6,
+      paddingRight: 12,
+    },
+    chip: {
+      height: 38,
+      paddingHorizontal: 16,
+      marginRight: 10,
+      borderRadius: 19,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    chipSelected: {
+      backgroundColor: t.primary,
+      borderColor: t.primary,
+    },
+    chipText: {
+      color: t.text,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    chipTextSelected: {
+      color: t.textOnPrimary,
+    },
+  });
+}

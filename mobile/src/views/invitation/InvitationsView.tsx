@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,14 +13,18 @@ import InvitationCard from '@/components/invitation/InvitationCard';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 export default function InvitationsView() {
   const vm = useInvitationsViewModel();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <MaterialIcons name="mail-outline" size={48} color="#9CA3AF" />
+        <MaterialIcons name="mail-outline" size={48} color={theme.textTertiary} />
       </View>
       <Text style={styles.emptyTitle}>No invitations yet</Text>
       <Text style={styles.emptySubtitle}>
@@ -37,7 +41,7 @@ export default function InvitationsView() {
           style={styles.backButton}
           accessibilityLabel="Go back"
         >
-          <MaterialIcons name="arrow-back" size={24} color="#111827" />
+          <MaterialIcons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Invitations</Text>
         <View style={styles.headerRight} />
@@ -49,7 +53,7 @@ export default function InvitationsView() {
         </View>
       ) : vm.error && vm.invitations.length === 0 ? (
         <View style={styles.centerContainer}>
-          <MaterialIcons name="error-outline" size={48} color="#DC2626" />
+          <MaterialIcons name="error-outline" size={48} color={theme.errorText} />
           <Text style={styles.errorText}>{vm.error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={vm.fetchInvitations}>
             <Text style={styles.retryButtonText}>Retry</Text>
@@ -82,86 +86,88 @@ export default function InvitationsView() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  headerRight: {
-    width: 32, // To balance the back button
-  },
-  centerContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-  },
-  listContent: {
-    padding: 16,
-    flexGrow: 1,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 100,
-  },
-  emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 32,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#374151',
-    textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  retryButton: {
-    backgroundColor: '#6366F1',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: t.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
+    },
+    backButton: {
+      padding: 4,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: t.text,
+    },
+    headerRight: {
+      width: 32,
+    },
+    centerContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 32,
+    },
+    listContent: {
+      padding: 16,
+      flexGrow: 1,
+    },
+    emptyContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingTop: 100,
+    },
+    emptyIconContainer: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: t.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: t.text,
+      marginBottom: 8,
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: t.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+      paddingHorizontal: 32,
+    },
+    errorText: {
+      fontSize: 16,
+      color: t.textSecondary,
+      textAlign: 'center',
+      marginTop: 16,
+      marginBottom: 24,
+    },
+    retryButton: {
+      backgroundColor: '#6366F1',
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 12,
+    },
+    retryButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+      fontSize: 16,
+    },
+  });
+}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import {
   useForgotPasswordViewModel,
   ForgotPasswordStep,
 } from '@/viewmodels/auth/useForgotPasswordViewModel';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 const STEPS: ForgotPasswordStep[] = ['email', 'otp', 'reset'];
 
@@ -32,6 +34,8 @@ const BUTTON_LABELS: Record<ForgotPasswordStep, string> = {
 
 export default function ForgotPasswordView() {
   const vm = useForgotPasswordViewModel();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const handleNext = async () => {
     if (vm.step === 'email') {
@@ -88,7 +92,7 @@ export default function ForgotPasswordView() {
             <TextInput
               style={[styles.input, vm.errors.email && styles.inputError]}
               placeholder="you@example.com"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.placeholder}
               value={vm.formData.email}
               onChangeText={(v) => vm.updateField('email', v)}
               autoCapitalize="none"
@@ -108,7 +112,7 @@ export default function ForgotPasswordView() {
             <TextInput
               style={[styles.input, vm.errors.otp && styles.inputError]}
               placeholder="123456"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.placeholder}
               value={vm.formData.otp}
               onChangeText={(v) => vm.updateField('otp', v)}
               keyboardType="number-pad"
@@ -130,7 +134,7 @@ export default function ForgotPasswordView() {
                 vm.errors.newPassword && styles.inputError,
               ]}
               placeholder="At least 8 characters"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.placeholder}
               value={vm.formData.newPassword}
               onChangeText={(v) => vm.updateField('newPassword', v)}
               secureTextEntry
@@ -150,7 +154,7 @@ export default function ForgotPasswordView() {
           activeOpacity={0.8}
         >
           {vm.isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={theme.textOnPrimary} />
           ) : (
             <Text style={styles.buttonText}>{BUTTON_LABELS[vm.step]}</Text>
           )}
@@ -181,125 +185,127 @@ export default function ForgotPasswordView() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 24,
-    paddingTop: 60,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#6B7280',
-    marginBottom: 24,
-  },
-  stepIndicator: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 32,
-  },
-  stepDot: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E5E7EB',
-  },
-  stepDotActive: {
-    backgroundColor: '#111827',
-  },
-  successBanner: {
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  successBannerText: {
-    color: '#047857',
-    fontSize: 14,
-  },
-  errorBanner: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorBannerText: {
-    color: '#DC2626',
-    fontSize: 14,
-  },
-  fieldGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-  },
-  inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
-  },
-  fieldError: {
-    color: '#EF4444',
-    fontSize: 13,
-    marginTop: 4,
-  },
-  button: {
-    backgroundColor: '#111827',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  backButton: {
-    alignItems: 'center',
-    marginTop: 16,
-    paddingVertical: 8,
-  },
-  backButtonText: {
-    color: '#6B7280',
-    fontSize: 15,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  footerLink: {
-    fontSize: 15,
-    color: '#111827',
-    fontWeight: '600',
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.surface,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      padding: 24,
+      paddingTop: 60,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: t.text,
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 15,
+      color: t.textSecondary,
+      marginBottom: 24,
+    },
+    stepIndicator: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 32,
+    },
+    stepDot: {
+      flex: 1,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: t.border,
+    },
+    stepDotActive: {
+      backgroundColor: t.text,
+    },
+    successBanner: {
+      backgroundColor: t.successBg,
+      borderWidth: 1,
+      borderColor: t.successBorder,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+    },
+    successBannerText: {
+      color: t.successText,
+      fontSize: 14,
+    },
+    errorBanner: {
+      backgroundColor: t.errorBg,
+      borderWidth: 1,
+      borderColor: t.errorBorder,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+    },
+    errorBannerText: {
+      color: t.errorText,
+      fontSize: 14,
+    },
+    fieldGroup: {
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textSecondary,
+      marginBottom: 6,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: t.borderStrong,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: t.text,
+      backgroundColor: t.surfaceVariant,
+    },
+    inputError: {
+      borderColor: t.errorTextStrong,
+      backgroundColor: t.errorBg,
+    },
+    fieldError: {
+      color: t.errorTextStrong,
+      fontSize: 13,
+      marginTop: 4,
+    },
+    button: {
+      backgroundColor: t.primary,
+      borderRadius: 10,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    buttonDisabled: {
+      opacity: 0.6,
+    },
+    buttonText: {
+      color: t.textOnPrimary,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    backButton: {
+      alignItems: 'center',
+      marginTop: 16,
+      paddingVertical: 8,
+    },
+    backButtonText: {
+      color: t.textSecondary,
+      fontSize: 15,
+    },
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      marginTop: 24,
+    },
+    footerLink: {
+      fontSize: 15,
+      color: t.text,
+      fontWeight: '600',
+    },
+  });
+}

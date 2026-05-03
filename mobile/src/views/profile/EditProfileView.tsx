@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   ActivityIndicator,
@@ -19,10 +19,14 @@ import {
   DISPLAY_NAME_MAX_LENGTH,
   BIO_MAX_LENGTH,
 } from '@/viewmodels/profile/useEditProfileViewModel';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 export default function EditProfileView() {
   const vm = useEditProfileViewModel();
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const getPickerDate = useCallback(() => {
     if (vm.formData.birthDate && vm.formData.birthDate.length === 10) {
@@ -81,7 +85,6 @@ export default function EditProfileView() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -89,35 +92,31 @@ export default function EditProfileView() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <MaterialIcons name="arrow-back" size={28} color="#111827" />
+            <MaterialIcons name="arrow-back" size={28} color={theme.text} />
           </TouchableOpacity>
           <Text style={styles.screenTitle}>Edit Profile</Text>
           <View style={styles.headerSpacer} />
         </View>
 
-        {/* Error Banner */}
         {vm.apiError ? (
           <View style={styles.errorBanner}>
             <Text style={styles.errorBannerText}>{vm.apiError}</Text>
           </View>
         ) : null}
 
-        {/* Success Banner */}
         {vm.successMessage ? (
           <View style={styles.successBanner}>
             <Text style={styles.successBannerText}>{vm.successMessage}</Text>
           </View>
         ) : null}
 
-        {/* Loading State */}
         {vm.isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#0F172A" />
+            <ActivityIndicator size="large" color={theme.text} />
             <Text style={styles.loadingText}>Loading profile...</Text>
           </View>
         ) : (
           <View style={styles.formCard}>
-            {/* Display Name */}
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Display Name</Text>
               <TextInput
@@ -128,7 +127,7 @@ export default function EditProfileView() {
                 value={vm.formData.displayName}
                 onChangeText={(text) => vm.updateField('displayName', text)}
                 placeholder="Enter your display name"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.placeholder}
                 maxLength={DISPLAY_NAME_MAX_LENGTH}
                 accessibilityLabel="Display name"
               />
@@ -140,7 +139,6 @@ export default function EditProfileView() {
               ) : null}
             </View>
 
-            {/* Bio */}
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Bio</Text>
               <TextInput
@@ -152,7 +150,7 @@ export default function EditProfileView() {
                 value={vm.formData.bio}
                 onChangeText={(text) => vm.updateField('bio', text)}
                 placeholder="Tell us about yourself"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.placeholder}
                 maxLength={BIO_MAX_LENGTH}
                 multiline
                 numberOfLines={4}
@@ -167,7 +165,6 @@ export default function EditProfileView() {
               ) : null}
             </View>
 
-            {/* Phone Number */}
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Phone Number</Text>
               <TextInput
@@ -178,7 +175,7 @@ export default function EditProfileView() {
                 value={vm.formData.phoneNumber}
                 onChangeText={(text) => vm.updateField('phoneNumber', text)}
                 placeholder="+905551112233"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.placeholder}
                 keyboardType="phone-pad"
                 autoComplete="tel"
                 textContentType="telephoneNumber"
@@ -197,7 +194,7 @@ export default function EditProfileView() {
                   value={vm.locationQuery}
                   onChangeText={vm.updateLocationQuery}
                   placeholder="Search for a place..."
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={theme.placeholder}
                   accessibilityLabel="Default location"
                 />
                 {vm.formData.defaultLocationLat !== null ? (
@@ -214,7 +211,7 @@ export default function EditProfileView() {
               {vm.isSearchingLocation ? (
                 <ActivityIndicator
                   size="small"
-                  color="#111827"
+                  color={theme.text}
                   style={styles.searchSpinner}
                 />
               ) : null}
@@ -235,7 +232,6 @@ export default function EditProfileView() {
               ) : null}
             </View>
 
-            {/* Gender */}
             {vm.canEditGender ? (
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Gender</Text>
@@ -273,7 +269,6 @@ export default function EditProfileView() {
               </View>
             ) : null}
 
-            {/* Birth Date */}
             {vm.canEditBirthDate ? (
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Birth Date</Text>
@@ -287,7 +282,7 @@ export default function EditProfileView() {
                     value={vm.formData.birthDate}
                     onChangeText={(text) => vm.updateField('birthDate', text)}
                     placeholder="dd.mm.yyyy"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.placeholder}
                     accessibilityLabel="Birth date"
                   />
                   <TouchableOpacity
@@ -296,7 +291,7 @@ export default function EditProfileView() {
                     activeOpacity={0.7}
                     accessibilityLabel="Pick birth date"
                   >
-                    <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+                    <Ionicons name="calendar-outline" size={20} color={theme.textSecondary} />
                   </TouchableOpacity>
                 </View>
                 {vm.errors.birthDate ? (
@@ -317,7 +312,6 @@ export default function EditProfileView() {
               </View>
             ) : null}
 
-            {/* Save Button */}
             <TouchableOpacity
               style={[
                 styles.saveButton,
@@ -329,10 +323,10 @@ export default function EditProfileView() {
               accessibilityLabel="Save profile"
             >
               {vm.isSaving ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={theme.textOnPrimary} />
               ) : (
                 <>
-                  <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
+                  <Ionicons name="checkmark-circle-outline" size={20} color={theme.textOnPrimary} />
                   <Text style={styles.saveButtonText}>Save Changes</Text>
                 </>
               )}
@@ -344,213 +338,215 @@ export default function EditProfileView() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    paddingTop: 60,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: 16,
-  },
-  backButton: {
-    padding: 4,
-  },
-  screenTitle: {
-    flex: 1,
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#111827',
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 36,
-  },
-  errorBanner: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-  },
-  errorBannerText: {
-    color: '#DC2626',
-    fontSize: 14,
-  },
-  successBanner: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-  },
-  successBannerText: {
-    color: '#16A34A',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    paddingVertical: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#6B7280',
-    fontSize: 15,
-  },
-  formCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-    gap: 20,
-  },
-  fieldGroup: {
-    gap: 6,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#374151',
-  },
-  textInput: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#FAFAFA',
-  },
-  locationInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  textInputError: {
-    borderColor: '#DC2626',
-  },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  charCount: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    textAlign: 'right',
-  },
-  fieldError: {
-    fontSize: 13,
-    color: '#DC2626',
-  },
-  genderRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  genderChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FAFAFA',
-  },
-  genderChipSelected: {
-    borderColor: '#0F172A',
-    backgroundColor: '#0F172A',
-  },
-  genderChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  genderChipTextSelected: {
-    color: '#FFFFFF',
-  },
-  dateInputContainer: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  dateInputText: {
-    paddingRight: 46,
-  },
-  calendarIconInside: {
-    position: 'absolute',
-    right: 14,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  datePickerWrapper: {
-    alignItems: 'center',
-    marginBottom: 4,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-  },
-  clearLocationBtn: {
-    padding: 10,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 10,
-  },
-  clearLocationText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  searchSpinner: {
-    marginTop: 8,
-  },
-  suggestionsContainer: {
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-  },
-  suggestionItem: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  suggestionText: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  saveButton: {
-    backgroundColor: '#0F172A',
-    borderRadius: 14,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 4,
-  },
-  saveButtonDisabled: {
-    opacity: 0.7,
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingBottom: 40,
+      paddingTop: 60,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingBottom: 16,
+    },
+    backButton: {
+      padding: 4,
+    },
+    screenTitle: {
+      flex: 1,
+      fontSize: 22,
+      fontWeight: '800',
+      color: t.text,
+      textAlign: 'center',
+    },
+    headerSpacer: {
+      width: 36,
+    },
+    errorBanner: {
+      backgroundColor: t.errorBg,
+      borderColor: t.errorBorder,
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 12,
+    },
+    errorBannerText: {
+      color: t.errorText,
+      fontSize: 14,
+    },
+    successBanner: {
+      backgroundColor: t.successBg,
+      borderColor: t.successBorder,
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 12,
+    },
+    successBannerText: {
+      color: t.successText,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    loadingContainer: {
+      paddingVertical: 64,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    loadingText: {
+      marginTop: 12,
+      color: t.textSecondary,
+      fontSize: 15,
+    },
+    formCard: {
+      backgroundColor: t.surface,
+      borderRadius: 24,
+      padding: 24,
+      shadowColor: '#000',
+      shadowOpacity: 0.06,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 3,
+      gap: 20,
+    },
+    fieldGroup: {
+      gap: 6,
+    },
+    fieldLabel: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: t.textSecondary,
+    },
+    textInput: {
+      flex: 1,
+      borderWidth: 1.5,
+      borderColor: t.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 15,
+      color: t.text,
+      backgroundColor: t.surfaceVariant,
+    },
+    locationInputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    textInputError: {
+      borderColor: t.errorText,
+    },
+    textArea: {
+      minHeight: 100,
+      textAlignVertical: 'top',
+    },
+    charCount: {
+      fontSize: 12,
+      color: t.textTertiary,
+      textAlign: 'right',
+    },
+    fieldError: {
+      fontSize: 13,
+      color: t.errorText,
+    },
+    genderRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    genderChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: t.border,
+      backgroundColor: t.surfaceVariant,
+    },
+    genderChipSelected: {
+      borderColor: t.primaryAlt,
+      backgroundColor: t.primaryAlt,
+    },
+    genderChipText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textSecondary,
+    },
+    genderChipTextSelected: {
+      color: t.textOnPrimary,
+    },
+    dateInputContainer: {
+      position: 'relative',
+      justifyContent: 'center',
+    },
+    dateInputText: {
+      paddingRight: 46,
+    },
+    calendarIconInside: {
+      position: 'absolute',
+      right: 14,
+      width: 32,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    datePickerWrapper: {
+      alignItems: 'center',
+      marginBottom: 4,
+      backgroundColor: t.surface,
+      borderRadius: 12,
+    },
+    clearLocationBtn: {
+      padding: 10,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 10,
+    },
+    clearLocationText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textSecondary,
+    },
+    searchSpinner: {
+      marginTop: 8,
+    },
+    suggestionsContainer: {
+      marginTop: 4,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 10,
+      backgroundColor: t.surface,
+      overflow: 'hidden',
+    },
+    suggestionItem: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: t.surfaceAlt,
+    },
+    suggestionText: {
+      fontSize: 14,
+      color: t.textSecondary,
+    },
+    saveButton: {
+      backgroundColor: t.primaryAlt,
+      borderRadius: 14,
+      paddingVertical: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 4,
+    },
+    saveButtonDisabled: {
+      opacity: 0.7,
+    },
+    saveButtonText: {
+      color: t.textOnPrimary,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+  });
+}

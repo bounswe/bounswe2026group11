@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { EventSummary } from '@/models/event';
 import { getFavoriteCountForDisplay } from '@/utils/eventFavoriteCount';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 interface EventCardProps {
   event: EventSummary;
@@ -16,6 +18,9 @@ function formatPrivacyLabel(value: EventSummary['privacy_level']) {
 }
 
 export default function EventCard({ event, onPress }: EventCardProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   const favoriteCount = getFavoriteCountForDisplay(event);
   const ratingLabel =
     event.host_score.final_score != null
@@ -25,6 +30,24 @@ export default function EventCard({ event, onPress }: EventCardProps) {
     event.capacity != null
       ? `${event.approved_participant_count}/${event.capacity}`
       : String(event.approved_participant_count);
+
+  const level = event.privacy_level;
+  let badgeBg = theme.badgePublicBg;
+  let badgeText = theme.badgePublicText;
+  let iconName: 'globe' | 'lock' = 'globe';
+  let iconColor = theme.badgePublicText;
+
+  if (level === 'PROTECTED') {
+    badgeBg = theme.badgeProtectedBg;
+    badgeText = theme.badgeProtectedText;
+    iconName = 'lock';
+    iconColor = theme.badgeProtectedText;
+  } else if (level === 'PRIVATE') {
+    badgeBg = theme.badgePrivateBg;
+    badgeText = theme.badgePrivateText;
+    iconName = 'lock';
+    iconColor = theme.badgePrivateText;
+  }
 
   return (
     <TouchableOpacity
@@ -41,41 +64,19 @@ export default function EventCard({ event, onPress }: EventCardProps) {
           />
         ) : (
           <View style={styles.imagePlaceholder}>
-            <Feather name="image" size={34} color="#9CA3AF" />
+            <Feather name="image" size={34} color={theme.textTertiary} />
           </View>
         )}
 
         <View style={styles.imageOverlay}>
           <View style={styles.imageTopRow}>
             <View style={styles.topSpacer} />
-            {(() => {
-              const level = event.privacy_level;
-              let badgeStyle = styles.visibilityBadgePublic;
-              let textStyle = styles.visibilityBadgeTextPublic;
-              let iconName: 'globe' | 'lock' = 'globe';
-              let iconColor = '#1E40AF';
-
-              if (level === 'PROTECTED') {
-                badgeStyle = styles.visibilityBadgeProtected;
-                textStyle = styles.visibilityBadgeTextProtected;
-                iconName = 'lock';
-                iconColor = '#92400E';
-              } else if (level === 'PRIVATE') {
-                badgeStyle = styles.visibilityBadgePrivate;
-                textStyle = styles.visibilityBadgeTextPrivate;
-                iconName = 'lock';
-                iconColor = '#5B21B6';
-              }
-
-              return (
-                <View style={[styles.visibilityBadge, badgeStyle]}>
-                  <Feather name={iconName} size={12} color={iconColor} />
-                  <Text style={[styles.visibilityBadgeText, textStyle]}>
-                    {formatPrivacyLabel(level)}
-                  </Text>
-                </View>
-              );
-            })()}
+            <View style={[styles.visibilityBadge, { backgroundColor: badgeBg }]}>
+              <Feather name={iconName} size={12} color={iconColor} />
+              <Text style={[styles.visibilityBadgeText, { color: badgeText }]}>
+                {formatPrivacyLabel(level)}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.imageBottomRow}>
@@ -93,14 +94,14 @@ export default function EventCard({ event, onPress }: EventCardProps) {
 
         <View style={styles.metaGroup}>
           <View style={styles.metaRow}>
-            <Feather name="map-pin" size={18} color="#6B7280" />
+            <Feather name="map-pin" size={18} color={theme.textSecondary} />
             <Text style={styles.metaText}>
               {formatEventLocation(event.location_address)}
             </Text>
           </View>
 
           <View style={styles.metaRow}>
-            <Feather name="clock" size={17} color="#6B7280" />
+            <Feather name="clock" size={17} color={theme.textSecondary} />
             <Text style={styles.metaText}>
               {formatEventDateLabel(event.start_time, event.end_time)}
             </Text>
@@ -109,17 +110,17 @@ export default function EventCard({ event, onPress }: EventCardProps) {
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Feather name="users" size={18} color="#94A3B8" />
+            <Feather name="users" size={18} color={theme.textTertiary} />
             <Text style={styles.statText}>{participantLabel}</Text>
           </View>
 
           <View style={styles.statItem}>
-            <Feather name="heart" size={18} color="#4B5563" />
+            <Feather name="heart" size={18} color={theme.textMuted} />
             <Text style={styles.statText}>{favoriteCount}</Text>
           </View>
 
           <View style={styles.statItem}>
-            <Feather name="star" size={18} color="#4B5563" />
+            <Feather name="star" size={18} color={theme.textMuted} />
             <Text style={styles.ratingText}>{ratingLabel}</Text>
           </View>
         </View>
@@ -128,141 +129,125 @@ export default function EventCard({ event, onPress }: EventCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    overflow: 'hidden',
-    marginBottom: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
-  },
-  imageContainer: {
-    height: 210,
-    position: 'relative',
-    backgroundColor: '#E5E7EB',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  imagePlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#E5E7EB',
-  },
-  imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 14,
-    justifyContent: 'space-between',
-  },
-  imageTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  topSpacer: {
-    width: 1,
-    height: 1,
-  },
-  imageBottomRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  visibilityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  visibilityBadgePublic: {
-    backgroundColor: '#DBEAFE',
-  },
-  visibilityBadgeProtected: {
-    backgroundColor: '#FEF3C7',
-  },
-  visibilityBadgePrivate: {
-    backgroundColor: '#EDE9FE',
-  },
-  visibilityBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  visibilityBadgeTextPublic: {
-    color: '#1E40AF',
-  },
-  visibilityBadgeTextProtected: {
-    color: '#92400E',
-  },
-  visibilityBadgeTextPrivate: {
-    color: '#5B21B6',
-  },
-  categoryBadge: {
-    backgroundColor: 'rgba(15, 23, 42, 0.72)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-  categoryBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 18,
-    backgroundColor: '#FFFFFF',
-  },
-  title: {
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  metaGroup: {
-    marginBottom: 14,
-    gap: 8,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  metaText: {
-    marginLeft: 8,
-    color: '#6B7280',
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
-    flex: 1,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  statText: {
-    color: '#4B5563',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  ratingText: {
-    color: '#374151',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: t.surface,
+      borderRadius: 24,
+      overflow: 'hidden',
+      marginBottom: 18,
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 4,
+    },
+    imageContainer: {
+      height: 210,
+      position: 'relative',
+      backgroundColor: t.imagePlaceholder,
+    },
+    image: {
+      width: '100%',
+      height: '100%',
+    },
+    imagePlaceholder: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: t.imagePlaceholder,
+    },
+    imageOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      paddingHorizontal: 14,
+      paddingTop: 14,
+      paddingBottom: 14,
+      justifyContent: 'space-between',
+    },
+    imageTopRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    topSpacer: {
+      width: 1,
+      height: 1,
+    },
+    imageBottomRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+    },
+    visibilityBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+    },
+    visibilityBadgeText: {
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    categoryBadge: {
+      backgroundColor: 'rgba(15, 23, 42, 0.72)',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+    },
+    categoryBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    content: {
+      paddingHorizontal: 20,
+      paddingTop: 18,
+      paddingBottom: 18,
+      backgroundColor: t.surface,
+    },
+    title: {
+      fontSize: 18,
+      lineHeight: 24,
+      fontWeight: '700',
+      color: t.text,
+      marginBottom: 12,
+    },
+    metaGroup: {
+      marginBottom: 14,
+      gap: 8,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    metaText: {
+      marginLeft: 8,
+      color: t.textSecondary,
+      fontSize: 14,
+      lineHeight: 20,
+      fontWeight: '500',
+      flex: 1,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    statItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    statText: {
+      color: t.textMuted,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    ratingText: {
+      color: t.textSecondary,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+  });
+}

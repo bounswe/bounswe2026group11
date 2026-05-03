@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -17,10 +17,14 @@ import FiltersBottomSheet from '@/components/home/FiltersBottomSheet';
 import { useHomeViewModel } from '@/viewmodels/home/useHomeViewModel';
 import LocationPickerPanel from '@/components/home/LocationPickerPanel';
 import { useUnreadNotificationCount } from '@/viewmodels/notifications/useUnreadNotificationCount';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 export default function HomeView() {
   const vm = useHomeViewModel();
   const { unreadCount, refresh: refreshUnreadCount } = useUnreadNotificationCount();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   useFocusEffect(
     useCallback(() => {
@@ -94,7 +98,7 @@ export default function HomeView() {
               ListFooterComponent={
                 vm.isLoadingMore ? (
                   <View style={styles.footerLoader}>
-                    <ActivityIndicator size="small" color="#111827" />
+                    <ActivityIndicator size="small" color={theme.text} />
                   </View>
                 ) : null
               }
@@ -142,39 +146,41 @@ export default function HomeView() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  topSection: {
-    paddingTop: 8,
-  },
-  listWrapper: {
-    flex: 1,
-    marginTop: 6,
-  },
-  listContent: {
-    paddingBottom: 20,
-  },
-  footerLoader: {
-    paddingVertical: 16,
-  },
-  errorBanner: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  errorBannerText: {
-    color: '#DC2626',
-    fontSize: 14,
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    container: {
+      flex: 1,
+      paddingHorizontal: 20,
+    },
+    topSection: {
+      paddingTop: 8,
+    },
+    listWrapper: {
+      flex: 1,
+      marginTop: 6,
+    },
+    listContent: {
+      paddingBottom: 20,
+    },
+    footerLoader: {
+      paddingVertical: 16,
+    },
+    errorBanner: {
+      backgroundColor: t.errorBg,
+      borderColor: t.errorBorder,
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 12,
+      marginTop: 8,
+      marginBottom: 8,
+    },
+    errorBannerText: {
+      color: t.errorText,
+      fontSize: 14,
+    },
+  });
+}
