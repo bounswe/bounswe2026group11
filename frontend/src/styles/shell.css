@@ -583,3 +583,68 @@
     background: rgba(0, 0, 0, 0.55);
   }
 }
+
+:root[data-theme='dark'] .shell-header {
+  background: #181818;
+  border-bottom-color: #3a3a3a;
+}
+
+:root[data-theme='dark'] .shell-nav-link {
+  color: #cfcfcf;
+}
+
+:root[data-theme='dark'] .shell-nav-link:hover,
+:root[data-theme='dark'] .shell-nav-link.active {
+  color: #eeeeee;
+  background-color: #2a2a2a;
+}
+
+:root[data-theme='dark'] .shell-theme-btn,
+:root[data-theme='dark'] .shell-user-btn,
+:root[data-theme='dark'] .shell-admin-btn,
+:root[data-theme='dark'] .shell-signin-btn,
+:root[data-theme='dark'] .shell-dropdown {
+  color: #e7e7e7;
+  background: #202020;
+  border-color: #555555;
+}
+
+:root[data-theme='dark'] .shell-theme-btn:hover,
+:root[data-theme='dark'] .shell-user-btn:hover,
+:root[data-theme='dark'] .shell-admin-btn:hover,
+:root[data-theme='dark'] .shell-admin-btn.active,
+:root[data-theme='dark'] .shell-signin-btn:hover,
+:root[data-theme='dark'] .shell-dropdown-item:hover {
+  color: #f3f3f3;
+  background-color: #303030;
+  border-color: #777777;
+}
+
+:root[data-theme='dark'] .shell-create-btn,
+:root[data-theme='dark'] .shell-signup-btn,
+:root[data-theme='dark'] .shell-fab {
+  color: #eeeeee;
+  background: #2a2a2a;
+  border: 1px solid #777777;
+}
+
+:root[data-theme='dark'] .shell-create-btn:hover,
+:root[data-theme='dark'] .shell-signup-btn:hover {
+  background: #363636;
+}
+
+:root[data-theme='dark'] .shell-dropdown-item,
+:root[data-theme='dark'] .shell-username {
+  color: #e7e7e7;
+}
+
+@media (max-width: 768px) {
+  :root[data-theme='dark'] .shell-nav {
+    background: #181818;
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.22);
+  }
+
+  :root[data-theme='dark'] .shell-overlay.visible {
+    background: rgba(0, 0, 0, 0.42);
+  }
+}

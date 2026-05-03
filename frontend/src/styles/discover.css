@@ -709,7 +709,7 @@
 
 /* Collapsed: exactly one row; 40px was taller than one chip row, so the next row peeked through */
 .dc-category-chips--collapsed {
-  max-height: calc(1.25em + 10px + 2px);
+  max-height: calc(1.25em + 10px + 8px);
   overflow: hidden;
 }
 
