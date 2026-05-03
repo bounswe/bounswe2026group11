@@ -260,11 +260,11 @@ func (s *fakeParticipationService) LeaveParticipation(_ context.Context, eventID
 	}, nil
 }
 
-func (s *fakeParticipationService) CancelEventParticipations(ctx context.Context, eventID uuid.UUID) error {
+func (s *fakeParticipationService) CancelEventParticipations(ctx context.Context, eventID uuid.UUID) ([]uuid.UUID, error) {
 	s.cancelCallCount++
 	s.lastCancelEventID = eventID
 	s.lastCancelCtx = ctx
-	return s.err
+	return nil, s.err
 }
 
 // fakeJoinRequestService is an in-memory implementation of JoinRequestService.

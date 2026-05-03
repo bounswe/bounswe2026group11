@@ -181,16 +181,33 @@ func (r *ParticipationRepository) loadEventJoinState(ctx context.Context, eventI
 }
 
 // CancelEventParticipations transitions every non-LEAVED participation for the
-// event to CANCELED, preserving historical leave records.
-func (r *ParticipationRepository) CancelEventParticipations(ctx context.Context, eventID uuid.UUID) error {
-	if _, err := r.db.Exec(ctx, `
+// event to CANCELED, preserving historical leave records. It returns the user
+// IDs of every participation that was transitioned so callers can fan out
+// notifications without a second query.
+func (r *ParticipationRepository) CancelEventParticipations(ctx context.Context, eventID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := r.db.Query(ctx, `
 		UPDATE participation
 		SET status = $1, updated_at = NOW()
 		WHERE event_id = $2
 		  AND status <> $3
-	`, domain.ParticipationStatusCanceled, eventID, domain.ParticipationStatusLeaved); err != nil {
-		return fmt.Errorf("cancel event participations: %w", err)
+		RETURNING user_id
+	`, domain.ParticipationStatusCanceled, eventID, domain.ParticipationStatusLeaved)
+	if err != nil {
+		return nil, fmt.Errorf("cancel event participations: %w", err)
+	}
+	defer rows.Close()
+
+	var userIDs []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan cancelled participant: %w", err)
+		}
+		userIDs = append(userIDs, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("cancel event participations rows: %w", err)
 	}
 
-	return nil
+	return userIDs, nil
 }
