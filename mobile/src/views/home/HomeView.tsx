@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { router, type Href } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import HomeHeader from '@/components/home/HomeHeader';
 import SearchSection from '@/components/home/SearchSection';
@@ -20,7 +20,13 @@ import { useUnreadNotificationCount } from '@/viewmodels/notifications/useUnread
 
 export default function HomeView() {
   const vm = useHomeViewModel();
-  const { unreadCount } = useUnreadNotificationCount();
+  const { unreadCount, refresh: refreshUnreadCount } = useUnreadNotificationCount();
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshUnreadCount();
+    }, [refreshUnreadCount]),
+  );
 
   const locationButtonRef = useRef<any>(null);
   const [locationPopupTop, setLocationPopupTop] = useState(140);
