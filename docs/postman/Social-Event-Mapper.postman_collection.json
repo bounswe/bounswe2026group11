@@ -1,0 +1,2457 @@
+{
+  "info": {
+    "_postman_id": "f4df0e2f-4bd8-4c5e-94a0-4629e5c25854",
+    "name": "Social Event Mapper API",
+    "description": "Generated from docs/openapi/*.yaml — run docs/postman/generate_from_openapi.py to refresh.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "protocol",
+      "value": "https",
+      "description": "Local dev example: http"
+    },
+    {
+      "key": "base_host",
+      "value": "socialeventmapper.com",
+      "description": "Hostname only; path includes the `api` segment. Local example: localhost:8080"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Admin",
+      "description": "Web-only admin backoffice APIs for read tables and privileged mutations.\n\nAll endpoints require a bearer access token whose `role` claim is `ADMIN`.\nAnonymous callers receive `401`; authenticated non-admin callers receive `403`.",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/users",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "role",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "created_from",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "created_to",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListUsers`\n\nList users"
+          }
+        },
+        {
+          "name": "List events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/events",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "host_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "category_id",
+                  "value": "0",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "privacy_level",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "start_from",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "start_to",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListEvents`\n\nList events"
+          }
+        },
+        {
+          "name": "List participations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/participations",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "participations"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "event_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "created_from",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "created_to",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListParticipations`\n\nList participations"
+          }
+        },
+        {
+          "name": "Create a manual participation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/participations",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "participations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `adminCreateParticipation`\n\nCreate a manual participation\n\nCreates or reactivates a manual participation for the selected event/user pair.\n`status` defaults to `APPROVED`. Only `APPROVED` and `PENDING` are accepted.\n\nThe event and user must exist. If the user already has an active\n`APPROVED` or `PENDING` participation for the event, the API returns `409`.\nFor `PROTECTED` events, creating an `APPROVED` participation also creates\nor reactivates the linked `ACTIVE` ticket in the same application mutation.\nEvent participant counts are maintained by the existing participation count triggers."
+          }
+        },
+        {
+          "name": "Cancel a participation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/participations/{{participation_id}}/cancel",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "participations",
+                "{{participation_id}}",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "participation_id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `adminCancelParticipation`\n\nCancel a participation\n\nMarks the participation `CANCELED` and cancels linked `ACTIVE` or `PENDING`\ntickets in the same application mutation. If the participation is already\n`CANCELED`, the endpoint is idempotent: it returns `200` with\n`already_canceled: true` and does not perform another ticket mutation."
+          }
+        },
+        {
+          "name": "List tickets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/tickets",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "tickets"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "event_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "participation_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "created_from",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "created_to",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListTickets`\n\nList tickets"
+          }
+        },
+        {
+          "name": "List sent notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/notifications",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "event_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "is_read",
+                  "value": "true",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "created_from",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "created_to",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListNotifications`\n\nList sent notifications\n\nLists notification inbox rows for backoffice review, including delivery-attempt summary counts."
+          }
+        },
+        {
+          "name": "Send a custom notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/notifications",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "notifications"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `adminCreateNotification`\n\nSend a custom notification\n\nSends a custom notification to explicit user IDs selected by an admin.\n`delivery_mode` controls delivery attempts: `IN_APP` creates inbox rows\nand attempts SSE delivery, `PUSH` creates inbox rows and attempts push\ndelivery to active devices, and `BOTH` attempts both SSE and push.\n\nThe API does not log notification body text or other sensitive free-form\ncontent. `idempotency_key` is optional; when supplied, duplicate calls with\nthe same key for the same receiver return existing rows and increment\n`idempotent_count`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints for phase-one user registration, password-reset OTP requests,\nand session management.\n\nRegistration uses email OTP only. Phone number is optional and is stored without\nmandatory verification. Login uses username and password without an OTP step.\n\nSession behavior for frontend clients:\n- Access tokens live for 15 minutes.\n- Refresh tokens are rotated on every successful `/auth/refresh` call.\n- Each newly issued refresh token lives for up to 14 days.\n- The full refresh-token family has a 60-day absolute maximum lifetime from the\n  original login or registration session start.\n- After a successful refresh, the previous refresh token must be discarded by the client.\n\nOTP delivery uses the backend's configured transactional mail provider. Local and\ndev defaults use Resend with single-recipient sends.\n\nThe `access_token` returned by successful sign-in and refresh responses is the same\nbearer token used by protected APIs such as the Event API under the `/api` server.",
+      "item": [
+        {
+          "name": "Request an email OTP for registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/auth/register/email/request-otp",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register",
+                "email",
+                "request-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `requestRegistrationEmailOtp`\n\nRequest an email OTP for registration\n\nSubmit an email address to start the registration flow. The response stays intentionally generic to reduce account enumeration.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Request a password-reset OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/auth/forgot-password/request-otp",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "forgot-password",
+                "request-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `requestPasswordResetOtp`\n\nRequest a password-reset OTP\n\nSubmit an email address to start the forgot-password flow.\n\nThe response is intentionally generic and always returns `200 OK` for valid requests,\nwhether or not an account exists for the email address. Unknown emails, resend cooldowns,\nand request throttling are all handled silently to reduce account enumeration and OTP abuse.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Verify a password-reset OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/auth/forgot-password/verify-otp",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "forgot-password",
+                "verify-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `verifyPasswordResetOtp`\n\nVerify a password-reset OTP\n\nValidate the six-digit OTP sent during the forgot-password request flow.\n\nOn success, the backend returns a short-lived `reset_token`. The client must\nsubmit that token to `/auth/forgot-password/reset-password` together with the\nemail address and the new password.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Reset the password after OTP verification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/auth/forgot-password/reset-password",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "forgot-password",
+                "reset-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"reset_token\": \"bQf-8bUjA4U4YVvS6x9x8W1x3Xx0r3mPxrS8y1Zf2KQ\",\n  \"new_password\": \"StrongPassword123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `resetForgotPassword`\n\nReset the password after OTP verification\n\nReplace the account password using the short-lived `reset_token` issued by\n`/auth/forgot-password/verify-otp`.\n\nThe `reset_token` is single-use and expires automatically. After a successful\npassword reset, the previous password can no longer be used for login.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Check whether registration username and email are available",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/auth/register/check-availability",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register",
+                "check-availability"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"maplover\",\n  \"email\": \"user@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `checkRegistrationAvailability`\n\nCheck whether registration username and email are available\n\nValidate the registration identity fields before OTP verification and return whether each value is\ncurrently available for a new account.\n\nThis endpoint intentionally returns explicit availability results for `username` and `email` to support\nclient-side registration flows. To reduce automated enumeration, the endpoint is rate-limited per client.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Verify an email OTP and create the account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/auth/register/email/verify",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register",
+                "email",
+                "verify"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"123456\",\n  \"username\": \"maplover\",\n  \"password\": \"StrongPassword123\",\n  \"phone_number\": \"+905551112233\",\n  \"gender\": \"female\",\n  \"birth_date\": \"1998-05-14\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `verifyRegistrationEmailOtp`\n\nVerify an email OTP and create the account\n\nComplete registration by submitting the received OTP and the user's initial credentials.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Authenticate with username and password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/auth/login",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"maplover\",\n  \"password\": \"StrongPassword123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `loginWithPassword`\n\nAuthenticate with username and password\n\nCreate a new session by exchanging a username and password for access and refresh tokens.\n\nThe response contains:\n- a 15-minute access token for authenticated API calls\n- a refresh token that can be exchanged for a new session for up to 14 days\n\nRefresh tokens are rotated. If the client later calls `/auth/refresh`, it must replace\nthe stored refresh token with the newly returned one.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Rotate a refresh token and issue a new session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/auth/refresh",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"8bb5f3dce7...\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `refreshSession`\n\nRotate a refresh token and issue a new session\n\nExchange a valid refresh token for a new access token and a rotated refresh token.\n\nImportant client behavior:\n- Every successful refresh invalidates the previously used refresh token.\n- The client must persist the newly returned refresh token and stop using the old one.\n- Each rotated refresh token lives for up to 14 days from when it is issued.\n- The refresh-token family still has a 60-day absolute maximum lifetime from the\n  original session start, even if refresh calls continue to succeed before then.\n\nOnce the absolute session limit is reached, the user must log in again.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Revoke a refresh token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/auth/logout",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"8bb5f3dce7...\",\n  \"device_installation_id\": \"550e8400-e29b-41d4-a716-446655440000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `logoutSession`\n\nRevoke a refresh token\n\nInvalidate a refresh token so it can no longer be used to mint new sessions.\n\nMobile clients may include `device_installation_id` to revoke the current\napp installation's active FCM token assignment at the same time.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "description": "Public read-only endpoint for listing available event categories.\n\nNo authentication is required. Use the returned `id` values as `category_id`\nwhen creating events or as `category_ids` filter values when discovering events.",
+      "item": [
+        {
+          "name": "List all event categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/categories",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            },
+            "description": "operationId: `listCategories`\n\nList all event categories\n\nReturns all available event categories ordered by `id` ascending.\n\nThe default database seed provides 20 categories (ids `1`–`20`).\nThis endpoint requires no authentication and is safe to call before login."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "description": "Authenticated event-management endpoints for creating and managing social events.\n\nObtain an access token from the Auth API (`POST /auth/login` or\n`POST /auth/register/email/verify`) and send it as `Authorization: Bearer <token>`\nwhen calling protected operations in this definition.\n\nBehavioral notes for create-event clients:\n- The authenticated user becomes the event host.\n- A host can create at most one event with a given `title`. Reusing the same trimmed title for the same host returns `409 Conflict`.\n- Tags and constraints are persisted in the same transaction as the event.\n- Enum-like fields are case-sensitive and must be sent in uppercase.\n- `start_time` and `end_time` must be RFC 3339 date-times with a timezone designator such as `Z` or `+03:00`.\n- Each event has **exactly one** category: send a single `category_id` (not a list). It must reference an existing row in `event_category`. The default database seed defines twenty categories (ids `1`–`20`); see `CreateEventRequestBase.category_id` for the id-to-name map.",
+      "item": [
+        {
+          "name": "Get event detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "UUID of the event to fetch."
+                }
+              ]
+            },
+            "description": "operationId: `getEventDetail`\n\nGet event detail\n\nReturns the full event-detail payload for the caller. Authentication is optional —\nboth unauthenticated and authenticated requests are accepted.\n\nVisibility rules:\n- `PUBLIC` and `PROTECTED` events are readable by any caller, authenticated or not.\n- `PRIVATE` events are readable only by the host, users with an `APPROVED`\n  participation, or users with an `ACCEPTED` invitation. Anonymous callers cannot\n  read `PRIVATE` events.\n- When a `PRIVATE` event is not readable by the caller, the API responds with\n  `404 event_not_found` to avoid leaking the event's existence.\n\nResponse notes:\n- `status` is returned exactly as stored on the event row; canceled and completed\n  events remain readable.\n- `host_score` returns the host's cached aggregate rating summary used by discovery cards.\n- `rating_window` describes the event-specific 7-day mutation window computed from `COALESCE(end_time, start_time)`.\n- `viewer_event_rating` returns the authenticated participant's current rating for the event, if one exists.\n- `viewer_context` is always present. For unauthenticated callers, `participation_status`\n  is `NONE` and `is_favorited` is `false`.\n- Responses are viewer-specific when a bearer token is supplied, so the endpoint returns\n  `Cache-Control: private, no-store` and `Vary: Authorization`.\n- Host management collections are no longer embedded in this response. Hosts should use\n  `GET /events/{id}/host-context`, `GET /events/{id}/participants`,\n  `GET /events/{id}/join-requests`, and `GET /events/{id}/invitations`."
+          }
+        },
+        {
+          "name": "Get host management summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/host-context",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "host-context"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `getEventHostContextSummary`\n\nGet host management summary\n\nReturns host-only management counters for the event without loading the underlying\nparticipant, join-request, or invitation collections."
+          }
+        },
+        {
+          "name": "List approved participants for a hosted event",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/participants",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "participants"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `listEventApprovedParticipants`\n\nList approved participants for a hosted event\n\nReturns a cursor-paginated list of approved participants visible only to the event host."
+          }
+        },
+        {
+          "name": "List pending join requests for a hosted event",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/join-requests",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "join-requests"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `listEventPendingJoinRequests`\n\nList pending join requests for a hosted event\n\nReturns a cursor-paginated list of pending join requests visible only to the event host."
+          }
+        },
+        {
+          "name": "List invitations for a hosted event",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/invitations",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "invitations"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `listEventInvitations`\n\nList invitations for a hosted event\n\nReturns a cursor-paginated list of invitations visible only to the event host."
+          }
+        },
+        {
+          "name": "Invite users to a private event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/invitations",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "invitations"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `createEventInvitations`\n\nInvite users to a private event\n\nAllows the authenticated event host to invite up to 100 users by exact username.\nThis endpoint is supported only for `PRIVATE` events. The request is partial-success\nfor per-username business outcomes: unknown or syntactically invalid usernames are\nreturned in `invalid_usernames`, and known but ineligible usernames are returned in\n`failed` with a stable reason code. System errors still fail the whole request.\nEach successfully created invitation creates a notification for the invited user with\nthe event image URL when present. Notification delivery failures do not fail the\ninvitation batch."
+          }
+        },
+        {
+          "name": "Create direct-upload URLs for an event image",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/image/upload-url",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "image",
+                "upload-url"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "UUID of the event whose image will be uploaded."
+                }
+              ]
+            },
+            "description": "operationId: `createEventImageUploadUrl`\n\nCreate direct-upload URLs for an event image\n\nPreferred event-image flow:\n1. Create the event first with `POST /events`.\n2. Call this endpoint as the event host to receive presigned `PUT` uploads for `ORIGINAL` and `SMALL`.\n3. Upload both client-generated JPEG files directly to DigitalOcean Spaces.\n4. Call `POST /events/{id}/image/confirm` with the returned `confirm_token`.\n\nClient rule:\n- Forward every returned upload header exactly as returned, including `x-amz-acl: public-read`.\n\nNaming convention:\n- original object key: `events/{event_id}/cover/v{n}-{upload_id}`\n- small object key: `events/{event_id}/cover/v{n}-{upload_id}-small`\n\nPersistence and cache behavior:\n- The backend stores the returned `base_url` in `event.image_url`.\n- Clients can fetch the small variant by appending `-small` to the stored `base_url`.\n- Existing files are never deleted. Each confirmed upload increments `image_version`, leaving older CDN URLs cache-safe.\n- This flow remains compatible with limited-access Spaces keys because each uploaded object is explicitly written with the `public-read` canned ACL."
+          }
+        },
+        {
+          "name": "Confirm an uploaded event image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/image/confirm",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "image",
+                "confirm"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "UUID of the event whose image upload will be confirmed."
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `confirmEventImageUpload`\n\nConfirm an uploaded event image\n\nConfirms a previously presigned event image upload after both `ORIGINAL` and `SMALL` files have been uploaded successfully. The request body contains only the opaque `confirm_token`; clients do not send object URLs back. The confirmed CDN URL is readable without a signed GET URL because the upload step uses `x-amz-acl: public-read`."
+          }
+        },
+        {
+          "name": "Create or update the caller's event rating",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/rating",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "rating"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `upsertEventRating`\n\nCreate or update the caller's event rating\n\nCreates or updates the authenticated participant's rating for the event.\n\nRules:\n- The authenticated user must be an `APPROVED` participant of the event.\n- The event host cannot rate their own event, even though hosts have an internal approved participation row.\n- Ratings are allowed only within the 7-day window computed from `COALESCE(end_time, start_time)`.\n- `CANCELED` events cannot be rated.\n- The resource is singular per `(participant_user_id, event_id)`, so repeated `PUT` requests update the same record."
+          }
+        },
+        {
+          "name": "Delete the caller's event rating",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/rating",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "rating"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `deleteEventRating`\n\nDelete the caller's event rating\n\nHard deletes the authenticated participant's rating for the event.\nThe same authorization and rating-window rules used by `PUT /events/{id}/rating` also apply here."
+          }
+        },
+        {
+          "name": "Create or update a host rating for a participant",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/participants/{{participantUserId}}/rating",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "participants",
+                "{{participantUserId}}",
+                "rating"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                },
+                {
+                  "key": "participantUserId",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `upsertParticipantRating`\n\nCreate or update a host rating for a participant\n\nCreates or updates the authenticated host's rating for an approved participant of the event.\n\nRules:\n- The authenticated user must host the event.\n- The target user must be an `APPROVED` participant of the same event.\n- Hosts cannot rate themselves.\n- Ratings are allowed only within the 7-day window computed from `COALESCE(end_time, start_time)`.\n- `CANCELED` events cannot be rated."
+          }
+        },
+        {
+          "name": "Delete a host rating for a participant",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/participants/{{participantUserId}}/rating",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "participants",
+                "{{participantUserId}}",
+                "rating"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                },
+                {
+                  "key": "participantUserId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `deleteParticipantRating`\n\nDelete a host rating for a participant\n\nHard deletes the authenticated host's rating for an approved participant of the event.\nThe same authorization and rating-window rules used by `PUT /events/{id}/participants/{participantUserId}/rating` also apply here."
+          }
+        },
+        {
+          "name": "Join a public event",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/join",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "join"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "UUID of the event to join."
+                }
+              ]
+            },
+            "description": "operationId: `joinEvent`\n\nJoin a public event\n\nDirectly joins a **PUBLIC** event. Creates an APPROVED participation record for the\nauthenticated user.\n\nRules:\n- The event must exist and have `privacy_level: PUBLIC`.\n- The authenticated user must not be the event host.\n- A user can only join the same event once; a second attempt returns `409`.\n- If the user previously left before `start_time`, the backend reactivates the same participation row as `APPROVED`.\n- If the user left at or after `start_time`, later direct join attempts return `409 already_participating`.\n- Calling this endpoint on a `PROTECTED` event returns `409 event_join_not_allowed`."
+          }
+        },
+        {
+          "name": "Leave an event",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/leave",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "leave"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "UUID of the event to leave."
+                }
+              ]
+            },
+            "description": "operationId: `leaveEvent`\n\nLeave an event\n\nMarks the authenticated user's participation as `LEAVED`.\n\nRules:\n- The event must exist.\n- The authenticated user must currently have an `APPROVED` participation.\n- The event host cannot leave their own event.\n- A pending join request does not qualify; only approved participants may leave.\n- Leaving is allowed before `start_time` and while the event is still active.\n- Leaving is no longer allowed after the event has ended or once the event is already `CANCELED` or `COMPLETED`.\n- If the user leaves before `start_time`, the event is excluded from completed/past participation lists.\n- If the user leaves before `start_time`, they can join again directly on `PUBLIC` events or submit a new join request on `PROTECTED` events.\n- If the user leaves after `start_time`, completed/past participation lists may still include the event after it finishes.\n- If the user leaves at or after `start_time`, they cannot join the same event again."
+          }
+        },
+        {
+          "name": "Cancel an event",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/cancel",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "Event UUID."
+                }
+              ]
+            },
+            "description": "operationId: `cancelEvent`\n\nCancel an event\n\nTransitions an **ACTIVE** event to **CANCELED**. Only the event host may perform this action.\n\nRules:\n- The event must exist and have `status: ACTIVE`.\n- Only the authenticated host can cancel their own event.\n- Canceled events are excluded from discovery results but remain accessible via the detail endpoint."
+          }
+        },
+        {
+          "name": "Mark event as completed (host)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/complete",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "complete"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "Event UUID."
+                }
+              ]
+            },
+            "description": "operationId: `completeEvent`\n\nMark event as completed (host)\n\nTransitions an **ACTIVE** or **IN_PROGRESS** event to **COMPLETED**. Only the event host may perform this action.\n\nUse this to close **open-ended** events (no `end_time`) or to finish a timed event early. The background job may also complete events when `end_time` has passed.\n\nRules:\n- The event must exist.\n- Only the authenticated host can complete their own event.\n- If the event is already **CANCELED** or **COMPLETED**, the request returns **409**."
+          }
+        },
+        {
+          "name": "Request to join a protected event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/join-request",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "join-request"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "UUID of the event to request joining."
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"I have attended similar events and can help with setup.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `requestJoinEvent`\n\nRequest to join a protected event\n\nSubmits a join request for a **PROTECTED** event. Creates a `join_request`\nrow with `status: PENDING` awaiting host approval.\n\nRules:\n- The event must exist and have `privacy_level: PROTECTED`.\n- The authenticated user must not be the event host.\n- A user can only submit one pending request per event; a second attempt returns `409`.\n- After the host rejects a request, the same user must wait **3 days** before requesting again.\n- When the cooldown expires, the backend reactivates the same `join_request` row as `PENDING`.\n- If the user previously had an approved participation but left before `start_time`, the backend reactivates the same `join_request` row as `PENDING` so the host can approve them again.\n- If the user left at or after `start_time`, later request attempts return `409 already_participating`.\n- Calling this endpoint on a `PUBLIC` event returns `409 event_join_not_allowed`."
+          }
+        },
+        {
+          "name": "Approve a pending join request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/join-requests/{{joinRequestId}}/approve",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "join-requests",
+                "{{joinRequestId}}",
+                "approve"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "UUID of the event being moderated."
+                },
+                {
+                  "key": "joinRequestId",
+                  "value": "",
+                  "description": "UUID of the join request to approve."
+                }
+              ]
+            },
+            "description": "operationId: `approveJoinRequest`\n\nApprove a pending join request\n\nAllows the authenticated event host to approve a **PENDING** join request for a\n**PROTECTED** event. Approval updates the join request to `APPROVED` and creates an\n`APPROVED` participation row atomically. If the requester had left before\n`start_time`, approval reactivates the same participation row instead of creating a\nsecond one. After success, the requester receives an event notification with the\nevent image URL when present; notification delivery failures do not fail approval."
+          }
+        },
+        {
+          "name": "Reject a pending join request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/join-requests/{{joinRequestId}}/reject",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "join-requests",
+                "{{joinRequestId}}",
+                "reject"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "UUID of the event being moderated."
+                },
+                {
+                  "key": "joinRequestId",
+                  "value": "",
+                  "description": "UUID of the join request to reject."
+                }
+              ]
+            },
+            "description": "operationId: `rejectJoinRequest`\n\nReject a pending join request\n\nAllows the authenticated event host to reject a **PENDING** join request for a\n**PROTECTED** event. Rejection updates the join request to `REJECTED` and starts a\n**3-day** re-request cooldown for the same user and event. After success, the\nrequester receives an event notification with the event image URL when present;\nnotification delivery failures do not fail rejection."
+          }
+        },
+        {
+          "name": "Discover nearby events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "",
+                  "description": "Latitude of the search origin in WGS 84.",
+                  "disabled": false
+                },
+                {
+                  "key": "lon",
+                  "value": "",
+                  "description": "Longitude of the search origin in WGS 84.",
+                  "disabled": false
+                },
+                {
+                  "key": "radius_meters",
+                  "value": "0",
+                  "description": "Radius around (`lat`, `lon`) in meters. Defaults to `10000` when omitted.",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "description": "Optional prefix-aware full-text search query applied to title, description, and denormalized tags.",
+                  "disabled": true
+                },
+                {
+                  "key": "privacy_levels",
+                  "value": "",
+                  "description": "Optional comma-separated discoverability filter. `PRIVATE` is not allowed because private events are never returned by this endpoint.",
+                  "disabled": true
+                },
+                {
+                  "key": "category_ids",
+                  "value": "",
+                  "description": "Optional comma-separated category ids. Matches events whose `category_id` is in the provided set.",
+                  "disabled": true
+                },
+                {
+                  "key": "start_from",
+                  "value": "",
+                  "description": "Optional inclusive lower bound for `event.start_time`.",
+                  "disabled": true
+                },
+                {
+                  "key": "start_to",
+                  "value": "",
+                  "description": "Optional inclusive upper bound for `event.start_time`.",
+                  "disabled": true
+                },
+                {
+                  "key": "tag_names",
+                  "value": "",
+                  "description": "Optional comma-separated tags. v1 uses OR semantics, so an event matches if it has any listed tag.",
+                  "disabled": true
+                },
+                {
+                  "key": "only_favorited",
+                  "value": "true",
+                  "description": "When `true`, only returns events favorited by the authenticated user. Defaults to `false` when omitted.",
+                  "disabled": true
+                },
+                {
+                  "key": "sort_by",
+                  "value": "",
+                  "description": "Optional sort mode.\n- `START_TIME`: soonest starting events first.\n- `DISTANCE`: nearest events first.\n- `RELEVANCE`: highest full-text rank first; requires `q`.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "0",
+                  "description": "Maximum number of items to return in one page. Defaults to `20` when omitted.",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "description": "Opaque cursor returned by a previous page of the same query.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `discoverEvents`\n\nDiscover nearby events\n\nReturns a cursor-paginated list of nearby discoverable events. Authentication is optional —\nboth unauthenticated and authenticated requests are accepted.\n\nDiscovery rules:\n- Only events with `status: ACTIVE` are returned.\n- Only events with `privacy_level: PUBLIC` or `PROTECTED` are returned. `PRIVATE` events\n  are never included in discovery results regardless of authentication state.\n- The caller must provide `lat` and `lon`; the server filters within a radius around that origin.\n- Text search (`q`) and structured filters can be combined in the same request.\n- `is_favorited` is resolved for the authenticated caller; unauthenticated callers always\n  receive `is_favorited: false`.\n\nSorting defaults:\n- If `q` is omitted and `sort_by` is omitted, sorting defaults to `START_TIME`.\n- If `q` is present and `sort_by` is omitted, sorting defaults to `RELEVANCE`.\n- `sort_by=RELEVANCE` is only valid when `q` is present.\n- When sorting by distance, `ROUTE` events use the first route point as their anchor location.\n\nPagination:\n- Uses opaque keyset cursors returned in `page_info.next_cursor`.\n- Reuse the same filters and sort order when requesting the next page."
+          }
+        },
+        {
+          "name": "Create a new event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Istanbul Trail Run\",\n  \"description\": \"A 10 km trail run through Belgrad Forest.\",\n  \"image_url\": \"https://example.com/trail.jpg\",\n  \"category_id\": 1,\n  \"address\": \"Belgrad Forest, Istanbul\",\n  \"location_type\": \"POINT\",\n  \"lat\": 41.1722,\n  \"lon\": 28.9744,\n  \"start_time\": \"2026-05-01T08:00:00+03:00\",\n  \"end_time\": \"2026-05-01T12:00:00+03:00\",\n  \"privacy_level\": \"PUBLIC\",\n  \"capacity\": 50,\n  \"minimum_age\": 16,\n  \"preferred_gender\": \"MALE\",\n  \"tags\": [\n    \"trail\",\n    \"running\",\n    \"outdoor\"\n  ],\n  \"constraints\": [\n    {\n      \"type\": \"equipment\",\n      \"info\": \"Trail running shoes required\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `createEvent`\n\nCreate a new event\n\nCreate a point-based or route-based event. The request shape depends on `location_type`.\n\nPoint events require `lat` and `lon`.\nRoute events require at least two `route_points`.\n\nEach event accepts **one** `category_id` only. Use a value that exists in `event_category` (default seed: ids `1`–`20`, see schema).\nA host cannot create two events with the same `title`; duplicate host-title pairs return `409`."
+          }
+        },
+        {
+          "name": "Add event to favorites",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/favorite",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "favorite"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `addFavorite`\n\nAdd event to favorites\n\nSaves the event to the authenticated user's favorites. Idempotent — calling twice has no additional effect."
+          }
+        },
+        {
+          "name": "Remove event from favorites",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/favorite",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "favorite"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `removeFavorite`\n\nRemove event from favorites\n\nRemoves the event from the authenticated user's favorites. Idempotent — calling when not favorited has no effect."
+          }
+        },
+        {
+          "name": "List favorite events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/favorites",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "favorites"
+              ]
+            },
+            "description": "operationId: `listFavoriteEvents`\n\nList favorite events\n\nReturns the authenticated user's favorite events ordered by most recently favorited first."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Favorite locations",
+      "description": "Authenticated endpoints for managing the current user's saved favorite locations.",
+      "item": [
+        {
+          "name": "List current user's favorite locations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/favorite-locations",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "favorite-locations"
+              ]
+            },
+            "description": "List current user's favorite locations\n\nReturns the authenticated user's favorite locations ordered alphabetically by the user-defined `name`, using a case-insensitive ascending sort. When names compare equally, the server breaks ties by `id` ascending for deterministic ordering."
+          }
+        },
+        {
+          "name": "Create a favorite location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/favorite-locations",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "favorite-locations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Home\",\n  \"address\": \"Kadıköy, Istanbul\",\n  \"lat\": 40.9917,\n  \"lon\": 29.0277\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Create a favorite location\n\nCreates a new favorite location for the authenticated user. Each user may store at most `3` favorite locations. Coordinates use WGS84 decimal degrees."
+          }
+        },
+        {
+          "name": "Update a favorite location",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/favorite-locations/{{id}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "favorite-locations",
+                "{{id}}"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Parents\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Update a favorite location\n\nPartially updates one of the authenticated user's favorite locations. Omitted fields remain unchanged. If the `id` does not belong to the current user, the server returns `404`."
+          }
+        },
+        {
+          "name": "Delete a favorite location",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/favorite-locations/{{id}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "favorite-locations",
+                "{{id}}"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Delete a favorite location\n\nRemoves one of the authenticated user's favorite locations. If the `id` does not belong to the current user, the server returns `404`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "description": "Authenticated endpoints for mobile push-device registration and the in-app notification inbox.\nEvent-related system notifications include `event_id`, the event `image_url` when present,\nand stable string metadata in `data` so clients can route without an extra lookup.",
+      "item": [
+        {
+          "name": "In-App Notifications",
+          "item": [
+            {
+              "name": "List the authenticated user's notifications",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{protocol}}://{{base_host}}/api/me/notifications",
+                  "protocol": "{{protocol}}",
+                  "host": [
+                    "{{base_host}}"
+                  ],
+                  "path": [
+                    "api",
+                    "me",
+                    "notifications"
+                  ]
+                },
+                "description": "List the authenticated user's notifications\n\nReturns non-deleted notifications created within the 90-day retention window, ordered by newest first."
+              }
+            },
+            {
+              "name": "Delete all visible notifications",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{protocol}}://{{base_host}}/api/me/notifications",
+                  "protocol": "{{protocol}}",
+                  "host": [
+                    "{{base_host}}"
+                  ],
+                  "path": [
+                    "api",
+                    "me",
+                    "notifications"
+                  ]
+                },
+                "description": "Delete all visible notifications\n\nSoft-deletes all non-expired notifications for the authenticated user. Rows are physically removed by the 90-day retention cleanup."
+              }
+            },
+            {
+              "name": "List unread notifications",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{protocol}}://{{base_host}}/api/me/notifications/unread",
+                  "protocol": "{{protocol}}",
+                  "host": [
+                    "{{base_host}}"
+                  ],
+                  "path": [
+                    "api",
+                    "me",
+                    "notifications",
+                    "unread"
+                  ]
+                },
+                "description": "List unread notifications\n\nReturns unread, non-deleted notifications created within the 90-day retention window, ordered by newest first."
+              }
+            },
+            {
+              "name": "Get unread notification count",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{protocol}}://{{base_host}}/api/me/notifications/unread-count",
+                  "protocol": "{{protocol}}",
+                  "host": [
+                    "{{base_host}}"
+                  ],
+                  "path": [
+                    "api",
+                    "me",
+                    "notifications",
+                    "unread-count"
+                  ]
+                },
+                "description": "Get unread notification count\n\nCounts unread, non-deleted notifications created within the 90-day retention window."
+              }
+            },
+            {
+              "name": "Mark all notifications as read",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{protocol}}://{{base_host}}/api/me/notifications/read",
+                  "protocol": "{{protocol}}",
+                  "host": [
+                    "{{base_host}}"
+                  ],
+                  "path": [
+                    "api",
+                    "me",
+                    "notifications",
+                    "read"
+                  ]
+                },
+                "description": "Mark all notifications as read\n\nMarks all visible unread notifications as read and returns the number of rows updated."
+              }
+            },
+            {
+              "name": "Mark one notification as read",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{protocol}}://{{base_host}}/api/me/notifications/{{notification_id}}/read",
+                  "protocol": "{{protocol}}",
+                  "host": [
+                    "{{base_host}}"
+                  ],
+                  "path": [
+                    "api",
+                    "me",
+                    "notifications",
+                    "{{notification_id}}",
+                    "read"
+                  ],
+                  "variable": [
+                    {
+                      "key": "notification_id",
+                      "value": ""
+                    }
+                  ]
+                },
+                "description": "Mark one notification as read\n\nMarks one owned, visible notification as read. Repeating the call is safe."
+              }
+            },
+            {
+              "name": "Delete one notification",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{protocol}}://{{base_host}}/api/me/notifications/{{notification_id}}",
+                  "protocol": "{{protocol}}",
+                  "host": [
+                    "{{base_host}}"
+                  ],
+                  "path": [
+                    "api",
+                    "me",
+                    "notifications",
+                    "{{notification_id}}"
+                  ],
+                  "variable": [
+                    {
+                      "key": "notification_id",
+                      "value": ""
+                    }
+                  ]
+                },
+                "description": "Delete one notification\n\nSoft-deletes one owned notification. The operation is idempotent and does not reveal whether the notification existed."
+              }
+            },
+            {
+              "name": "Stream in-app notifications",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{protocol}}://{{base_host}}/api/me/notifications/stream",
+                  "protocol": "{{protocol}}",
+                  "host": [
+                    "{{base_host}}"
+                  ],
+                  "path": [
+                    "api",
+                    "me",
+                    "notifications",
+                    "stream"
+                  ]
+                },
+                "description": "Stream in-app notifications\n\nOpens a Server-Sent Events stream for active users. Clients must send the\nnormal Bearer access token in the `Authorization` header, typically with\na fetch-based SSE client because browser `EventSource` cannot set custom\nheaders. The server sends `event: heartbeat` every 20 seconds and\n`event: notification` when a new notification is created for the user.\nNotification events use `id: <notification_id>` and the same JSON shape\nas the list endpoints. Clients should still call the HTTP list endpoints\nafter reconnecting to recover missed events."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Push Notifications",
+          "item": [
+            {
+              "name": "Register or update the current app installation's FCM token",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{protocol}}://{{base_host}}/api/me/push-devices/{{installation_id}}",
+                  "protocol": "{{protocol}}",
+                  "host": [
+                    "{{base_host}}"
+                  ],
+                  "path": [
+                    "api",
+                    "me",
+                    "push-devices",
+                    "{{installation_id}}"
+                  ],
+                  "variable": [
+                    {
+                      "key": "installation_id",
+                      "value": ""
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Register or update the current app installation's FCM token\n\nCreates or updates the authenticated user's active push-device record for\nthis app installation. Each user can have at most two active devices; when\na third active installation registers, the server revokes the oldest active\ninstallation. If the same FCM token was active for another user or\ninstallation, that previous assignment is revoked before this one becomes active."
+              }
+            },
+            {
+              "name": "Unregister the current app installation's FCM token",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{protocol}}://{{base_host}}/api/me/push-devices/{{installation_id}}",
+                  "protocol": "{{protocol}}",
+                  "host": [
+                    "{{base_host}}"
+                  ],
+                  "path": [
+                    "api",
+                    "me",
+                    "push-devices",
+                    "{{installation_id}}"
+                  ],
+                  "variable": [
+                    {
+                      "key": "installation_id",
+                      "value": ""
+                    }
+                  ]
+                },
+                "description": "Unregister the current app installation's FCM token\n\nRevokes the authenticated user's active push-device record for this installation. The operation is idempotent."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get current user's profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me"
+              ]
+            },
+            "description": "Get current user's profile\n\nReturns the combined app_user and profile data for the authenticated user."
+          }
+        },
+        {
+          "name": "Update current user's profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Update current user's profile\n\nPartially updates the editable fields of the authenticated user's profile. Only the fields included in the request body are changed; omitted fields are left unchanged."
+          }
+        },
+        {
+          "name": "Get the current user's hosted events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/events/hosted",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "events",
+                "hosted"
+              ]
+            },
+            "description": "Get the current user's hosted events\n\nReturns all events created (hosted) by the authenticated user, ordered by start time descending."
+          }
+        },
+        {
+          "name": "Get the current user's upcoming events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/events/upcoming",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "events",
+                "upcoming"
+              ]
+            },
+            "description": "Get the current user's upcoming events\n\nReturns events where the user has an APPROVED participation and the event is ACTIVE or IN_PROGRESS, ordered by start time ascending."
+          }
+        },
+        {
+          "name": "Get the current user's completed events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/events/completed",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "events",
+                "completed"
+              ]
+            },
+            "description": "Get the current user's completed events\n\nReturns COMPLETED events where the user had an APPROVED participation, or left the event after it had already started."
+          }
+        },
+        {
+          "name": "Get the current user's canceled events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/events/canceled",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "events",
+                "canceled"
+              ]
+            },
+            "description": "Get the current user's canceled events\n\nReturns CANCELED events where the user had a CANCELED participation (covers both host and participant views)."
+          }
+        },
+        {
+          "name": "Get current private-event invitations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/invitations",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "invitations"
+              ]
+            },
+            "description": "Get current private-event invitations\n\nReturns the authenticated user's current `PENDING` invitations for active private events."
+          }
+        },
+        {
+          "name": "Accept a private-event invitation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/invitations/{{invitation_id}}/accept",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "invitations",
+                "{{invitation_id}}",
+                "accept"
+              ],
+              "variable": [
+                {
+                  "key": "invitation_id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Accept a private-event invitation\n\nAccepts a `PENDING` invitation owned by the authenticated user and creates an approved participation. After success, the event host receives an event notification with the event image URL when present; notification delivery failures do not fail acceptance."
+          }
+        },
+        {
+          "name": "Decline a private-event invitation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/invitations/{{invitation_id}}/decline",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "invitations",
+                "{{invitation_id}}",
+                "decline"
+              ],
+              "variable": [
+                {
+                  "key": "invitation_id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Decline a private-event invitation\n\nDeclines a `PENDING` invitation owned by the authenticated user. No participation is created. After success, the event host receives an event notification with the event image URL when present; notification delivery failures do not fail decline."
+          }
+        },
+        {
+          "name": "Search users by username",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/users/search",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Search users by username\n\nAuthenticated username picker endpoint. Returns at most 10 lightweight user summaries ordered by username relevance."
+          }
+        },
+        {
+          "name": "Create direct-upload URLs for the current user's avatar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/avatar/upload-url",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "avatar",
+                "upload-url"
+              ]
+            },
+            "description": "Create direct-upload URLs for the current user's avatar\n\nPreferred avatar upload flow:\n1. Call this endpoint to receive two presigned `PUT` uploads: `ORIGINAL` and `SMALL`.\n2. Upload both client-generated JPEG files directly to DigitalOcean Spaces using the returned `url`, `method`, and `headers`.\n3. Call `POST /me/avatar/confirm` with the returned `confirm_token`.\n\nClient rule:\n- Forward every returned upload header exactly as returned, including `x-amz-acl: public-read`.\n\nNaming convention:\n- original object key: `profiles/{user_id}/avatar/v{n}-{upload_id}`\n- small object key: `profiles/{user_id}/avatar/v{n}-{upload_id}-small`\n\nPersistence and cache behavior:\n- The backend stores the returned `base_url` in `profile.avatar_url`.\n- Clients can fetch the small variant by appending `-small` to the stored `base_url`.\n- Existing files are never deleted. Each new upload increments the avatar version so cached CDN URLs remain immutable.\n- This flow remains compatible with limited-access Spaces keys because each uploaded object is explicitly written with the `public-read` canned ACL."
+          }
+        },
+        {
+          "name": "Confirm an uploaded avatar image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/avatar/confirm",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "avatar",
+                "confirm"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Confirm an uploaded avatar image\n\nConfirms a previously presigned avatar upload after both `ORIGINAL` and `SMALL` files have been uploaded successfully. The request body contains only the opaque `confirm_token`; clients do not send object URLs back. The confirmed CDN URL is readable without a signed GET URL because the upload step uses `x-amz-acl: public-read`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tickets",
+      "description": "Ticket endpoints for protected-event mobile entry flows.\n\nQR display and QR scanning are product-supported only in the mobile app. QR\nstream and scan endpoints require `X-Client-Surface: MOBILE` in addition to\nbearer authentication.",
+      "item": [
+        {
+          "name": "List my tickets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/tickets",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "tickets"
+              ]
+            },
+            "description": "operationId: `listMyTickets`\n\nList my tickets"
+          }
+        },
+        {
+          "name": "Get my ticket detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/tickets/{{ticketId}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "tickets",
+                "{{ticketId}}"
+              ],
+              "variable": [
+                {
+                  "key": "ticketId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `getMyTicket`\n\nGet my ticket detail"
+          }
+        },
+        {
+          "name": "Stream short-lived QR tokens",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/tickets/{{ticketId}}/qr-stream",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "tickets",
+                "{{ticketId}}",
+                "qr-stream"
+              ],
+              "variable": [
+                {
+                  "key": "ticketId",
+                  "value": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "lon",
+                  "value": "",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "operationId: `streamTicketQR`\n\nStream short-lived QR tokens\n\nOpens a Server-Sent Events stream and emits an initial `qr_token`, then a\nrefreshed token every 10 seconds. The backend validates ticket ownership,\nACTIVE ticket status, APPROVED participation, ACTIVE/IN_PROGRESS protected\nevent status, ticket business expiry, and 200-meter proximity before issuing\neach token."
+          }
+        },
+        {
+          "name": "Scan a participant ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/host/events/{{eventId}}/ticket-scans",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "host",
+                "events",
+                "{{eventId}}",
+                "ticket-scans"
+              ],
+              "variable": [
+                {
+                  "key": "eventId",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `scanTicket`\n\nScan a participant ticket\n\nHost-only mobile endpoint. A successful scan atomically marks the ticket\n`USED`. Rejected scans return `result: REJECTED` and a machine-readable\nreason without changing ticket state."
+          }
+        }
+      ]
+    }
+  ]
+}
