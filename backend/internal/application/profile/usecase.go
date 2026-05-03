@@ -15,4 +15,5 @@ type UseCase interface {
 	GetMyCompletedEvents(ctx context.Context, userID uuid.UUID) ([]EventSummary, error)
 	GetMyCanceledEvents(ctx context.Context, userID uuid.UUID) ([]EventSummary, error)
 	SearchUsers(ctx context.Context, input UserSearchInput) (*UserSearchResult, error)
+	ChangePassword(ctx context.Context, input ChangePasswordInput) error
 }

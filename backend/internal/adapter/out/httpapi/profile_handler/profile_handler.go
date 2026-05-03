@@ -34,6 +34,7 @@ func RegisterProfileRoutes(router fiber.Router, handler *ProfileHandler, auth fi
 	me := router.Group("/me", auth)
 	me.Get("", handler.GetMyProfile)
 	me.Patch("", handler.UpdateMyProfile)
+	me.Post("/change-password", handler.ChangePassword)
 	me.Get("/events/hosted", handler.GetMyHostedEvents)
 	me.Get("/events/upcoming", handler.GetMyUpcomingEvents)
 	me.Get("/events/completed", handler.GetMyCompletedEvents)
@@ -272,6 +273,39 @@ func (h *ProfileHandler) DeclineInvitation(c *fiber.Ctx) error {
 		slog.String("invitation_id", invitationID.String()),
 	)
 	return c.JSON(result)
+}
+
+// changePasswordBody is the request body for POST /me/change-password.
+type changePasswordBody struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+// ChangePassword handles POST /me/change-password.
+func (h *ProfileHandler) ChangePassword(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+
+	var body changePasswordBody
+	if err := c.BodyParser(&body); err != nil {
+		return httpapi.WriteError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
+	}
+
+	if err := h.service.ChangePassword(c.UserContext(), profile.ChangePasswordInput{
+		UserID:      claims.UserID,
+		OldPassword: body.OldPassword,
+		NewPassword: body.NewPassword,
+	}); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"password changed",
+		httpapi.OperationAttr("profile.change_password"),
+		httpapi.UserIDAttr(claims.UserID),
+	)
+
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func parseInvitationIDParam(c *fiber.Ctx) (uuid.UUID, error) {

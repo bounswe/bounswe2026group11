@@ -2,6 +2,19 @@ package profile
 
 import "github.com/google/uuid"
 
+// PasswordHasher is the profile package's local port for password hashing operations.
+type PasswordHasher interface {
+	Hash(value string) (string, error)
+	Compare(hash, value string) error
+}
+
+// ChangePasswordInput carries the authenticated user's current and new password.
+type ChangePasswordInput struct {
+	UserID      uuid.UUID
+	OldPassword string
+	NewPassword string
+}
+
 // EventSummary is a lightweight event representation used in profile responses.
 type EventSummary struct {
 	ID                string  `json:"id"`

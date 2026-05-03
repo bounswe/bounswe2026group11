@@ -21,6 +21,7 @@ func (u *fakeUnitOfWork) RunInTx(ctx context.Context, fn func(ctx context.Contex
 type fakeProfileRepo struct {
 	profile         *domain.UserProfile
 	profileErr      error
+	passwordHash    string
 	hostedEvents    []domain.EventSummary
 	upcomingEvents  []domain.EventSummary
 	completedEvents []domain.EventSummary
@@ -55,6 +56,14 @@ func (r *fakeProfileRepo) GetCanceledEvents(_ context.Context, _ uuid.UUID) ([]d
 
 func (r *fakeProfileRepo) SearchUsers(_ context.Context, _ string, _ int) ([]UserSearchRecord, error) {
 	return r.searchUsers, r.eventsErr
+}
+
+func (r *fakeProfileRepo) GetPasswordHash(_ context.Context, _ uuid.UUID) (string, error) {
+	return r.passwordHash, r.profileErr
+}
+
+func (r *fakeProfileRepo) UpdatePasswordHash(_ context.Context, _ uuid.UUID, _ string) error {
+	return r.profileErr
 }
 
 func newService(repo *fakeProfileRepo) *Service {
@@ -232,5 +241,85 @@ func TestGetMyCanceledEventsIncludesPrivacyLevel(t *testing.T) {
 
 	if events[0].PrivacyLevel != "PRIVATE" {
 		t.Fatalf("expected PRIVATE, got %q", events[0].PrivacyLevel)
+	}
+}
+
+// --- ChangePassword tests ---
+
+type fakeHasher struct {
+	compareErr error
+	hashErr    error
+}
+
+func (h fakeHasher) Hash(_ string) (string, error) {
+	if h.hashErr != nil {
+		return "", h.hashErr
+	}
+	return "hashed", nil
+}
+
+func (h fakeHasher) Compare(_, _ string) error { return h.compareErr }
+
+func newServiceWithHasher(repo *fakeProfileRepo, ph PasswordHasher) *Service {
+	return NewService(repo, &fakeUnitOfWork{}, ph)
+}
+
+func TestChangePassword_Success(t *testing.T) {
+	repo := &fakeProfileRepo{passwordHash: "$2a$10$stored"}
+	svc := newServiceWithHasher(repo, fakeHasher{})
+
+	err := svc.ChangePassword(context.Background(), ChangePasswordInput{
+		UserID:      uuid.New(),
+		OldPassword: "oldpass123",
+		NewPassword: "newpass456",
+	})
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+}
+
+func TestChangePassword_WrongOldPassword(t *testing.T) {
+	repo := &fakeProfileRepo{passwordHash: "$2a$10$stored"}
+	svc := newServiceWithHasher(repo, fakeHasher{compareErr: errors.New("mismatch")})
+
+	err := svc.ChangePassword(context.Background(), ChangePasswordInput{
+		UserID:      uuid.New(),
+		OldPassword: "wrongpass",
+		NewPassword: "newpass456",
+	})
+	if err == nil {
+		t.Fatal("expected error for wrong old password")
+	}
+	appErr, ok := err.(*domain.AppError)
+	if !ok || appErr.Code != domain.ErrorCodePasswordMismatch {
+		t.Fatalf("expected password_mismatch AppError, got %v", err)
+	}
+}
+
+func TestChangePassword_ValidationFailsShortNew(t *testing.T) {
+	repo := &fakeProfileRepo{}
+	svc := newServiceWithHasher(repo, fakeHasher{})
+
+	err := svc.ChangePassword(context.Background(), ChangePasswordInput{
+		UserID:      uuid.New(),
+		OldPassword: "oldpass123",
+		NewPassword: "short",
+	})
+	if err == nil {
+		t.Fatal("expected validation error for short new password")
+	}
+}
+
+func TestChangePassword_SamePassword(t *testing.T) {
+	repo := &fakeProfileRepo{}
+	svc := newServiceWithHasher(repo, fakeHasher{})
+
+	err := svc.ChangePassword(context.Background(), ChangePasswordInput{
+		UserID:      uuid.New(),
+		OldPassword: "samepass123",
+		NewPassword: "samepass123",
+	})
+	if err == nil {
+		t.Fatal("expected validation error when new == old password")
 	}
 }

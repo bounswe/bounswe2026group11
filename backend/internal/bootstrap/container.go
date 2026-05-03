@@ -298,7 +298,7 @@ func newCategoryService(c *Container) category.UseCase {
 
 // newProfileService wires the profile use-case service with its driven adapter.
 func newProfileService(c *Container) profile.UseCase {
-	return profile.NewService(c.profileRepo, c.UnitOfWork)
+	return profile.NewService(c.profileRepo, c.UnitOfWork, hasher.BcryptHasher{})
 }
 
 // newFavoriteLocationService wires the favorite-location use-case service with its driven adapter.
