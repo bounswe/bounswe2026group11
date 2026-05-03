@@ -133,7 +133,6 @@ export default function TicketView({ ticketId }: TicketViewProps) {
                     {liveCodeMeta ? (
                       <Text style={styles.liveCodeMeta}>{liveCodeMeta}</Text>
                     ) : null}
-                    <Text style={styles.tokenText}>{tokenValue}</Text>
                   </>
                 ) : (
                   <View style={styles.qrPlaceholder}>

@@ -45,7 +45,8 @@
       "androidNavigationBar": {
         "backgroundColor": "#0F172A",
         "barStyle": "light-content"
-      }
+      },
+      "usesCleartextTraffic": true
     },
     "experiments": {
       "typedRoutes": true

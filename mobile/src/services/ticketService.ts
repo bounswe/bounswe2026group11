@@ -120,52 +120,73 @@ export function scanTicket(
   );
 }
 
-export async function getTicketQrTokenOnce(
+export function getTicketQrTokenOnce(
   ticketId: string,
   coords: { lat: number; lon: number },
   token: string,
 ): Promise<TicketQrToken> {
-  const response = await ticketRequest(
-    `/me/tickets/${ticketId}/qr-stream?lat=${encodeURIComponent(String(coords.lat))}&lon=${encodeURIComponent(String(coords.lon))}`,
-    {
-      method: 'GET',
-      headers: {
-        'X-Client-Surface': 'MOBILE',
-        Accept: 'text/event-stream',
-      },
-    },
-    { token, requiresAuth: true },
-  );
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const url = `${BASE_URL}/me/tickets/${ticketId}/qr-stream?lat=${encodeURIComponent(String(coords.lat))}&lon=${encodeURIComponent(String(coords.lon))}`;
 
-  const reader = response.body?.getReader?.();
-  if (!reader) {
-    throw new Error('Live QR streaming is not supported on this device build.');
-  }
+    xhr.open('GET', url, true);
+    xhr.setRequestHeader('X-Client-Surface', 'MOBILE');
+    xhr.setRequestHeader('Accept', 'text/event-stream');
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
-  const decoder = new TextDecoder();
-  let buffer = '';
+    let resolved = false;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+    xhr.onprogress = () => {
+      if (resolved) return;
+      const responseText = xhr.responseText;
+      if (!responseText) return;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith('data:')) continue;
-
-      const payload = trimmed.replace(/^data:\s*/, '');
-      try {
-        await reader.cancel();
-      } catch {
-        // Ignore cancellation failures after the first payload arrives.
+      const lines = responseText.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data:')) {
+          const payload = trimmed.replace(/^data:\s*/, '');
+          try {
+            const data = JSON.parse(payload) as Record<string, unknown>;
+            if (data.message && !data.token) {
+              resolved = true;
+              reject(new Error(String(data.message)));
+              xhr.abort();
+              return;
+            }
+            resolved = true;
+            resolve(data as unknown as TicketQrToken);
+            xhr.abort();
+            return;
+          } catch {
+            // Wait for full chunk to arrive
+          }
+        }
       }
-      return JSON.parse(payload) as TicketQrToken;
-    }
-  }
+    };
 
-  throw new Error('No QR token was received from the server.');
+    xhr.onerror = () => {
+      if (!resolved) {
+        resolved = true;
+        reject(new Error('Network request failed'));
+      }
+    };
+
+    xhr.onload = () => {
+      if (resolved) return;
+      resolved = true;
+      if (xhr.status >= 400) {
+        try {
+          const body = JSON.parse(xhr.responseText) as ErrorResponse;
+          reject(new Error(body.error?.message || `Error ${xhr.status}`));
+        } catch {
+          reject(new Error(`Failed to get QR token (HTTP ${xhr.status})`));
+        }
+      } else {
+        reject(new Error('No QR token was received from the server.'));
+      }
+    };
+
+    xhr.send();
+  });
 }

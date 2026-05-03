@@ -39,24 +39,21 @@ async function getCurrentCoordinates() {
     throw new Error('Location permission is required to reveal this live ticket QR.');
   }
 
-  const lastKnownPosition = await ExpoLocation.getLastKnownPositionAsync();
-  if (lastKnownPosition) {
-    return {
-      lat: lastKnownPosition.coords.latitude,
-      lon: lastKnownPosition.coords.longitude,
-    };
+  let position;
+  try {
+    position = await Promise.race([
+      ExpoLocation.getLastKnownPositionAsync(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000))
+    ]);
+  } catch {
+    position = null;
   }
 
-  const position = await Promise.race([
-    ExpoLocation.getCurrentPositionAsync({
+  if (!position) {
+    position = await ExpoLocation.getCurrentPositionAsync({
       accuracy: ExpoLocation.Accuracy.Balanced,
-    }),
-    new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error('Current location is unavailable. Make sure that location services are enabled.'));
-      }, 8000);
-    }),
-  ]);
+    });
+  }
 
   return {
     lat: position.coords.latitude,
@@ -111,12 +108,6 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
 
   const refreshQr = useCallback(async () => {
     if (!token || !ticket) return;
-
-    if (ticket.ticket.status !== 'ACTIVE') {
-      setQrToken(null);
-      setQrMessage(null);
-      return;
-    }
 
     if (!ticket.qr_access.eligible_now) {
       setQrToken(null);

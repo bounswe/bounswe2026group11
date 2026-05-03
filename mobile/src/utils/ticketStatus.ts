@@ -52,10 +52,16 @@ const SCAN_REJECT_MESSAGES: Record<TicketRejectReason, string> = {
 
 const QR_ACCESS_MESSAGES: Record<string, string> = {
   PARTICIPATION_PENDING_REAPPROVAL: 'Your participation is pending approval before ticket access is enabled.',
+  PARTICIPATION_REJECTED: 'Your participation request was rejected.',
+  PARTICIPATION_CANCELED: 'You have canceled your participation.',
   TICKET_NOT_ACTIVE: 'This ticket is not active right now.',
-  EVENT_NOT_ACTIVE: 'The event is not currently accepting ticket access.',
-  EVENT_NOT_PROTECTED: 'Only protected events have mobile tickets.',
+  TICKET_CANCELED: 'This ticket has been canceled and is no longer valid.',
+  TICKET_USED: 'This ticket has already been used for entry.',
   TICKET_EXPIRED: 'This ticket has expired.',
+  EVENT_NOT_ACTIVE: 'The event is not currently accepting ticket access.',
+  EVENT_CANCELED: 'This event has been canceled, so tickets are disabled.',
+  EVENT_COMPLETED: 'This event has already ended.',
+  EVENT_NOT_PROTECTED: 'Only protected events have mobile tickets.',
   PROXIMITY_REQUIRED: 'Move closer to the event location to reveal your live QR token.',
 };
 
