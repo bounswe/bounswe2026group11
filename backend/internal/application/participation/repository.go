@@ -11,5 +11,5 @@ import (
 type Repository interface {
 	CreateParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error)
 	LeaveParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error)
-	CancelEventParticipations(ctx context.Context, eventID uuid.UUID) error
+	CancelEventParticipations(ctx context.Context, eventID uuid.UUID) ([]uuid.UUID, error)
 }

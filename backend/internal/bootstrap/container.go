@@ -253,7 +253,9 @@ func newAdminService(c *Container) admin.UseCase {
 
 // newEventService wires the event use case with its driven adapters.
 func newEventService(c *Container) event.UseCase {
-	return event.NewService(c.eventRepo, c.ParticipationService, c.JoinRequestService, c.UnitOfWork, c.TicketService)
+	service := event.NewService(c.eventRepo, c.ParticipationService, c.JoinRequestService, c.UnitOfWork, c.TicketService)
+	service.SetNotificationService(c.NotificationService)
+	return service
 }
 
 // newParticipationService wires the participation use-case service with its

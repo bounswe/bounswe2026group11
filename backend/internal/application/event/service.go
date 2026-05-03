@@ -3,8 +3,11 @@ package event
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"time"
 
+	notificationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/ticket"
@@ -19,8 +22,15 @@ type Service struct {
 	participationService participation.UseCase
 	joinRequestService   join_request.UseCase
 	ticketService        ticket.LifecycleUseCase
+	notifications        notificationapp.UseCase
 	unitOfWork           uow.UnitOfWork
 	now                  func() time.Time
+}
+
+// SetNotificationService wires in the notification use case so the event
+// service can fan out notifications for cancellations and other lifecycle events.
+func (s *Service) SetNotificationService(notifications notificationapp.UseCase) {
+	s.notifications = notifications
 }
 
 var _ UseCase = (*Service)(nil)
@@ -451,8 +461,14 @@ func (s *Service) RejectJoinRequest(
 
 // CancelEvent transitions an ACTIVE event to CANCELED. Only the event host may cancel.
 func (s *Service) CancelEvent(ctx context.Context, userID, eventID uuid.UUID) error {
-	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
-		event, err := s.eventRepo.GetEventByID(ctx, eventID)
+	var (
+		cancelledUserIDs []uuid.UUID
+		event            *domain.Event
+	)
+
+	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		var err error
+		event, err = s.eventRepo.GetEventByID(ctx, eventID)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
 				return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
@@ -471,7 +487,8 @@ func (s *Service) CancelEvent(ctx context.Context, userID, eventID uuid.UUID) er
 			return err
 		}
 
-		if err := s.participationService.CancelEventParticipations(ctx, eventID); err != nil {
+		cancelledUserIDs, err = s.participationService.CancelEventParticipations(ctx, eventID)
+		if err != nil {
 			return err
 		}
 
@@ -483,6 +500,58 @@ func (s *Service) CancelEvent(ctx context.Context, userID, eventID uuid.UUID) er
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	s.notifyEventCanceled(ctx, event, userID, cancelledUserIDs)
+	return nil
+}
+
+func (s *Service) notifyEventCanceled(ctx context.Context, event *domain.Event, hostUserID uuid.UUID, cancelledUserIDs []uuid.UUID) {
+	if s.notifications == nil || len(cancelledUserIDs) == 0 {
+		return
+	}
+
+	// Exclude the host — they initiated the cancellation.
+	recipients := make([]uuid.UUID, 0, len(cancelledUserIDs))
+	for _, id := range cancelledUserIDs {
+		if id != hostUserID {
+			recipients = append(recipients, id)
+		}
+	}
+	if len(recipients) == 0 {
+		return
+	}
+
+	notificationType := "EVENT_CANCELED"
+	deepLink := fmt.Sprintf("/events/%s", event.ID.String())
+	body := fmt.Sprintf("The event \"%s\" has been cancelled by the host.", event.Title)
+	data := map[string]string{
+		"event_id":         event.ID.String(),
+		"event_title":      event.Title,
+		"event_start_time": event.StartTime.UTC().Format(time.RFC3339),
+	}
+
+	_, err := s.notifications.SendNotificationToUsers(ctx, notificationapp.SendNotificationInput{
+		UserIDs:        recipients,
+		Title:          "Event cancelled",
+		Body:           body,
+		Type:           &notificationType,
+		DeepLink:       &deepLink,
+		EventID:        &event.ID,
+		ImageURL:       event.ImageURL,
+		Data:           data,
+		IdempotencyKey: fmt.Sprintf("EVENT_CANCELED:%s", event.ID.String()),
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "event cancellation notification failed",
+			"operation", "event.cancel.notification",
+			"event_id", event.ID.String(),
+			"recipient_count", len(recipients),
+			"error", err,
+		)
+	}
 }
 
 // CompleteEvent transitions an ACTIVE or IN_PROGRESS event to COMPLETED. Only the host may call this.

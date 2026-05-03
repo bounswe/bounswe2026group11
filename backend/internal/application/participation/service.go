@@ -31,7 +31,8 @@ func (s *Service) LeaveParticipation(ctx context.Context, eventID, userID uuid.U
 	return s.repo.LeaveParticipation(ctx, eventID, userID)
 }
 
-// CancelEventParticipations marks all non-LEAVED participations for an event as CANCELED.
-func (s *Service) CancelEventParticipations(ctx context.Context, eventID uuid.UUID) error {
+// CancelEventParticipations marks all non-LEAVED participations for an event as CANCELED
+// and returns the user IDs of every participation that was transitioned.
+func (s *Service) CancelEventParticipations(ctx context.Context, eventID uuid.UUID) ([]uuid.UUID, error) {
 	return s.repo.CancelEventParticipations(ctx, eventID)
 }

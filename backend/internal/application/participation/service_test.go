@@ -69,10 +69,10 @@ func (r *fakeParticipationRepo) LeaveParticipation(_ context.Context, eventID, u
 	}, nil
 }
 
-func (r *fakeParticipationRepo) CancelEventParticipations(_ context.Context, eventID uuid.UUID) error {
+func (r *fakeParticipationRepo) CancelEventParticipations(_ context.Context, eventID uuid.UUID) ([]uuid.UUID, error) {
 	r.cancelCallCount++
 	r.lastCancelEventID = eventID
-	return r.err
+	return nil, r.err
 }
 
 func TestCreateApprovedParticipationDelegatesToRepo(t *testing.T) {
@@ -148,7 +148,7 @@ func TestCancelEventParticipationsDelegatesToRepo(t *testing.T) {
 	service := NewService(repo)
 	eventID := uuid.New()
 
-	if err := service.CancelEventParticipations(context.Background(), eventID); err != nil {
+	if _, err := service.CancelEventParticipations(context.Background(), eventID); err != nil {
 		t.Fatalf("CancelEventParticipations() error = %v", err)
 	}
 	if repo.cancelCallCount != 1 || repo.lastCancelEventID != eventID {
