@@ -16,4 +16,6 @@ type Repository interface {
 	GetCompletedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error)
 	GetCanceledEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error)
 	SearchUsers(ctx context.Context, query string, limit int) ([]UserSearchRecord, error)
+	GetPasswordHash(ctx context.Context, userID uuid.UUID) (string, error)
+	UpdatePasswordHash(ctx context.Context, userID uuid.UUID, newHash string) error
 }

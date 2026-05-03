@@ -80,6 +80,8 @@ const (
 
 	ErrorCodeAdminAccessRequired        = "admin_access_required"
 	ErrorCodeAdminDependencyUnavailable = "admin_dependency_unavailable"
+
+	ErrorCodePasswordMismatch = "password_mismatch"
 )
 
 // ErrNotFound is a sentinel error returned when a queried entity does not exist.

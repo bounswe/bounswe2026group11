@@ -11,18 +11,23 @@ import (
 
 // Service owns profile-specific application behavior.
 type Service struct {
-	repo       Repository
-	unitOfWork uow.UnitOfWork
+	repo           Repository
+	unitOfWork     uow.UnitOfWork
+	passwordHasher PasswordHasher
 }
 
 var _ UseCase = (*Service)(nil)
 
 // NewService constructs a profile service backed by its own repository.
-func NewService(repo Repository, unitOfWork uow.UnitOfWork) *Service {
-	return &Service{
+func NewService(repo Repository, unitOfWork uow.UnitOfWork, passwordHasher ...PasswordHasher) *Service {
+	s := &Service{
 		repo:       repo,
 		unitOfWork: unitOfWork,
 	}
+	if len(passwordHasher) > 0 {
+		s.passwordHasher = passwordHasher[0]
+	}
+	return s
 }
 
 // GetMyProfile returns the combined app_user + profile data for the given user.
@@ -143,6 +148,27 @@ func toEventSummaries(events []domain.EventSummary) []EventSummary {
 		}
 	}
 	return result
+}
+
+// ChangePassword verifies the current password and replaces it with the new one.
+func (s *Service) ChangePassword(ctx context.Context, input ChangePasswordInput) error {
+	if err := validateChangePasswordInput(input); err != nil {
+		return err
+	}
+	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		currentHash, err := s.repo.GetPasswordHash(ctx, input.UserID)
+		if err != nil {
+			return err
+		}
+		if err := s.passwordHasher.Compare(currentHash, input.OldPassword); err != nil {
+			return domain.AuthError(domain.ErrorCodePasswordMismatch, "Current password is incorrect.")
+		}
+		newHash, err := s.passwordHasher.Hash(input.NewPassword)
+		if err != nil {
+			return err
+		}
+		return s.repo.UpdatePasswordHash(ctx, input.UserID, newHash)
+	})
 }
 
 // UpdateMyProfile validates and persists the editable profile fields.

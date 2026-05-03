@@ -438,4 +438,29 @@ func (r *ProfileRepository) SetAvatarIfVersion(
 	return tag.RowsAffected() == 1, nil
 }
 
+// GetPasswordHash returns the bcrypt hash stored for the given user.
+func (r *ProfileRepository) GetPasswordHash(ctx context.Context, userID uuid.UUID) (string, error) {
+	var hash string
+	err := r.pool.QueryRow(ctx, `SELECT password_hash FROM app_user WHERE id = $1`, userID).Scan(&hash)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", domain.ErrNotFound
+		}
+		return "", fmt.Errorf("get password hash: %w", err)
+	}
+	return hash, nil
+}
+
+// UpdatePasswordHash replaces the stored password hash for the given user.
+func (r *ProfileRepository) UpdatePasswordHash(ctx context.Context, userID uuid.UUID, newHash string) error {
+	_, err := r.db.Exec(ctx,
+		`UPDATE app_user SET password_hash = $2, updated_at = now() WHERE id = $1`,
+		userID, newHash,
+	)
+	if err != nil {
+		return fmt.Errorf("update password hash: %w", err)
+	}
+	return nil
+}
+
 var _ imageuploadapp.ProfileRepository = (*ProfileRepository)(nil)

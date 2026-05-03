@@ -7,6 +7,25 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 )
 
+func validateChangePasswordInput(input ChangePasswordInput) *domain.AppError {
+	details := make(map[string]string)
+
+	if len(input.OldPassword) == 0 {
+		details["old_password"] = "must not be empty"
+	}
+	if len(input.NewPassword) < 8 || len(input.NewPassword) > 128 {
+		details["new_password"] = "must be between 8 and 128 characters"
+	}
+	if input.OldPassword == input.NewPassword && len(details) == 0 {
+		details["new_password"] = "must differ from current password"
+	}
+
+	if len(details) > 0 {
+		return domain.ValidationError(details)
+	}
+	return nil
+}
+
 func validateUpdateProfileInput(input UpdateProfileInput) (*UpdateProfileInput, *domain.AppError) {
 	details := make(map[string]string)
 
