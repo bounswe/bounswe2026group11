@@ -52,12 +52,16 @@ import HomeHeader from './HomeHeader';
 jest.mock('@expo/vector-icons', () => {
   const ReactLocal = require('react');
 
-  return {
-    Feather: ({ name }: { name: string }) =>
+  const makeIcon = (library: string) =>
+    ({ name }: { name: string }) =>
       ReactLocal.createElement('span', {
-        'data-icon-library': 'feather',
+        'data-icon-library': library,
         'data-icon': name,
-      }),
+      });
+
+  return {
+    Feather: makeIcon('feather'),
+    Ionicons: makeIcon('ionicons'),
   };
 });
 
@@ -94,5 +98,57 @@ describe('HomeHeader', () => {
     expect((label as HTMLElement).style.fontStyle).toBe('italic');
     expect((label as HTMLElement).style.fontWeight).toBe('800');
     expect((label as HTMLElement).style.fontSize).toBe('12px');
+  });
+
+  it('calls onPressNotifications when the bell button is pressed', () => {
+    const onPressNotifications = jest.fn();
+    render(
+      <HomeHeader
+        locationLabel="Beşiktaş, Istanbul"
+        onPressLocation={jest.fn()}
+        onPressNotifications={onPressNotifications}
+      />,
+    );
+
+    const bellButton = screen.getByRole('button', { name: 'Open notifications' });
+    expect(bellButton).toBeTruthy();
+    fireEvent.click(bellButton);
+    expect(onPressNotifications).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a badge when unreadNotificationCount is greater than zero', () => {
+    render(
+      <HomeHeader
+        locationLabel="Beşiktaş, Istanbul"
+        onPressLocation={jest.fn()}
+        unreadNotificationCount={5}
+      />,
+    );
+
+    expect(screen.getByText('5')).toBeTruthy();
+  });
+
+  it('caps the badge at 99+', () => {
+    render(
+      <HomeHeader
+        locationLabel="Beşiktaş, Istanbul"
+        onPressLocation={jest.fn()}
+        unreadNotificationCount={150}
+      />,
+    );
+
+    expect(screen.getByText('99+')).toBeTruthy();
+  });
+
+  it('does not show a badge when unreadNotificationCount is zero', () => {
+    render(
+      <HomeHeader
+        locationLabel="Beşiktaş, Istanbul"
+        onPressLocation={jest.fn()}
+        unreadNotificationCount={0}
+      />,
+    );
+
+    expect(screen.queryByText('0')).toBeNull();
   });
 });

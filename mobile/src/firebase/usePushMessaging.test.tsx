@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { renderHook, waitFor } from '@testing-library/react';
+import { getMessaging } from '@react-native-firebase/messaging';
 import { usePushMessaging } from './usePushMessaging';
 import * as deviceInstallation from '@/services/deviceInstallation';
 import * as pushDeviceService from '@/services/pushDeviceService';
@@ -47,6 +48,26 @@ describe('usePushMessaging', () => {
     });
   });
 
+  it('does not request or register for push while disabled', async () => {
+    const messaging = getMessaging() as unknown as {
+      requestPermission: jest.Mock;
+      getToken: jest.Mock;
+    };
+
+    renderHook(() =>
+      usePushMessaging({
+        authToken: 'access-token',
+        pushNotificationsEnabled: false,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(messaging.requestPermission).not.toHaveBeenCalled();
+      expect(messaging.getToken).not.toHaveBeenCalled();
+      expect(mockRegisterPushDevice).not.toHaveBeenCalled();
+    });
+  });
+
   it('syncs a previously acquired FCM token after login', async () => {
     const { rerender } = renderHook(
       ({ authToken }: { authToken: string | null }) =>
@@ -86,6 +107,79 @@ describe('usePushMessaging', () => {
       expect(mockUnregisterPushDevice).toHaveBeenCalledWith(
         '550e8400-e29b-41d4-a716-446655440000',
         'access-token',
+      );
+    });
+  });
+
+  it('unregisters the installation when push notifications are disabled', async () => {
+    const { rerender } = renderHook(
+      ({
+        authToken,
+        pushNotificationsEnabled,
+      }: {
+        authToken: string | null;
+        pushNotificationsEnabled: boolean;
+      }) =>
+        usePushMessaging({
+          authToken,
+          pushNotificationsEnabled,
+        }),
+      {
+        initialProps: {
+          authToken: 'access-token' as string | null,
+          pushNotificationsEnabled: true,
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(mockRegisterPushDevice).toHaveBeenCalled();
+    });
+
+    rerender({
+      authToken: 'access-token' as string | null,
+      pushNotificationsEnabled: false,
+    });
+
+    await waitFor(() => {
+      expect(mockUnregisterPushDevice).toHaveBeenCalledWith(
+        '550e8400-e29b-41d4-a716-446655440000',
+        'access-token',
+      );
+    });
+  });
+
+  it('normalizes initial notification payloads for open handling', async () => {
+    const messaging = getMessaging() as unknown as {
+      getInitialNotification: jest.Mock;
+    };
+    messaging.getInitialNotification.mockResolvedValueOnce({
+      messageId: 'message-1',
+      notification: {
+        title: 'Event update',
+        body: 'Tap through',
+      },
+      data: {
+        event_id: 'event-1',
+        deep_link: '/events/event-1',
+      },
+    });
+    const onNotificationOpened = jest.fn();
+
+    renderHook(() =>
+      usePushMessaging({
+        onNotificationOpened,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(onNotificationOpened).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Event update',
+          body: 'Tap through',
+          event_id: 'event-1',
+          deep_link: '/events/event-1',
+        }),
       );
     });
   });

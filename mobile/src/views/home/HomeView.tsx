@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { router, type Href } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import HomeHeader from '@/components/home/HomeHeader';
 import SearchSection from '@/components/home/SearchSection';
@@ -16,9 +16,17 @@ import EventCard from '@/components/events/EventCard';
 import FiltersBottomSheet from '@/components/home/FiltersBottomSheet';
 import { useHomeViewModel } from '@/viewmodels/home/useHomeViewModel';
 import LocationPickerPanel from '@/components/home/LocationPickerPanel';
+import { useUnreadNotificationCount } from '@/viewmodels/notifications/useUnreadNotificationCount';
 
 export default function HomeView() {
   const vm = useHomeViewModel();
+  const { unreadCount, refresh: refreshUnreadCount } = useUnreadNotificationCount();
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshUnreadCount();
+    }, [refreshUnreadCount]),
+  );
 
   const locationButtonRef = useRef<any>(null);
   const [locationPopupTop, setLocationPopupTop] = useState(140);
@@ -45,6 +53,8 @@ export default function HomeView() {
             ref={locationButtonRef}
             locationLabel={vm.locationLabel}
             onPressLocation={handleOpenLocationPicker}
+            onPressNotifications={() => router.push('/notifications' as Href)}
+            unreadNotificationCount={unreadCount}
           />
 
           <SearchSection
