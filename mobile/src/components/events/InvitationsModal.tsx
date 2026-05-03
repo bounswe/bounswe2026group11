@@ -16,8 +16,6 @@ import {
 } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { EventDetailInvitation } from '@/models/event';
-import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface InvitationsModalProps {
@@ -127,42 +125,6 @@ export default function InvitationsModal({
     setSelectedUsers((prev) => prev.filter(u => u !== username));
   };
 
-  const pickAndParseUserFile = useCallback(async () => {
-    try {
-      setError(null);
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['text/plain', 'text/csv'],
-        copyToCacheDirectory: true,
-      });
-
-      if (result.canceled || !result.assets || result.assets.length === 0) return;
-
-      const fileUri = result.assets[0].uri;
-      const content = await FileSystem.readAsStringAsync(fileUri);
-
-      // Split by comma, newline or space and clean up
-      const usernames = content
-        .split(/[\n,\s]+/)
-        .map((u) => u.trim().replace(/^@/, ''))
-        .filter((u) => u.length > 0 && /^[a-zA-Z0-9._]+$/.test(u) && u !== user?.username);
-
-      if (usernames.length === 0) {
-        setError('No valid usernames found in the file.');
-        return;
-      }
-
-      // Append to existing array instead of string
-      setSelectedUsers((prev) => {
-        const combined = [...prev, ...usernames];
-        return [...new Set(combined)];
-      });
-      setUserSearchQuery('');
-    } catch (err) {
-      console.error('File read error:', err);
-      setError('Failed to read the selected file.');
-    }
-  }, [userSearchQuery, setUserSearchQuery, user?.username]);
-
   const getStatusStyle = (status: string) => {
     switch (status) {
       case 'ACCEPTED':
@@ -211,10 +173,6 @@ export default function InvitationsModal({
             <View style={styles.inviteForm}>
               <View style={styles.labelRow}>
                 <Text style={styles.label}>Invite by Username</Text>
-                <TouchableOpacity onPress={pickAndParseUserFile} style={styles.uploadBtn}>
-                  <Feather name="upload" size={16} color="#6B7280" />
-                  <Text style={styles.uploadBtnText}>Upload file</Text>
-                </TouchableOpacity>
               </View>
               <View style={styles.inputWrapper}>
                 <View style={{ flex: 1 }}>
@@ -296,6 +254,8 @@ export default function InvitationsModal({
             </View>
 
             <View style={styles.divider} />
+            
+            <Text style={styles.sectionTitle}>Current Invitations</Text>
 
             <FlatList
               data={invitations}
@@ -392,6 +352,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
   closeBtn: {
     padding: 4,
   },
@@ -409,22 +375,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
-  },
-  uploadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  uploadBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#4B5563',
   },
   chipRow: {
     flexDirection: 'row',
