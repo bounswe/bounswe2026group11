@@ -14,6 +14,14 @@ jest.mock('expo-router', () => ({
   },
 }));
 
+jest.mock('react-native-safe-area-context', () => {
+  const ReactLocal = require('react');
+  return {
+    SafeAreaView: ({ children, style }: { children: React.ReactNode; style?: unknown }) =>
+      ReactLocal.createElement('div', { 'data-testid': 'SafeAreaView', style }, children),
+  };
+});
+
 jest.mock('@expo/vector-icons', () => {
   const ReactLocal = require('react');
   return {
