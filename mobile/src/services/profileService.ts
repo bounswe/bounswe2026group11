@@ -56,3 +56,18 @@ export function searchUsers(
 ): Promise<{ items: Array<{ id: string; username: string; display_name: string | null; avatar_url: string | null }> }> {
   return apiGetAuth<any>(`/users/search?query=${encodeURIComponent(query)}`, token);
 }
+
+export function changePassword(
+  oldPassword: string,
+  newPassword: string,
+  token: string,
+): Promise<void> {
+  return apiPostAuth<void>(
+    '/me/change-password',
+    {
+      old_password: oldPassword,
+      new_password: newPassword,
+    },
+    token,
+  );
+}
