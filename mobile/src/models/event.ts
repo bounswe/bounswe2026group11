@@ -62,6 +62,8 @@ export interface EventSummary {
   start_time: string;
   end_time?: string | null;
   location_address?: string | null;
+  location_lat?: number | null;
+  location_lon?: number | null;
   privacy_level: PrivacyLevel;
   approved_participant_count: number;
   is_favorited: boolean;

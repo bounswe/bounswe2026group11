@@ -4,6 +4,7 @@ import {
   FlatList,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { router, useFocusEffect, type Href } from 'expo-router';
@@ -14,11 +15,15 @@ import EmptyState from '@/components/home/EmptyState';
 import LoadingState from '@/components/home/LoadingState';
 import EventCard from '@/components/events/EventCard';
 import FiltersBottomSheet from '@/components/home/FiltersBottomSheet';
+import EventMapView from '@/components/home/EventMapView';
 import { useHomeViewModel } from '@/viewmodels/home/useHomeViewModel';
 import LocationPickerPanel from '@/components/home/LocationPickerPanel';
 import { useUnreadNotificationCount } from '@/viewmodels/notifications/useUnreadNotificationCount';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+
+const REGION_DELTA_PER_KM = 0.009;
+const MIN_DELTA = 0.02;
 
 export default function HomeView() {
   const vm = useHomeViewModel();
@@ -49,6 +54,19 @@ export default function HomeView() {
     vm.openLocationModal();
   };
 
+  const mapRegion = useMemo(() => {
+    const delta = Math.max(
+      vm.filterDraft.radiusKm * REGION_DELTA_PER_KM * 2,
+      MIN_DELTA,
+    );
+    return {
+      latitude: vm.activeLocation.lat,
+      longitude: vm.activeLocation.lon,
+      latitudeDelta: delta,
+      longitudeDelta: delta,
+    };
+  }, [vm.activeLocation, vm.filterDraft.radiusKm]);
+
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <View style={styles.container}>
@@ -68,7 +86,53 @@ export default function HomeView() {
             onPressFilter={vm.openFilterModal}
           />
 
-          {vm.apiError ? (
+          <View style={styles.viewToggleRow}>
+            <TouchableOpacity
+              style={[
+                styles.viewToggleButton,
+                styles.viewToggleLeft,
+                vm.viewMode === 'LIST' && styles.viewToggleActive,
+              ]}
+              onPress={() => vm.viewMode !== 'LIST' && vm.toggleViewMode()}
+              accessibilityRole="button"
+              accessibilityLabel="List view"
+              accessibilityState={{ selected: vm.viewMode === 'LIST' }}
+              testID="toggle-list"
+            >
+              <Text
+                style={[
+                  styles.viewToggleText,
+                  vm.viewMode === 'LIST' && styles.viewToggleTextActive,
+                ]}
+              >
+                List
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.viewToggleButton,
+                styles.viewToggleRight,
+                vm.viewMode === 'MAP' && styles.viewToggleActive,
+              ]}
+              onPress={() => vm.viewMode !== 'MAP' && vm.toggleViewMode()}
+              accessibilityRole="button"
+              accessibilityLabel="Map view"
+              accessibilityState={{ selected: vm.viewMode === 'MAP' }}
+              testID="toggle-map"
+            >
+              <Text
+                style={[
+                  styles.viewToggleText,
+                  vm.viewMode === 'MAP' && styles.viewToggleTextActive,
+                ]}
+              >
+                Map
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {vm.apiError && vm.viewMode === 'LIST' ? (
             <View style={styles.errorBanner}>
               <Text style={styles.errorBannerText}>{vm.apiError}</Text>
             </View>
@@ -76,7 +140,15 @@ export default function HomeView() {
         </View>
 
         <View style={styles.listWrapper}>
-          {vm.isLoading ? (
+          {vm.viewMode === 'MAP' ? (
+            <EventMapView
+              events={vm.events}
+              isLoading={vm.isLoading}
+              apiError={vm.apiError}
+              region={mapRegion}
+              onMarkerPress={(id) => router.push(`/event/${id}` as Href)}
+            />
+          ) : vm.isLoading ? (
             <LoadingState />
           ) : (
             <FlatList
@@ -181,6 +253,40 @@ function makeStyles(t: Theme) {
     errorBannerText: {
       color: t.errorText,
       fontSize: 14,
+    },
+    viewToggleRow: {
+      flexDirection: 'row',
+      marginTop: 10,
+      marginBottom: 2,
+      alignSelf: 'center',
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: t.border,
+      overflow: 'hidden',
+    },
+    viewToggleButton: {
+      paddingHorizontal: 24,
+      paddingVertical: 8,
+      backgroundColor: t.surface,
+    },
+    viewToggleLeft: {
+      borderTopLeftRadius: 999,
+      borderBottomLeftRadius: 999,
+    },
+    viewToggleRight: {
+      borderTopRightRadius: 999,
+      borderBottomRightRadius: 999,
+    },
+    viewToggleActive: {
+      backgroundColor: t.primary,
+    },
+    viewToggleText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: t.textSecondary,
+    },
+    viewToggleTextActive: {
+      color: t.textOnPrimary,
     },
   });
 }

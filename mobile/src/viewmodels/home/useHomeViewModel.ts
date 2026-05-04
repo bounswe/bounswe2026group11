@@ -312,6 +312,8 @@ function validateFilterDatesLive(filters: HomeFiltersDraft): string | null {
   return null;
 }
 
+export type HomeViewMode = 'LIST' | 'MAP';
+
 export interface HomeViewModel {
   locationLabel: string;
   locationQuery: string;
@@ -345,6 +347,9 @@ export interface HomeViewModel {
   isFilterModalOpen: boolean;
   filterDraft: HomeFiltersDraft;
   filterError: string | null;
+  viewMode: HomeViewMode;
+  activeLocation: { lat: number; lon: number };
+  toggleViewMode: () => void;
   updateSearchText: (value: string) => void;
   submitSearch: () => void;
   selectCategory: (categoryId: number | null) => void;
@@ -409,6 +414,12 @@ export function useHomeViewModel(): HomeViewModel {
   const [filterDraft, setFilterDraft] =
     useState<HomeFiltersDraft>(DEFAULT_FILTERS);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+
+  const [viewMode, setViewMode] = useState<HomeViewMode>('LIST');
+
+  const toggleViewMode = useCallback(() => {
+    setViewMode((prev) => (prev === 'LIST' ? 'MAP' : 'LIST'));
+  }, []);
 
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -979,6 +990,8 @@ export function useHomeViewModel(): HomeViewModel {
     suggestion: favoriteLocationToSuggestion(location),
   }));
 
+  const effectiveLocation = selectedLocation ?? defaultLocation ?? FALLBACK_LOCATION;
+
   return {
     locationLabel: selectedLocation
       ? formatEventLocation(selectedLocation.display_name)
@@ -1002,6 +1015,12 @@ export function useHomeViewModel(): HomeViewModel {
     isSearchingLocation,
     isLocationModalOpen,
     pendingLocation,
+    viewMode,
+    activeLocation: {
+      lat: Number(effectiveLocation.lat),
+      lon: Number(effectiveLocation.lon),
+    },
+    toggleViewMode,
     defaultLocationOption: {
       title: 'Use Default Location',
       subtitle: getDefaultLocationSubtitle(
