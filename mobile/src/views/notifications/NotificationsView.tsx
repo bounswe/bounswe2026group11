@@ -22,9 +22,6 @@ import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
 function formatNotificationTime(value: string): string {
-// ... existing helper remains same ...
-
-function formatNotificationTime(value: string): string {
   const timestamp = new Date(value).getTime();
   if (Number.isNaN(timestamp)) return '';
 
@@ -178,15 +175,16 @@ export default function NotificationsView() {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const hasFocusedOnceRef = useRef(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (hasFocusedOnceRef.current) {
-        void vm.refresh();
-      } else {
-        hasFocusedOnceRef.current = true;
-      }
-    }, [vm]),
-  );
+  // Stability for refresh to prevent infinite loops
+  const refreshNotifications = useCallback(() => {
+    if (hasFocusedOnceRef.current) {
+      void vm.refresh();
+    } else {
+      hasFocusedOnceRef.current = true;
+    }
+  }, [vm.refresh]); // Only depend on the refresh function if stable
+
+  useFocusEffect(refreshNotifications);
 
   const openNotification = useCallback(
     (item: NotificationItem) => {
