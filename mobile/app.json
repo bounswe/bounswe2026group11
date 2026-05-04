@@ -34,7 +34,11 @@
       "googleServicesFile": "./firebase/google-services.json",
       "permissions": [
         "android.permission.POST_NOTIFICATIONS"
-      ]
+      ],
+      "androidNavigationBar": {
+        "backgroundColor": "#0F172A",
+        "barStyle": "light-content"
+      }
     },
     "experiments": {
       "typedRoutes": true

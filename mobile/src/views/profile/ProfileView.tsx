@@ -289,10 +289,10 @@ export default function ProfileView() {
               accessibilityLabel="Change password"
             >
               <View style={styles.menuRowLeft}>
-                <Ionicons name="key-outline" size={20} color="#111827" />
+                <Ionicons name="key-outline" size={20} color={theme.text} />
                 <Text style={styles.menuRowText}>Change Password</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
             </TouchableOpacity>
 
             <View style={styles.menuDivider} />
