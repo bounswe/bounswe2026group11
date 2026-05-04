@@ -120,73 +120,143 @@ export function scanTicket(
   );
 }
 
-export function getTicketQrTokenOnce(
+export async function* getTicketQrTokenStream(
+  ticketId: string,
+  coords: { lat: number; lon: number },
+  token: string,
+  signal?: AbortSignal,
+  streamId?: string,
+): AsyncGenerator<TicketQrToken> {
+  const url = `${BASE_URL}/me/tickets/${ticketId}/qr-stream?lat=${encodeURIComponent(String(coords.lat))}&lon=${encodeURIComponent(String(coords.lon))}`;
+
+  // Using XMLHttpRequest because fetch doesn't support streaming on all RN versions/platforms
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.setRequestHeader('X-Client-Surface', 'MOBILE');
+  xhr.setRequestHeader('Accept', 'text/event-stream');
+  xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+  let lastIndex = 0;
+
+  // Since we need to return values from an event listener in an async generator, 
+  // we'll use a queue.
+  const queue: (TicketQrToken | Error)[] = [];
+  let resolveNext: ((value: TicketQrToken | Error) => void) | null = null;
+
+  const pushToQueue = (item: TicketQrToken | Error) => {
+    if (resolveNext) {
+      resolveNext(item);
+      resolveNext = null;
+    } else {
+      queue.push(item);
+    }
+  };
+
+  xhr.onprogress = () => {
+    const newText = xhr.responseText.substring(lastIndex);
+    lastIndex = xhr.responseText.length;
+
+    const lines = newText.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('data:')) {
+        const payload = trimmed.replace(/^data:\s*/, '');
+        try {
+          const data = JSON.parse(payload);
+          if (data.token) {
+            pushToQueue(data as TicketQrToken);
+          }
+        } catch {
+          // Chunk might be incomplete
+        }
+      }
+    }
+  };
+
+  xhr.onerror = () => {
+    pushToQueue(new Error('Stream network error'));
+  };
+
+  xhr.onload = () => {
+    if (xhr.status !== 200) {
+      let errorMessage = `Stream failed (Status ${xhr.status})`;
+      try {
+        const errorData = JSON.parse(xhr.responseText);
+        if (errorData.error?.message) {
+          errorMessage = errorData.error.message;
+        }
+      } catch {
+        // Fallback
+      }
+      pushToQueue(new Error(errorMessage));
+    } else {
+      pushToQueue(new Error('Stream closed unexpectedly'));
+    }
+  };
+
+  xhr.onreadystatechange = () => {
+    if (xhr.readyState === 2 && xhr.status !== 200) {
+      // Status received but not 200, will be handled in onload
+    }
+  };
+
+  const cleanup = () => {
+    xhr.onprogress = null;
+    xhr.onload = null;
+    xhr.onerror = null;
+    xhr.onreadystatechange = null;
+    try {
+      xhr.abort();
+    } catch {
+      // Ignore
+    }
+  };
+
+  if (signal) {
+    signal.addEventListener('abort', () => {
+      cleanup();
+      // Important: Push an error to break the while(true) loop that's likely 
+      // awaiting on the promise in pushToQueue.
+      pushToQueue(new Error('AbortError'));
+    });
+  }
+
+  xhr.send();
+
+  try {
+    while (true) {
+      const item = queue.length > 0 
+        ? queue.shift()! 
+        : await new Promise<TicketQrToken | Error>((resolve) => {
+            resolveNext = resolve;
+          });
+
+      if (item instanceof Error) {
+        if (item.message === 'AbortError') return;
+        throw item;
+      }
+      yield item;
+    }
+  } finally {
+    cleanup();
+  }
+}
+
+export async function getTicketQrTokenOnce(
   ticketId: string,
   coords: { lat: number; lon: number },
   token: string,
 ): Promise<TicketQrToken> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const url = `${BASE_URL}/me/tickets/${ticketId}/qr-stream?lat=${encodeURIComponent(String(coords.lat))}&lon=${encodeURIComponent(String(coords.lon))}`;
-
-    xhr.open('GET', url, true);
-    xhr.setRequestHeader('X-Client-Surface', 'MOBILE');
-    xhr.setRequestHeader('Accept', 'text/event-stream');
-    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-
-    let resolved = false;
-
-    xhr.onprogress = () => {
-      if (resolved) return;
-      const responseText = xhr.responseText;
-      if (!responseText) return;
-
-      const lines = responseText.split('\n');
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('data:')) {
-          const payload = trimmed.replace(/^data:\s*/, '');
-          try {
-            const data = JSON.parse(payload) as Record<string, unknown>;
-            if (data.message && !data.token) {
-              resolved = true;
-              reject(new Error(String(data.message)));
-              xhr.abort();
-              return;
-            }
-            resolved = true;
-            resolve(data as unknown as TicketQrToken);
-            xhr.abort();
-            return;
-          } catch {
-            // Wait for full chunk to arrive
-          }
-        }
-      }
-    };
-
-    xhr.onerror = () => {
-      if (!resolved) {
-        resolved = true;
-        reject(new Error('Network request failed'));
-      }
-    };
-
-    xhr.onload = () => {
-      if (resolved) return;
-      resolved = true;
-      if (xhr.status >= 400) {
-        try {
-          const body = JSON.parse(xhr.responseText) as ErrorResponse;
-          reject(new Error(body.error?.message || `Error ${xhr.status}`));
-        } catch {
-          reject(new Error(`Failed to get QR token (HTTP ${xhr.status})`));
-        }
-      } else {
-        reject(new Error('No QR token was received from the server.'));
-      }
-    };
-
-    xhr.send();
-  });
+  const abortController = new AbortController();
+  const stream = getTicketQrTokenStream(ticketId, coords, token, abortController.signal, 'once-request');
+  
+  try {
+    const { value } = await stream.next();
+    if (!value) throw new Error('No QR token received');
+    return value;
+  } finally {
+    // CRITICAL: Must abort the stream or it will stay open forever
+    // because getTicketQrTokenStream is an infinite generator.
+    abortController.abort();
+  }
 }

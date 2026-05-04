@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -14,12 +14,15 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useEventActionsViewModel } from '@/viewmodels/ticket/useEventActionsViewModel';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
+import { useTheme, type Theme } from '@/theme';
 
 interface EventActionsViewProps {
   eventId: string;
 }
 
 export default function EventActionsView({ eventId }: EventActionsViewProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const vm = useEventActionsViewModel(eventId);
 
   const handlePrimaryAction = React.useCallback(() => {
@@ -37,7 +40,7 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
     return (
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <View style={styles.loadingPanel}>
-          <ActivityIndicator size="large" color="#111827" />
+          <ActivityIndicator size="large" color={theme.primary} />
           <Text style={styles.loadingText}>Loading event details...</Text>
         </View>
       </SafeAreaView>
@@ -54,7 +57,7 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
             onPress={() => router.back()}
             style={styles.backButton}
           >
-            <Ionicons name="arrow-back" size={26} color="#111827" />
+            <Ionicons name="arrow-back" size={26} color={theme.text} />
           </TouchableOpacity>
 
           <View style={styles.errorPanel}>
@@ -90,7 +93,7 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
               onPress={() => router.back()}
               style={styles.backButton}
             >
-              <Ionicons name="arrow-back" size={26} color="#111827" />
+              <Ionicons name="arrow-back" size={26} color={theme.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Event Details</Text>
           </View>
@@ -100,7 +103,7 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
               <Image source={{ uri: event.image_url }} style={styles.heroImage} resizeMode="cover" />
             ) : (
               <View style={[styles.heroImage, styles.heroPlaceholder]}>
-                <Feather name="calendar" size={32} color="#94A3B8" />
+                <Feather name="calendar" size={32} color={theme.textTertiary} />
               </View>
             )}
           </View>
@@ -115,19 +118,19 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
 
           <View style={styles.metaGroup}>
             <View style={styles.metaRow}>
-              <Feather name="calendar" size={21} color="#6B7280" />
+              <Feather name="calendar" size={21} color={theme.textSecondary} />
               <Text style={styles.metaText}>
                 {formatEventDateLabel(event.start_time, event.end_time)}
               </Text>
             </View>
             <View style={styles.metaRow}>
-              <Feather name="map-pin" size={21} color="#6B7280" />
+              <Feather name="map-pin" size={21} color={theme.textSecondary} />
               <Text style={styles.metaText}>
                 {formatEventLocation(event.location.address)}
               </Text>
             </View>
             <View style={styles.metaRow}>
-              <Feather name="users" size={21} color="#6B7280" />
+              <Feather name="users" size={21} color={theme.textSecondary} />
               <Text style={styles.metaText}>
                 {event.approved_participant_count}
                 {event.capacity ? ` participants / ${event.capacity}` : ' participants'}
@@ -159,7 +162,7 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
               <Feather
                 name={vm.canScanTicket ? 'camera' : 'grid'}
                 size={20}
-                color="#FFFFFF"
+                color={theme.textOnPrimary}
               />
               <Text style={styles.primaryButtonText}>{vm.primaryActionLabel}</Text>
             </TouchableOpacity>
@@ -172,7 +175,7 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
             style={styles.secondaryButton}
           >
             <Text style={styles.secondaryButtonText}>View Full Event</Text>
-            <Ionicons name="chevron-forward" size={22} color="#111827" />
+            <Ionicons name="chevron-forward" size={22} color={theme.text} />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -180,197 +183,199 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollContent: {
-    paddingBottom: 32,
-  },
-  container: {
-    paddingHorizontal: 24,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 18,
-    paddingTop: 12,
-    paddingBottom: 18,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  backButton: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
-  },
-  heroCard: {
-    overflow: 'hidden',
-    borderRadius: 28,
-    backgroundColor: '#E5E7EB',
-  },
-  heroImage: {
-    width: '100%',
-    aspectRatio: 2.1,
-  },
-  heroPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  eventTitle: {
-    marginTop: 24,
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  categoryChip: {
-    alignSelf: 'flex-start',
-    marginTop: 14,
-    borderRadius: 999,
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  categoryChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  metaGroup: {
-    marginTop: 24,
-    gap: 16,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  metaText: {
-    flex: 1,
-    fontSize: 17,
-    lineHeight: 24,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  descriptionText: {
-    marginTop: 26,
-    fontSize: 17,
-    lineHeight: 28,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  hostCard: {
-    marginTop: 28,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 18,
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  hostAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#E5E7EB',
-  },
-  hostAvatarText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  hostInfo: {
-    flex: 1,
-  },
-  hostName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  hostLabel: {
-    marginTop: 2,
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  primaryButton: {
-    marginTop: 24,
-    minHeight: 66,
-    borderRadius: 22,
-    backgroundColor: '#08081D',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  primaryButtonText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  secondaryButton: {
-    marginTop: 18,
-    minHeight: 66,
-    borderRadius: 22,
-    backgroundColor: '#E5E7EB',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  secondaryButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  loadingPanel: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 14,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#475569',
-  },
-  errorPanel: {
-    marginTop: 48,
-    borderRadius: 24,
-    backgroundColor: '#F8FAFC',
-    padding: 24,
-  },
-  errorTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  errorText: {
-    marginTop: 12,
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#64748B',
-  },
-  retryButton: {
-    marginTop: 20,
-    alignSelf: 'flex-start',
-    borderRadius: 16,
-    backgroundColor: '#111827',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  retryButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    scrollContent: {
+      paddingBottom: 32,
+    },
+    container: {
+      paddingHorizontal: 24,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 18,
+      paddingTop: 12,
+      paddingBottom: 18,
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: t.text,
+    },
+    backButton: {
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: t.surfaceVariant,
+    },
+    heroCard: {
+      overflow: 'hidden',
+      borderRadius: 28,
+      backgroundColor: t.surfaceAlt,
+    },
+    heroImage: {
+      width: '100%',
+      aspectRatio: 2.1,
+    },
+    heroPlaceholder: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    eventTitle: {
+      marginTop: 24,
+      fontSize: 28,
+      lineHeight: 34,
+      fontWeight: '800',
+      color: t.text,
+    },
+    categoryChip: {
+      alignSelf: 'flex-start',
+      marginTop: 14,
+      borderRadius: 999,
+      backgroundColor: t.surfaceVariant,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    categoryChipText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.text,
+    },
+    metaGroup: {
+      marginTop: 24,
+      gap: 16,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+    },
+    metaText: {
+      flex: 1,
+      fontSize: 17,
+      lineHeight: 24,
+      fontWeight: '500',
+      color: t.textSecondary,
+    },
+    descriptionText: {
+      marginTop: 26,
+      fontSize: 17,
+      lineHeight: 28,
+      color: t.textSecondary,
+      fontWeight: '500',
+    },
+    hostCard: {
+      marginTop: 28,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      borderRadius: 18,
+      backgroundColor: t.surfaceVariant,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    hostAvatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: t.surfaceAlt,
+    },
+    hostAvatarText: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: t.text,
+    },
+    hostInfo: {
+      flex: 1,
+    },
+    hostName: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: t.text,
+    },
+    hostLabel: {
+      marginTop: 2,
+      fontSize: 13,
+      color: t.textSecondary,
+    },
+    primaryButton: {
+      marginTop: 24,
+      minHeight: 66,
+      borderRadius: 22,
+      backgroundColor: t.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    primaryButtonText: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: t.textOnPrimary,
+    },
+    secondaryButton: {
+      marginTop: 18,
+      minHeight: 66,
+      borderRadius: 22,
+      backgroundColor: t.surfaceVariant,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    secondaryButtonText: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: t.text,
+    },
+    loadingPanel: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 14,
+    },
+    loadingText: {
+      fontSize: 16,
+      color: t.textSecondary,
+    },
+    errorPanel: {
+      marginTop: 48,
+      borderRadius: 24,
+      backgroundColor: t.surfaceVariant,
+      padding: 24,
+    },
+    errorTitle: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: t.text,
+    },
+    errorText: {
+      marginTop: 12,
+      fontSize: 16,
+      lineHeight: 24,
+      color: t.textSecondary,
+    },
+    retryButton: {
+      marginTop: 20,
+      alignSelf: 'flex-start',
+      borderRadius: 16,
+      backgroundColor: t.primary,
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+    },
+    retryButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: t.textOnPrimary,
+    },
+  });
+}

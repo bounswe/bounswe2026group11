@@ -25,7 +25,9 @@ function getAttendeeLabel(count?: number | null) {
 }
 
 function getLocationLabel(address?: string | null) {
-  if (!address) return 'Location available on event page';
+  if (!address) {
+    return 'Location available on event page';
+  }
   return formatEventLocation(address);
 }
 
