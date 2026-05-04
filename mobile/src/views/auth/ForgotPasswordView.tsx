@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
   useForgotPasswordViewModel,
@@ -51,10 +52,11 @@ export default function ForgotPasswordView() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -181,15 +183,20 @@ export default function ForgotPasswordView() {
           </View>
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 function makeStyles(t: Theme) {
   return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
     container: {
       flex: 1,
-      backgroundColor: t.surface,
+      backgroundColor: t.background,
     },
     scrollContent: {
       flexGrow: 1,

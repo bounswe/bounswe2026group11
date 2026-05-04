@@ -11,8 +11,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+
 import {
   useEditProfileViewModel,
   GENDER_OPTIONS,
@@ -77,26 +79,27 @@ export default function EditProfileView() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <MaterialIcons name="arrow-back" size={28} color={theme.text} />
-          </TouchableOpacity>
-          <Text style={styles.screenTitle}>Edit Profile</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
+              <MaterialIcons name="arrow-back" size={28} color={theme.text} />
+            </TouchableOpacity>
+            <Text style={styles.screenTitle}>Edit Profile</Text>
+            <View style={styles.headerSpacer} />
+          </View>
 
         {vm.apiError ? (
           <View style={styles.errorBanner}>
@@ -334,12 +337,17 @@ export default function EditProfileView() {
           </View>
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 function makeStyles(t: Theme) {
   return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
     container: {
       flex: 1,
       backgroundColor: t.background,

@@ -284,6 +284,21 @@ export default function ProfileView() {
 
             <TouchableOpacity
               style={styles.menuRow}
+              onPress={() => router.push('/profile/change-password' as Href)}
+              accessibilityRole="button"
+              accessibilityLabel="Change password"
+            >
+              <View style={styles.menuRowLeft}>
+                <Ionicons name="key-outline" size={20} color={theme.text} />
+                <Text style={styles.menuRowText}>Change Password</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
+            </TouchableOpacity>
+
+            <View style={styles.menuDivider} />
+
+            <TouchableOpacity
+              style={styles.menuRow}
               onPress={handleLogout}
               disabled={isLoggingOut}
               accessibilityRole="button"

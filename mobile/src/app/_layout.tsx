@@ -3,6 +3,7 @@ import '@/firebase/appFirebase';
 import { PushMessagingHost } from '@/components/common/PushMessagingHost';
 import { Stack, router, usePathname, type Href } from 'expo-router';
 import { useEffect } from 'react';
+import { SystemUIHandler } from '@/components/common/SystemUIHandler';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/theme';
 
@@ -37,6 +38,7 @@ function AppStack() {
 export default function RootLayout() {
   return (
     <ThemeProvider>
+      <SystemUIHandler />
       <AuthProvider>
         <PushMessagingHost />
         <AppStack />

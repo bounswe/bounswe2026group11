@@ -24,6 +24,7 @@ module.exports = {
     '^@react-native-firebase/app$': '<rootDir>/jest/mocks/react-native-firebase-app.js',
     '^@react-native-firebase/messaging$':
       '<rootDir>/jest/mocks/react-native-firebase-messaging.js',
+    '^expo-router$': '<rootDir>/jest/mocks/expo-router.js',
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   clearMocks: true,

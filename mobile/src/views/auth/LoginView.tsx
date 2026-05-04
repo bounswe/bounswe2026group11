@@ -10,7 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
+
 import { useLoginViewModel } from '@/viewmodels/auth/useLoginViewModel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/theme';
@@ -35,10 +37,11 @@ export default function LoginView() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -119,15 +122,20 @@ export default function LoginView() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 function makeStyles(t: Theme) {
   return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
     container: {
       flex: 1,
-      backgroundColor: t.surface,
+      backgroundColor: t.background,
     },
     scrollContent: {
       flexGrow: 1,
