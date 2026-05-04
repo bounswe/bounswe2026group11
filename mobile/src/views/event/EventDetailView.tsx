@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -26,56 +26,60 @@ import { EventDetail } from '@/models/event';
 import JoinRequestsModal from '@/components/events/JoinRequestsModal';
 import ParticipantListModal from '@/components/events/ParticipantListModal';
 import InvitationsModal from '@/components/events/InvitationsModal';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 interface EventDetailViewProps {
   eventId: string;
 }
 
 function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
+  const { theme } = useTheme();
   const label = level ? level.charAt(0) + level.slice(1).toLowerCase() : '';
 
-  let badgeStyle = styles.badgePublic;
-  let textStyle = styles.badgeTextPublic;
+  let bg = theme.badgePublicBg;
+  let color = theme.badgePublicText;
   let iconName: 'globe' | 'lock' = 'globe';
-  let iconColor = '#1E40AF';
 
   if (level === 'PROTECTED') {
-    badgeStyle = styles.badgeProtected;
-    textStyle = styles.badgeTextProtected;
+    bg = theme.badgeProtectedBg;
+    color = theme.badgeProtectedText;
     iconName = 'lock';
-    iconColor = '#92400E';
   } else if (level === 'PRIVATE') {
-    badgeStyle = styles.badgePrivate;
-    textStyle = styles.badgeTextPrivate;
+    bg = theme.badgePrivateBg;
+    color = theme.badgePrivateText;
     iconName = 'lock';
-    iconColor = '#5B21B6';
   }
 
   return (
-    <View style={[styles.badge, badgeStyle]}>
-      <Feather name={iconName} size={12} color={iconColor} />
-      <Text style={[styles.badgeText, textStyle]}>{label}</Text>
+    <View style={[badgeBase, { backgroundColor: bg }]}>
+      <Feather name={iconName} size={12} color={color} />
+      <Text style={[badgeTextBase, { color }]}>{label}</Text>
     </View>
   );
 }
+
+// Minimal static styles shared by badge components (no theme dependency)
+const badgeBase: object = {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 4,
+  paddingHorizontal: 10,
+  paddingVertical: 5,
+  borderRadius: 999,
+};
+const badgeTextBase: object = {
+  fontSize: 12,
+  fontWeight: '700',
+};
 
 function StatusBadge({ status }: { status: string }) {
   if (status === 'ACTIVE') return null;
   const statusColors = getEventStatusBadgeColors(status);
 
   return (
-    <View
-      style={[
-        styles.badge,
-        { backgroundColor: statusColors.backgroundColor },
-      ]}
-    >
-      <Text
-        style={[
-          styles.badgeText,
-          { color: statusColors.textColor },
-        ]}
-      >
+    <View style={[badgeBase, { backgroundColor: statusColors.backgroundColor }]}>
+      <Text style={[badgeTextBase, { color: statusColors.textColor }]}>
         {formatEventStatusLabel(status)}
       </Text>
     </View>
@@ -118,19 +122,11 @@ function formatLongDateTime(iso: string): string {
 
 function getFeedbackValidationMessage(message: string): string | null {
   const trimmed = message.trim();
-
-  if (trimmed.length === 0) {
-    return null;
-  }
-
-  if (trimmed.length < FEEDBACK_MIN_LENGTH) {
+  if (trimmed.length === 0) return null;
+  if (trimmed.length < FEEDBACK_MIN_LENGTH)
     return `Feedback must be at least ${FEEDBACK_MIN_LENGTH} characters.`;
-  }
-
-  if (trimmed.length > FEEDBACK_MAX_LENGTH) {
+  if (trimmed.length > FEEDBACK_MAX_LENGTH)
     return `Feedback must be ${FEEDBACK_MAX_LENGTH} characters or fewer.`;
-  }
-
   return null;
 }
 
@@ -143,10 +139,12 @@ function StarRatingInput({
   value,
   onChange,
   disabled,
+  styles,
 }: {
   value: number;
   onChange: (value: number) => void;
   disabled?: boolean;
+  styles: ReturnType<typeof makeStyles>;
 }) {
   return (
     <View style={styles.ratingStarRow}>
@@ -174,17 +172,20 @@ function ParticipantRatingSection({
   error,
   onSubmit,
   onDismissError,
+  styles,
 }: {
   event: EventDetail;
   loading: boolean;
   error: string | null;
   onSubmit: (rating: number, message?: string) => void;
   onDismissError: () => void;
+  styles: ReturnType<typeof makeStyles>;
 }) {
   const existingRating = event.viewer_event_rating;
   const [rating, setRating] = React.useState(existingRating?.rating ?? 0);
   const [message, setMessage] = React.useState(existingRating?.message ?? '');
   const [isEditing, setIsEditing] = React.useState(existingRating == null);
+  const { theme } = useTheme();
   const ratingStampRef = React.useRef<string | null>(
     existingRating ? `${existingRating.id}:${existingRating.updated_at}` : null,
   );
@@ -215,9 +216,7 @@ function ParticipantRatingSection({
     event.status === 'COMPLETED';
   const isEligibleParticipant = isJoinedParticipant && event.rating_window.is_active;
 
-  if (!isJoinedParticipant) {
-    return null;
-  }
+  if (!isJoinedParticipant) return null;
 
   return (
     <>
@@ -244,7 +243,7 @@ function ParticipantRatingSection({
 
           {!event.rating_window.is_active ? (
             <View style={styles.ratingInfoBanner}>
-              <Feather name="info" size={16} color="#92400E" />
+              <Feather name="info" size={16} color={theme.warningText} />
               <Text style={styles.ratingInfoBannerText}>
                 The feedback window closed on {formatLongDateTime(event.rating_window.closes_at)}.
               </Text>
@@ -279,7 +278,7 @@ function ParticipantRatingSection({
           ) : isEligibleParticipant ? (
             <>
               <View style={styles.ratingSelectionRow}>
-                <StarRatingInput value={rating} onChange={setRating} disabled={loading} />
+                <StarRatingInput value={rating} onChange={setRating} disabled={loading} styles={styles} />
                 <Text style={[styles.ratingSelectionSummary, rating > 0 && styles.ratingSelectionSummaryActive]}>
                   {rating > 0 ? `${rating}/5 · ${renderStars(rating)}` : 'Select a star rating'}
                 </Text>
@@ -289,7 +288,7 @@ function ParticipantRatingSection({
               <TextInput
                 style={[styles.ratingTextArea, feedbackError && styles.ratingTextAreaError]}
                 placeholder="Share what stood out, how the event felt, or anything the host should know."
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.placeholder}
                 value={message}
                 onChangeText={setMessage}
                 multiline
@@ -335,7 +334,7 @@ function ParticipantRatingSection({
                   activeOpacity={0.85}
                 >
                   {loading ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator size="small" color={theme.textOnPrimary} />
                   ) : (
                     <Text style={styles.ratingSubmitButtonText}>
                       {existingRating ? 'Update Rating' : 'Submit Rating'}
@@ -368,6 +367,8 @@ function ParticipantRatingSection({
 
 export default function EventDetailView({ eventId }: EventDetailViewProps) {
   const vm = useEventDetailViewModel(eventId);
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const renderActionButton = () => {
     if (!vm.event) return null;
@@ -386,17 +387,15 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     }
 
     if (status_ === 'LEAVED' || vm.actionState === 'success_left') {
-      // Pre-start leave: backend allows rejoin, so fall through to join/request buttons
       const eventNotStarted = new Date() < new Date(vm.event.start_time);
       if (!eventNotStarted) {
         return (
           <View style={styles.statusChip}>
-            <Ionicons name="log-out-outline" size={16} color="#6B7280" />
+            <Ionicons name="log-out-outline" size={16} color={theme.textTertiary} />
             <Text style={styles.statusChipTextGray}>You left this event</Text>
           </View>
         );
       }
-      // fall through to show join/request-to-join buttons below
     }
 
     if (status_ === 'JOINED' || vm.actionState === 'success_joined') {
@@ -451,7 +450,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (status_ === 'INVITED') {
       return (
         <View style={styles.statusChip}>
-          <Feather name="mail" size={16} color="#111827" />
+          <Feather name="mail" size={16} color={theme.primary} />
           <Text style={styles.statusChipTextBlue}>You&apos;re invited</Text>
         </View>
       );
@@ -462,7 +461,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (vm.constraintViolation) {
       return (
         <View style={[styles.actionButton, styles.actionButtonDisabled]}>
-          <Feather name="lock" size={18} color="#9CA3AF" />
+          <Feather name="lock" size={18} color={theme.textTertiary} />
           <Text style={[styles.actionButtonTextDisabled, styles.actionButtonConstraintText]}>
             {vm.constraintViolation}
           </Text>
@@ -474,7 +473,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       if (vm.isQuotaFull) {
         return (
           <View style={[styles.actionButton, styles.actionButtonDisabled]}>
-            <Feather name="users" size={18} color="#9CA3AF" />
+            <Feather name="users" size={18} color={theme.textTertiary} />
             <Text style={styles.actionButtonTextDisabled}>Event is Full</Text>
           </View>
         );
@@ -487,10 +486,10 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           activeOpacity={0.8}
         >
           {vm.actionState === 'joining' ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
+            <ActivityIndicator color={theme.textOnPrimary} size="small" />
           ) : (
             <>
-              <Feather name="log-in" size={18} color="#FFFFFF" />
+              <Feather name="log-in" size={18} color={theme.textOnPrimary} />
               <Text style={styles.actionButtonText}>Join Event</Text>
             </>
           )}
@@ -505,7 +504,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           onPress={vm.openJoinRequestModal}
           activeOpacity={0.8}
         >
-          <Feather name="send" size={18} color="#FFFFFF" />
+          <Feather name="send" size={18} color={theme.textOnPrimary} />
           <Text style={styles.actionButtonText}>Request to Join</Text>
         </TouchableOpacity>
       );
@@ -517,25 +516,26 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
   if (vm.isLoading) {
     return (
       <SafeAreaView style={styles.centeredScreen}>
-        <ActivityIndicator size="large" color="#111827" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </SafeAreaView>
     );
   }
 
   if (vm.apiError || !vm.event) {
-    const isPrivateOrMissing = vm.apiError?.includes('private') || vm.apiError?.includes('not exist');
-    
+    const isPrivateOrMissing =
+      vm.apiError?.includes('private') || vm.apiError?.includes('not exist');
+
     return (
       <SafeAreaView style={styles.centeredScreen}>
         <View style={styles.errorContainer}>
-          <View 
+          <View
             style={styles.errorIconCircle}
-            testID={isPrivateOrMissing ? "error-icon-lock" : "error-icon-alert"}
+            testID={isPrivateOrMissing ? 'error-icon-lock' : 'error-icon-alert'}
           >
-            <Feather 
-              name={isPrivateOrMissing ? "lock" : "alert-circle"} 
-              size={32} 
-              color={isPrivateOrMissing ? "#5B21B6" : "#9CA3AF"} 
+            <Feather
+              name={isPrivateOrMissing ? 'lock' : 'alert-circle'}
+              size={32}
+              color={isPrivateOrMissing ? '#7C3AED' : theme.textTertiary}
             />
           </View>
           <Text style={styles.errorTitle}>
@@ -544,11 +544,9 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <Text style={styles.errorMessage}>
             {vm.apiError ?? 'The event you are looking for could not be found.'}
           </Text>
-          
           <TouchableOpacity style={styles.retryButton} onPress={vm.retry}>
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
-          
           <TouchableOpacity style={styles.backLinkButton} onPress={() => router.back()}>
             <Text style={styles.backLinkText}>Go Back to Discovery</Text>
           </TouchableOpacity>
@@ -573,18 +571,16 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerIconBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={22} color="#111827" />
+          <Feather name="arrow-left" size={22} color={theme.text} />
         </TouchableOpacity>
-
         <Text style={styles.headerTitle} numberOfLines={1}>
           Event Details
         </Text>
-
         <TouchableOpacity style={styles.headerIconBtn} onPress={vm.handleToggleFavorite}>
           <MaterialIcons
             name={vm.isFavorited ? 'favorite' : 'favorite-border'}
             size={22}
-            color={vm.isFavorited ? '#EF4444' : '#111827'}
+            color={vm.isFavorited ? '#EF4444' : theme.text}
           />
         </TouchableOpacity>
       </View>
@@ -597,14 +593,10 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         {/* Hero image */}
         <View style={styles.heroContainer}>
           {event.image_url ? (
-            <Image
-              source={{ uri: event.image_url }}
-              style={styles.heroImage}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: event.image_url }} style={styles.heroImage} resizeMode="cover" />
           ) : (
             <View style={styles.heroPlaceholder}>
-              <Feather name="image" size={48} color="#9CA3AF" />
+              <Feather name="image" size={48} color={theme.textTertiary} />
             </View>
           )}
           <View style={styles.heroBadgeRow}>
@@ -613,13 +605,13 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           </View>
         </View>
 
-        {/* Auto-completion warning for in-progress events without an end date */}
+        {/* Auto-completion warning */}
         {(() => {
           const daysLeft = getAutoCompletionDaysLeft(event.status, event.start_time, event.end_time);
           if (daysLeft == null) return null;
           return (
             <View style={styles.warningBanner}>
-              <Feather name="alert-triangle" size={16} color="#D97706" />
+              <Feather name="alert-triangle" size={16} color={theme.warningText} />
               <Text style={styles.warningBannerText}>
                 This event will be automatically completed in {daysLeft} day{daysLeft !== 1 ? 's' : ''} due to inactivity.
               </Text>
@@ -637,34 +629,28 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
           <Text style={styles.eventTitle}>{event.title}</Text>
 
-          {/* Date */}
           <View style={styles.metaRow}>
-            <Feather name="clock" size={16} color="#6B7280" />
+            <Feather name="clock" size={16} color={theme.textTertiary} />
             <Text style={styles.metaText}>
               {formatEventDateLabel(event.start_time, event.end_time)}
             </Text>
           </View>
 
-          {/* Location */}
           <View style={styles.metaRow}>
-            <Feather name="map-pin" size={16} color="#6B7280" />
-            <Text style={styles.metaText}>
-              {formatEventLocation(event.location.address)}
-            </Text>
+            <Feather name="map-pin" size={16} color={theme.textTertiary} />
+            <Text style={styles.metaText}>{formatEventLocation(event.location.address)}</Text>
           </View>
 
-          {/* Participants */}
           <View style={styles.metaRow}>
-            <Feather name="users" size={16} color="#6B7280" />
+            <Feather name="users" size={16} color={theme.textTertiary} />
             <Text style={styles.metaText}>
               {capacityLabel} participant{event.approved_participant_count !== 1 ? 's' : ''}
               {event.capacity != null ? ' (capacity)' : ''}
             </Text>
           </View>
 
-          {/* Favorites */}
           <View style={styles.metaRow}>
-            <Feather name="heart" size={16} color="#6B7280" />
+            <Feather name="heart" size={16} color={theme.textTertiary} />
             <Text style={styles.metaText}>{event.favorite_count} saved</Text>
           </View>
         </View>
@@ -679,7 +665,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               <Image source={{ uri: event.host.avatar_url }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <Feather name="user" size={20} color="#9CA3AF" />
+                <Feather name="user" size={20} color={theme.textTertiary} />
               </View>
             )}
             <View style={styles.hostInfo}>
@@ -704,7 +690,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   style={[styles.hostActionBtn, styles.hostActionBtnSecondary]}
                   onPress={() => vm.setShowAttendeesModal(true)}
                 >
-                  <Feather name="users" size={18} color="#111827" />
+                  <Feather name="users" size={18} color={theme.text} />
                   <Text style={styles.hostActionText}>
                     Attendees ({vm.hostContextSummary?.approved_participant_count ?? vm.approvedParticipants.length})
                   </Text>
@@ -722,7 +708,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                     style={[styles.hostActionBtn, styles.hostActionBtnPrimary]}
                     onPress={() => vm.setShowRequestsModal(true)}
                   >
-                    <Feather name="mail" size={18} color="#FFFFFF" />
+                    <Feather name="mail" size={18} color={theme.textOnPrimary} />
                     <Text style={styles.hostActionTextWhite}>
                       Pending Requests ({vm.hostContextSummary?.pending_join_request_count ?? vm.pendingJoinRequests.length})
                     </Text>
@@ -734,7 +720,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                     style={[styles.hostActionBtn, styles.hostActionBtnPrimary]}
                     onPress={() => vm.setShowInvitationsModal(true)}
                   >
-                    <Feather name="send" size={18} color="#FFFFFF" />
+                    <Feather name="send" size={18} color={theme.textOnPrimary} />
                     <Text style={styles.hostActionTextWhite}>
                       Invite & Manage ({vm.hostContextSummary?.invitation_count ?? vm.invitations.length})
                     </Text>
@@ -751,7 +737,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                         [
                           { text: 'No, Keep It', style: 'cancel' },
                           { text: 'Yes, Cancel', style: 'destructive', onPress: vm.handleCancelEvent },
-                        ]
+                        ],
                       );
                     }}
                   >
@@ -770,6 +756,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           error={vm.viewerRatingError}
           onSubmit={(rating, message) => void vm.handleViewerRatingSubmit(rating, message)}
           onDismissError={vm.dismissViewerRatingError}
+          styles={styles}
         />
 
         {/* Description */}
@@ -808,7 +795,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               <Text style={styles.sectionTitle}>Requirements</Text>
               {event.constraints.map((c, i) => (
                 <View key={i} style={styles.constraintRow}>
-                  <MaterialIcons name="check-circle-outline" size={16} color="#6B7280" />
+                  <MaterialIcons name="check-circle-outline" size={16} color={theme.textTertiary} />
                   <View style={styles.constraintText}>
                     <Text style={styles.constraintType}>{c.type}</Text>
                     <Text style={styles.constraintInfo}>{c.info}</Text>
@@ -819,7 +806,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           </>
         )}
 
-        {/* Minimum age / preferred gender */}
+        {/* Participation criteria */}
         {(event.minimum_age != null || event.preferred_gender != null) && (
           <>
             <View style={styles.divider} />
@@ -827,13 +814,13 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               <Text style={styles.sectionTitle}>Participation criteria</Text>
               {event.minimum_age != null && (
                 <View style={styles.metaRow}>
-                  <Feather name="user-check" size={16} color="#6B7280" />
+                  <Feather name="user-check" size={16} color={theme.textTertiary} />
                   <Text style={styles.metaText}>Minimum age: {event.minimum_age}+</Text>
                 </View>
               )}
               {event.preferred_gender != null && (
                 <View style={styles.metaRow}>
-                  <Feather name="users" size={16} color="#6B7280" />
+                  <Feather name="users" size={16} color={theme.textTertiary} />
                   <Text style={styles.metaText}>
                     Preferred gender:{' '}
                     {event.preferred_gender.charAt(0) +
@@ -852,7 +839,6 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           </View>
         ) : null}
 
-        {/* Bottom spacer for action bar */}
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -879,7 +865,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <TextInput
               style={styles.messageInput}
               placeholder="I have experience with similar events and would love to participate…"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.placeholder}
               value={vm.joinRequestMessage}
               onChangeText={vm.setJoinRequestMessage}
               multiline
@@ -888,9 +874,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               maxLength={500}
               editable={vm.actionState !== 'requesting'}
             />
-            <Text style={styles.charCount}>
-              {vm.joinRequestMessage.length}/500
-            </Text>
+            <Text style={styles.charCount}>{vm.joinRequestMessage.length}/500</Text>
 
             {vm.actionError ? (
               <View style={styles.errorBanner}>
@@ -909,10 +893,10 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               activeOpacity={0.8}
             >
               {vm.actionState === 'requesting' ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={theme.textOnPrimary} size="small" />
               ) : (
                 <>
-                  <Feather name="send" size={18} color="#FFFFFF" />
+                  <Feather name="send" size={18} color={theme.textOnPrimary} />
                   <Text style={styles.actionButtonText}>Send Request</Text>
                 </>
               )}
@@ -984,783 +968,755 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  centeredScreen: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    centeredScreen: {
+      flex: 1,
+      backgroundColor: t.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  /* Header */
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  headerIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#111827',
-    textAlign: 'center',
-    marginHorizontal: 8,
-  },
+    /* Header */
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: t.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
+    },
+    headerIconBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: t.surfaceVariant,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: 17,
+      fontWeight: '700',
+      color: t.text,
+      textAlign: 'center',
+      marginHorizontal: 8,
+    },
 
-  /* Scroll */
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 24,
-  },
+    /* Scroll */
+    scroll: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingBottom: 24,
+    },
 
-  /* Hero */
-  heroContainer: {
-    height: 240,
-    backgroundColor: '#E5E7EB',
-    position: 'relative',
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  heroPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#E5E7EB',
-  },
-  heroBadgeRow: {
-    position: 'absolute',
-    bottom: 14,
-    left: 14,
-    flexDirection: 'row',
-    gap: 8,
-  },
+    /* Hero */
+    heroContainer: {
+      height: 240,
+      backgroundColor: t.imagePlaceholder,
+      position: 'relative',
+    },
+    heroImage: {
+      width: '100%',
+      height: '100%',
+    },
+    heroPlaceholder: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: t.imagePlaceholder,
+    },
+    heroBadgeRow: {
+      position: 'absolute',
+      bottom: 14,
+      left: 14,
+      flexDirection: 'row',
+      gap: 8,
+    },
 
-  /* Badges */
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  badgePublic: {
-    backgroundColor: '#DBEAFE',
-  },
-  badgeProtected: {
-    backgroundColor: '#FEF3C7',
-  },
-  badgePrivate: {
-    backgroundColor: '#EDE9FE',
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  badgeTextPublic: {
-    color: '#1E40AF',
-  },
-  badgeTextProtected: {
-    color: '#92400E',
-  },
-  badgeTextPrivate: {
-    color: '#5B21B6',
-  },
+    /* Section */
+    section: {
+      paddingHorizontal: 20,
+      paddingVertical: 18,
+      backgroundColor: t.surface,
+    },
+    sectionTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: t.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 12,
+    },
+    divider: {
+      height: 8,
+      backgroundColor: t.surfaceVariant,
+    },
 
-  /* Section */
-  section: {
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    backgroundColor: '#FFFFFF',
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#6B7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  divider: {
-    height: 8,
-    backgroundColor: '#F1F5F9',
-  },
+    /* Category chip */
+    categoryChip: {
+      alignSelf: 'flex-start',
+      backgroundColor: 'rgba(15, 23, 42, 0.72)',
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 999,
+      marginBottom: 12,
+    },
+    categoryChipText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
 
-  /* Category chip */
-  categoryChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(15, 23, 42, 0.72)',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 999,
-    marginBottom: 12,
-  },
-  categoryChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
+    /* Event title */
+    eventTitle: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: t.text,
+      lineHeight: 30,
+      marginBottom: 16,
+    },
 
-  /* Event title */
-  eventTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#111827',
-    lineHeight: 30,
-    marginBottom: 16,
-  },
+    /* Meta rows */
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      marginBottom: 10,
+    },
+    metaText: {
+      flex: 1,
+      fontSize: 14,
+      color: t.textSecondary,
+      lineHeight: 20,
+      fontWeight: '500',
+    },
 
-  /* Meta rows */
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 10,
-  },
-  metaText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 20,
-    fontWeight: '500',
-  },
+    /* Host */
+    hostRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: t.imagePlaceholder,
+    },
+    avatarPlaceholder: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: t.imagePlaceholder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    hostInfo: {
+      flex: 1,
+    },
+    hostName: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: t.text,
+    },
+    hostUsername: {
+      fontSize: 13,
+      color: t.textSecondary,
+      fontWeight: '500',
+    },
+    hostRating: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    hostRatingText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: t.textSecondary,
+    },
 
-  /* Host */
-  hostRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#E5E7EB',
-  },
-  avatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hostInfo: {
-    flex: 1,
-  },
-  hostName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  hostUsername: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  hostRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  hostRatingText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#374151',
-  },
+    /* Description */
+    description: {
+      fontSize: 15,
+      color: t.textSecondary,
+      lineHeight: 24,
+    },
 
-  /* Description */
-  description: {
-    fontSize: 15,
-    color: '#374151',
-    lineHeight: 24,
-  },
+    /* Tags */
+    tagRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    tag: {
+      backgroundColor: t.surfaceVariant,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 999,
+    },
+    tagText: {
+      fontSize: 13,
+      color: t.textSecondary,
+      fontWeight: '600',
+    },
 
-  /* Tags */
-  tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tag: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  tagText: {
-    fontSize: 13,
-    color: '#475569',
-    fontWeight: '600',
-  },
+    /* Constraints */
+    constraintRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      marginBottom: 10,
+    },
+    constraintText: {
+      flex: 1,
+    },
+    constraintType: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: t.textSecondary,
+      textTransform: 'capitalize',
+    },
+    constraintInfo: {
+      fontSize: 14,
+      color: t.textTertiary,
+      lineHeight: 20,
+      marginTop: 2,
+    },
 
-  /* Constraints */
-  constraintRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 10,
-  },
-  constraintText: {
-    flex: 1,
-  },
-  constraintType: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#374151',
-    textTransform: 'capitalize',
-  },
-  constraintInfo: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-    marginTop: 2,
-  },
+    /* Action bar */
+    actionBar: {
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+      backgroundColor: t.surface,
+      borderTopWidth: 1,
+      borderTopColor: t.border,
+    },
+    actionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: t.primary,
+      borderRadius: 14,
+      paddingVertical: 15,
+    },
+    actionButtonProtected: {
+      backgroundColor: '#7C3AED',
+    },
+    actionButtonLoading: {
+      opacity: 0.7,
+    },
+    actionButtonDisabled: {
+      backgroundColor: t.surfaceVariant,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    actionButtonText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: t.textOnPrimary,
+    },
+    actionButtonTextDisabled: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: t.textTertiary,
+    },
+    actionButtonConstraintText: {
+      fontSize: 14,
+      flex: 1,
+      textAlign: 'center',
+    },
 
-  /* Action bar */
-  actionBar: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#111827',
-    borderRadius: 14,
-    paddingVertical: 15,
-  },
-  actionButtonProtected: {
-    backgroundColor: '#7C3AED',
-  },
-  actionButtonLoading: {
-    opacity: 0.7,
-  },
-  actionButtonDisabled: {
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  actionButtonTextDisabled: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#9CA3AF',
-  },
-  actionButtonConstraintText: {
-    fontSize: 14,
-    flex: 1,
-    textAlign: 'center',
-  },
+    /* Status chips */
+    statusChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: t.surfaceVariant,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    statusChipTextGreen: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#059669',
+    },
+    statusChipTextAmber: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#D97706',
+    },
+    statusChipTextBlue: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#2563EB',
+    },
+    statusChipTextPurple: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#7C3AED',
+    },
+    statusChipTextGray: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: t.textTertiary,
+    },
+    leaveButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 10,
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: t.errorBg,
+      borderWidth: 1,
+      borderColor: t.errorBorder,
+    },
+    leaveButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#DC2626',
+    },
 
-  /* Status chips */
-  statusChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  statusChipTextGreen: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  statusChipTextAmber: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#D97706',
-  },
-  statusChipTextBlue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  statusChipTextPurple: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#7C3AED',
-  },
-  statusChipTextGray: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#6B7280',
-  },
-  leaveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 10,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  leaveButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#DC2626',
-  },
-  ratingCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#F8FAFC',
-    padding: 18,
-    gap: 14,
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 4,
-  },
-  ratingCardHeader: {
-    gap: 12,
-  },
-  ratingCardHeaderCopy: {
-    gap: 4,
-  },
-  ratingKicker: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#111827',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    backgroundColor: '#E2E8F0',
-  },
-  ratingTitle: {
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  ratingDeadline: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(17, 24, 39, 0.15)',
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  ratingCopy: {
-    fontSize: 15,
-    lineHeight: 24,
-    color: '#475569',
-  },
-  ratingInfoBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  ratingInfoBannerText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 19,
-    color: '#92400E',
-    fontWeight: '500',
-  },
-  ratingReadonly: {
-    gap: 12,
-  },
-  ratingSummaryChip: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255, 251, 235, 0.9)',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.35)',
-    color: '#9A6700',
-    fontSize: 14,
-    fontWeight: '700',
-    overflow: 'hidden',
-  },
-  ratingReadonlyMessage: {
-    fontSize: 15,
-    lineHeight: 24,
-    color: '#334155',
-  },
-  ratingSelectionRow: {
-    gap: 10,
-  },
-  ratingStarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  ratingStarButton: {
-    width: 52,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ratingStarIcon: {
-    fontSize: 40,
-    color: '#CBD5E1',
-  },
-  ratingStarIconActive: {
-    color: '#F59E0B',
-  },
-  ratingSelectionSummary: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.3)',
-    fontSize: 14,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  ratingSelectionSummaryActive: {
-    color: '#9A6700',
-    borderColor: 'rgba(245, 158, 11, 0.35)',
-    backgroundColor: 'rgba(255, 251, 235, 0.9)',
-  },
-  ratingFieldLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  ratingTextArea: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 14,
-    padding: 14,
-    fontSize: 14,
-    lineHeight: 22,
-    color: '#111827',
-    backgroundColor: '#FFFFFF',
-    minHeight: 112,
-  },
-  ratingTextAreaError: {
-    borderColor: '#FCA5A5',
-  },
-  ratingMeta: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 4,
-  },
-  ratingCharCount: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  ratingHelper: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#64748B',
-    flex: 1,
-  },
-  ratingValidationText: {
-    fontSize: 13,
-    color: '#DC2626',
-  },
-  ratingExistingNote: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#64748B',
-    flex: 1,
-  },
-  ratingActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-  ratingEditButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: 'transparent',
-  },
-  ratingEditButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  ratingSubmitButton: {
-    minWidth: 180,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 13,
-    borderRadius: 14,
-    backgroundColor: '#111827',
-  },
-  ratingSubmitButtonDisabled: {
-    opacity: 0.55,
-  },
-  ratingSubmitButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  ratingCancelButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: 'transparent',
-  },
-  ratingCancelButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  inlineErrorBanner: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 10,
-    padding: 12,
-  },
+    /* Rating card */
+    ratingCard: {
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.surfaceVariant,
+      padding: 18,
+      gap: 14,
+      shadowColor: '#000000',
+      shadowOpacity: 0.08,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 4,
+    },
+    ratingCardHeader: {
+      gap: 12,
+    },
+    ratingCardHeaderCopy: {
+      gap: 4,
+    },
+    ratingKicker: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      fontSize: 12,
+      fontWeight: '700',
+      color: t.text,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+      backgroundColor: t.border,
+    },
+    ratingTitle: {
+      fontSize: 24,
+      lineHeight: 30,
+      fontWeight: '800',
+      color: t.text,
+    },
+    ratingDeadline: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.surface,
+      fontSize: 13,
+      fontWeight: '600',
+      color: t.textSecondary,
+    },
+    ratingCopy: {
+      fontSize: 15,
+      lineHeight: 24,
+      color: t.textSecondary,
+    },
+    ratingInfoBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      padding: 12,
+      borderRadius: 12,
+      backgroundColor: t.warningBg,
+      borderWidth: 1,
+      borderColor: t.warningBorder,
+    },
+    ratingInfoBannerText: {
+      flex: 1,
+      fontSize: 13,
+      lineHeight: 19,
+      color: t.warningText,
+      fontWeight: '500',
+    },
+    ratingReadonly: {
+      gap: 12,
+    },
+    ratingSummaryChip: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: 'rgba(255, 251, 235, 0.9)',
+      borderWidth: 1,
+      borderColor: 'rgba(245, 158, 11, 0.35)',
+      color: '#9A6700',
+      fontSize: 14,
+      fontWeight: '700',
+      overflow: 'hidden',
+    },
+    ratingReadonlyMessage: {
+      fontSize: 15,
+      lineHeight: 24,
+      color: t.textSecondary,
+    },
+    ratingSelectionRow: {
+      gap: 10,
+    },
+    ratingStarRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    ratingStarButton: {
+      width: 52,
+      height: 52,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    ratingStarIcon: {
+      fontSize: 40,
+      color: t.border,
+    },
+    ratingStarIconActive: {
+      color: '#F59E0B',
+    },
+    ratingSelectionSummary: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 999,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
+      fontSize: 14,
+      color: t.textSecondary,
+      fontWeight: '600',
+    },
+    ratingSelectionSummaryActive: {
+      color: '#9A6700',
+      borderColor: 'rgba(245, 158, 11, 0.35)',
+      backgroundColor: 'rgba(255, 251, 235, 0.9)',
+    },
+    ratingFieldLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: t.textSecondary,
+    },
+    ratingTextArea: {
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 14,
+      padding: 14,
+      fontSize: 14,
+      lineHeight: 22,
+      color: t.text,
+      backgroundColor: t.surface,
+      minHeight: 112,
+    },
+    ratingTextAreaError: {
+      borderColor: t.errorBorder,
+    },
+    ratingMeta: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      gap: 4,
+    },
+    ratingCharCount: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: t.textMuted,
+    },
+    ratingHelper: {
+      fontSize: 12,
+      lineHeight: 18,
+      color: t.textMuted,
+      flex: 1,
+    },
+    ratingValidationText: {
+      fontSize: 13,
+      color: t.errorText,
+    },
+    ratingExistingNote: {
+      fontSize: 12,
+      lineHeight: 18,
+      color: t.textMuted,
+      flex: 1,
+    },
+    ratingActionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      flexWrap: 'wrap',
+    },
+    ratingEditButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: 'transparent',
+    },
+    ratingEditButtonText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: t.textSecondary,
+    },
+    ratingSubmitButton: {
+      minWidth: 180,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 18,
+      paddingVertical: 13,
+      borderRadius: 14,
+      backgroundColor: t.primary,
+    },
+    ratingSubmitButtonDisabled: {
+      opacity: 0.55,
+    },
+    ratingSubmitButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: t.textOnPrimary,
+    },
+    ratingCancelButton: {
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: 'transparent',
+    },
+    ratingCancelButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textSecondary,
+    },
+    inlineErrorBanner: {
+      backgroundColor: t.errorBg,
+      borderWidth: 1,
+      borderColor: t.errorBorder,
+      borderRadius: 10,
+      padding: 12,
+    },
 
-  /* Error states */
-  errorContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    gap: 12,
-  },
-  errorIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  retryButton: {
-    backgroundColor: '#111827',
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 4,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  backLinkButton: {
-    paddingVertical: 8,
-  },
-  backLinkText: {
-    color: '#111827',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  warningBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-    borderRadius: 10,
-    padding: 12,
-    marginHorizontal: 20,
-    marginTop: 12,
-  },
-  warningBannerText: {
-    flex: 1,
-    color: '#92400E',
-    fontSize: 14,
-    fontWeight: '500',
-    lineHeight: 20,
-  },
-  errorBanner: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
-    marginHorizontal: 20,
-  },
-  errorBannerText: {
-    color: '#DC2626',
-    fontSize: 14,
-  },
+    /* Error states */
+    errorContainer: {
+      alignItems: 'center',
+      paddingHorizontal: 32,
+      gap: 12,
+    },
+    errorIconCircle: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: t.surfaceVariant,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    errorTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: t.text,
+    },
+    errorMessage: {
+      fontSize: 14,
+      color: t.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    retryButton: {
+      backgroundColor: t.primary,
+      paddingHorizontal: 28,
+      paddingVertical: 12,
+      borderRadius: 10,
+      marginTop: 4,
+    },
+    retryButtonText: {
+      color: t.textOnPrimary,
+      fontWeight: '700',
+      fontSize: 15,
+    },
+    backLinkButton: {
+      paddingVertical: 8,
+    },
+    backLinkText: {
+      color: t.primary,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    warningBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: t.warningBg,
+      borderWidth: 1,
+      borderColor: t.warningBorder,
+      borderRadius: 10,
+      padding: 12,
+      marginHorizontal: 20,
+      marginTop: 12,
+    },
+    warningBannerText: {
+      flex: 1,
+      color: t.warningText,
+      fontSize: 14,
+      fontWeight: '500',
+      lineHeight: 20,
+    },
+    errorBanner: {
+      backgroundColor: t.errorBg,
+      borderWidth: 1,
+      borderColor: t.errorBorder,
+      borderRadius: 10,
+      padding: 12,
+      marginTop: 8,
+      marginHorizontal: 20,
+    },
+    errorBannerText: {
+      color: t.errorText,
+      fontSize: 14,
+    },
 
-  /* Join request modal */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#D1D5DB',
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 6,
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  messageInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-    minHeight: 110,
-  },
-  charCount: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    textAlign: 'right',
-    marginTop: 4,
-    marginBottom: 16,
-  },
-  cancelButton: {
-    alignItems: 'center',
-    paddingVertical: 14,
-    marginTop: 10,
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  hostActions: {
-    flexDirection: 'column',
-    gap: 12,
-    marginTop: 8,
-  },
-  hostActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-    borderWidth: 1,
-  },
-  hostActionBtnSecondary: {
-    backgroundColor: '#F3F4F6',
-    borderColor: '#E5E7EB',
-  },
-  hostActionBtnPrimary: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
-  },
-  hostActionBtnDanger: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
-  },
-  hostActionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  hostActionTextWhite: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  hostActionTextDanger: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#DC2626',
-  },
-  hostActionHint: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: '#6B7280',
-    marginTop: -4,
-  },
-});
+    /* Join request modal */
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: t.overlayLight,
+      justifyContent: 'flex-end',
+    },
+    modalSheet: {
+      backgroundColor: t.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    },
+    modalHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: t.border,
+      alignSelf: 'center',
+      marginBottom: 20,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: t.text,
+      marginBottom: 6,
+    },
+    modalSubtitle: {
+      fontSize: 14,
+      color: t.textSecondary,
+      lineHeight: 20,
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textSecondary,
+      marginBottom: 8,
+    },
+    messageInput: {
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 12,
+      padding: 14,
+      fontSize: 15,
+      color: t.text,
+      backgroundColor: t.surfaceVariant,
+      minHeight: 110,
+    },
+    charCount: {
+      fontSize: 12,
+      color: t.placeholder,
+      textAlign: 'right',
+      marginTop: 4,
+      marginBottom: 16,
+    },
+    cancelButton: {
+      alignItems: 'center',
+      paddingVertical: 14,
+      marginTop: 10,
+    },
+    cancelButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: t.textSecondary,
+    },
+    hostActions: {
+      flexDirection: 'column',
+      gap: 12,
+      marginTop: 8,
+    },
+    hostActionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      borderRadius: 12,
+      gap: 8,
+      borderWidth: 1,
+    },
+    hostActionBtnSecondary: {
+      backgroundColor: t.surfaceAlt,
+      borderColor: t.border,
+    },
+    hostActionBtnPrimary: {
+      backgroundColor: t.primary,
+      borderColor: t.primary,
+    },
+    hostActionBtnDanger: {
+      backgroundColor: t.errorBg,
+      borderColor: t.errorBorder,
+    },
+    hostActionText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: t.text,
+    },
+    hostActionTextWhite: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: t.textOnPrimary,
+    },
+    hostActionTextDanger: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#DC2626',
+    },
+    hostActionHint: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: t.textSecondary,
+      marginTop: -4,
+    },
+  });
+}

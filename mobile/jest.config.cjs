@@ -7,6 +7,10 @@ module.exports = {
   roots: ['<rootDir>/src'],
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],
   moduleNameMapper: {
+    // Must come before the generic '^@/(.*)$' catch-all so Jest uses the
+    // lightweight mock instead of the real ThemeContext when components call
+    // useTheme() inside unit tests.
+    '^@/theme$': '<rootDir>/jest/mocks/theme.js',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^react-native$': '<rootDir>/jest/mocks/react-native.js',
     '^expo-file-system$': '<rootDir>/jest/mocks/expo-file-system.js',

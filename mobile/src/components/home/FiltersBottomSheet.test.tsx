@@ -222,8 +222,9 @@ describe('FiltersBottomSheet', () => {
 
     expect(soonestButton).toBeTruthy();
     expect(nearestButton).toBeTruthy();
+    // Selected option uses theme.primary (#6366F1)
     expect((soonestButton as HTMLButtonElement).style.backgroundColor).toBe(
-      'rgb(17, 24, 39)',
+      'rgb(99, 102, 241)',
     );
 
     fireEvent.click(nearestButton as HTMLButtonElement);
@@ -240,7 +241,7 @@ describe('FiltersBottomSheet', () => {
     );
 
     expect((screen.getByText('Nearest').closest('button') as HTMLButtonElement).style.backgroundColor).toBe(
-      'rgb(17, 24, 39)',
+      'rgb(99, 102, 241)',
     );
   });
 });

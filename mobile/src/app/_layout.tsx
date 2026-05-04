@@ -4,6 +4,7 @@ import { PushMessagingHost } from '@/components/common/PushMessagingHost';
 import { Stack, router, usePathname, type Href } from 'expo-router';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/theme';
 
 const AUTH_ROUTES = new Set(['/', '/register', '/forgot-password']);
 
@@ -35,9 +36,11 @@ function AppStack() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <PushMessagingHost />
-      <AppStack />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <PushMessagingHost />
+        <AppStack />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

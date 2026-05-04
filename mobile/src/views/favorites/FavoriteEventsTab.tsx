@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -10,14 +10,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
 import ProfileEventCard from '@/components/profile/ProfileEventCard';
 import { useFavoriteEventsViewModel } from '@/viewmodels/favorites/useFavoriteEventsViewModel';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 export default function FavoriteEventsTab() {
   const vm = useFavoriteEventsViewModel();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   if (vm.isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#000000" />
+        <ActivityIndicator size="large" color={theme.text} />
         <Text style={styles.loadingText}>Loading favorites...</Text>
       </View>
     );
@@ -54,7 +58,7 @@ export default function FavoriteEventsTab() {
         onEndReached={vm.loadMore}
         ListEmptyComponent={vm.apiError ? null : (
           <View style={styles.center}>
-            <Ionicons name="heart-outline" size={40} color="#D1D5DB" />
+            <Ionicons name="heart-outline" size={40} color={theme.border} />
             <Text style={styles.emptyTitle}>No favorite events yet</Text>
             <Text style={styles.emptySubtitle}>
               Tap the heart icon on an event to save it here.
@@ -64,7 +68,7 @@ export default function FavoriteEventsTab() {
         ListFooterComponent={
           vm.isLoadingMore ? (
             <View style={styles.footerLoader}>
-              <ActivityIndicator size="small" color="#111827" />
+              <ActivityIndicator size="small" color={theme.text} />
             </View>
           ) : null
         }
@@ -73,49 +77,51 @@ export default function FavoriteEventsTab() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  center: {
-    paddingVertical: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#6B7280',
-    fontSize: 15,
-  },
-  errorBanner: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-  },
-  errorText: {
-    color: '#DC2626',
-    fontSize: 14,
-  },
-  listContent: {
-    paddingBottom: 20,
-  },
-  footerLoader: {
-    paddingVertical: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    paddingHorizontal: 24,
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    center: {
+      paddingVertical: 48,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    loadingText: {
+      marginTop: 12,
+      color: t.textSecondary,
+      fontSize: 15,
+    },
+    errorBanner: {
+      backgroundColor: t.errorBg,
+      borderColor: t.errorBorder,
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 8,
+    },
+    errorText: {
+      color: t.errorText,
+      fontSize: 14,
+    },
+    listContent: {
+      paddingBottom: 20,
+    },
+    footerLoader: {
+      paddingVertical: 16,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: t.text,
+      marginTop: 12,
+      marginBottom: 8,
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: t.textSecondary,
+      textAlign: 'center',
+      paddingHorizontal: 24,
+    },
+  });
+}

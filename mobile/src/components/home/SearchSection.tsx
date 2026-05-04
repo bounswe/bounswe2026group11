@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 interface SearchSectionProps {
   query: string;
@@ -15,13 +17,16 @@ export default function SearchSection({
   onSubmitSearch,
   onPressFilter,
 }: SearchSectionProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   return (
     <View style={styles.row}>
       <View style={styles.searchContainer}>
         <Feather
           name="search"
           size={20}
-          color="#6B7280"
+          color={theme.textSecondary}
           style={styles.searchIcon}
         />
         <TextInput
@@ -29,7 +34,7 @@ export default function SearchSection({
           onChangeText={onChangeQuery}
           onSubmitEditing={onSubmitSearch}
           placeholder="Search title, tags..."
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={theme.placeholder}
           style={styles.input}
           autoCapitalize="none"
           autoCorrect={false}
@@ -44,45 +49,47 @@ export default function SearchSection({
         accessibilityRole="button"
         accessibilityLabel="Open filters"
       >
-        <Feather name="sliders" size={22} color="#FFFFFF" />
+        <Feather name="sliders" size={22} color={theme.textOnPrimary} />
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  searchContainer: {
-    flex: 1,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginRight: 12,
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: '#111827',
-    paddingVertical: 0,
-  },
-  filterButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: '#000000',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 14,
+    },
+    searchContainer: {
+      flex: 1,
+      height: 56,
+      borderRadius: 18,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      marginRight: 12,
+    },
+    searchIcon: {
+      marginRight: 10,
+    },
+    input: {
+      flex: 1,
+      fontSize: 16,
+      color: t.text,
+      paddingVertical: 0,
+    },
+    filterButton: {
+      width: 56,
+      height: 56,
+      borderRadius: 18,
+      backgroundColor: t.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });
+}

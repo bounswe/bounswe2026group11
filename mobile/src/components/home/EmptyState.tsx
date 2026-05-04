@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 interface EmptyStateProps {
   title?: string;
@@ -10,6 +12,9 @@ export default function EmptyState({
   title = 'No events found',
   subtitle = 'Try changing your search or category filter.',
 }: EmptyStateProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   return (
     <View style={styles.container}>
       <Text style={styles.emoji}>🗺️</Text>
@@ -19,26 +24,28 @@ export default function EmptyState({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    paddingVertical: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emoji: {
-    fontSize: 36,
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    paddingHorizontal: 24,
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    container: {
+      paddingVertical: 48,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emoji: {
+      fontSize: 36,
+      marginBottom: 12,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: t.text,
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: t.textSecondary,
+      textAlign: 'center',
+      paddingHorizontal: 24,
+    },
+  });
+}

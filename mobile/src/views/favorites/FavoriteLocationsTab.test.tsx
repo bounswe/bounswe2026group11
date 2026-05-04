@@ -128,6 +128,14 @@ jest.mock('react-native', () => {
   };
 });
 
+jest.mock('react-native-safe-area-context', () => {
+  const ReactLocal = require('react');
+  return {
+    SafeAreaView: ({ children, style }: { children: React.ReactNode; style?: unknown }) =>
+      ReactLocal.createElement('div', { 'data-testid': 'SafeAreaView', style }, children),
+  };
+});
+
 jest.mock('@expo/vector-icons', () => {
   const ReactLocal = require('react');
 
@@ -258,5 +266,16 @@ describe('FavoriteLocationsTab', () => {
 
     expect(screen.getByText('3 / 3 locations')).toBeTruthy();
     expect(screen.getByText('Maximum of 3 favorite locations reached.')).toBeTruthy();
+  });
+
+  it('renders the add location modal inside a safe area wrapper', () => {
+    mockUseFavoriteLocationsViewModel.mockReturnValue(
+      buildViewModel({ isAddModalOpen: true }),
+    );
+
+    render(<FavoriteLocationsTab />);
+
+    expect(screen.getByTestId('SafeAreaView')).toBeTruthy();
+    expect(screen.getByText('Add Favorite Location')).toBeTruthy();
   });
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,10 +13,14 @@ import {
 import { router, type Href } from 'expo-router';
 import { useLoginViewModel } from '@/viewmodels/auth/useLoginViewModel';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 export default function LoginView() {
   const vm = useLoginViewModel();
   const { setSession } = useAuth();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const handleSubmit = async () => {
     const session = await vm.handleLogin();
@@ -55,7 +59,7 @@ export default function LoginView() {
           <TextInput
             style={[styles.input, vm.errors.username && styles.inputError]}
             placeholder="maplover"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.placeholder}
             value={vm.formData.username}
             onChangeText={(v) => vm.updateField('username', v)}
             autoCapitalize="none"
@@ -72,7 +76,7 @@ export default function LoginView() {
           <TextInput
             style={[styles.input, vm.errors.password && styles.inputError]}
             placeholder="Your password"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.placeholder}
             value={vm.formData.password}
             onChangeText={(v) => vm.updateField('password', v)}
             secureTextEntry
@@ -99,7 +103,7 @@ export default function LoginView() {
           activeOpacity={0.8}
         >
           {vm.isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={theme.textOnPrimary} />
           ) : (
             <Text style={styles.buttonText}>Sign In</Text>
           )}
@@ -119,98 +123,100 @@ export default function LoginView() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 24,
-    paddingTop: 72,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#6B7280',
-    marginBottom: 32,
-  },
-  errorBanner: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorBannerText: {
-    color: '#DC2626',
-    fontSize: 14,
-  },
-  fieldGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-  },
-  inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
-  },
-  fieldError: {
-    color: '#EF4444',
-    fontSize: 13,
-    marginTop: 4,
-  },
-  forgotPasswordLink: {
-    alignSelf: 'flex-end',
-    marginBottom: 8,
-  },
-  button: {
-    backgroundColor: '#111827',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  footerText: {
-    fontSize: 15,
-    color: '#6B7280',
-  },
-  footerLink: {
-    fontSize: 15,
-    color: '#111827',
-    fontWeight: '600',
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.surface,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      padding: 24,
+      paddingTop: 72,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: t.text,
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 15,
+      color: t.textSecondary,
+      marginBottom: 32,
+    },
+    errorBanner: {
+      backgroundColor: t.errorBg,
+      borderWidth: 1,
+      borderColor: t.errorBorder,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+    },
+    errorBannerText: {
+      color: t.errorText,
+      fontSize: 14,
+    },
+    fieldGroup: {
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textSecondary,
+      marginBottom: 6,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: t.borderStrong,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: t.text,
+      backgroundColor: t.surfaceVariant,
+    },
+    inputError: {
+      borderColor: t.errorTextStrong,
+      backgroundColor: t.errorBg,
+    },
+    fieldError: {
+      color: t.errorTextStrong,
+      fontSize: 13,
+      marginTop: 4,
+    },
+    forgotPasswordLink: {
+      alignSelf: 'flex-end',
+      marginBottom: 8,
+    },
+    button: {
+      backgroundColor: t.primary,
+      borderRadius: 10,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    buttonDisabled: {
+      opacity: 0.6,
+    },
+    buttonText: {
+      color: t.textOnPrimary,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      marginTop: 24,
+    },
+    footerText: {
+      fontSize: 15,
+      color: t.textSecondary,
+    },
+    footerLink: {
+      fontSize: 15,
+      color: t.text,
+      fontWeight: '600',
+    },
+  });
+}

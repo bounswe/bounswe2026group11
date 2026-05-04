@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DateTimePicker, {
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
@@ -24,6 +24,8 @@ import {
   HomeFilterPrivacyLevel,
   HomeFiltersDraft,
 } from '@/models/event';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 interface FiltersBottomSheetProps {
   visible: boolean;
@@ -90,12 +92,12 @@ export default function FiltersBottomSheet({
   onChangeRadius,
   onChangeSortBy,
 }: FiltersBottomSheetProps) {
-  const [categoriesExpanded, setCategoriesExpanded] = useState(false);
-  const [activePicker, setActivePicker] = useState<'start' | 'end' | null>(
-    null,
-  );
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
-  // Start off-screen so the sheet is hidden when Modal first mounts
+  const [categoriesExpanded, setCategoriesExpanded] = useState(false);
+  const [activePicker, setActivePicker] = useState<'start' | 'end' | null>(null);
+
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   const animateClose = useCallback(() => {
@@ -138,7 +140,6 @@ export default function FiltersBottomSheet({
     }),
   ).current;
 
-  // Slide up when opening, reset state
   useEffect(() => {
     if (visible) {
       setCategoriesExpanded(false);
@@ -179,7 +180,7 @@ export default function FiltersBottomSheet({
       if (!selectedDate) return;
 
       const prevDate = getCurrentPickerDate();
-      
+
       const currentYear = prevDate.getFullYear();
       const currentMonth = prevDate.getMonth();
       const currentDay = prevDate.getDate();
@@ -191,9 +192,7 @@ export default function FiltersBottomSheet({
       const dayChanged = newDay !== currentDay;
       const monthChanged = newMonth !== currentMonth;
       const yearChanged = newYear !== currentYear;
-      
-      // Only close automatically if the user just tapped a different day in the current month.
-      // If month or year changed (either via swipe or the month/year scroll wheel), leave it open.
+
       const onlyDayChanged = dayChanged && !monthChanged && !yearChanged;
 
       const day = String(newDay).padStart(2, '0');
@@ -237,8 +236,6 @@ export default function FiltersBottomSheet({
     return today;
   }, [activePicker, draftFilters.startDate]);
 
-
-
   const isPrivacySelected = (value: HomeFilterPrivacyLevel) =>
     draftFilters.privacyLevels.includes(value);
 
@@ -266,7 +263,6 @@ export default function FiltersBottomSheet({
           <Animated.View
             style={[styles.sheet, { transform: [{ translateY }] }]}
           >
-            {/* Drag handle area – swipe down to close */}
             <View {...panResponder.panHandlers} style={styles.handleZone}>
               <View style={styles.handle} />
             </View>
@@ -278,7 +274,7 @@ export default function FiltersBottomSheet({
                 accessibilityRole="button"
                 accessibilityLabel="Close filters"
               >
-                <Feather name="x" size={28} color="#111827" />
+                <Feather name="x" size={28} color={theme.text} />
               </TouchableOpacity>
 
               <Text style={styles.title}>Filters</Text>
@@ -290,7 +286,7 @@ export default function FiltersBottomSheet({
                 accessibilityRole="button"
                 accessibilityLabel="Reset filters"
               >
-                <Feather name="rotate-ccw" size={18} color="#111827" />
+                <Feather name="rotate-ccw" size={18} color={theme.text} />
                 <Text style={styles.resetText}>Reset</Text>
               </TouchableOpacity>
             </View>
@@ -429,7 +425,7 @@ export default function FiltersBottomSheet({
                         fromError && styles.dateInputError,
                       ]}
                       placeholder="dd.mm.yyyy"
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={theme.placeholder}
                       value={draftFilters.startDate}
                       onChangeText={(value) =>
                         onChangeStartDate(
@@ -449,7 +445,7 @@ export default function FiltersBottomSheet({
                       activeOpacity={0.7}
                       accessibilityLabel="Pick start date"
                     >
-                      <Feather name="calendar" size={20} color="#6B7280" />
+                      <Feather name="calendar" size={20} color={theme.textSecondary} />
                     </TouchableOpacity>
                   </View>
                   {fromError ? (
@@ -473,7 +469,7 @@ export default function FiltersBottomSheet({
                         toError && styles.dateInputError,
                       ]}
                       placeholder="dd.mm.yyyy"
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={theme.placeholder}
                       value={draftFilters.endDate}
                       onChangeText={(value) =>
                         onChangeEndDate(
@@ -493,7 +489,7 @@ export default function FiltersBottomSheet({
                       activeOpacity={0.7}
                       accessibilityLabel="Pick end date"
                     >
-                      <Feather name="calendar" size={20} color="#6B7280" />
+                      <Feather name="calendar" size={20} color={theme.textSecondary} />
                     </TouchableOpacity>
                   </View>
                   {toError ? (
@@ -525,9 +521,9 @@ export default function FiltersBottomSheet({
                 step={1}
                 value={draftFilters.radiusKm}
                 onValueChange={onChangeRadius}
-                minimumTrackTintColor="#111827"
-                maximumTrackTintColor="#D1D5DB"
-                thumbTintColor="#111827"
+                minimumTrackTintColor={theme.text}
+                maximumTrackTintColor={theme.borderStrong}
+                thumbTintColor={theme.text}
                 style={styles.slider}
               />
 
@@ -555,234 +551,236 @@ export default function FiltersBottomSheet({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.18)',
-    justifyContent: 'flex-end',
-  },
-  keyboardContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    height: '88%',
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingTop: 0,
-  },
-  handleZone: {
-    paddingTop: 10,
-    paddingBottom: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  handle: {
-    width: 54,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: '#E5E7EB',
-  },
-  headerRow: {
-    minHeight: 44,
-    paddingHorizontal: 20,
-    marginBottom: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  resetButton: {
-    minHeight: 38,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  resetText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 14,
-    marginTop: 10,
-  },
-  categoryWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    paddingBottom: 6,
-  },
-  categoryChip: {
-    minHeight: 44,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  selectedChip: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
-  },
-  selectedChipText: {
-    color: '#FFFFFF',
-  },
-  showMoreButton: {
-    alignSelf: 'flex-start',
-    marginTop: 4,
-    marginBottom: 6,
-  },
-  showMoreText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 14,
-  },
-  optionButton: {
-    flex: 1,
-    minHeight: 56,
-    borderRadius: 18,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  optionButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  selectedOptionButton: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
-  },
-  selectedOptionButtonText: {
-    color: '#FFFFFF',
-  },
-  dateColumn: {
-    flex: 1,
-  },
-  dateInputContainer: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  calendarIconInside: {
-    position: 'absolute',
-    right: 14,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  datePickerWrapper: {
-    alignItems: 'center',
-    marginBottom: 16,
-    marginHorizontal: Platform.OS === 'ios' ? 0 : 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  inputLabelError: {
-    color: '#DC2626',
-  },
-  dateInput: {
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: '#F3F4F6',
-    paddingLeft: 16,
-    paddingRight: 46, // Space for the icon
-    fontSize: 15,
-    color: '#111827',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  dateInputError: {
-    borderColor: '#FCA5A5',
-    color: '#DC2626',
-  },
-  fieldErrorText: {
-    marginTop: 6,
-    color: '#DC2626',
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: '500',
-  },
-  radiusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  radiusValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginTop: 10,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-    marginTop: 4,
-  },
-  radiusRangeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  rangeText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  applyButton: {
-    marginTop: 16,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: '#111827',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  applyButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: t.overlayLight,
+      justifyContent: 'flex-end',
+    },
+    keyboardContainer: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      height: '88%',
+      backgroundColor: t.surface,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingTop: 0,
+    },
+    handleZone: {
+      paddingTop: 10,
+      paddingBottom: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    handle: {
+      width: 54,
+      height: 6,
+      borderRadius: 999,
+      backgroundColor: t.border,
+    },
+    headerRow: {
+      minHeight: 44,
+      paddingHorizontal: 20,
+      marginBottom: 18,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: t.text,
+    },
+    resetButton: {
+      minHeight: 38,
+      paddingHorizontal: 12,
+      borderRadius: 12,
+      backgroundColor: t.surfaceAlt,
+      borderWidth: 1,
+      borderColor: t.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    resetText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: t.text,
+    },
+    scroll: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingBottom: 32,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: t.text,
+      marginBottom: 14,
+      marginTop: 10,
+    },
+    categoryWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      paddingBottom: 6,
+    },
+    categoryChip: {
+      minHeight: 44,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+      borderRadius: 999,
+      backgroundColor: t.surfaceAlt,
+      borderWidth: 1,
+      borderColor: t.borderStrong,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    categoryChipText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.text,
+    },
+    selectedChip: {
+      backgroundColor: t.primary,
+      borderColor: t.primary,
+    },
+    selectedChipText: {
+      color: t.textOnPrimary,
+    },
+    showMoreButton: {
+      alignSelf: 'flex-start',
+      marginTop: 4,
+      marginBottom: 6,
+    },
+    showMoreText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: t.text,
+    },
+    row: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 14,
+    },
+    optionButton: {
+      flex: 1,
+      minHeight: 56,
+      borderRadius: 18,
+      backgroundColor: t.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 12,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    optionButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: t.text,
+    },
+    selectedOptionButton: {
+      backgroundColor: t.primary,
+      borderColor: t.primary,
+    },
+    selectedOptionButtonText: {
+      color: t.textOnPrimary,
+    },
+    dateColumn: {
+      flex: 1,
+    },
+    dateInputContainer: {
+      position: 'relative',
+      justifyContent: 'center',
+    },
+    calendarIconInside: {
+      position: 'absolute',
+      right: 14,
+      width: 32,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    datePickerWrapper: {
+      alignItems: 'center',
+      marginBottom: 16,
+      marginHorizontal: Platform.OS === 'ios' ? 0 : 20,
+      backgroundColor: t.surface,
+      borderRadius: 12,
+    },
+    inputLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textSecondary,
+      marginBottom: 8,
+    },
+    inputLabelError: {
+      color: t.errorText,
+    },
+    dateInput: {
+      height: 56,
+      borderRadius: 18,
+      backgroundColor: t.surfaceAlt,
+      paddingLeft: 16,
+      paddingRight: 46,
+      fontSize: 15,
+      color: t.text,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    dateInputError: {
+      borderColor: t.errorText,
+      color: t.errorText,
+    },
+    fieldErrorText: {
+      marginTop: 6,
+      color: t.errorText,
+      fontSize: 12,
+      lineHeight: 18,
+      fontWeight: '500',
+    },
+    radiusHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    radiusValue: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: t.textSecondary,
+      marginTop: 10,
+    },
+    slider: {
+      width: '100%',
+      height: 40,
+      marginTop: 4,
+    },
+    radiusRangeRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 10,
+    },
+    rangeText: {
+      fontSize: 14,
+      color: t.textSecondary,
+    },
+    applyButton: {
+      marginTop: 16,
+      height: 56,
+      borderRadius: 18,
+      backgroundColor: t.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    applyButtonText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: t.textOnPrimary,
+    },
+  });
+}

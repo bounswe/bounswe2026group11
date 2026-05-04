@@ -18,6 +18,8 @@ import { useLogoutViewModel } from '@/viewmodels/auth/useLogoutViewModel';
 import { usePushNotificationPreference } from '@/viewmodels/notifications/usePushNotificationPreference';
 import { useProfileViewModel } from '@/viewmodels/profile/useProfileViewModel';
 import { formatEventLocation } from '@/utils/eventLocation';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 type ProfileEventTab = 'hosted' | 'attended';
 
@@ -26,6 +28,9 @@ export default function ProfileView() {
   const vm = useProfileViewModel();
   const notificationSettings = usePushNotificationPreference();
   const [activeTab, setActiveTab] = useState<ProfileEventTab>('hosted');
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   const { isLoggingOut, logoutError, handleLogout } = useLogoutViewModel(
     refreshToken,
     () => {
@@ -117,7 +122,7 @@ export default function ProfileView() {
                 )}
 
                 <View style={styles.avatarEditBadge}>
-                  <Ionicons name="camera-outline" size={16} color="#FFFFFF" />
+                  <Ionicons name="camera-outline" size={16} color={theme.textOnPrimary} />
                 </View>
 
                 {vm.isUploadingAvatar ? (
@@ -154,35 +159,35 @@ export default function ProfileView() {
 
             <View style={styles.summaryInfoSection}>
               <View style={styles.summaryInfoRow}>
-                <Ionicons name="mail-outline" size={18} color="#111827" />
+                <Ionicons name="mail-outline" size={18} color={theme.text} />
                 <Text style={styles.summaryInfoText} numberOfLines={1}>
                   {vm.profile.email}
                 </Text>
               </View>
 
               <View style={styles.summaryInfoRow}>
-                <Ionicons name="call-outline" size={18} color="#111827" />
+                <Ionicons name="call-outline" size={18} color={theme.text} />
                 <Text style={styles.summaryInfoText} numberOfLines={1}>
                   {phoneLabel}
                 </Text>
               </View>
 
               <View style={styles.summaryInfoRow}>
-                <Ionicons name="person-outline" size={18} color="#111827" />
+                <Ionicons name="person-outline" size={18} color={theme.text} />
                 <Text style={styles.summaryInfoText} numberOfLines={1}>
                   {genderLabel}
                 </Text>
               </View>
 
               <View style={styles.summaryInfoRow}>
-                <Ionicons name="calendar-outline" size={18} color="#111827" />
+                <Ionicons name="calendar-outline" size={18} color={theme.text} />
                 <Text style={styles.summaryInfoText} numberOfLines={1}>
                   {birthDateLabel}
                 </Text>
               </View>
 
               <View style={styles.summaryInfoRow}>
-                <Ionicons name="location-outline" size={18} color="#111827" />
+                <Ionicons name="location-outline" size={18} color={theme.text} />
                 <Text style={styles.summaryInfoText} numberOfLines={2}>
                   {locationLabel}
                 </Text>
@@ -192,19 +197,19 @@ export default function ProfileView() {
             <View style={styles.statsSection}>
               <Text style={styles.statsSectionTitle}>Ratings</Text>
               <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{vm.overallRatingLabel}</Text>
-                <Text style={styles.statLabel}>Overall</Text>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{vm.overallRatingLabel}</Text>
+                  <Text style={styles.statLabel}>Overall</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{vm.hostRatingLabel}</Text>
+                  <Text style={styles.statLabel}>Host</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{vm.participantRatingLabel}</Text>
+                  <Text style={styles.statLabel}>Participant</Text>
+                </View>
               </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{vm.hostRatingLabel}</Text>
-                <Text style={styles.statLabel}>Host</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{vm.participantRatingLabel}</Text>
-                <Text style={styles.statLabel}>Participant</Text>
-              </View>
-            </View>
             </View>
           </View>
 
@@ -216,10 +221,10 @@ export default function ProfileView() {
               accessibilityLabel="Edit profile"
             >
               <View style={styles.menuRowLeft}>
-                <Ionicons name="create-outline" size={20} color="#111827" />
+                <Ionicons name="create-outline" size={20} color={theme.text} />
                 <Text style={styles.menuRowText}>Edit Profile</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
             </TouchableOpacity>
 
             <View style={styles.menuDivider} />
@@ -231,17 +236,17 @@ export default function ProfileView() {
               accessibilityLabel="Open notifications"
             >
               <View style={styles.menuRowLeft}>
-                <Ionicons name="notifications-outline" size={20} color="#111827" />
+                <Ionicons name="notifications-outline" size={20} color={theme.text} />
                 <Text style={styles.menuRowText}>Notifications</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
             </TouchableOpacity>
 
             <View style={styles.menuDivider} />
 
             <View style={styles.settingRow}>
               <View style={styles.menuRowLeft}>
-                <Ionicons name="phone-portrait-outline" size={20} color="#111827" />
+                <Ionicons name="phone-portrait-outline" size={20} color={theme.text} />
                 <View style={styles.settingTextBlock}>
                   <Text style={styles.menuRowText}>Push Notifications</Text>
                   <Text style={styles.settingSubtitle}>
@@ -258,13 +263,13 @@ export default function ProfileView() {
                   notificationSettings.isHydrating ||
                   notificationSettings.isSaving
                 }
-                trackColor={{ false: '#CBD5E1', true: '#BAE6FD' }}
+                trackColor={{ false: theme.switchTrackFalse, true: theme.switchTrackTrue }}
                 thumbColor={
                   notificationSettings.pushNotificationsEnabled
-                    ? '#0284C7'
-                    : '#F8FAFC'
+                    ? theme.switchThumbTrue
+                    : theme.switchThumbFalse
                 }
-                ios_backgroundColor="#CBD5E1"
+                ios_backgroundColor={theme.switchIosBg}
                 accessibilityLabel="Toggle push notifications"
               />
             </View>
@@ -285,13 +290,13 @@ export default function ProfileView() {
               accessibilityLabel="Sign out"
             >
               <View style={styles.menuRowLeft}>
-                <Ionicons name="log-out-outline" size={20} color="#DC2626" />
+                <Ionicons name="log-out-outline" size={20} color={theme.errorText} />
                 <Text style={styles.signOutText}>Sign Out</Text>
               </View>
               {isLoggingOut ? (
-                <ActivityIndicator size="small" color="#DC2626" />
+                <ActivityIndicator size="small" color={theme.errorText} />
               ) : (
-                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
               )}
             </TouchableOpacity>
           </View>
@@ -351,7 +356,7 @@ export default function ProfileView() {
       <View style={styles.container}>
         {vm.isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#0F172A" />
+            <ActivityIndicator size="large" color={theme.text} />
             <Text style={styles.loadingText}>Loading profile...</Text>
           </View>
         ) : (
@@ -373,7 +378,7 @@ export default function ProfileView() {
             ListEmptyComponent={
               vm.profile ? (
                 <View style={styles.emptyState}>
-                  <Ionicons name="calendar-outline" size={32} color="#CBD5E1" />
+                  <Ionicons name="calendar-outline" size={32} color={theme.border} />
                   <Text style={styles.emptyTitle}>No {activeTab} events yet</Text>
                   <Text style={styles.emptySubtitle}>
                     {activeTab === 'hosted'
@@ -390,319 +395,320 @@ export default function ProfileView() {
           />
         )}
       </View>
-
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  listContent: {
-    paddingBottom: 24,
-  },
-  screenTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#111827',
-    paddingTop: 16,
-    paddingBottom: 18,
-  },
-  errorBanner: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-  },
-  errorBannerText: {
-    color: '#DC2626',
-    fontSize: 14,
-  },
-  successBanner: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-  },
-  successBannerText: {
-    color: '#16A34A',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  retryButton: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#DC2626',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    flex: 1,
-    paddingVertical: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#6B7280',
-    fontSize: 15,
-  },
-  summaryCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-    marginBottom: 18,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  avatarButton: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: '#E2E8F0',
-  },
-  avatarPlaceholder: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  avatarEditBadge: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#0F172A',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarUploadOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 38,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryTextBlock: {
-    flex: 1,
-    marginLeft: 14,
-  },
-  primaryName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  secondaryName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-    marginTop: 2,
-  },
-  bioText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#64748B',
-    marginTop: 8,
-  },
-  summaryInfoSection: {
-    gap: 10,
-    marginBottom: 20,
-  },
-  summaryInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  summaryInfoText: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#475569',
-    fontWeight: '500',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  statsSection: {
-    gap: 10,
-  },
-  statsSectionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#111827',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  statItem: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
-    borderRadius: 14,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-    gap: 3,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    textAlign: 'center',
-  },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#64748B',
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: 0.2,
-  },
-  menuCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    paddingHorizontal: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
-    marginBottom: 20,
-  },
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 18,
-  },
-  menuRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  menuRowText: {
-    color: '#111827',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  signOutText: {
-    color: '#DC2626',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingVertical: 18,
-  },
-  settingTextBlock: {
-    flex: 1,
-  },
-  settingSubtitle: {
-    color: '#64748B',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 3,
-  },
-  settingError: {
-    color: '#DC2626',
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: -6,
-    marginBottom: 12,
-  },
-  menuDivider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  },
-  tabRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    marginBottom: 18,
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#94A3B8',
-    paddingBottom: 12,
-  },
-  tabTextActive: {
-    color: '#111827',
-  },
-  tabIndicator: {
-    height: 3,
-    width: '100%',
-    backgroundColor: 'transparent',
-    borderRadius: 999,
-  },
-  tabIndicatorActive: {
-    backgroundColor: '#0F172A',
-  },
-  emptyState: {
-    paddingVertical: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: {
-    marginTop: 14,
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  emptySubtitle: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    paddingHorizontal: 28,
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    container: {
+      flex: 1,
+      paddingHorizontal: 20,
+    },
+    listContent: {
+      paddingBottom: 24,
+    },
+    screenTitle: {
+      fontSize: 28,
+      fontWeight: '800',
+      color: t.text,
+      paddingTop: 16,
+      paddingBottom: 18,
+    },
+    errorBanner: {
+      backgroundColor: t.errorBg,
+      borderColor: t.errorBorder,
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 12,
+    },
+    errorBannerText: {
+      color: t.errorText,
+      fontSize: 14,
+    },
+    successBanner: {
+      backgroundColor: t.successBg,
+      borderColor: t.successBorder,
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 12,
+    },
+    successBannerText: {
+      color: t.successText,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    retryButton: {
+      marginTop: 8,
+      alignSelf: 'flex-start',
+      backgroundColor: t.errorBorder,
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderRadius: 8,
+    },
+    retryButtonText: {
+      color: t.errorText,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    loadingContainer: {
+      flex: 1,
+      paddingVertical: 64,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    loadingText: {
+      marginTop: 12,
+      color: t.textSecondary,
+      fontSize: 15,
+    },
+    summaryCard: {
+      backgroundColor: t.surface,
+      borderRadius: 22,
+      padding: 18,
+      shadowColor: '#000',
+      shadowOpacity: 0.06,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 3,
+      marginBottom: 18,
+    },
+    summaryHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    avatarButton: {
+      position: 'relative',
+    },
+    avatar: {
+      width: 76,
+      height: 76,
+      borderRadius: 38,
+      backgroundColor: t.imagePlaceholder,
+    },
+    avatarPlaceholder: {
+      width: 76,
+      height: 76,
+      borderRadius: 38,
+      backgroundColor: t.imagePlaceholder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarInitial: {
+      fontSize: 30,
+      fontWeight: '700',
+      color: t.text,
+    },
+    avatarEditBadge: {
+      position: 'absolute',
+      right: -2,
+      bottom: -2,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: t.primaryAlt,
+      borderWidth: 2,
+      borderColor: t.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarUploadOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      borderRadius: 38,
+      backgroundColor: 'rgba(15, 23, 42, 0.45)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    summaryTextBlock: {
+      flex: 1,
+      marginLeft: 14,
+    },
+    primaryName: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: t.text,
+    },
+    secondaryName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textMuted,
+      marginTop: 2,
+    },
+    bioText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: t.textMuted,
+      marginTop: 8,
+    },
+    summaryInfoSection: {
+      gap: 10,
+      marginBottom: 20,
+    },
+    summaryInfoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    summaryInfoText: {
+      flex: 1,
+      fontSize: 14,
+      lineHeight: 20,
+      color: t.textMuted,
+      fontWeight: '500',
+    },
+    statsRow: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    statsSection: {
+      gap: 10,
+    },
+    statsSectionTitle: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: t.text,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
+    statItem: {
+      flex: 1,
+      paddingVertical: 10,
+      paddingHorizontal: 6,
+      borderRadius: 14,
+      backgroundColor: t.background,
+      borderWidth: 1,
+      borderColor: t.border,
+      alignItems: 'center',
+      gap: 3,
+    },
+    statValue: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: t.text,
+      textAlign: 'center',
+    },
+    statLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: t.textMuted,
+      textAlign: 'center',
+      textTransform: 'uppercase',
+      letterSpacing: 0.2,
+    },
+    menuCard: {
+      backgroundColor: t.surface,
+      borderRadius: 22,
+      paddingHorizontal: 18,
+      shadowColor: '#000',
+      shadowOpacity: 0.05,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 2,
+      marginBottom: 20,
+    },
+    menuRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 18,
+    },
+    menuRowLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      flex: 1,
+    },
+    menuRowText: {
+      color: t.text,
+      fontSize: 17,
+      fontWeight: '600',
+    },
+    signOutText: {
+      color: t.errorText,
+      fontSize: 17,
+      fontWeight: '600',
+    },
+    settingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      paddingVertical: 18,
+    },
+    settingTextBlock: {
+      flex: 1,
+    },
+    settingSubtitle: {
+      color: t.textMuted,
+      fontSize: 13,
+      fontWeight: '600',
+      marginTop: 3,
+    },
+    settingError: {
+      color: t.errorText,
+      fontSize: 13,
+      lineHeight: 18,
+      marginTop: -6,
+      marginBottom: 12,
+    },
+    menuDivider: {
+      height: 1,
+      backgroundColor: t.divider,
+    },
+    tabRow: {
+      flexDirection: 'row',
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
+      marginBottom: 18,
+    },
+    tabButton: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    tabText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: t.textTertiary,
+      paddingBottom: 12,
+    },
+    tabTextActive: {
+      color: t.text,
+    },
+    tabIndicator: {
+      height: 3,
+      width: '100%',
+      backgroundColor: 'transparent',
+      borderRadius: 999,
+    },
+    tabIndicatorActive: {
+      backgroundColor: t.primaryAlt,
+    },
+    emptyState: {
+      paddingVertical: 52,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emptyTitle: {
+      marginTop: 14,
+      fontSize: 18,
+      fontWeight: '700',
+      color: t.text,
+    },
+    emptySubtitle: {
+      marginTop: 8,
+      fontSize: 14,
+      color: t.textSecondary,
+      textAlign: 'center',
+      paddingHorizontal: 28,
+    },
+  });
+}

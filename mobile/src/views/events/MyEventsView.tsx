@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -13,6 +13,8 @@ import { router, useFocusEffect, type Href } from 'expo-router';
 import MyEventCard from '@/components/events/MyEventCard';
 import InvitationCard from '@/components/invitation/InvitationCard';
 import { useMyEventsViewModel } from '@/viewmodels/event/useMyEventsViewModel';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 interface StatePanelProps {
   icon: keyof typeof Feather.glyphMap;
@@ -28,11 +30,13 @@ function StatePanel({
   subtitle,
   actionLabel,
   onPressAction,
-}: StatePanelProps) {
+  theme,
+  styles,
+}: StatePanelProps & { theme: Theme; styles: ReturnType<typeof makeStyles> }) {
   return (
     <View style={styles.statePanel}>
       <View style={styles.stateIcon}>
-        <Feather name={icon} size={24} color="#111827" />
+        <Feather name={icon} size={24} color={theme.text} />
       </View>
       <Text style={styles.stateTitle}>{title}</Text>
       <Text style={styles.stateSubtitle}>{subtitle}</Text>
@@ -53,6 +57,8 @@ function StatePanel({
 
 export default function MyEventsView() {
   const vm = useMyEventsViewModel();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -76,8 +82,6 @@ export default function MyEventsView() {
               <Text style={styles.summaryValue}>{vm.attendedCount}</Text>
               <Text style={styles.summaryLabel}>Attending</Text>
             </View>
-
-
           </View>
         </View>
 
@@ -107,7 +111,7 @@ export default function MyEventsView() {
         <View style={styles.content}>
           {vm.isLoading ? (
             <View style={styles.loadingPanel}>
-              <ActivityIndicator size="large" color="#111827" />
+              <ActivityIndicator size="large" color={theme.text} />
               <Text style={styles.loadingText}>Loading your events...</Text>
             </View>
           ) : vm.errorMessage ? (
@@ -117,18 +121,24 @@ export default function MyEventsView() {
               subtitle={vm.errorMessage}
               actionLabel={vm.canRetry ? 'Try again' : undefined}
               onPressAction={vm.canRetry ? () => void vm.reload() : undefined}
+              theme={theme}
+              styles={styles}
             />
           ) : vm.activeStatus === 'INVITATIONS' && vm.invitations.length === 0 ? (
             <StatePanel
               icon="mail"
               title={vm.emptyTitle}
               subtitle={vm.emptySubtitle}
+              theme={theme}
+              styles={styles}
             />
           ) : vm.activeStatus !== 'INVITATIONS' && vm.visibleEvents.length === 0 ? (
             <StatePanel
               icon="calendar"
               title={vm.emptyTitle}
               subtitle={vm.emptySubtitle}
+              theme={theme}
+              styles={styles}
             />
           ) : (
             <ScrollView
@@ -159,167 +169,152 @@ export default function MyEventsView() {
           )}
         </View>
       </View>
-
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  headerSection: {
-    paddingTop: 14,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  subtitle: {
-    marginTop: 8,
-    color: '#475569',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 18,
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  summaryValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  summaryLabel: {
-    marginTop: 4,
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  summaryCardHighlight: {
-    backgroundColor: '#EEF2FF',
-    borderColor: '#6366F1',
-  },
-  summaryValueHighlight: {
-    color: '#6366F1',
-  },
-  summaryLabelHighlight: {
-    color: '#6366F1',
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
-    borderRadius: 18,
-    padding: 5,
-    marginTop: 20,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 14,
-    gap: 4,
-  },
-  tabActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  tabText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  tabTextActive: {
-    color: '#0F172A',
-  },
-  tabCount: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#94A3B8',
-  },
-  tabCountActive: {
-    color: '#111827',
-  },
-  content: {
-    flex: 1,
-    marginTop: 18,
-  },
-  listContent: {
-    paddingBottom: 24,
-  },
-  loadingPanel: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 48,
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#64748B',
-    fontSize: 15,
-  },
-  statePanel: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingBottom: 48,
-  },
-  stateIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#DBEAFE',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
-  },
-  stateTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0F172A',
-    textAlign: 'center',
-  },
-  stateSubtitle: {
-    marginTop: 10,
-    color: '#64748B',
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-  stateAction: {
-    marginTop: 20,
-    backgroundColor: '#0F172A',
-    borderRadius: 999,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  stateActionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    container: {
+      flex: 1,
+      paddingHorizontal: 20,
+    },
+    headerSection: {
+      paddingTop: 14,
+    },
+    title: {
+      fontSize: 30,
+      fontWeight: '800',
+      color: t.text,
+    },
+    summaryRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 18,
+    },
+    summaryCard: {
+      flex: 1,
+      backgroundColor: t.surface,
+      borderRadius: 18,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    summaryValue: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: t.text,
+    },
+    summaryLabel: {
+      marginTop: 4,
+      fontSize: 10,
+      fontWeight: '600',
+      color: t.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
+    tabsRow: {
+      flexDirection: 'row',
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 18,
+      padding: 5,
+      marginTop: 20,
+    },
+    tab: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      borderRadius: 14,
+      gap: 4,
+    },
+    tabActive: {
+      backgroundColor: t.surface,
+      shadowColor: t.text,
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 2,
+    },
+    tabText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: t.textMuted,
+    },
+    tabTextActive: {
+      color: t.text,
+    },
+    tabCount: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: t.textTertiary,
+    },
+    tabCountActive: {
+      color: t.text,
+    },
+    content: {
+      flex: 1,
+      marginTop: 18,
+    },
+    listContent: {
+      paddingBottom: 24,
+    },
+    loadingPanel: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingBottom: 48,
+    },
+    loadingText: {
+      marginTop: 12,
+      color: t.textMuted,
+      fontSize: 15,
+    },
+    statePanel: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 28,
+      paddingBottom: 48,
+    },
+    stateIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: t.infoBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 18,
+    },
+    stateTitle: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: t.text,
+      textAlign: 'center',
+    },
+    stateSubtitle: {
+      marginTop: 10,
+      color: t.textMuted,
+      fontSize: 15,
+      lineHeight: 22,
+      textAlign: 'center',
+    },
+    stateAction: {
+      marginTop: 20,
+      backgroundColor: t.primaryAlt,
+      borderRadius: 999,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+    },
+    stateActionText: {
+      color: t.textOnPrimary,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+  });
+}

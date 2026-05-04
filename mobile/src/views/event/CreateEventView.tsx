@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -27,16 +28,19 @@ import {
   TITLE_MAX_LENGTH,
   DESCRIPTION_MAX_LENGTH,
 } from '@/viewmodels/event/useCreateEventViewModel';
+import { useTheme } from '@/theme';
+import type { Theme } from '@/theme';
 
 export default function CreateEventView() {
   const vm = useCreateEventViewModel();
   const { token } = useAuth();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const handleCreate = async () => {
     await vm.handleSubmit(token ?? '');
   };
 
-  // Date & time picker state
   const [activeDatePicker, setActiveDatePicker] = useState<'start' | 'end' | null>(null);
   const [activeTimePicker, setActiveTimePicker] = useState<'start' | 'end' | null>(null);
 
@@ -156,14 +160,6 @@ export default function CreateEventView() {
     [activeTimePicker, vm],
   );
 
-  const handleDateDismiss = useCallback(() => {
-    setActiveDatePicker(null);
-  }, []);
-
-  const handleTimeDismiss = useCallback(() => {
-    setActiveTimePicker(null);
-  }, []);
-
   const toggleDatePicker = useCallback((target: 'start' | 'end') => {
     setActiveTimePicker(null);
     setActiveDatePicker((prev) => (prev === target ? null : target));
@@ -181,7 +177,6 @@ export default function CreateEventView() {
     setActiveTimePicker((prev) => (prev === 'end' ? null : prev));
   }, [vm]);
 
-  // When collapsed, show the first N categories plus the selected one if it's outside that range
   const visibleCategories = (() => {
     if (vm.categoriesExpanded) return CATEGORIES;
     const preview = CATEGORIES.slice(0, CATEGORY_PREVIEW_COUNT);
@@ -199,27 +194,29 @@ export default function CreateEventView() {
     vm.constraintTypeCounts[ct] >= CONSTRAINT_TYPE_LIMITS[ct];
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <KeyboardAvoidingView
+        testID="create-event-keyboard-avoider"
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            accessibilityLabel="Go back to home"
-          >
-            <MaterialIcons name="arrow-back" size={28} color="#111827" />
-          </TouchableOpacity>
-          <Text style={[styles.title, styles.headerTitle]}>Create Event</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Go back to home"
+            >
+              <MaterialIcons name="arrow-back" size={28} color={theme.text} />
+            </TouchableOpacity>
+            <Text style={styles.title}>Create Event</Text>
+            <View style={styles.headerSpacer} />
+          </View>
 
         {vm.apiError && (
           <View style={styles.errorBanner}>
@@ -227,7 +224,6 @@ export default function CreateEventView() {
           </View>
         )}
 
-        {/* Success Banner */}
         {vm.successMessage && (
           <View style={styles.successBanner}>
             <Text style={styles.successBannerText}>{vm.successMessage}</Text>
@@ -269,7 +265,7 @@ export default function CreateEventView() {
               onPress={vm.pickImage}
               disabled={vm.isLoading}
             >
-              <MaterialIcons name="add-photo-alternate" size={36} color="#9CA3AF" />
+              <MaterialIcons name="add-photo-alternate" size={36} color={theme.textTertiary} />
               <Text style={styles.imageUploadText}>Add Event Image</Text>
             </TouchableOpacity>
           )}
@@ -284,7 +280,7 @@ export default function CreateEventView() {
           <TextInput
             style={[styles.input, vm.errors.title && styles.inputError]}
             placeholder="Event name"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.placeholder}
             value={vm.formData.title}
             onChangeText={(v) => vm.updateField('title', v)}
             maxLength={TITLE_MAX_LENGTH}
@@ -301,13 +297,9 @@ export default function CreateEventView() {
             Description <Text style={styles.required}>*</Text>
           </Text>
           <TextInput
-            style={[
-              styles.input,
-              styles.textArea,
-              vm.errors.description && styles.inputError,
-            ]}
+            style={[styles.input, styles.textArea, vm.errors.description && styles.inputError]}
             placeholder="What's this event about?"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.placeholder}
             value={vm.formData.description}
             onChangeText={(v) => vm.updateField('description', v)}
             maxLength={DESCRIPTION_MAX_LENGTH}
@@ -335,10 +327,7 @@ export default function CreateEventView() {
                   vm.formData.categoryId === cat.id && styles.chipSelected,
                 ]}
                 onPress={() =>
-                  vm.updateField(
-                    'categoryId',
-                    vm.formData.categoryId === cat.id ? null : cat.id,
-                  )
+                  vm.updateField('categoryId', vm.formData.categoryId === cat.id ? null : cat.id)
                 }
                 disabled={vm.isLoading}
               >
@@ -354,10 +343,7 @@ export default function CreateEventView() {
             ))}
           </View>
           {CATEGORIES.length > CATEGORY_PREVIEW_COUNT && (
-            <TouchableOpacity
-              style={styles.showMoreBtn}
-              onPress={vm.toggleCategoriesExpanded}
-            >
+            <TouchableOpacity style={styles.showMoreBtn} onPress={vm.toggleCategoriesExpanded}>
               <Text style={styles.showMoreText}>
                 {vm.categoriesExpanded ? 'Show less' : 'Show more'}
               </Text>
@@ -375,28 +361,21 @@ export default function CreateEventView() {
           </Text>
           <View style={styles.locationInputRow}>
             <TextInput
-              style={[
-                styles.input,
-                styles.locationInput,
-                vm.errors.location && styles.inputError,
-              ]}
+              style={[styles.input, styles.locationInput, vm.errors.location && styles.inputError]}
               placeholder="Search for a place..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.placeholder}
               value={vm.formData.locationQuery}
               onChangeText={(v) => vm.handleLocationSearch(v)}
               editable={!vm.isLoading}
             />
             {vm.formData.lat !== null && (
-              <TouchableOpacity
-                style={styles.clearLocationBtn}
-                onPress={vm.clearLocation}
-              >
+              <TouchableOpacity style={styles.clearLocationBtn} onPress={vm.clearLocation}>
                 <Text style={styles.clearLocationText}>X</Text>
               </TouchableOpacity>
             )}
           </View>
           {vm.isSearchingLocation && (
-            <ActivityIndicator size="small" color="#111827" style={styles.searchSpinner} />
+            <ActivityIndicator size="small" color={theme.text} style={styles.searchSpinner} />
           )}
           {vm.locationSuggestions.length > 0 && (
             <View style={styles.suggestionsContainer}>
@@ -426,11 +405,7 @@ export default function CreateEventView() {
                 Start <Text style={styles.required}>*</Text>
               </Text>
               <TouchableOpacity
-                style={[
-                  styles.input,
-                  styles.pickerField,
-                  vm.errors.startDate && styles.inputError,
-                ]}
+                style={[styles.input, styles.pickerField, vm.errors.startDate && styles.inputError]}
                 onPress={() => toggleDatePicker('start')}
                 disabled={vm.isLoading}
                 activeOpacity={0.8}
@@ -445,7 +420,7 @@ export default function CreateEventView() {
                 >
                   {vm.formData.startDate || 'Select date'}
                 </Text>
-                <MaterialIcons name="event" size={20} color="#6B7280" />
+                <MaterialIcons name="event" size={20} color={theme.textSecondary} />
               </TouchableOpacity>
               {vm.errors.startDate && (
                 <Text style={styles.fieldError}>{vm.errors.startDate}</Text>
@@ -454,11 +429,7 @@ export default function CreateEventView() {
             <View style={styles.dateTimeColSmall}>
               <Text style={styles.label}>{' '}</Text>
               <TouchableOpacity
-                style={[
-                  styles.input,
-                  styles.pickerField,
-                  vm.errors.startTime && styles.inputError,
-                ]}
+                style={[styles.input, styles.pickerField, vm.errors.startTime && styles.inputError]}
                 onPress={() => toggleTimePicker('start')}
                 disabled={vm.isLoading}
                 activeOpacity={0.8}
@@ -473,7 +444,7 @@ export default function CreateEventView() {
                 >
                   {vm.formData.startTime || 'Select time'}
                 </Text>
-                <MaterialIcons name="schedule" size={20} color="#6B7280" />
+                <MaterialIcons name="schedule" size={20} color={theme.textSecondary} />
               </TouchableOpacity>
               {vm.errors.startTime && (
                 <Text style={styles.fieldError}>{vm.errors.startTime}</Text>
@@ -522,11 +493,7 @@ export default function CreateEventView() {
           <View style={styles.dateTimeRow}>
             <View style={styles.dateTimeCol}>
               <TouchableOpacity
-                style={[
-                  styles.input,
-                  styles.pickerField,
-                  vm.errors.endDate && styles.inputError,
-                ]}
+                style={[styles.input, styles.pickerField, vm.errors.endDate && styles.inputError]}
                 onPress={() => toggleDatePicker('end')}
                 disabled={vm.isLoading}
                 activeOpacity={0.8}
@@ -541,7 +508,7 @@ export default function CreateEventView() {
                 >
                   {vm.formData.endDate || 'Select date'}
                 </Text>
-                <MaterialIcons name="event" size={20} color="#6B7280" />
+                <MaterialIcons name="event" size={20} color={theme.textSecondary} />
               </TouchableOpacity>
               {vm.errors.endDate && (
                 <Text style={styles.fieldError}>{vm.errors.endDate}</Text>
@@ -549,11 +516,7 @@ export default function CreateEventView() {
             </View>
             <View style={styles.dateTimeColSmall}>
               <TouchableOpacity
-                style={[
-                  styles.input,
-                  styles.pickerField,
-                  vm.errors.endTime && styles.inputError,
-                ]}
+                style={[styles.input, styles.pickerField, vm.errors.endTime && styles.inputError]}
                 onPress={() => toggleTimePicker('end')}
                 disabled={vm.isLoading}
                 activeOpacity={0.8}
@@ -568,7 +531,7 @@ export default function CreateEventView() {
                 >
                   {vm.formData.endTime || 'Select time'}
                 </Text>
-                <MaterialIcons name="schedule" size={20} color="#6B7280" />
+                <MaterialIcons name="schedule" size={20} color={theme.textSecondary} />
               </TouchableOpacity>
               {vm.errors.endTime && (
                 <Text style={styles.fieldError}>{vm.errors.endTime}</Text>
@@ -610,8 +573,7 @@ export default function CreateEventView() {
                 key={opt.value}
                 style={[
                   styles.privacyOption,
-                  vm.formData.privacyLevel === opt.value &&
-                    styles.privacyOptionSelected,
+                  vm.formData.privacyLevel === opt.value && styles.privacyOptionSelected,
                 ]}
                 onPress={() => vm.updateField('privacyLevel', opt.value)}
                 disabled={vm.isLoading}
@@ -619,8 +581,7 @@ export default function CreateEventView() {
                 <Text
                   style={[
                     styles.privacyOptionText,
-                    vm.formData.privacyLevel === opt.value &&
-                      styles.privacyOptionTextSelected,
+                    vm.formData.privacyLevel === opt.value && styles.privacyOptionTextSelected,
                   ]}
                 >
                   {opt.label}
@@ -628,8 +589,6 @@ export default function CreateEventView() {
               </TouchableOpacity>
             ))}
           </View>
-
-          {/* Privacy Level Description */}
           <View style={styles.privacyDescriptionContainer}>
             <Text style={styles.privacyDescriptionText}>
               {vm.formData.privacyLevel === 'PUBLIC' &&
@@ -651,13 +610,13 @@ export default function CreateEventView() {
                 <TextInput
                   style={[styles.input, styles.tagInput]}
                   placeholder="Username"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={theme.placeholder}
                   value={vm.userSearchQuery}
                   onChangeText={(v) => vm.handleUserSearch(v, token ?? '')}
                   editable={!vm.isLoading}
                 />
                 {vm.isSearchingUsers && (
-                  <ActivityIndicator size="small" color="#111827" style={styles.userSearchSpinner} />
+                  <ActivityIndicator size="small" color={theme.text} style={styles.userSearchSpinner} />
                 )}
                 {vm.userSuggestions.length > 0 && (
                   <View style={styles.userSuggestionsContainer}>
@@ -681,7 +640,7 @@ export default function CreateEventView() {
                 onPress={vm.pickAndParseUserFile}
                 disabled={vm.isLoading}
               >
-                <MaterialIcons name="upload-file" size={24} color="#6B7280" />
+                <MaterialIcons name="upload-file" size={24} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -694,7 +653,7 @@ export default function CreateEventView() {
                       style={styles.chipRemoveBtn}
                       onPress={() => vm.removeInvitedUser(username)}
                     >
-                      <MaterialIcons name="close" size={14} color="#6B7280" />
+                      <MaterialIcons name="close" size={14} color={theme.textSecondary} />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -710,7 +669,7 @@ export default function CreateEventView() {
                 <TextInput
                   style={[styles.input, styles.textArea, { minHeight: 80 }]}
                   placeholder="Personalize your invitation..."
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={theme.placeholder}
                   value={vm.formData.invitationMessage}
                   onChangeText={(v) => vm.updateField('invitationMessage', v)}
                   multiline
@@ -726,7 +685,6 @@ export default function CreateEventView() {
           </View>
         )}
 
-
         {/* Tags */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Tags (max 5)</Text>
@@ -734,7 +692,7 @@ export default function CreateEventView() {
             <TextInput
               style={[styles.input, styles.tagInput]}
               placeholder="Add tag"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.placeholder}
               value={vm.formData.tagInput}
               onChangeText={(v) => vm.updateField('tagInput', v)}
               onSubmitEditing={vm.addTag}
@@ -774,8 +732,6 @@ export default function CreateEventView() {
         {/* Participation Constraints */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Participation Constraints</Text>
-
-          {/* Constraint type selector */}
           <View style={styles.chipRow}>
             {CONSTRAINT_TYPES.map((ct) => {
               const atLimit = isConstraintTypeAtLimit(ct);
@@ -805,10 +761,8 @@ export default function CreateEventView() {
             })}
           </View>
 
-          {/* Type-specific input */}
           {!isConstraintTypeAtLimit(vm.formData.constraintType) && (
             <View style={styles.constraintInputSection}>
-              {/* Gender: tap to directly add */}
               {vm.formData.constraintType === 'gender' && (
                 <View style={styles.chipRow}>
                   <TouchableOpacity
@@ -828,7 +782,6 @@ export default function CreateEventView() {
                 </View>
               )}
 
-              {/* Age: quick-select presets + optional custom range */}
               {vm.formData.constraintType === 'age' && (
                 <View>
                   <View style={styles.chipRow}>
@@ -886,7 +839,7 @@ export default function CreateEventView() {
                         <TextInput
                           style={styles.input}
                           placeholder="Min age"
-                          placeholderTextColor="#9CA3AF"
+                          placeholderTextColor={theme.placeholder}
                           value={vm.formData.ageMinInput}
                           onChangeText={(v) => vm.updateField('ageMinInput', v)}
                           keyboardType="numeric"
@@ -897,7 +850,7 @@ export default function CreateEventView() {
                         <TextInput
                           style={styles.input}
                           placeholder="Max age"
-                          placeholderTextColor="#9CA3AF"
+                          placeholderTextColor={theme.placeholder}
                           value={vm.formData.ageMaxInput.trim() ? vm.formData.ageMaxInput : ''}
                           onChangeText={(v) => vm.updateField('ageMaxInput', v)}
                           keyboardType="numeric"
@@ -916,13 +869,12 @@ export default function CreateEventView() {
                 </View>
               )}
 
-              {/* Capacity */}
               {vm.formData.constraintType === 'capacity' && (
                 <View style={styles.tagInputRow}>
                   <TextInput
                     style={[styles.input, styles.tagInput]}
                     placeholder="Max participants"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.placeholder}
                     value={vm.formData.capacityInput}
                     onChangeText={(v) => vm.updateField('capacityInput', v)}
                     keyboardType="numeric"
@@ -941,13 +893,12 @@ export default function CreateEventView() {
                 </View>
               )}
 
-              {/* Other */}
               {vm.formData.constraintType === 'other' && (
                 <View style={styles.tagInputRow}>
                   <TextInput
                     style={[styles.input, styles.tagInput]}
                     placeholder="Describe requirement"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.placeholder}
                     value={vm.formData.otherConstraintInput}
                     onChangeText={(v) => vm.updateField('otherConstraintInput', v)}
                     onSubmitEditing={vm.addConstraint}
@@ -968,7 +919,6 @@ export default function CreateEventView() {
             </View>
           )}
 
-          {/* Constraint chips */}
           {vm.formData.constraints.length > 0 && (
             <View style={styles.constraintList}>
               {vm.formData.constraints.map((c, i) => (
@@ -978,7 +928,7 @@ export default function CreateEventView() {
                     style={styles.constraintRemoveBtn}
                     onPress={() => vm.removeConstraint(i)}
                   >
-                    <MaterialIcons name="close" size={16} color="#9CA3AF" />
+                    <MaterialIcons name="close" size={16} color={theme.textTertiary} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -989,553 +939,475 @@ export default function CreateEventView() {
           )}
         </View>
 
-
-        {/* Submit Button */}
+        {/* Submit */}
         <TouchableOpacity
-          style={[
-            styles.submitButton,
-            vm.isLoading && styles.buttonDisabled,
-          ]}
+          style={[styles.submitButton, vm.isLoading && styles.buttonDisabled]}
           onPress={handleCreate}
           disabled={vm.isLoading}
           activeOpacity={0.8}
         >
           {vm.isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={theme.textOnPrimary} />
           ) : (
             <Text style={styles.submitButtonText}>Create Event</Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 24,
-    paddingTop: 72,
-    paddingBottom: 40,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  headerTitle: {
-    flex: 1,
-  },
-  headerSpacer: {
-    width: 72,
-  },
-  backButton: {
-    marginRight: 12,
-    padding: 4,
-  },
-  backArrow: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  errorBanner: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorBannerText: {
-    color: '#DC2626',
-    fontSize: 14,
-  },
-  successBanner: {
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  successBannerText: {
-    color: '#047857',
-    fontSize: 14,
-  },
-  fieldGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  inlineLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  inlineActionText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  required: {
-    color: '#EF4444',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-  },
-  inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
-  },
-  textArea: {
-    minHeight: 100,
-    paddingTop: 12,
-  },
-  fieldError: {
-    color: '#EF4444',
-    fontSize: 13,
-    marginTop: 4,
-  },
-  imageUploadArea: {
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    borderStyle: 'dashed',
-    borderRadius: 10,
-    paddingVertical: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F9FAFB',
-    gap: 6,
-  },
-  imageUploadText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  pickerField: {
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  pickerFieldText: {
-    color: '#111827',
-    fontSize: 16,
-  },
-  pickerPlaceholderText: {
-    color: '#9CA3AF',
-  },
-  imagePreviewContainer: {
-    position: 'relative',
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  imagePreview: {
-    width: '100%',
-    height: 200,
-    borderRadius: 10,
-  },
-  imageRemoveButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 14,
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  imageUploadOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    gap: 8,
-  },
-  imageUploadOverlayText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#F9FAFB',
-  },
-  chipSelected: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
-  },
-  chipUsed: {
-    backgroundColor: '#F3F4F6',
-    borderColor: '#D1D5DB',
-    opacity: 0.6,
-  },
-  chipText: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  chipTextSelected: {
-    color: '#FFFFFF',
-  },
-  chipTextUsed: {
-    color: '#6B7280',
-  },
-  showMoreBtn: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-  },
-  showMoreText: {
-    fontSize: 13,
-    color: '#111827',
-    fontWeight: '600',
-  },
-  locationInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  locationInput: {
-    flex: 1,
-  },
-  clearLocationBtn: {
-    marginLeft: 8,
-    padding: 10,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 10,
-  },
-  clearLocationText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  searchSpinner: {
-    marginTop: 8,
-  },
-  suggestionsContainer: {
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-  },
-  suggestionItem: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  suggestionText: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  dateTimeRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  dateTimeCol: {
-    flex: 3,
-  },
-  dateTimeColSmall: {
-    flex: 2,
-  },
-  dateInputContainer: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  dateInputWithIcon: {
-    paddingRight: 42,
-  },
-  timeInputWithIcon: {
-    paddingRight: 42,
-  },
-  pickerIconButton: {
-    position: 'absolute',
-    right: 10,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  datePickerWrapper: {
-    alignItems: 'center',
-    marginTop: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-  },
-  privacyRow: {
-    flexDirection: 'row',
-    gap: 0,
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-  },
-  privacyOption: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-  },
-  privacyOptionSelected: {
-    backgroundColor: '#111827',
-  },
-  privacyOptionText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-  },
-  privacyOptionTextSelected: {
-    color: '#FFFFFF',
-  },
-  tagInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
-  },
-  inviteInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  inviteInput: {
-    flex: 1,
-    height: 48,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111827',
-  },
-  invitedList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  invitedChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: 4,
-  },
-  invitedChipText: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  uploadSection: {
-    marginTop: 12,
-  },
-  uploadHint: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  uploadButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  uploadButtonText: {
-    fontSize: 14,
-    color: '#111827',
-    fontWeight: '600',
-  },
-  tagInput: {
-    flex: 1,
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: '#111827',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonDisabled: {
-    opacity: 0.4,
-  },
-  addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '600',
-  },
-  tagChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    marginTop: 8,
-  },
-  tagChipText: {
-    fontSize: 13,
-    color: '#111827',
-  },
-  constraintInputSection: {
-    marginTop: 10,
-    gap: 8,
-  },
-  addConstraintBtn: {
-    alignSelf: 'flex-end',
-  },
-  constraintList: {
-    marginTop: 8,
-    gap: 6,
-  },
-  constraintChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 12,
-    paddingRight: 4,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  constraintChipText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#374151',
-  },
-  constraintRemoveBtn: {
-    padding: 6,
-  },
-  submitButton: {
-    backgroundColor: '#111827',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  privacyDescriptionContainer: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  privacyDescriptionText: {
-    fontSize: 13,
-    color: '#64748B',
-    lineHeight: 18,
-  },
-  userSearchSpinner: {
-    position: 'absolute',
-    right: 12,
-    top: 12,
-  },
-  userSuggestionsContainer: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    zIndex: 1000,
-    marginTop: 4,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    maxHeight: 200,
-    overflow: 'hidden',
-  },
-  userSuggestionItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  userSuggestionText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  userSuggestionSubtext: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  fileUploadButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-  },
-  invitedUserChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingRight: 8,
-  },
-  chipRemoveBtn: {
-    padding: 2,
-  },
-  helperText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 8,
-    lineHeight: 16,
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      padding: 24,
+      paddingTop: 24,
+      paddingBottom: 40,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 24,
+    },
+    headerSpacer: {
+      width: 72,
+    },
+    backButton: {
+      marginRight: 12,
+      padding: 4,
+    },
+    title: {
+      flex: 1,
+      fontSize: 24,
+      fontWeight: '700',
+      color: t.text,
+      textAlign: 'center',
+    },
+    errorBanner: {
+      backgroundColor: t.errorBg,
+      borderWidth: 1,
+      borderColor: t.errorBorder,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+    },
+    errorBannerText: {
+      color: t.errorText,
+      fontSize: 14,
+    },
+    successBanner: {
+      backgroundColor: t.successBg,
+      borderWidth: 1,
+      borderColor: t.successBorder,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+    },
+    successBannerText: {
+      color: t.successText,
+      fontSize: 14,
+    },
+    fieldGroup: {
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textSecondary,
+      marginBottom: 6,
+    },
+    inlineLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 6,
+    },
+    inlineActionText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: t.primary,
+    },
+    required: {
+      color: t.errorText,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: t.text,
+      backgroundColor: t.surfaceVariant,
+    },
+    inputError: {
+      borderColor: t.errorText,
+      backgroundColor: t.errorBg,
+    },
+    textArea: {
+      minHeight: 100,
+      paddingTop: 12,
+    },
+    fieldError: {
+      color: t.errorText,
+      fontSize: 13,
+      marginTop: 4,
+    },
+    imageUploadArea: {
+      borderWidth: 2,
+      borderColor: t.border,
+      borderStyle: 'dashed',
+      borderRadius: 10,
+      paddingVertical: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: t.surfaceVariant,
+      gap: 6,
+    },
+    imageUploadText: {
+      fontSize: 14,
+      color: t.textSecondary,
+    },
+    imagePreviewContainer: {
+      position: 'relative',
+      borderRadius: 10,
+      overflow: 'hidden',
+    },
+    imagePreview: {
+      width: '100%',
+      height: 200,
+      borderRadius: 10,
+    },
+    imageRemoveButton: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      borderRadius: 14,
+      width: 28,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    imageUploadOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 10,
+      gap: 8,
+    },
+    imageUploadOverlayText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    pickerField: {
+      minHeight: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    pickerFieldText: {
+      color: t.text,
+      fontSize: 16,
+    },
+    pickerPlaceholderText: {
+      color: t.placeholder,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.surfaceVariant,
+    },
+    chipSelected: {
+      backgroundColor: t.primary,
+      borderColor: t.primary,
+    },
+    chipUsed: {
+      backgroundColor: t.surfaceAlt,
+      borderColor: t.border,
+      opacity: 0.6,
+    },
+    chipText: {
+      fontSize: 14,
+      color: t.textSecondary,
+    },
+    chipTextSelected: {
+      color: t.textOnPrimary,
+    },
+    chipTextUsed: {
+      color: t.textTertiary,
+    },
+    showMoreBtn: {
+      marginTop: 8,
+      alignSelf: 'flex-start',
+    },
+    showMoreText: {
+      fontSize: 13,
+      color: t.primary,
+      fontWeight: '600',
+    },
+    locationInputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    locationInput: {
+      flex: 1,
+    },
+    clearLocationBtn: {
+      marginLeft: 8,
+      padding: 10,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 10,
+    },
+    clearLocationText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textSecondary,
+    },
+    searchSpinner: {
+      marginTop: 8,
+    },
+    suggestionsContainer: {
+      marginTop: 4,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 10,
+      backgroundColor: t.surface,
+      overflow: 'hidden',
+    },
+    suggestionItem: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: t.surfaceAlt,
+    },
+    suggestionText: {
+      fontSize: 14,
+      color: t.textSecondary,
+    },
+    dateTimeRow: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    dateTimeCol: {
+      flex: 3,
+    },
+    dateTimeColSmall: {
+      flex: 2,
+    },
+    datePickerWrapper: {
+      alignItems: 'center',
+      marginTop: 12,
+      backgroundColor: t.surface,
+      borderRadius: 12,
+    },
+    privacyRow: {
+      flexDirection: 'row',
+      borderRadius: 10,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    privacyOption: {
+      flex: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+      backgroundColor: t.surfaceVariant,
+    },
+    privacyOptionSelected: {
+      backgroundColor: t.primary,
+    },
+    privacyOptionText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: t.textSecondary,
+    },
+    privacyOptionTextSelected: {
+      color: t.textOnPrimary,
+    },
+    privacyDescriptionContainer: {
+      marginTop: 12,
+      padding: 12,
+      backgroundColor: t.surfaceVariant,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    privacyDescriptionText: {
+      fontSize: 13,
+      color: t.textSecondary,
+      lineHeight: 18,
+    },
+    tagInputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 8,
+    },
+    tagInput: {
+      flex: 1,
+    },
+    addButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 10,
+      backgroundColor: t.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addButtonDisabled: {
+      opacity: 0.4,
+    },
+    addButtonText: {
+      color: t.textOnPrimary,
+      fontSize: 22,
+      fontWeight: '600',
+    },
+    tagChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: t.surfaceAlt,
+      borderWidth: 1,
+      borderColor: t.border,
+      marginTop: 8,
+    },
+    tagChipText: {
+      fontSize: 13,
+      color: t.text,
+    },
+    invitedUserChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingRight: 8,
+    },
+    chipRemoveBtn: {
+      padding: 2,
+    },
+    userSearchSpinner: {
+      position: 'absolute',
+      right: 12,
+      top: 12,
+    },
+    userSuggestionsContainer: {
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      right: 0,
+      backgroundColor: t.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: t.border,
+      zIndex: 1000,
+      marginTop: 4,
+      elevation: 5,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      maxHeight: 200,
+      overflow: 'hidden',
+    },
+    userSuggestionItem: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: t.surfaceAlt,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    userSuggestionText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: t.text,
+    },
+    userSuggestionSubtext: {
+      fontSize: 13,
+      color: t.textSecondary,
+    },
+    fileUploadButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 10,
+      backgroundColor: t.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    helperText: {
+      fontSize: 12,
+      color: t.textSecondary,
+      marginTop: 8,
+      lineHeight: 16,
+    },
+    constraintInputSection: {
+      marginTop: 10,
+      gap: 8,
+    },
+    addConstraintBtn: {
+      alignSelf: 'flex-end',
+    },
+    constraintList: {
+      marginTop: 8,
+      gap: 6,
+    },
+    constraintChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingLeft: 12,
+      paddingRight: 4,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: t.surfaceAlt,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    constraintChipText: {
+      flex: 1,
+      fontSize: 13,
+      color: t.textSecondary,
+    },
+    constraintRemoveBtn: {
+      padding: 6,
+    },
+    submitButton: {
+      backgroundColor: t.primary,
+      borderRadius: 10,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    buttonDisabled: {
+      opacity: 0.6,
+    },
+    submitButtonText: {
+      color: t.textOnPrimary,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+  });
+}
