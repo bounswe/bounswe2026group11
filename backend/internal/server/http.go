@@ -4,6 +4,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/badge_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/category_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/favorite_location_handler"
@@ -84,6 +85,10 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 	// Direct image upload routes (authenticated)
 	imageUploadHandler := image_upload_handler.NewHandler(container.ImageUploadService)
 	image_upload_handler.RegisterRoutes(app, imageUploadHandler, auth)
+
+	// Badge routes (authenticated)
+	badgeHandler := badge_handler.NewHandler(container.BadgeService)
+	badge_handler.RegisterRoutes(app, badgeHandler, auth)
 
 	return app
 }

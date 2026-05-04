@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"time"
 
-	notificationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
+	notificationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/ticket"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"

@@ -3,16 +3,25 @@ package favorite_location
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 )
 
+// BadgeEvaluator is the local port for triggering favorite-location badge
+// evaluation after a save. It is intentionally minimal so this service does
+// not depend on the full badge use case.
+type BadgeEvaluator interface {
+	EvaluateFavoriteLocationBadges(ctx context.Context, userID uuid.UUID) error
+}
+
 // Service owns favorite-location application behavior.
 type Service struct {
-	repo       Repository
-	unitOfWork uow.UnitOfWork
+	repo           Repository
+	unitOfWork     uow.UnitOfWork
+	badgeEvaluator BadgeEvaluator
 }
 
 var _ UseCase = (*Service)(nil)
@@ -23,6 +32,12 @@ func NewService(repo Repository, unitOfWork uow.UnitOfWork) *Service {
 		repo:       repo,
 		unitOfWork: unitOfWork,
 	}
+}
+
+// SetBadgeEvaluator wires in the badge use case so the service can re-evaluate
+// favorite-location badges after a new location is saved.
+func (s *Service) SetBadgeEvaluator(evaluator BadgeEvaluator) {
+	s.badgeEvaluator = evaluator
 }
 
 // ListMyFavoriteLocations returns the authenticated user's favorite locations.
@@ -74,6 +89,7 @@ func (s *Service) CreateMyFavoriteLocation(ctx context.Context, input CreateFavo
 		return nil, err
 	}
 
+	s.evaluateFavoriteLocationBadges(ctx, input.UserID)
 	result := toFavoriteLocationResult(*location)
 	return &result, nil
 }
@@ -159,4 +175,19 @@ func favoriteLocationNotFoundError() *domain.AppError {
 		domain.ErrorCodeFavoriteLocationNotFound,
 		"The requested favorite location does not exist.",
 	)
+}
+
+// evaluateFavoriteLocationBadges runs badge evaluation as a best-effort hook
+// so transient failures never fail the parent operation.
+func (s *Service) evaluateFavoriteLocationBadges(ctx context.Context, userID uuid.UUID) {
+	if s.badgeEvaluator == nil {
+		return
+	}
+	if err := s.badgeEvaluator.EvaluateFavoriteLocationBadges(ctx, userID); err != nil {
+		slog.WarnContext(ctx, "favorite location badge evaluation failed",
+			slog.String("operation", "favorite_location.evaluate_badges"),
+			slog.String("user_id", userID.String()),
+			slog.String("error", err.Error()),
+		)
+	}
 }

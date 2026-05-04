@@ -3,6 +3,7 @@ package rating
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
@@ -10,12 +11,21 @@ import (
 	"github.com/google/uuid"
 )
 
+// BadgeEvaluator is the local port for triggering rating-driven badge
+// evaluation after rating writes. It is intentionally minimal so the rating
+// service does not depend on the full badge use case.
+type BadgeEvaluator interface {
+	EvaluateHostBadges(ctx context.Context, hostID uuid.UUID) error
+	EvaluateParticipationBadges(ctx context.Context, userID uuid.UUID) error
+}
+
 // Service owns rating-specific application behavior.
 type Service struct {
-	repo       Repository
-	unitOfWork uow.UnitOfWork
-	settings   Settings
-	now        func() time.Time
+	repo           Repository
+	unitOfWork     uow.UnitOfWork
+	settings       Settings
+	now            func() time.Time
+	badgeEvaluator BadgeEvaluator
 }
 
 var _ UseCase = (*Service)(nil)
@@ -30,6 +40,12 @@ func NewService(repo Repository, unitOfWork uow.UnitOfWork, settings Settings) *
 	}
 }
 
+// SetBadgeEvaluator wires in the badge use case so the rating service can
+// re-evaluate host and participant badges after rating changes.
+func (s *Service) SetBadgeEvaluator(evaluator BadgeEvaluator) {
+	s.badgeEvaluator = evaluator
+}
+
 // UpsertEventRating creates or updates the caller's rating for an event.
 func (s *Service) UpsertEventRating(
 	ctx context.Context,
@@ -41,7 +57,10 @@ func (s *Service) UpsertEventRating(
 		return nil, domain.ValidationError(errs)
 	}
 
-	var result *domain.EventRating
+	var (
+		result *domain.EventRating
+		hostID uuid.UUID
+	)
 	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
 		ratingContext, err := s.repo.GetEventRatingContext(ctx, eventID, participantUserID)
 		if err != nil {
@@ -61,12 +80,14 @@ func (s *Service) UpsertEventRating(
 			return err
 		}
 
+		hostID = ratingContext.HostUserID
 		return s.refreshUserScore(ctx, s.repo, ratingContext.HostUserID)
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	s.evaluateHostBadges(ctx, hostID)
 	return toEventRatingResult(result), nil
 }
 
@@ -131,6 +152,7 @@ func (s *Service) UpsertParticipantRating(
 		return nil, err
 	}
 
+	s.evaluateParticipationBadges(ctx, participantUserID)
 	return toParticipantRatingResult(result), nil
 }
 
@@ -229,4 +251,35 @@ func (s *Service) refreshUserScore(ctx context.Context, repo Repository, userID 
 		HostedEventRatingCount: hostedAggregate.Count,
 		FinalScore:             calculateFinalScore(participantAggregate, hostedAggregate, s.settings),
 	})
+}
+
+// evaluateHostBadges runs host-side badge evaluation as a best-effort hook so
+// transient failures never fail the parent rating operation.
+func (s *Service) evaluateHostBadges(ctx context.Context, hostID uuid.UUID) {
+	if s.badgeEvaluator == nil {
+		return
+	}
+	if err := s.badgeEvaluator.EvaluateHostBadges(ctx, hostID); err != nil {
+		slog.WarnContext(ctx, "host badge evaluation failed",
+			slog.String("operation", "rating.evaluate_host_badges"),
+			slog.String("host_id", hostID.String()),
+			slog.String("error", err.Error()),
+		)
+	}
+}
+
+// evaluateParticipationBadges runs participant-side badge evaluation as a
+// best-effort hook so transient failures never fail the parent rating
+// operation.
+func (s *Service) evaluateParticipationBadges(ctx context.Context, userID uuid.UUID) {
+	if s.badgeEvaluator == nil {
+		return
+	}
+	if err := s.badgeEvaluator.EvaluateParticipationBadges(ctx, userID); err != nil {
+		slog.WarnContext(ctx, "participation badge evaluation failed",
+			slog.String("operation", "rating.evaluate_participation_badges"),
+			slog.String("user_id", userID.String()),
+			slog.String("error", err.Error()),
+		)
+	}
 }
