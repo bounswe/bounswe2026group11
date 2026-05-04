@@ -1,0 +1,287 @@
+openapi: 3.1.0
+info:
+  title: Social Event Mapper - Badge API
+  version: 0.1.0
+  description: >
+    Authenticated endpoints for browsing the badge catalog and listing badges
+    earned by the authenticated user or another public profile owner. Badge
+    state is recomputed synchronously after participation, rating, and
+    favorite-location writes; clients should refetch these endpoints when they
+    expect the user's badge list to have changed.
+
+servers:
+  - url: /api
+
+paths:
+  /me/badges:
+    get:
+      summary: List the authenticated user's earned badges
+      description: >
+        Returns the badges earned by the authenticated user, ordered by
+        `earned_at` descending. The response shape is identical to
+        `GET /users/{id}/badges`.
+      tags:
+        - Badges
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Earned badges listed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserBadgesResponse"
+              examples:
+                default:
+                  value:
+                    items:
+                      - slug: REGULAR
+                        name: Regular Attendee
+                        description: Completed at least 5 events as an approved participant.
+                        icon_url: null
+                        category: PARTICIPATION
+                        earned_at: "2026-04-30T12:34:56Z"
+                      - slug: FIRST_STEPS
+                        name: First Steps
+                        description: Completed your first event.
+                        icon_url: null
+                        category: PARTICIPATION
+                        earned_at: "2026-03-12T09:08:07Z"
+        "401":
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                missing_token:
+                  value:
+                    error:
+                      code: missing_token
+                      message: Authorization header with Bearer token is required.
+
+  /users/{id}/badges:
+    get:
+      summary: List a public profile's earned badges
+      description: >
+        Returns the badges earned by the public profile owner identified by
+        `id`. Unlike `/me/badges`, this endpoint never returns viewer-specific
+        progress data and is safe to call with any user id.
+      tags:
+        - Badges
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Profile owner's user id.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Earned badges listed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserBadgesResponse"
+        "400":
+          description: The supplied `id` is not a valid UUID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                invalid_id:
+                  value:
+                    error:
+                      code: validation_error
+                      message: The request body contains invalid fields. See error.details for field-specific messages.
+                      details:
+                        id: must be a valid UUID
+        "401":
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /badges:
+    get:
+      summary: List the full badge catalog
+      description: >
+        Returns every badge defined in the catalog (ordered by `sort_order`
+        ascending) annotated with whether the authenticated viewer has earned
+        each one. Unearned badges have `earned=false` and `earned_at=null`.
+      tags:
+        - Badges
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Badge catalog listed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadgeCatalogResponse"
+              examples:
+                default:
+                  value:
+                    items:
+                      - slug: FIRST_STEPS
+                        name: First Steps
+                        description: Completed your first event.
+                        icon_url: null
+                        category: PARTICIPATION
+                        earned: true
+                        earned_at: "2026-03-12T09:08:07Z"
+                      - slug: VETERAN
+                        name: Veteran
+                        description: Completed 20 events as an approved participant.
+                        icon_url: null
+                        category: PARTICIPATION
+                        earned: false
+                        earned_at: null
+        "401":
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    BadgeCategory:
+      type: string
+      description: High-level grouping used for client-side tabs and filters.
+      enum:
+        - HOSTING
+        - PARTICIPATION
+        - SOCIAL
+
+    BadgeSlug:
+      type: string
+      description: Stable machine-readable identifier for a badge.
+      enum:
+        - FIRST_STEPS
+        - REGULAR
+        - VETERAN
+        - EXPLORER
+        - HOST_DEBUT
+        - SUPER_HOST
+        - TOP_RATED
+        - FAVORITE_FINDER
+
+    BadgeBase:
+      type: object
+      additionalProperties: false
+      required:
+        - slug
+        - name
+        - description
+        - icon_url
+        - category
+      properties:
+        slug:
+          $ref: "#/components/schemas/BadgeSlug"
+        name:
+          type: string
+          description: Human-readable badge title.
+        description:
+          type: string
+          description: Short explanation of how the badge is awarded.
+        icon_url:
+          type:
+            - string
+            - "null"
+          description: Optional CDN URL for the badge icon. `null` while iconography is pending.
+        category:
+          $ref: "#/components/schemas/BadgeCategory"
+
+    EarnedBadge:
+      allOf:
+        - $ref: "#/components/schemas/BadgeBase"
+        - type: object
+          additionalProperties: false
+          required:
+            - earned_at
+          properties:
+            earned_at:
+              type: string
+              format: date-time
+              description: UTC timestamp of when the user earned the badge.
+
+    CatalogBadge:
+      allOf:
+        - $ref: "#/components/schemas/BadgeBase"
+        - type: object
+          additionalProperties: false
+          required:
+            - earned
+            - earned_at
+          properties:
+            earned:
+              type: boolean
+              description: Whether the authenticated viewer has earned this badge.
+            earned_at:
+              type:
+                - string
+                - "null"
+              format: date-time
+              description: When the viewer earned the badge, or `null` if unearned.
+
+    UserBadgesResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: Earned badges ordered by `earned_at` descending.
+          items:
+            $ref: "#/components/schemas/EarnedBadge"
+
+    BadgeCatalogResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: Catalog badges ordered by `sort_order` ascending.
+          items:
+            $ref: "#/components/schemas/CatalogBadge"
+
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties:
+            type: string

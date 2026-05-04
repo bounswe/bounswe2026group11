@@ -17,6 +17,7 @@ import (
 	spacesadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/spaces"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/admin"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/badge"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/category"
 	emailapp "github.com/bounswe/bounswe2026group11/backend/internal/application/email"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
@@ -57,6 +58,7 @@ type Container struct {
 	categoryRepo            *postgres.CategoryRepository
 	profileRepo             *postgres.ProfileRepository
 	favoriteLocationRepo    *postgres.FavoriteLocationRepository
+	badgeRepo               *postgres.BadgeRepository
 	AuthService             auth.UseCase
 	AdminService            admin.UseCase
 	EventService            event.UseCase
@@ -71,6 +73,7 @@ type Container struct {
 	ProfileService          profile.UseCase
 	FavoriteLocationService favoritelocation.UseCase
 	ImageUploadService      imageupload.UseCase
+	BadgeService            badge.UseCase
 	// Extend with additional services as features are added
 }
 
@@ -115,12 +118,14 @@ func New(ctx context.Context) (*Container, error) {
 	container.categoryRepo = postgres.NewCategoryRepository(container.DB)
 	container.profileRepo = postgres.NewProfileRepository(container.DB)
 	container.favoriteLocationRepo = postgres.NewFavoriteLocationRepository(container.DB)
+	container.badgeRepo = postgres.NewBadgeRepository(container.DB)
 	notificationService, err := newNotificationService(ctx, container)
 	if err != nil {
 		db.Close()
 		return nil, err
 	}
 	container.NotificationService = notificationService
+	container.BadgeService = newBadgeService(container)
 	container.ParticipationService = newParticipationService(container)
 	container.TicketService = newTicketService(container)
 	container.InvitationService = newInvitationService(container)
@@ -261,7 +266,9 @@ func newEventService(c *Container) event.UseCase {
 // newParticipationService wires the participation use-case service with its
 // driven adapter.
 func newParticipationService(c *Container) participation.UseCase {
-	return participation.NewService(c.participationRepo)
+	service := participation.NewService(c.participationRepo)
+	service.SetBadgeEvaluator(c.BadgeService)
+	return service
 }
 
 func newInvitationService(c *Container) invitation.UseCase {
@@ -303,7 +310,14 @@ func newProfileService(c *Container) profile.UseCase {
 
 // newFavoriteLocationService wires the favorite-location use-case service with its driven adapter.
 func newFavoriteLocationService(c *Container) favoritelocation.UseCase {
-	return favoritelocation.NewService(c.favoriteLocationRepo, c.UnitOfWork)
+	service := favoritelocation.NewService(c.favoriteLocationRepo, c.UnitOfWork)
+	service.SetBadgeEvaluator(c.BadgeService)
+	return service
+}
+
+// newBadgeService wires the badge use-case service with its driven adapter.
+func newBadgeService(c *Container) badge.UseCase {
+	return badge.NewService(c.badgeRepo)
 }
 
 func newNotificationService(ctx context.Context, c *Container) (notification.UseCase, error) {
@@ -330,10 +344,12 @@ func newImageUploadService(c *Container, storage *spacesadapter.Storage) imageup
 
 // newRatingService wires the rating use-case service with its driven adapter.
 func newRatingService(c *Container) rating.UseCase {
-	return rating.NewService(c.ratingRepo, c.UnitOfWork, rating.Settings{
+	service := rating.NewService(c.ratingRepo, c.UnitOfWork, rating.Settings{
 		GlobalPrior: c.Config.RatingGlobalPrior,
 		BayesianM:   c.Config.RatingBayesianM,
 	})
+	service.SetBadgeEvaluator(c.BadgeService)
+	return service
 }
 
 // newAuthService wires the auth use-case service with its driven adapters.

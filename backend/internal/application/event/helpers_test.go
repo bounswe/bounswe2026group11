@@ -44,10 +44,10 @@ func TestToEventDetailLocationPublicEventNeverFuzzes(t *testing.T) {
 
 func TestToEventDetailLocationProtectedEventFuzzesNonParticipants(t *testing.T) {
 	cases := []struct {
-		name         string
-		isHost       bool
-		status       domain.EventDetailParticipationStatus
-		wantExact    bool
+		name      string
+		isHost    bool
+		status    domain.EventDetailParticipationStatus
+		wantExact bool
 	}{
 		{"host gets exact", true, domain.EventDetailParticipationStatusNone, true},
 		{"joined gets exact", false, domain.EventDetailParticipationStatusJoined, true},

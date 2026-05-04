@@ -21,10 +21,10 @@ func haversineMeters(a, b domain.GeoPoint) float64 {
 
 func TestApproximateGeoPointStaysWithin250m(t *testing.T) {
 	origins := []domain.GeoPoint{
-		{Lat: 41.01234, Lon: 29.98765},  // Istanbul
-		{Lat: 51.50736, Lon: -0.12776},  // London
-		{Lat: -33.8688, Lon: 151.2093},  // Sydney
-		{Lat: 0.0, Lon: 0.0},            // equator/prime meridian
+		{Lat: 41.01234, Lon: 29.98765}, // Istanbul
+		{Lat: 51.50736, Lon: -0.12776}, // London
+		{Lat: -33.8688, Lon: 151.2093}, // Sydney
+		{Lat: 0.0, Lon: 0.0},           // equator/prime meridian
 	}
 
 	const iterations = 500
