@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { FavoriteLocation } from '@/models/favorite';
 import { LocationSuggestion } from '@/models/event';
@@ -116,104 +117,106 @@ function AddLocationModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.modalContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Add Favorite Location</Text>
-          <TouchableOpacity onPress={onClose} style={styles.modalClose}>
-            <Feather name="x" size={24} color={theme.text} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          style={styles.modalBody}
-          keyboardShouldPersistTaps="handled"
+      <SafeAreaView edges={['top', 'bottom']} style={styles.modalSafeArea}>
+        <KeyboardAvoidingView
+          style={styles.modalContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <Text style={styles.fieldLabel}>Name</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="e.g. Home, Office, Gym"
-            placeholderTextColor={theme.placeholder}
-            value={name}
-            onChangeText={onChangeName}
-            maxLength={50}
-          />
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Add Favorite Location</Text>
+            <TouchableOpacity onPress={onClose} style={styles.modalClose}>
+              <Feather name="x" size={24} color={theme.text} />
+            </TouchableOpacity>
+          </View>
 
-          <Text style={[styles.fieldLabel, { marginTop: 20 }]}>Address</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="Search for a location..."
-            placeholderTextColor={theme.placeholder}
-            value={locationQuery}
-            onChangeText={onChangeQuery}
-          />
-
-          {isSearching ? (
-            <View style={styles.searchingRow}>
-              <ActivityIndicator size="small" color="#6366F1" />
-              <Text style={styles.searchingText}>Searching...</Text>
-            </View>
-          ) : null}
-
-          {suggestions.length > 0 && !selectedSuggestion ? (
-            <View style={styles.suggestionsContainer}>
-              {suggestions.map((s, index) => (
-                <TouchableOpacity
-                  key={`${s.lat}-${s.lon}-${index}`}
-                  style={styles.suggestionItem}
-                  onPress={() => onSelectSuggestion(s)}
-                >
-                  <Ionicons
-                    name="location-outline"
-                    size={18}
-                    color={theme.textSecondary}
-                  />
-                  <Text style={styles.suggestionText} numberOfLines={2}>
-                    {s.display_name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
-
-          {selectedSuggestion ? (
-            <View style={styles.selectedBanner}>
-              <Ionicons name="checkmark-circle" size={20} color={theme.successText} />
-              <Text style={styles.selectedText} numberOfLines={2}>
-                {formatEventLocation(selectedSuggestion.display_name)}
-              </Text>
-            </View>
-          ) : null}
-
-          {error ? (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-        </ScrollView>
-
-        <View style={styles.modalFooter}>
-          <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.saveButton,
-              isSubmitting && styles.saveButtonDisabled,
-            ]}
-            onPress={onSubmit}
-            disabled={isSubmitting}
+          <ScrollView
+            style={styles.modalBody}
+            keyboardShouldPersistTaps="handled"
           >
-            {isSubmitting ? (
-              <ActivityIndicator size="small" color={theme.textOnPrimary} />
-            ) : (
-              <Text style={styles.saveButtonText}>Save Location</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+            <Text style={styles.fieldLabel}>Name</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. Home, Office, Gym"
+              placeholderTextColor={theme.placeholder}
+              value={name}
+              onChangeText={onChangeName}
+              maxLength={50}
+            />
+
+            <Text style={[styles.fieldLabel, { marginTop: 20 }]}>Address</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Search for a location..."
+              placeholderTextColor={theme.placeholder}
+              value={locationQuery}
+              onChangeText={onChangeQuery}
+            />
+
+            {isSearching ? (
+              <View style={styles.searchingRow}>
+                <ActivityIndicator size="small" color="#6366F1" />
+                <Text style={styles.searchingText}>Searching...</Text>
+              </View>
+            ) : null}
+
+            {suggestions.length > 0 && !selectedSuggestion ? (
+              <View style={styles.suggestionsContainer}>
+                {suggestions.map((s, index) => (
+                  <TouchableOpacity
+                    key={`${s.lat}-${s.lon}-${index}`}
+                    style={styles.suggestionItem}
+                    onPress={() => onSelectSuggestion(s)}
+                  >
+                    <Ionicons
+                      name="location-outline"
+                      size={18}
+                      color={theme.textSecondary}
+                    />
+                    <Text style={styles.suggestionText} numberOfLines={2}>
+                      {s.display_name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
+
+            {selectedSuggestion ? (
+              <View style={styles.selectedBanner}>
+                <Ionicons name="checkmark-circle" size={20} color={theme.successText} />
+                <Text style={styles.selectedText} numberOfLines={2}>
+                  {formatEventLocation(selectedSuggestion.display_name)}
+                </Text>
+              </View>
+            ) : null}
+
+            {error ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.saveButton,
+                isSubmitting && styles.saveButtonDisabled,
+              ]}
+              onPress={onSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color={theme.textOnPrimary} />
+              ) : (
+                <Text style={styles.saveButtonText}>Save Location</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -497,6 +500,10 @@ function makeStyles(t: Theme) {
     },
 
     // Modal styles
+    modalSafeArea: {
+      flex: 1,
+      backgroundColor: t.surface,
+    },
     modalContainer: {
       flex: 1,
       backgroundColor: t.background,

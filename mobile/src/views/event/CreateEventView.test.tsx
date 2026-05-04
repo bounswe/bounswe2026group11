@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { Platform } from 'react-native';
 import CreateEventView from './CreateEventView';
 import {
   formatDateForForm,
@@ -17,6 +18,14 @@ jest.mock('expo-router', () => ({
     replace: jest.fn(),
   },
 }));
+
+jest.mock('react-native-safe-area-context', () => {
+  const ReactLocal = require('react');
+  return {
+    SafeAreaView: ({ children, style }: { children: React.ReactNode; style?: unknown }) =>
+      ReactLocal.createElement('div', { 'data-testid': 'SafeAreaView', style }, children),
+  };
+});
 
 jest.mock('@expo/vector-icons', () => {
   const ReactLocal = require('react');
@@ -133,6 +142,7 @@ function buildViewModel(
 describe('CreateEventView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (Platform as any).OS = 'ios';
     mockUseAuth.mockReturnValue({
       token: 'token',
       login: jest.fn(),
@@ -162,6 +172,15 @@ describe('CreateEventView', () => {
     expect(
       screen.getByText('The event was created, but uploading the image to storage failed.'),
     ).toBeTruthy();
+  });
+
+  it('lets Android handle keyboard resizing without shrinking the React tree', () => {
+    (Platform as any).OS = 'android';
+    mockUseCreateEventViewModel.mockReturnValue(buildViewModel());
+
+    render(<CreateEventView />);
+
+    expect(screen.getByTestId('create-event-keyboard-avoider').getAttribute('behavior')).toBeNull();
   });
 
   it('opens the start pickers and allows today as the minimum date', () => {

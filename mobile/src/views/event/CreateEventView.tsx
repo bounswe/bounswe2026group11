@@ -12,6 +12,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -193,27 +194,29 @@ export default function CreateEventView() {
     vm.constraintTypeCounts[ct] >= CONSTRAINT_TYPE_LIMITS[ct];
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <KeyboardAvoidingView
+        testID="create-event-keyboard-avoider"
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            accessibilityLabel="Go back to home"
-          >
-            <MaterialIcons name="arrow-back" size={28} color={theme.text} />
-          </TouchableOpacity>
-          <Text style={styles.title}>Create Event</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Go back to home"
+            >
+              <MaterialIcons name="arrow-back" size={28} color={theme.text} />
+            </TouchableOpacity>
+            <Text style={styles.title}>Create Event</Text>
+            <View style={styles.headerSpacer} />
+          </View>
 
         {vm.apiError && (
           <View style={styles.errorBanner}>
@@ -949,13 +952,18 @@ export default function CreateEventView() {
             <Text style={styles.submitButtonText}>Create Event</Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 function makeStyles(t: Theme) {
   return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
     container: {
       flex: 1,
       backgroundColor: t.background,
@@ -963,7 +971,7 @@ function makeStyles(t: Theme) {
     scrollContent: {
       flexGrow: 1,
       padding: 24,
-      paddingTop: 72,
+      paddingTop: 24,
       paddingBottom: 40,
     },
     header: {
