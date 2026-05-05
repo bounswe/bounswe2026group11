@@ -162,6 +162,7 @@ export interface EventDetailLocation {
   address?: string | null;
   point?: EventDetailPoint | null;
   route_points?: EventDetailPoint[];
+  meeting_instructions?: string | null;
 }
 
 export interface EventDetailRatingWindow {

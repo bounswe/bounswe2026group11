@@ -209,4 +209,42 @@ describe('EventDetailView', () => {
 
     expect(screen.queryByText('Invite & Manage')).toBeNull();
   });
+
+  it('renders the map and Get Directions button when location coordinates are available', () => {
+    const eventWithLocation = makeEvent();
+    mockUseEventDetailViewModel.mockReturnValue(buildViewModel({ event: eventWithLocation }));
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByText('Get Directions')).toBeTruthy();
+  });
+
+  it('does not render the map when location coordinates are missing', () => {
+    const eventWithoutLocation = makeEvent({
+      location: { type: 'POINT', address: 'Unknown', point: null, route_points: [] },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(buildViewModel({ event: eventWithoutLocation }));
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.queryByText('Get Directions')).toBeNull();
+  });
+
+  it('renders meeting instructions when available', () => {
+    const eventWithInstructions = makeEvent({
+      location: {
+        type: 'POINT',
+        address: 'Kadikoy',
+        point: { lat: 40.99, lon: 29.03 },
+        meeting_instructions: 'Wait at the statue',
+        route_points: [],
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(buildViewModel({ event: eventWithInstructions }));
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByText('Meeting Instructions')).toBeTruthy();
+    expect(screen.getByText('Wait at the statue')).toBeTruthy();
+  });
 });

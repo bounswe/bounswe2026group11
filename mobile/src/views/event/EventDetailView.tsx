@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
   Modal,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,7 @@ import {
   View,
   Alert,
 } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -365,10 +367,114 @@ function ParticipantRatingSection({
   );
 }
 
+const darkMapStyle = [
+  { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+  {
+    featureType: 'administrative.locality',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#d59563' }],
+  },
+  {
+    featureType: 'poi',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#d59563' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'geometry',
+    stylers: [{ color: '#263c3f' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#6b9a76' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ color: '#38414e' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#212a37' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#9ca5b3' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry',
+    stylers: [{ color: '#746855' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#1f2835' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#f3d19c' }],
+  },
+  {
+    featureType: 'transit',
+    elementType: 'geometry',
+    stylers: [{ color: '#2f3948' }],
+  },
+  {
+    featureType: 'transit.station',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#d59563' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#17263c' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#515c6d' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#17263c' }],
+  },
+];
+
 export default function EventDetailView({ eventId }: EventDetailViewProps) {
   const vm = useEventDetailViewModel(eventId);
-  const { theme } = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(theme, isDark), [theme, isDark]);
+  const [isMapModalVisible, setIsMapModalVisible] = useState(false);
+
+  const handleGetDirections = () => {
+    if (!vm.event?.location.point) return;
+    const { lat, lon } = vm.event.location.point;
+    const label = vm.event.title;
+
+    const url = Platform.select({
+      ios: `maps:0,0?q=${label}@${lat},${lon}`,
+      android: `geo:0,0?q=${lat},${lon}(${label})`,
+    });
+
+    if (url) {
+      Linking.canOpenURL(url).then((supported) => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          const browserUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+          Linking.openURL(browserUrl);
+        }
+      });
+    }
+  };
 
   const renderActionButton = () => {
     if (!vm.event) return null;
@@ -641,6 +747,16 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <Text style={styles.metaText}>{formatEventLocation(event.location.address)}</Text>
           </View>
 
+          {event.location.meeting_instructions && (
+            <View style={styles.meetingPointContainer}>
+              <View style={styles.meetingPointHeader}>
+                <Ionicons name="information-circle-outline" size={16} color={theme.primary} />
+                <Text style={styles.meetingPointTitle}>Meeting Instructions</Text>
+              </View>
+              <Text style={styles.meetingPointText}>{event.location.meeting_instructions}</Text>
+            </View>
+          )}
+
           <View style={styles.metaRow}>
             <Feather name="users" size={16} color={theme.textTertiary} />
             <Text style={styles.metaText}>
@@ -653,6 +769,49 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <Feather name="heart" size={16} color={theme.textTertiary} />
             <Text style={styles.metaText}>{event.favorite_count} saved</Text>
           </View>
+
+          {event.location.point && (
+            <View style={styles.miniMapWrapper}>
+              <TouchableOpacity
+                style={styles.miniMapContainer}
+                onPress={() => setIsMapModalVisible(true)}
+                activeOpacity={0.9}
+              >
+                <MapView
+                  style={styles.miniMap}
+                  customMapStyle={isDark ? darkMapStyle : []}
+                  region={{
+                    latitude: event.location.point.lat,
+                    longitude: event.location.point.lon,
+                    latitudeDelta: 0.005,
+                    longitudeDelta: 0.005,
+                  }}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  pitchEnabled={false}
+                  rotateEnabled={false}
+                >
+                  <Marker
+                    coordinate={{
+                      latitude: event.location.point.lat,
+                      longitude: event.location.point.lon,
+                    }}
+                  />
+                </MapView>
+                <View style={styles.miniMapOverlay}>
+                  <Feather name="maximize-2" size={20} color="white" />
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.directionsButton}
+                onPress={handleGetDirections}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="directions" size={20} color={theme.primary} />
+                <Text style={styles.directionsButtonText}>Get Directions</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <View style={styles.divider} />
@@ -964,11 +1123,69 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           />
         </>
       )}
+
+      {/* Full-screen Map Modal */}
+      {vm.event?.location.point && (
+        <Modal
+          visible={isMapModalVisible}
+          animationType="slide"
+          onRequestClose={() => setIsMapModalVisible(false)}
+        >
+          <View style={styles.fullMapContainer}>
+            <MapView
+              style={styles.fullMap}
+              customMapStyle={isDark ? darkMapStyle : []}
+              initialRegion={{
+                latitude: vm.event.location.point.lat,
+                longitude: vm.event.location.point.lon,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }}
+            >
+              <Marker
+                coordinate={{
+                  latitude: vm.event.location.point.lat,
+                  longitude: vm.event.location.point.lon,
+                }}
+                title={vm.event.title}
+                description={vm.event.location.address || ''}
+              />
+            </MapView>
+
+            <SafeAreaView style={styles.fullMapHeader}>
+              <TouchableOpacity
+                style={styles.fullMapCloseBtn}
+                onPress={() => setIsMapModalVisible(false)}
+              >
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+              <View style={styles.fullMapTitleContainer}>
+                <Text style={styles.fullMapTitle} numberOfLines={1}>
+                  {vm.event.title}
+                </Text>
+                <Text style={styles.fullMapSubtitle} numberOfLines={1}>
+                  {vm.event.location.address}
+                </Text>
+              </View>
+            </SafeAreaView>
+
+            <View style={styles.fullMapFooter}>
+              <TouchableOpacity
+                style={styles.fullMapDirectionsBtn}
+                onPress={handleGetDirections}
+              >
+                <MaterialIcons name="directions" size={24} color="white" />
+                <Text style={styles.fullMapDirectionsText}>Open in Navigation</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
 
-function makeStyles(t: Theme) {
+function makeStyles(t: Theme, isDark: boolean) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
@@ -1660,6 +1877,140 @@ function makeStyles(t: Theme) {
       textAlign: 'right',
       marginTop: 4,
       marginBottom: 16,
+    },
+    miniMapWrapper: {
+      marginTop: 12,
+      marginBottom: 8,
+      borderRadius: 16,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.surfaceAlt,
+    },
+    miniMapContainer: {
+      height: 150,
+      width: '100%',
+    },
+    miniMap: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    directionsButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      gap: 8,
+      borderTopWidth: 1,
+      borderTopColor: t.border,
+    },
+    directionsButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.primary,
+    },
+    meetingPointContainer: {
+      marginTop: 8,
+      marginBottom: 16,
+      padding: 12,
+      backgroundColor: t.primary + '10', // 10% opacity primary color
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: t.primary + '30', // 30% opacity primary color
+    },
+    meetingPointHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 4,
+    },
+    meetingPointTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: t.primary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    meetingPointText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: t.text,
+    },
+    miniMapOverlay: {
+      position: 'absolute',
+      bottom: 12,
+      right: 12,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fullMapContainer: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    fullMap: {
+      flex: 1,
+    },
+    fullMapHeader: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: isDark ? 'rgba(30,41,59,0.9)' : 'rgba(255,255,255,0.9)',
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
+    },
+    fullMapCloseBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: t.surfaceVariant,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fullMapTitleContainer: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    fullMapTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: t.text,
+    },
+    fullMapSubtitle: {
+      fontSize: 12,
+      color: t.textSecondary,
+    },
+    fullMapFooter: {
+      position: 'absolute',
+      bottom: 30,
+      left: 20,
+      right: 20,
+    },
+    fullMapDirectionsBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? '#334155' : t.primary, // Darker blue-gray in dark mode
+      paddingVertical: 16,
+      borderRadius: 16,
+      gap: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    fullMapDirectionsText: {
+      color: 'white',
+      fontSize: 16,
+      fontWeight: '700',
     },
     cancelButton: {
       alignItems: 'center',
