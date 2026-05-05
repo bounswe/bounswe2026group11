@@ -138,12 +138,14 @@ func TestUpsertEventRatingNormalizesBlankMessageAndRefreshesHostScore(t *testing
 	now := time.Date(2026, time.March, 29, 10, 0, 0, 0, time.UTC)
 	repo := &fakeRatingRepo{
 		eventContext: &EventRatingContext{
-			EventID:               eventID,
-			HostUserID:            hostUserID,
-			Status:                domain.EventStatusActive,
-			StartTime:             now.Add(-2 * time.Hour),
-			EndTime:               timePtr(now.Add(-time.Hour)),
-			IsApprovedParticipant: true,
+			EventID:                 eventID,
+			HostUserID:              hostUserID,
+			Status:                  domain.EventStatusCompleted,
+			PrivacyLevel:            domain.PrivacyPublic,
+			StartTime:               now.Add(-2 * time.Hour),
+			EndTime:                 timePtr(now.Add(-time.Hour)),
+			IsApprovedParticipant:   true,
+			IsQualifyingParticipant: true,
 		},
 		hostedAggregate: &ScoreAggregate{
 			Average: floatPtr(4.5),
@@ -206,12 +208,14 @@ func TestUpsertEventRatingRejectsCanceledEvent(t *testing.T) {
 	now := time.Date(2026, time.March, 29, 10, 0, 0, 0, time.UTC)
 	repo := &fakeRatingRepo{
 		eventContext: &EventRatingContext{
-			EventID:               uuid.New(),
-			HostUserID:            uuid.New(),
-			Status:                domain.EventStatusCanceled,
-			StartTime:             now.Add(-2 * time.Hour),
-			EndTime:               timePtr(now.Add(-time.Hour)),
-			IsApprovedParticipant: true,
+			EventID:                 uuid.New(),
+			HostUserID:              uuid.New(),
+			Status:                  domain.EventStatusCanceled,
+			PrivacyLevel:            domain.PrivacyPublic,
+			StartTime:               now.Add(-2 * time.Hour),
+			EndTime:                 timePtr(now.Add(-time.Hour)),
+			IsApprovedParticipant:   true,
+			IsQualifyingParticipant: true,
 		},
 	}
 	service := NewService(repo, &fakeUnitOfWork{}, Settings{GlobalPrior: 4.0, BayesianM: 5})
@@ -221,7 +225,7 @@ func TestUpsertEventRatingRejectsCanceledEvent(t *testing.T) {
 	_, err := service.UpsertEventRating(context.Background(), uuid.New(), uuid.New(), UpsertRatingInput{Rating: 4})
 
 	// then
-	_ = requireAppErrorCode(t, err, domain.ErrorCodeRatingNotAllowed)
+	_ = requireAppErrorCode(t, err, domain.ErrorCodeReviewNotAllowed)
 	if repo.upsertEventCallCount != 0 {
 		t.Fatalf("expected no upsert call, got %d", repo.upsertEventCallCount)
 	}
@@ -236,6 +240,7 @@ func TestUpsertEventRatingRejectsHostSelfBeforeApprovedParticipantCheck(t *testi
 			EventID:               uuid.New(),
 			HostUserID:            hostUserID,
 			Status:                domain.EventStatusActive,
+			PrivacyLevel:          domain.PrivacyPublic,
 			StartTime:             now.Add(-2 * time.Hour),
 			EndTime:               timePtr(now.Add(-time.Hour)),
 			IsRequestingHost:      true,
@@ -339,12 +344,14 @@ func TestDeleteEventRatingReturnsNotFoundWhenRecordMissing(t *testing.T) {
 	now := time.Date(2026, time.March, 29, 10, 0, 0, 0, time.UTC)
 	repo := &fakeRatingRepo{
 		eventContext: &EventRatingContext{
-			EventID:               uuid.New(),
-			HostUserID:            uuid.New(),
-			Status:                domain.EventStatusActive,
-			StartTime:             now.Add(-2 * time.Hour),
-			EndTime:               timePtr(now.Add(-time.Hour)),
-			IsApprovedParticipant: true,
+			EventID:                 uuid.New(),
+			HostUserID:              uuid.New(),
+			Status:                  domain.EventStatusCompleted,
+			PrivacyLevel:            domain.PrivacyPublic,
+			StartTime:               now.Add(-2 * time.Hour),
+			EndTime:                 timePtr(now.Add(-time.Hour)),
+			IsApprovedParticipant:   true,
+			IsQualifyingParticipant: true,
 		},
 		eventDeleteResult: false,
 	}

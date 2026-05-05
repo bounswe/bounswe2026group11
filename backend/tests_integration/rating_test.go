@@ -30,7 +30,7 @@ func TestEventRatingUpdatesHostScoreAndEventReadModels(t *testing.T) {
 	eventID := createDiscoveryEvent(t, harness, discoveryEventSeed{
 		HostID:       host.ID,
 		Title:        "Recently Finished Event",
-		Description:  "still inside rating window",
+		Description:  "completed and ready for reviews",
 		CategoryID:   common.GivenEventCategory(t),
 		Lat:          lat,
 		Lon:          lon,
@@ -38,6 +38,7 @@ func TestEventRatingUpdatesHostScoreAndEventReadModels(t *testing.T) {
 		PrivacyLevel: domain.PrivacyPublic,
 	})
 	insertParticipation(t, eventID, participant.ID, domain.ParticipationStatusApproved)
+	updateEventStatus(t, eventID, string(domain.EventStatusCompleted))
 	initialMessage := "Excellent hosting."
 	updatedMessage := "Solid overall host."
 
@@ -53,14 +54,6 @@ func TestEventRatingUpdatesHostScoreAndEventReadModels(t *testing.T) {
 	detailAfterCreate, err := harness.Service.GetEventDetail(context.Background(), participant.ID, eventID)
 	if err != nil {
 		t.Fatalf("GetEventDetail() after create error = %v", err)
-	}
-
-	discoveryAfterCreate, err := harness.Service.DiscoverEvents(context.Background(), participant.ID, eventapp.DiscoverEventsInput{
-		Lat: &lat,
-		Lon: &lon,
-	})
-	if err != nil {
-		t.Fatalf("DiscoverEvents() after create error = %v", err)
 	}
 
 	_, err = harness.RatingService.UpsertEventRating(context.Background(), participant.ID, eventID, ratingapp.UpsertRatingInput{
@@ -93,18 +86,6 @@ func TestEventRatingUpdatesHostScoreAndEventReadModels(t *testing.T) {
 	requireApproxFloat(t, detailAfterCreate.HostScore.FinalScore, expectedCreatedScore)
 	if detailAfterCreate.HostScore.HostedEventRatingCount != 1 {
 		t.Fatalf("expected host rating count 1 after create, got %d", detailAfterCreate.HostScore.HostedEventRatingCount)
-	}
-	if !detailAfterCreate.RatingWindow.IsActive {
-		t.Fatal("expected rating window to be active")
-	}
-
-	discovered := findDiscoveredEvent(discoveryAfterCreate.Items, eventID)
-	if discovered == nil {
-		t.Fatalf("expected discovery result to contain event %s", eventID)
-	}
-	requireApproxFloat(t, discovered.HostScore.FinalScore, expectedCreatedScore)
-	if discovered.HostScore.HostedEventRatingCount != 1 {
-		t.Fatalf("expected discovery host rating count 1, got %d", discovered.HostScore.HostedEventRatingCount)
 	}
 
 	expectedUpdatedScore := (3.0*1 + 4.0*5) / 6.0
@@ -277,16 +258,6 @@ func queryUserScore(t *testing.T, userID uuid.UUID) *domain.UserScore {
 	}
 
 	return &record
-}
-
-func findDiscoveredEvent(items []eventapp.DiscoverableEventItem, eventID uuid.UUID) *eventapp.DiscoverableEventItem {
-	for i := range items {
-		if items[i].ID == eventID.String() {
-			return &items[i]
-		}
-	}
-
-	return nil
 }
 
 func listHostApprovedParticipants(t *testing.T, harness *common.EventHarness, hostID, eventID uuid.UUID) []eventapp.EventDetailApprovedParticipant {

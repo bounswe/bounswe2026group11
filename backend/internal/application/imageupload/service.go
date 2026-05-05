@@ -191,6 +191,46 @@ func (s *Service) ConfirmEventImageUpload(ctx context.Context, userID, eventID u
 	return nil
 }
 
+// CreateEventReviewImageUpload prepares a direct-upload flow for one review image.
+func (s *Service) CreateEventReviewImageUpload(ctx context.Context, userID, eventID uuid.UUID) (*CreateUploadResult, error) {
+	state, err := s.eventRepo.GetEventReviewImageState(ctx, eventID, userID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+		}
+		return nil, err
+	}
+	if err := validateReviewImageState(state, userID); err != nil {
+		return nil, err
+	}
+
+	uploadID := uuid.NewString()
+	return s.createUpload(ctx, uploadDescriptor{
+		Resource:     ResourceEventReviewImage,
+		OwnerUserID:  userID,
+		NextVersion:  1,
+		OriginalKey:  fmt.Sprintf("events/%s/reviews/%s/%s", eventID, userID, uploadID),
+		UploadID:     uploadID,
+		CurrentEvent: &eventID,
+	})
+}
+
+// ConfirmEventReviewImageUpload verifies a review image upload and returns the
+// public image URL. Persistence happens when the review comment is upserted.
+func (s *Service) ConfirmEventReviewImageUpload(ctx context.Context, userID, eventID uuid.UUID, input ConfirmUploadInput) (*ConfirmReviewImageResult, error) {
+	payload, err := s.verifyConfirmToken(input, ResourceEventReviewImage)
+	if err != nil {
+		return nil, err
+	}
+	if payload.OwnerUserID != userID || payload.EventID == nil || *payload.EventID != eventID {
+		return nil, invalidConfirmTokenError()
+	}
+	if err := s.ensureUploadedObjectsExist(ctx, payload); err != nil {
+		return nil, err
+	}
+	return &ConfirmReviewImageResult{BaseURL: payload.BaseURL}, nil
+}
+
 type uploadDescriptor struct {
 	Resource     string
 	OwnerUserID  uuid.UUID
@@ -198,6 +238,25 @@ type uploadDescriptor struct {
 	OriginalKey  string
 	UploadID     string
 	CurrentEvent *uuid.UUID
+}
+
+func validateReviewImageState(state *EventReviewImageState, userID uuid.UUID) error {
+	if state.PrivacyLevel == string(domain.PrivacyPrivate) {
+		return domain.ConflictError(domain.ErrorCodeCommentsNotAllowed, "Reviews are available only for PUBLIC and PROTECTED events.")
+	}
+	if state.HostID == userID {
+		return domain.ForbiddenError(domain.ErrorCodeHostCannotRateSelf, "The event host cannot rate their own event.")
+	}
+	if state.Status == string(domain.EventStatusCanceled) {
+		return domain.ConflictError(domain.ErrorCodeReviewImageNotAllowed, "Review images are not allowed for canceled events.")
+	}
+	if state.Status != string(domain.EventStatusCompleted) {
+		return domain.ConflictError(domain.ErrorCodeReviewImageNotAllowed, "Review images are allowed only after the event is completed.")
+	}
+	if !state.IsQualifyingParticipant {
+		return domain.ForbiddenError(domain.ErrorCodeReviewImageNotAllowed, "Only participants can upload review images.")
+	}
+	return nil
 }
 
 func (s *Service) createUpload(ctx context.Context, desc uploadDescriptor) (*CreateUploadResult, error) {

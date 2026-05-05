@@ -600,19 +600,354 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /events/{id}/comments:
+    get:
+      tags: [Events]
+      summary: List event discussion and review comments
+      description: |
+        Returns top-level comments for a PUBLIC or PROTECTED event. Authentication is optional.
+
+        The response always contains two independently paginated collections:
+        `discussion_comments` and `review_comments`, both ordered by latest comment first.
+        Child comments are not embedded; use `GET /events/{id}/comments/{commentId}/replies`
+        when the user chooses to see replies.
+
+        PRIVATE events do not expose comments. If the authenticated caller can otherwise see
+        the private event, the API returns `409 comments_not_allowed`; if not visible, it returns
+        `404 event_not_found`.
+      operationId: listEventComments
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: discussion_limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+        - name: discussion_cursor
+          in: query
+          schema:
+            type: string
+          description: Opaque cursor for the next discussion page.
+        - name: review_limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+        - name: review_cursor
+          in: query
+          schema:
+            type: string
+          description: Opaque cursor for the next review page.
+      responses:
+        '200':
+          description: Comment collections returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventCommentsResponse'
+        '400':
+          description: Invalid event id, limit, or cursor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Invalid bearer token when one is supplied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event does not exist or is not visible to the caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Comments are not available for this event privacy/state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    post:
+      tags: [Events]
+      summary: Create a discussion comment or reply
+      description: |
+        Creates a discussion comment on a PUBLIC or PROTECTED event.
+
+        Rules:
+        - `ACTIVE`: any authenticated user may comment or reply.
+        - `IN_PROGRESS`: only the host or a qualifying participant may comment or reply.
+        - `COMPLETED`: discussion writes are rejected; participants should use review comments.
+        - `CANCELED`: all comment writes are rejected.
+        - Replies must target a top-level DISCUSSION comment from the same event.
+      operationId: createEventDiscussionComment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDiscussionCommentRequest'
+      responses:
+        '201':
+          description: Discussion comment created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventComment'
+        '400':
+          description: Invalid id or request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller cannot comment in the event's current state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event or parent comment does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Comments are closed or unavailable for this event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/comments/{commentId}/replies:
+    get:
+      tags: [Events]
+      summary: List replies for a discussion comment
+      description: Returns replies for a top-level DISCUSSION comment, ordered latest first.
+      operationId: listEventCommentReplies
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Replies returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventCommentCollection'
+        '400':
+          description: Invalid id, limit, or cursor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Invalid bearer token when one is supplied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event or discussion comment does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Comments are not available for this event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/review-comments:
+    post:
+      tags: [Events]
+      summary: Create or update the caller's completed-event review comment
+      description: |
+        Creates or updates the authenticated participant's review for a completed PUBLIC or
+        PROTECTED event. Reviews are singular per `(event_id, user_id)` and are the canonical
+        source for participant-to-event ratings. The optional `image_confirm_token` is returned
+        by `POST /events/{id}/review-comments/image/upload-url` after the client uploads both
+        image variants.
+      operationId: upsertEventReviewComment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertReviewCommentRequest'
+      responses:
+        '200':
+          description: Review comment created or updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventComment'
+        '400':
+          description: Invalid id or request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not allowed to review this event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Event is not completed, is canceled, private, or image upload is incomplete.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/review-comments/image/upload-url:
+    post:
+      tags: [Events]
+      summary: Create upload URLs for a review image
+      description: |
+        Creates presigned upload instructions for the authenticated participant's one review image.
+        The caller must upload both `ORIGINAL` and `SMALL` JPEG variants, then pass the returned
+        `confirm_token` as `image_confirm_token` when upserting the review comment.
+      operationId: createEventReviewImageUpload
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Upload instructions returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadInitResponse'
+        '400':
+          description: Invalid event id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not allowed to upload a review image.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Review images are not available for this event state or privacy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /events/{id}/rating:
     put:
       tags: [Events]
       summary: Create or update the caller's event rating
+      deprecated: true
       description: |
-        Creates or updates the authenticated participant's rating for the event.
+        Deprecated compatibility endpoint. Creates or updates the authenticated participant's
+        completed-event REVIEW comment without an image. New clients should use
+        `POST /events/{id}/review-comments`.
 
         Rules:
-        - The authenticated user must be an `APPROVED` participant of the event.
+        - The authenticated user must be a qualifying participant of the event.
         - The event host cannot rate their own event, even though hosts have an internal approved participation row.
-        - Ratings are allowed only within the 7-day window computed from `COALESCE(end_time, start_time)`.
-        - `CANCELED` events cannot be rated.
-        - The resource is singular per `(participant_user_id, event_id)`, so repeated `PUT` requests update the same record.
+        - Reviews are allowed only after the event status is `COMPLETED`.
+        - `CANCELED` and `PRIVATE` events cannot be reviewed.
+        - The resource is singular per `(user_id, event_id)`, so repeated `PUT` requests update the same review comment.
       operationId: upsertEventRating
       security:
         - bearerAuth: []
@@ -669,9 +1004,11 @@ paths:
     delete:
       tags: [Events]
       summary: Delete the caller's event rating
+      deprecated: true
       description: |
-        Hard deletes the authenticated participant's rating for the event.
-        The same authorization and rating-window rules used by `PUT /events/{id}/rating` also apply here.
+        Deprecated compatibility endpoint. Hard deletes the authenticated participant's
+        REVIEW comment/rating for the event. New clients should manage reviews through
+        the comments surface.
       operationId: deleteEventRating
       security:
         - bearerAuth: []
@@ -2899,6 +3236,161 @@ components:
           format: date-time
         user:
           $ref: '#/components/schemas/EventDetailHostContextUserSummary'
+
+    EventCommentsResponse:
+      type: object
+      additionalProperties: false
+      required: [discussion_comments, review_comments]
+      properties:
+        discussion_comments:
+          $ref: '#/components/schemas/EventCommentCollection'
+        review_comments:
+          $ref: '#/components/schemas/EventCommentCollection'
+
+    EventCommentCollection:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventComment'
+        page_info:
+          $ref: '#/components/schemas/EventCommentPageInfo'
+
+    EventCommentPageInfo:
+      type: object
+      additionalProperties: false
+      required: [next_cursor, has_next]
+      properties:
+        next_cursor:
+          type:
+            - string
+            - "null"
+          description: Opaque cursor for the next page, or `null` when there is no next page.
+        has_next:
+          type: boolean
+
+    EventComment:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - event_id
+        - user
+        - comment_type
+        - message
+        - parent_id
+        - rating
+        - image_url
+        - likes_count
+        - reply_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/EventCommentAuthor'
+        comment_type:
+          type: string
+          enum: [DISCUSSION, REVIEW]
+        message:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        parent_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Present only for discussion replies.
+        rating:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 5
+          description: Present only for REVIEW comments.
+        image_url:
+          type:
+            - string
+            - "null"
+          format: uri
+          description: Optional image URL for REVIEW comments.
+        likes_count:
+          type: integer
+          minimum: 0
+        reply_count:
+          type: integer
+          minimum: 0
+          description: Number of direct replies. Child comments are never embedded in list responses.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    EventCommentAuthor:
+      type: object
+      additionalProperties: false
+      required: [id, username, display_name, avatar_url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        display_name:
+          type:
+            - string
+            - "null"
+        avatar_url:
+          type:
+            - string
+            - "null"
+          format: uri
+
+    CreateDiscussionCommentRequest:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        parent_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Top-level DISCUSSION comment id when creating a reply; omit/null for top-level comments.
+
+    UpsertReviewCommentRequest:
+      type: object
+      additionalProperties: false
+      required: [message, rating]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        image_confirm_token:
+          type:
+            - string
+            - "null"
+          description: Optional confirm token returned by the review image upload flow.
 
     RatingWriteRequest:
       type: object

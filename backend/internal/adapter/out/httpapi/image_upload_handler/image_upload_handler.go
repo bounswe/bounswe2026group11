@@ -30,6 +30,7 @@ func RegisterRoutes(router fiber.Router, handler *Handler, auth fiber.Handler) {
 	events := router.Group("/events", auth)
 	events.Post("/:id/image/upload-url", handler.CreateEventImageUpload)
 	events.Post("/:id/image/confirm", handler.ConfirmEventImageUpload)
+	events.Post("/:id/review-comments/image/upload-url", handler.CreateEventReviewImageUpload)
 }
 
 // CreateProfileAvatarUpload handles POST /me/avatar/upload-url.
@@ -130,6 +131,32 @@ func (h *Handler) ConfirmEventImageUpload(c *fiber.Ctx) error {
 	)
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// CreateEventReviewImageUpload handles POST /events/:id/review-comments/image/upload-url.
+func (h *Handler) CreateEventReviewImageUpload(c *fiber.Ctx) error {
+	eventID, err := parseEventID(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.CreateEventReviewImageUpload(c.UserContext(), claims.UserID, eventID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event review image upload URL created",
+		httpapi.OperationAttr("image_upload.event_review.create"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		slog.String("base_url", result.BaseURL),
+		slog.Int("upload_count", len(result.Uploads)),
+	)
+
+	return c.JSON(result)
 }
 
 type confirmBody struct {

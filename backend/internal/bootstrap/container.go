@@ -19,6 +19,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/badge"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/category"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/comment"
 	emailapp "github.com/bounswe/bounswe2026group11/backend/internal/application/email"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	favoritelocation "github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location"
@@ -54,6 +55,7 @@ type Container struct {
 	joinRequestRepo         *postgres.JoinRequestRepository
 	ticketRepo              *postgres.TicketRepository
 	ratingRepo              *postgres.RatingRepository
+	commentRepo             *postgres.CommentRepository
 	notificationRepo        *postgres.NotificationRepository
 	categoryRepo            *postgres.CategoryRepository
 	profileRepo             *postgres.ProfileRepository
@@ -67,6 +69,7 @@ type Container struct {
 	JoinRequestService      join_request.UseCase
 	TicketService           ticket.UseCase
 	RatingService           rating.UseCase
+	CommentService          comment.UseCase
 	NotificationService     notification.UseCase
 	NotificationBroker      *notification.Broker
 	CategoryService         category.UseCase
@@ -113,6 +116,7 @@ func New(ctx context.Context) (*Container, error) {
 	container.joinRequestRepo = postgres.NewJoinRequestRepository(container.DB)
 	container.ticketRepo = postgres.NewTicketRepository(container.DB)
 	container.ratingRepo = postgres.NewRatingRepository(container.DB)
+	container.commentRepo = postgres.NewCommentRepository(container.DB)
 	container.notificationRepo = postgres.NewNotificationRepository(container.DB)
 	container.NotificationBroker = notification.NewBroker()
 	container.categoryRepo = postgres.NewCategoryRepository(container.DB)
@@ -131,6 +135,7 @@ func New(ctx context.Context) (*Container, error) {
 	container.InvitationService = newInvitationService(container)
 	container.JoinRequestService = newJoinRequestService(container)
 	container.RatingService = newRatingService(container)
+	container.CommentService = newCommentService(container)
 	container.AuthService = newAuthService(container)
 	container.AdminService = newAdminService(container)
 	container.EventService = newEventService(container)
@@ -138,6 +143,9 @@ func New(ctx context.Context) (*Container, error) {
 	container.ProfileService = newProfileService(container)
 	container.FavoriteLocationService = newFavoriteLocationService(container)
 	container.ImageUploadService = newImageUploadService(container, spacesStorage)
+	if commentService, ok := container.CommentService.(*comment.Service); ok {
+		commentService.SetReviewImageConfirmer(container.ImageUploadService)
+	}
 	return container, nil
 }
 
@@ -349,6 +357,13 @@ func newRatingService(c *Container) rating.UseCase {
 		BayesianM:   c.Config.RatingBayesianM,
 	})
 	service.SetBadgeEvaluator(c.BadgeService)
+	return service
+}
+
+// newCommentService wires the comment use-case service with its driven adapter.
+func newCommentService(c *Container) comment.UseCase {
+	service := comment.NewService(c.commentRepo, c.UnitOfWork)
+	service.SetReviewScoreUpdater(c.RatingService)
 	return service
 }
 

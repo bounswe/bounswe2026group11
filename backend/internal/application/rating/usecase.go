@@ -12,4 +12,5 @@ type UseCase interface {
 	DeleteEventRating(ctx context.Context, participantUserID, eventID uuid.UUID) error
 	UpsertParticipantRating(ctx context.Context, hostUserID, eventID, participantUserID uuid.UUID, input UpsertRatingInput) (*RatingResult, error)
 	DeleteParticipantRating(ctx context.Context, hostUserID, eventID, participantUserID uuid.UUID) error
+	RefreshHostedEventScore(ctx context.Context, hostID uuid.UUID) error
 }

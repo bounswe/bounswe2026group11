@@ -1121,10 +1121,11 @@ func (r *EventRepository) loadViewerEventRating(
 
 	err := r.pool.QueryRow(ctx, `
 		SELECT id, rating, message, created_at, updated_at
-		FROM event_rating
+		FROM event_comment
 		WHERE event_id = $1
-		  AND participant_user_id = $2
-	`, eventID, participantUserID).Scan(
+		  AND user_id = $2
+		  AND comment_type = $3
+	`, eventID, participantUserID, string(domain.CommentTypeReview)).Scan(
 		&record.ID,
 		&record.Rating,
 		&message,
@@ -1634,6 +1635,57 @@ func (r *EventRepository) SetEventImageIfVersion(
 }
 
 var _ imageuploadapp.EventRepository = (*EventRepository)(nil)
+
+// GetEventReviewImageState loads the event and caller relation needed to
+// authorize review image uploads.
+func (r *EventRepository) GetEventReviewImageState(ctx context.Context, eventID, userID uuid.UUID) (*imageuploadapp.EventReviewImageState, error) {
+	var (
+		state        imageuploadapp.EventReviewImageState
+		status       string
+		privacyLevel string
+	)
+
+	err := r.db.QueryRow(ctx, `
+		SELECT
+			e.id,
+			e.host_id,
+			CASE
+				WHEN e.status = 'ACTIVE' AND e.end_time < NOW() THEN 'COMPLETED'
+				WHEN e.status = 'ACTIVE' AND e.start_time < NOW() THEN 'IN_PROGRESS'
+				WHEN e.status = 'IN_PROGRESS' AND e.end_time < NOW() THEN 'COMPLETED'
+				ELSE e.status
+			END AS status,
+			e.privacy_level,
+			EXISTS (
+				SELECT 1
+				FROM participation p
+				WHERE p.event_id = e.id
+				  AND p.user_id = $2
+				  AND (
+					p.status = $3
+					OR (p.status = $4 AND p.updated_at >= e.start_time)
+				  )
+			) AS is_qualifying_participant
+		FROM event e
+		WHERE e.id = $1
+	`, eventID, userID, domain.ParticipationStatusApproved, domain.ParticipationStatusLeaved).Scan(
+		&state.EventID,
+		&state.HostID,
+		&status,
+		&privacyLevel,
+		&state.IsQualifyingParticipant,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("get event review image state: %w", err)
+	}
+
+	state.Status = status
+	state.PrivacyLevel = privacyLevel
+	return &state, nil
+}
 
 // CancelEvent sets the event status to CANCELED and transitions active
 // participations to CANCELED atomically while preserving historical LEAVED rows.

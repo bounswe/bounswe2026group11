@@ -31,13 +31,15 @@ type Settings struct {
 // EventRatingContext contains the event and participation state required to
 // authorize participant -> event ratings.
 type EventRatingContext struct {
-	EventID               uuid.UUID
-	HostUserID            uuid.UUID
-	Status                domain.EventStatus
-	StartTime             time.Time
-	EndTime               *time.Time
-	IsRequestingHost      bool
-	IsApprovedParticipant bool
+	EventID                 uuid.UUID
+	HostUserID              uuid.UUID
+	Status                  domain.EventStatus
+	PrivacyLevel            domain.EventPrivacyLevel
+	StartTime               time.Time
+	EndTime                 *time.Time
+	IsRequestingHost        bool
+	IsApprovedParticipant   bool
+	IsQualifyingParticipant bool
 }
 
 // ParticipantRatingContext contains the event and participation state required
