@@ -459,6 +459,12 @@ func (s *Service) RejectJoinRequest(
 	}, nil
 }
 
+// CancelJoinRequest allows the authenticated user to cancel their own PENDING join request.
+func (s *Service) CancelJoinRequest(ctx context.Context, userID, eventID uuid.UUID) error {
+	_, err := s.joinRequestService.CancelJoinRequest(ctx, eventID, userID)
+	return err
+}
+
 // CancelEvent transitions an ACTIVE event to CANCELED. Only the event host may cancel.
 func (s *Service) CancelEvent(ctx context.Context, userID, eventID uuid.UUID) error {
 	var (
