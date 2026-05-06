@@ -8,6 +8,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/category_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/comment_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_report_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/favorite_location_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/notification_handler"
@@ -59,6 +60,10 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 	// Comment routes
 	commentHandler := comment_handler.NewHandler(container.CommentService)
 	comment_handler.RegisterRoutes(app, commentHandler, auth, optionalAuth)
+
+	// Event report routes
+	eventReportHandler := event_report_handler.NewHandler(container.EventReportService)
+	event_report_handler.RegisterRoutes(app, eventReportHandler, auth)
 
 	// Rating routes
 	ratingHandler := rating_handler.NewRatingHandler(container.RatingService)

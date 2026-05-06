@@ -64,6 +64,8 @@ type fakeEventRepo struct {
 	reviewStateErr    error
 	joinState         *EventJoinRequestImageState
 	joinStateErr      error
+	reportState       *EventReportImageState
+	reportStateErr    error
 }
 
 func (r *fakeEventRepo) GetEventImageState(_ context.Context, _ uuid.UUID) (*EventImageState, error) {
@@ -120,6 +122,19 @@ func (r *fakeEventRepo) GetEventJoinRequestImageState(_ context.Context, eventID
 		HostID:       uuid.New(),
 		Status:       string(domain.EventStatusActive),
 		PrivacyLevel: string(domain.PrivacyProtected),
+	}, nil
+}
+
+func (r *fakeEventRepo) GetEventReportImageState(_ context.Context, eventID uuid.UUID) (*EventReportImageState, error) {
+	if r.reportStateErr != nil {
+		return nil, r.reportStateErr
+	}
+	if r.reportState != nil {
+		return r.reportState, nil
+	}
+	return &EventReportImageState{
+		EventID: eventID,
+		Status:  string(domain.EventStatusInProgress),
 	}, nil
 }
 

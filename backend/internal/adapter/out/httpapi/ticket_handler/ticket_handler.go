@@ -99,7 +99,9 @@ func (h *Handler) StreamQRToken(c *fiber.Ctx) error {
 	c.Set(fiber.HeaderCacheControl, "no-cache, no-store")
 	c.Set(fiber.HeaderConnection, "keep-alive")
 	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
-		writeSSE(w, "qr_token", firstToken)
+		if !writeSSE(w, "qr_token", firstToken) {
+			return
+		}
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 
@@ -117,10 +119,12 @@ func (h *Handler) StreamQRToken(c *fiber.Ctx) error {
 				default:
 				}
 				if err != nil {
-					writeSSE(w, "error", fiber.Map{"message": err.Error()})
+					_ = writeSSE(w, "error", fiber.Map{"message": err.Error()})
 					return
 				}
-				writeSSE(w, "qr_token", nextToken)
+				if !writeSSE(w, "qr_token", nextToken) {
+					return
+				}
 			}
 		}
 	})
@@ -217,12 +221,16 @@ func parseRequiredFloatQuery(c *fiber.Ctx, key string) (float64, error) {
 	return value, nil
 }
 
-func writeSSE(w *bufio.Writer, event string, data any) {
+func writeSSE(w *bufio.Writer, event string, data any) bool {
 	payload, err := json.Marshal(data)
 	if err != nil {
 		payload = []byte(`{"message":"failed to encode event"}`)
 	}
-	_, _ = fmt.Fprintf(w, "event: %s\n", event)
-	_, _ = fmt.Fprintf(w, "data: %s\n\n", payload)
-	_ = w.Flush()
+	if _, err := fmt.Fprintf(w, "event: %s\n", event); err != nil {
+		return false
+	}
+	if _, err := fmt.Fprintf(w, "data: %s\n\n", payload); err != nil {
+		return false
+	}
+	return w.Flush() == nil
 }

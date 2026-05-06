@@ -1726,6 +1726,36 @@ func (r *EventRepository) GetEventReviewImageState(ctx context.Context, eventID,
 	return &state, nil
 }
 
+// GetEventReportImageState loads event state needed to authorize report image uploads.
+func (r *EventRepository) GetEventReportImageState(ctx context.Context, eventID uuid.UUID) (*imageuploadapp.EventReportImageState, error) {
+	var (
+		state  imageuploadapp.EventReportImageState
+		status string
+	)
+
+	err := r.db.QueryRow(ctx, `
+		SELECT
+			e.id,
+			CASE
+				WHEN e.status = 'ACTIVE' AND e.end_time < NOW() THEN 'COMPLETED'
+				WHEN e.status = 'ACTIVE' AND e.start_time < NOW() THEN 'IN_PROGRESS'
+				WHEN e.status = 'IN_PROGRESS' AND e.end_time < NOW() THEN 'COMPLETED'
+				ELSE e.status
+			END AS status
+		FROM event e
+		WHERE e.id = $1
+	`, eventID).Scan(&state.EventID, &status)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("get event report image state: %w", err)
+	}
+
+	state.Status = status
+	return &state, nil
+}
+
 // CancelEvent sets the event status to CANCELED and transitions active
 // participations to CANCELED atomically while preserving historical LEAVED rows.
 // Returns ErrEventNotCancelable if the event is not in ACTIVE status.

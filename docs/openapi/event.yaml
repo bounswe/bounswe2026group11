@@ -993,6 +993,130 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /events/{id}/reports:
+    post:
+      tags: [Events]
+      summary: Report an event
+      description: |
+        Creates a moderation report for the event from the authenticated user.
+
+        Client flow:
+        - Always require the user to choose `report_category` and enter a non-blank `message`.
+        - To attach an image, first call `POST /events/{id}/reports/image/upload-url`, upload both JPEG variants,
+          then send the returned `confirm_token` as `image_confirm_token`.
+        - Report images are accepted only when the event's computed status is `IN_PROGRESS` or `COMPLETED`.
+        - Reports are stored with status `PENDING` for future moderation workflows.
+      operationId: createEventReport
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventReportRequest'
+            examples:
+              safety:
+                value:
+                  report_category: SAFETY
+                  message: The event location felt unsafe and needs moderation review.
+              with_image:
+                value:
+                  report_category: INAPPROPRIATE_CONTENT
+                  message: There was inappropriate content shown during the event.
+                  image_confirm_token: eyJhbGciOi...
+      responses:
+        '201':
+          description: Report created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventReportResponse'
+        '400':
+          description: Invalid event id, invalid category, blank message, or invalid image token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: An image token was supplied for an event that is not in progress or completed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/reports/image/upload-url:
+    post:
+      tags: [Events]
+      summary: Create upload URLs for a report image
+      description: |
+        Creates presigned upload instructions for an optional event-report image.
+        The authenticated caller must upload both `ORIGINAL` and `SMALL` JPEG variants,
+        then pass the returned `confirm_token` as `image_confirm_token` when creating the report.
+
+        This endpoint returns `409 event_report_image_not_allowed` unless the event's computed status
+        is `IN_PROGRESS` or `COMPLETED`.
+      operationId: createEventReportImageUpload
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Upload instructions returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadInitResponse'
+        '400':
+          description: Invalid event id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Report images are not available for this event state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /events/{id}/rating:
     put:
       tags: [Events]
@@ -3481,6 +3605,83 @@ components:
             - string
             - "null"
           description: Optional confirm token returned by the review image upload flow.
+
+    CreateEventReportRequest:
+      type: object
+      additionalProperties: false
+      required: [report_category, message]
+      properties:
+        report_category:
+          type: string
+          enum:
+            - SAFETY
+            - HARASSMENT
+            - SPAM_OR_SCAM
+            - INAPPROPRIATE_CONTENT
+            - EVENT_NOT_AS_DESCRIBED
+            - ILLEGAL_OR_DANGEROUS
+            - OTHER
+          description: User-selected reason for reporting the event.
+        message:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Required free-form report details. Blank-after-trim strings are rejected.
+        image_confirm_token:
+          type:
+            - string
+            - "null"
+          description: Optional confirm token returned by the report image upload flow.
+
+    EventReportResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - event_id
+        - reporter_user_id
+        - report_category
+        - message
+        - image_url
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        reporter_user_id:
+          type: string
+          format: uuid
+        report_category:
+          type: string
+          enum:
+            - SAFETY
+            - HARASSMENT
+            - SPAM_OR_SCAM
+            - INAPPROPRIATE_CONTENT
+            - EVENT_NOT_AS_DESCRIBED
+            - ILLEGAL_OR_DANGEROUS
+            - OTHER
+        message:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        image_url:
+          type:
+            - string
+            - "null"
+          format: uri
+          description: Public CDN base URL for the optional report image. Append `-small` for the small variant.
+        status:
+          type: string
+          enum: [PENDING, REVIEWED, DISMISSED]
+          description: Newly created reports are returned as `PENDING`.
+        created_at:
+          type: string
+          format: date-time
 
     RatingWriteRequest:
       type: object
