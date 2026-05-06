@@ -116,6 +116,21 @@ describe('HomeHeader', () => {
     expect(onPressNotifications).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the notification bell as the rightmost header action', () => {
+    render(
+      <HomeHeader
+        locationLabel="Beşiktaş, Istanbul"
+        onPressLocation={jest.fn()}
+        onPressNotifications={jest.fn()}
+      />,
+    );
+
+    const buttons = screen.getAllByRole('button');
+    const bellButton = screen.getByRole('button', { name: 'Open notifications' });
+
+    expect(buttons[buttons.length - 1]).toBe(bellButton);
+  });
+
   it('shows a badge when unreadNotificationCount is greater than zero', () => {
     render(
       <HomeHeader

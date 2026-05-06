@@ -30,6 +30,7 @@ export default function HomeView() {
   const { unreadCount, refresh: refreshUnreadCount } = useUnreadNotificationCount();
   const { theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const isMapMode = vm.viewMode === 'MAP';
 
   useFocusEffect(
     useCallback(() => {
@@ -69,8 +70,8 @@ export default function HomeView() {
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.topSection}>
+      <View style={[styles.container, isMapMode && styles.mapContainer]}>
+        <View style={[styles.topSection, isMapMode && styles.mapTopSection]}>
           <HomeHeader
             ref={locationButtonRef}
             locationLabel={vm.locationLabel}
@@ -86,7 +87,7 @@ export default function HomeView() {
             onPressFilter={vm.openFilterModal}
           />
 
-          <View style={styles.viewToggleRow}>
+          <View style={[styles.viewToggleRow, isMapMode && styles.mapViewToggleRow]}>
             <TouchableOpacity
               style={[
                 styles.viewToggleButton,
@@ -139,8 +140,8 @@ export default function HomeView() {
           ) : null}
         </View>
 
-        <View style={styles.listWrapper}>
-          {vm.viewMode === 'MAP' ? (
+        <View style={[styles.listWrapper, isMapMode && styles.mapWrapper]}>
+          {isMapMode ? (
             <EventMapView
               events={vm.events}
               isLoading={vm.isLoading}
@@ -228,12 +229,36 @@ function makeStyles(t: Theme) {
       flex: 1,
       paddingHorizontal: 20,
     },
+    mapContainer: {
+      paddingHorizontal: 0,
+      backgroundColor: t.surfaceAlt,
+    },
     topSection: {
       paddingTop: 8,
+    },
+    mapTopSection: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 10,
+      paddingHorizontal: 16,
+      paddingBottom: 10,
+      backgroundColor: t.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
+      shadowColor: '#000',
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 6,
     },
     listWrapper: {
       flex: 1,
       marginTop: 6,
+    },
+    mapWrapper: {
+      marginTop: 0,
     },
     listContent: {
       paddingBottom: 20,
@@ -263,6 +288,10 @@ function makeStyles(t: Theme) {
       borderWidth: 1,
       borderColor: t.border,
       overflow: 'hidden',
+    },
+    mapViewToggleRow: {
+      marginTop: 0,
+      marginBottom: 0,
     },
     viewToggleButton: {
       paddingHorizontal: 24,
