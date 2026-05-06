@@ -358,6 +358,8 @@ func invitationFailureForUser(
 		return ""
 	case domain.InvitationStatusExpired:
 		return ""
+	case domain.InvitationStatusCanceled:
+		return ""
 	default:
 		return invitationapp.FailureAlreadyInvited
 	}
@@ -608,6 +610,59 @@ func (r *InvitationRepository) loadInvitationByIDForUser(
 		return nil, err
 	}
 	return invitation, nil
+}
+
+func (r *InvitationRepository) loadInvitationByIDForHost(
+	ctx context.Context,
+	invitationID, hostID uuid.UUID,
+	forUpdate bool,
+) (*domain.Invitation, error) {
+	query := `
+		SELECT id, event_id, host_id, invited_user_id, status, message, expires_at, created_at, updated_at
+		FROM invitation
+		WHERE id = $1
+		  AND host_id = $2
+	`
+	if forUpdate {
+		query += ` FOR UPDATE`
+	}
+	invitation, err := scanInvitation(r.db.QueryRow(ctx, query, invitationID, hostID))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return invitation, nil
+}
+
+func (r *InvitationRepository) RevokeInvitation(
+	ctx context.Context,
+	params invitationapp.RevokeInvitationParams,
+) (*domain.Invitation, error) {
+	event, err := r.loadInvitationEventState(ctx, params.EventID, false)
+	if err != nil {
+		return nil, err
+	}
+	if event == nil {
+		return nil, domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+	}
+	if event.HostID != params.HostID {
+		return nil, domain.ForbiddenError(domain.ErrorCodeEventHostManagementNotAllowed, "Only the event host can manage invitations.")
+	}
+
+	invitation, err := r.loadInvitationByIDForHost(ctx, params.InvitationID, params.HostID, true)
+	if err != nil {
+		return nil, err
+	}
+	if invitation == nil {
+		return nil, domain.NotFoundError(domain.ErrorCodeInvitationNotFound, "The requested invitation does not exist.")
+	}
+	if invitation.Status != domain.InvitationStatusPending {
+		return nil, domain.ConflictError(domain.ErrorCodeInvitationStateInvalid, "Only PENDING invitations can be canceled.")
+	}
+
+	return r.updateInvitationStatus(ctx, params.InvitationID, domain.InvitationStatusCanceled)
 }
 
 func (r *InvitationRepository) updateInvitationStatus(

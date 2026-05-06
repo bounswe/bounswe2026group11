@@ -14,6 +14,7 @@ const (
 	InvitationStatusAccepted InvitationStatus = "ACCEPTED"
 	InvitationStatusDeclined InvitationStatus = "DECLINED"
 	InvitationStatusExpired  InvitationStatus = "EXPIRED"
+	InvitationStatusCanceled InvitationStatus = "CANCELED"
 
 	InvitationDeclineCooldown = 14 * 24 * time.Hour
 )
@@ -23,6 +24,7 @@ var invitationStatuses = map[string]InvitationStatus{
 	string(InvitationStatusAccepted): InvitationStatusAccepted,
 	string(InvitationStatusDeclined): InvitationStatusDeclined,
 	string(InvitationStatusExpired):  InvitationStatusExpired,
+	string(InvitationStatusCanceled): InvitationStatusCanceled,
 }
 
 // ParseInvitationStatus converts a wire or persistence string into an invitation status.

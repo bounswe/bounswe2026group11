@@ -13,4 +13,5 @@ type Repository interface {
 	AcceptInvitation(ctx context.Context, userID, invitationID uuid.UUID) (*AcceptInvitationRecord, error)
 	DeclineInvitation(ctx context.Context, userID, invitationID uuid.UUID) (*domain.Invitation, error)
 	GetInvitationNotificationContext(ctx context.Context, invitationID uuid.UUID) (*InvitationNotificationContext, error)
+	RevokeInvitation(ctx context.Context, params RevokeInvitationParams) (*domain.Invitation, error)
 }

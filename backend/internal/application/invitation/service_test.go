@@ -18,11 +18,14 @@ func (u fakeUnitOfWork) RunInTx(ctx context.Context, fn func(context.Context) er
 }
 
 type fakeRepo struct {
-	lastParams    CreateInvitationsParams
-	result        *CreateInvitationsRecord
-	acceptResult  *AcceptInvitationRecord
-	declineResult *domain.Invitation
-	contexts      map[uuid.UUID]*InvitationNotificationContext
+	lastParams       CreateInvitationsParams
+	result           *CreateInvitationsRecord
+	acceptResult     *AcceptInvitationRecord
+	declineResult    *domain.Invitation
+	contexts         map[uuid.UUID]*InvitationNotificationContext
+	revokeCallCount  int
+	lastRevokeParams RevokeInvitationParams
+	revokeErr        error
 }
 
 func (r *fakeRepo) CreateInvitations(_ context.Context, params CreateInvitationsParams) (*CreateInvitationsRecord, error) {
@@ -50,6 +53,65 @@ func (r *fakeRepo) GetInvitationNotificationContext(_ context.Context, invitatio
 		return nil, domain.ErrNotFound
 	}
 	return r.contexts[invitationID], nil
+}
+
+func (r *fakeRepo) RevokeInvitation(_ context.Context, params RevokeInvitationParams) (*domain.Invitation, error) {
+	r.revokeCallCount++
+	r.lastRevokeParams = params
+	if r.revokeErr != nil {
+		return nil, r.revokeErr
+	}
+	now := time.Now().UTC()
+	return &domain.Invitation{
+		ID:        params.InvitationID,
+		EventID:   params.EventID,
+		HostID:    params.HostID,
+		Status:    domain.InvitationStatusCanceled,
+		CreatedAt: now.Add(-time.Hour),
+		UpdatedAt: now,
+	}, nil
+}
+
+func TestRevokeInvitationDelegatesToRepo(t *testing.T) {
+	// given
+	repo := &fakeRepo{}
+	service := NewService(repo, fakeUnitOfWork{})
+	hostID := uuid.New()
+	eventID := uuid.New()
+	invitationID := uuid.New()
+
+	// when
+	err := service.RevokeInvitation(context.Background(), hostID, eventID, invitationID)
+
+	// then
+	if err != nil {
+		t.Fatalf("RevokeInvitation() error = %v", err)
+	}
+	if repo.revokeCallCount != 1 {
+		t.Fatalf("expected repo called once, got %d", repo.revokeCallCount)
+	}
+	if repo.lastRevokeParams.HostID != hostID || repo.lastRevokeParams.EventID != eventID || repo.lastRevokeParams.InvitationID != invitationID {
+		t.Fatalf("repo received wrong params: %+v", repo.lastRevokeParams)
+	}
+}
+
+func TestRevokeInvitationPropagatesRepoError(t *testing.T) {
+	// given
+	expected := domain.ConflictError(domain.ErrorCodeInvitationStateInvalid, "Only PENDING invitations can be canceled.")
+	repo := &fakeRepo{revokeErr: expected}
+	service := NewService(repo, fakeUnitOfWork{})
+
+	// when
+	err := service.RevokeInvitation(context.Background(), uuid.New(), uuid.New(), uuid.New())
+
+	// then
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Code != domain.ErrorCodeInvitationStateInvalid {
+		t.Fatalf("expected invitation_state_invalid error, got %v", err)
+	}
 }
 
 func TestCreateInvitationsValidatesUsernameCount(t *testing.T) {

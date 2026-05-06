@@ -33,6 +33,12 @@ type RejectJoinRequestParams struct {
 	HostUserID    uuid.UUID
 }
 
+// CancelJoinRequestByUserParams carries the identifiers needed to cancel a join request by its requester.
+type CancelJoinRequestByUserParams struct {
+	EventID uuid.UUID
+	UserID  uuid.UUID
+}
+
 type NotificationContext struct {
 	JoinRequestID        uuid.UUID
 	EventID              uuid.UUID
