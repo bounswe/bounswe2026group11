@@ -87,3 +87,9 @@ type AcceptInvitationRecord struct {
 	Invitation    *domain.Invitation
 	Participation *domain.Participation
 }
+
+type RevokeInvitationParams struct {
+	EventID      uuid.UUID
+	HostID       uuid.UUID
+	InvitationID uuid.UUID
+}

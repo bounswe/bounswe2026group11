@@ -183,6 +183,26 @@ func (s *Service) RejectJoinRequest(
 	return result, nil
 }
 
+// CancelJoinRequest transitions the caller's own PENDING join request to CANCELED.
+func (s *Service) CancelJoinRequest(
+	ctx context.Context,
+	eventID, userID uuid.UUID,
+) (*domain.JoinRequest, error) {
+	var result *domain.JoinRequest
+	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		var err error
+		result, err = s.repo.CancelJoinRequestByUser(ctx, CancelJoinRequestByUserParams{
+			EventID: eventID,
+			UserID:  userID,
+		})
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 func (s *Service) notifyModeratedJoinRequest(ctx context.Context, joinRequestID uuid.UUID, status domain.JoinRequestStatus, cooldownEndsAt *time.Time) {
 	if s.notifications == nil {
 		return

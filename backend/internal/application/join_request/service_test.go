@@ -58,6 +58,9 @@ type fakeJoinRequestRepo struct {
 	approveResult     *ApproveJoinRequestResult
 	rejectResult      *RejectJoinRequestResult
 	notificationCtx   *NotificationContext
+	cancelCallCount   int
+	lastCancelParams  CancelJoinRequestByUserParams
+	cancelResult      *domain.JoinRequest
 }
 
 func (r *fakeJoinRequestRepo) CreateJoinRequest(_ context.Context, params CreateJoinRequestParams) (*domain.JoinRequest, error) {
@@ -141,6 +144,26 @@ func (r *fakeJoinRequestRepo) RejectJoinRequest(_ context.Context, params Reject
 			UpdatedAt:  now,
 		},
 		CooldownEndsAt: now.Add(domain.JoinRequestCooldown),
+	}, nil
+}
+
+func (r *fakeJoinRequestRepo) CancelJoinRequestByUser(_ context.Context, params CancelJoinRequestByUserParams) (*domain.JoinRequest, error) {
+	r.cancelCallCount++
+	r.lastCancelParams = params
+	if r.err != nil {
+		return nil, r.err
+	}
+	if r.cancelResult != nil {
+		return r.cancelResult, nil
+	}
+	now := time.Now().UTC()
+	return &domain.JoinRequest{
+		ID:        uuid.New(),
+		EventID:   params.EventID,
+		UserID:    params.UserID,
+		Status:    domain.JoinRequestStatusCanceled,
+		CreatedAt: now.Add(-time.Hour),
+		UpdatedAt: now,
 	}, nil
 }
 
@@ -439,4 +462,54 @@ func (f *fakeNotificationUseCase) SendCustomNotificationToUsers(context.Context,
 }
 func (f *fakeNotificationUseCase) SendPushToUsers(context.Context, notificationapp.SendPushInput) (*notificationapp.SendPushResult, error) {
 	return nil, nil
+}
+
+func TestCancelJoinRequestDelegatesToRepo(t *testing.T) {
+	// given
+	repo := &fakeJoinRequestRepo{}
+	service := NewService(repo, &fakeUnitOfWork{})
+	eventID := uuid.New()
+	userID := uuid.New()
+
+	// when
+	result, err := service.CancelJoinRequest(context.Background(), eventID, userID)
+
+	// then
+	if err != nil {
+		t.Fatalf("CancelJoinRequest() error = %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected result, got nil")
+	}
+	if result.Status != domain.JoinRequestStatusCanceled {
+		t.Fatalf("expected status CANCELED, got %s", result.Status)
+	}
+	if repo.cancelCallCount != 1 {
+		t.Fatalf("expected repo called once, got %d", repo.cancelCallCount)
+	}
+	if repo.lastCancelParams.EventID != eventID || repo.lastCancelParams.UserID != userID {
+		t.Fatalf("repo received wrong params: %+v", repo.lastCancelParams)
+	}
+}
+
+func TestCancelJoinRequestPropagatesRepoError(t *testing.T) {
+	// given
+	expected := domain.ConflictError(domain.ErrorCodeJoinRequestStateInvalid, "Only PENDING join requests can be canceled.")
+	repo := &fakeJoinRequestRepo{err: expected}
+	service := NewService(repo, &fakeUnitOfWork{})
+
+	// when
+	result, err := service.CancelJoinRequest(context.Background(), uuid.New(), uuid.New())
+
+	// then
+	if result != nil {
+		t.Fatal("expected nil result on error")
+	}
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Code != domain.ErrorCodeJoinRequestStateInvalid {
+		t.Fatalf("expected join_request_state_invalid error, got %v", err)
+	}
 }

@@ -45,11 +45,13 @@ func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.
 	group.Get("/:id/invitations", auth, handler.ListEventInvitations)
 	group.Post("/", auth, handler.CreateEvent)
 	group.Post("/:id/invitations", auth, handler.CreateInvitations)
+	group.Delete("/:id/invitations/:invitationId", auth, handler.RevokeInvitation)
 	group.Post("/:id/join", auth, handler.JoinEvent)
 	group.Patch("/:id/leave", auth, handler.LeaveEvent)
 	group.Post("/:id/join-request", auth, handler.RequestJoin)
 	group.Post("/:id/join-requests/:joinRequestId/approve", auth, handler.ApproveJoinRequest)
 	group.Post("/:id/join-requests/:joinRequestId/reject", auth, handler.RejectJoinRequest)
+	group.Delete("/:id/join-requests/me", auth, handler.CancelJoinRequest)
 	group.Patch("/:id/cancel", auth, handler.CancelEvent)
 	group.Patch("/:id/complete", auth, handler.CompleteEvent)
 	group.Post("/:id/favorite", auth, handler.AddFavorite)
@@ -271,6 +273,39 @@ func (h *EventHandler) CreateInvitations(c *fiber.Ctx) error {
 	)
 
 	return c.Status(fiber.StatusCreated).JSON(result)
+}
+
+// RevokeInvitation handles DELETE /events/:id/invitations/:invitationId.
+// Allows the authenticated host to cancel a PENDING invitation.
+func (h *EventHandler) RevokeInvitation(c *fiber.Ctx) error {
+	if h.invitationService == nil {
+		return httpapi.WriteError(c, &domain.AppError{Code: "internal_error", Message: "invitation service is not configured", Status: domain.StatusInternalError})
+	}
+
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	invitationID, err := parseInvitationIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	if err := h.invitationService.RevokeInvitation(c.UserContext(), claims.UserID, eventID, invitationID); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event invitation revoked",
+		httpapi.OperationAttr("event.invitations.revoke"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+	)
+
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 // callerID returns the authenticated user's ID, or uuid.Nil for anonymous requests.
@@ -551,6 +586,30 @@ func (h *EventHandler) RejectJoinRequest(c *fiber.Ctx) error {
 	return c.JSON(result)
 }
 
+// CancelJoinRequest handles DELETE /events/:id/join-requests/me.
+// Allows the authenticated user to cancel their own pending join request.
+func (h *EventHandler) CancelJoinRequest(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	if err := h.service.CancelJoinRequest(c.UserContext(), claims.UserID, eventID); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"join request canceled",
+		httpapi.OperationAttr("event.join_request.cancel"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+	)
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 // CancelEvent handles PATCH /events/:id/cancel.
 // Transitions an ACTIVE event to CANCELED. Only the host may perform this.
 func (h *EventHandler) CancelEvent(c *fiber.Ctx) error {
@@ -734,6 +793,14 @@ func parseJoinRequestIDParam(c *fiber.Ctx) (uuid.UUID, error) {
 		return uuid.Nil, domain.ValidationError(map[string]string{"joinRequestId": "must be a valid UUID"})
 	}
 	return joinRequestID, nil
+}
+
+func parseInvitationIDParam(c *fiber.Ctx) (uuid.UUID, error) {
+	invitationID, err := uuid.Parse(c.Params("invitationId"))
+	if err != nil {
+		return uuid.Nil, domain.ValidationError(map[string]string{"invitationId": "must be a valid UUID"})
+	}
+	return invitationID, nil
 }
 
 func parseDiscoverEventsInput(c *fiber.Ctx) (event.DiscoverEventsInput, map[string]string) {

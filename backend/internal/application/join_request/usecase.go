@@ -13,6 +13,7 @@ type UseCase interface {
 	CreatePendingJoinRequest(ctx context.Context, eventID, userID, hostUserID uuid.UUID, input CreatePendingJoinRequestInput) (*domain.JoinRequest, error)
 	ApproveJoinRequest(ctx context.Context, eventID, joinRequestID, hostUserID uuid.UUID) (*ApproveJoinRequestResult, error)
 	RejectJoinRequest(ctx context.Context, eventID, joinRequestID, hostUserID uuid.UUID) (*RejectJoinRequestResult, error)
+	CancelJoinRequest(ctx context.Context, eventID, userID uuid.UUID) (*domain.JoinRequest, error)
 }
 
 // ApproveJoinRequestResult contains the persisted moderation state after approval.
