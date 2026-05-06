@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/event"
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/invitation"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -287,6 +289,10 @@ func (s *stubEventService) AddFavorite(_ context.Context, _, _ uuid.UUID) error 
 
 func (s *stubEventService) RemoveFavorite(_ context.Context, _, _ uuid.UUID) error {
 	return s.err
+}
+
+func (s *stubEventService) CancelJoinRequest(_ context.Context, _, _ uuid.UUID) error {
+	return nil
 }
 
 func (s *stubEventService) ListFavoriteEvents(_ context.Context, _ uuid.UUID) (*event.FavoriteEventsResult, error) {
@@ -1216,5 +1222,94 @@ func TestCompleteEventReturns204(t *testing.T) {
 
 	if resp.StatusCode != fiber.StatusNoContent {
 		t.Fatalf("expected status %d, got %d", fiber.StatusNoContent, resp.StatusCode)
+	}
+}
+
+func TestCancelJoinRequestInvalidIDReturns400(t *testing.T) {
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+
+	req := httptest.NewRequest(http.MethodDelete, "/events/not-a-uuid/join-requests/me", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestCancelJoinRequestSuccessReturns204(t *testing.T) {
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+	eventID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodDelete, "/events/"+eventID.String()+"/join-requests/me", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", resp.StatusCode)
+	}
+}
+
+type fakeInvitationService struct {
+	revokeErr error
+}
+
+func (f *fakeInvitationService) CreateInvitations(_ context.Context, _, _ uuid.UUID, _ invitation.CreateInvitationsInput) (*invitation.CreateInvitationsResult, error) {
+	return &invitation.CreateInvitationsResult{}, nil
+}
+
+func (f *fakeInvitationService) ListReceivedInvitations(_ context.Context, _ uuid.UUID) (*invitation.ReceivedInvitationsResult, error) {
+	return nil, nil
+}
+
+func (f *fakeInvitationService) AcceptInvitation(_ context.Context, _, _ uuid.UUID) (*invitation.AcceptInvitationResult, error) {
+	return nil, nil
+}
+
+func (f *fakeInvitationService) DeclineInvitation(_ context.Context, _, _ uuid.UUID) (*invitation.DeclineInvitationResult, error) {
+	return nil, nil
+}
+
+func (f *fakeInvitationService) RevokeInvitation(_ context.Context, _, _, _ uuid.UUID) error {
+	return f.revokeErr
+}
+
+func TestRevokeInvitationInvalidEventIDReturns400(t *testing.T) {
+	app := fiber.New()
+	handler := NewEventHandler(&stubEventService{}, &fakeInvitationService{})
+	RegisterEventRoutes(app, handler, httpapi.RequireAuth(authedVerifier()), httpapi.OptionalAuth(authedVerifier()))
+
+	req := httptest.NewRequest(http.MethodDelete, "/events/not-a-uuid/invitations/"+uuid.New().String(), nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestRevokeInvitationSuccessReturns204(t *testing.T) {
+	app := fiber.New()
+	handler := NewEventHandler(&stubEventService{}, &fakeInvitationService{})
+	RegisterEventRoutes(app, handler, httpapi.RequireAuth(authedVerifier()), httpapi.OptionalAuth(authedVerifier()))
+	eventID := uuid.New()
+	invitationID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodDelete, "/events/"+eventID.String()+"/invitations/"+invitationID.String(), nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", resp.StatusCode)
 	}
 }

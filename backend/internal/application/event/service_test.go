@@ -407,6 +407,10 @@ func (s *fakeJoinRequestService) RejectJoinRequest(
 	}, nil
 }
 
+func (s *fakeJoinRequestService) CancelJoinRequest(_ context.Context, _, _ uuid.UUID) (*domain.JoinRequest, error) {
+	return nil, nil
+}
+
 func newTestEventService() (*Service, *fakeEventRepo, *fakeParticipationService, *fakeJoinRequestService) {
 	eventRepo := &fakeEventRepo{
 		events:     make(map[uuid.UUID]*domain.Event),
