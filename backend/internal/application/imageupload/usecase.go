@@ -14,4 +14,6 @@ type UseCase interface {
 	ConfirmEventImageUpload(ctx context.Context, userID, eventID uuid.UUID, input ConfirmUploadInput) error
 	CreateEventReviewImageUpload(ctx context.Context, userID, eventID uuid.UUID) (*CreateUploadResult, error)
 	ConfirmEventReviewImageUpload(ctx context.Context, userID, eventID uuid.UUID, input ConfirmUploadInput) (*ConfirmReviewImageResult, error)
+	CreateEventReportImageUpload(ctx context.Context, userID, eventID uuid.UUID) (*CreateUploadResult, error)
+	ConfirmEventReportImageUpload(ctx context.Context, userID, eventID uuid.UUID, input ConfirmUploadInput) (*ConfirmReportImageResult, error)
 }

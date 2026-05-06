@@ -18,14 +18,18 @@ type stubImageUploadService struct {
 	createProfileResult *imageupload.CreateUploadResult
 	createEventResult   *imageupload.CreateUploadResult
 	createReviewResult  *imageupload.CreateUploadResult
+	createReportResult  *imageupload.CreateUploadResult
 	createProfileErr    error
 	createEventErr      error
 	createReviewErr     error
+	createReportErr     error
 	confirmProfileErr   error
 	confirmEventErr     error
 	confirmReviewErr    error
+	confirmReportErr    error
 	lastEventID         uuid.UUID
 	lastReviewEventID   uuid.UUID
+	lastReportEventID   uuid.UUID
 	lastConfirmInput    imageupload.ConfirmUploadInput
 	lastConfirmEventID  uuid.UUID
 }
@@ -80,6 +84,26 @@ func (s *stubImageUploadService) ConfirmEventReviewImageUpload(_ context.Context
 		return nil, s.confirmReviewErr
 	}
 	return &imageupload.ConfirmReviewImageResult{BaseURL: "https://cdn.example/review.jpg"}, nil
+}
+
+func (s *stubImageUploadService) CreateEventReportImageUpload(_ context.Context, _ uuid.UUID, eventID uuid.UUID) (*imageupload.CreateUploadResult, error) {
+	s.lastReportEventID = eventID
+	if s.createReportErr != nil {
+		return nil, s.createReportErr
+	}
+	if s.createReportResult != nil {
+		return s.createReportResult, nil
+	}
+	return defaultUploadResult(), nil
+}
+
+func (s *stubImageUploadService) ConfirmEventReportImageUpload(_ context.Context, _ uuid.UUID, eventID uuid.UUID, input imageupload.ConfirmUploadInput) (*imageupload.ConfirmReportImageResult, error) {
+	s.lastConfirmEventID = eventID
+	s.lastConfirmInput = input
+	if s.confirmReportErr != nil {
+		return nil, s.confirmReportErr
+	}
+	return &imageupload.ConfirmReportImageResult{BaseURL: "https://cdn.example/report.jpg"}, nil
 }
 
 type fakeVerifier struct {
@@ -287,5 +311,51 @@ func TestConfirmEventImageUploadParsesRequest(t *testing.T) {
 	}
 	if svc.lastConfirmInput.ConfirmToken != "confirm-token" {
 		t.Fatalf("expected confirm token to be parsed, got %+v", svc.lastConfirmInput)
+	}
+}
+
+func TestCreateEventReportImageUploadReturnsSignedInstructions(t *testing.T) {
+	svc := &stubImageUploadService{}
+	app := newTestApp(svc, authedVerifier())
+	eventID := uuid.New()
+
+	req := httptest.NewRequest(fiber.MethodPost, "/events/"+eventID.String()+"/reports/image/upload-url", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if svc.lastReportEventID != eventID {
+		t.Fatalf("expected report event id %s, got %s", eventID, svc.lastReportEventID)
+	}
+}
+
+func TestCreateEventReportImageUploadConflictReturns409(t *testing.T) {
+	svc := &stubImageUploadService{
+		createReportErr: domain.ConflictError(
+			domain.ErrorCodeEventReportImageNotAllowed,
+			"Report images are allowed only while an event is in progress or completed.",
+		),
+	}
+	app := newTestApp(svc, authedVerifier())
+	eventID := uuid.New()
+
+	req := httptest.NewRequest(fiber.MethodPost, "/events/"+eventID.String()+"/reports/image/upload-url", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != fiber.StatusConflict {
+		t.Fatalf("expected status %d, got %d", fiber.StatusConflict, resp.StatusCode)
 	}
 }
