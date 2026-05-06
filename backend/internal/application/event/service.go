@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	notificationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/participation"
@@ -21,6 +23,7 @@ type Service struct {
 	eventRepo            Repository
 	participationService participation.UseCase
 	joinRequestService   join_request.UseCase
+	joinRequestImages    JoinRequestImageConfirmer
 	ticketService        ticket.LifecycleUseCase
 	notifications        notificationapp.UseCase
 	unitOfWork           uow.UnitOfWork
@@ -31,6 +34,12 @@ type Service struct {
 // service can fan out notifications for cancellations and other lifecycle events.
 func (s *Service) SetNotificationService(notifications notificationapp.UseCase) {
 	s.notifications = notifications
+}
+
+// SetJoinRequestImageConfirmer wires in the image upload service for optional
+// join-request image confirmation.
+func (s *Service) SetJoinRequestImageConfirmer(confirmer JoinRequestImageConfirmer) {
+	s.joinRequestImages = confirmer
 }
 
 var _ UseCase = (*Service)(nil)
@@ -392,8 +401,14 @@ func (s *Service) RequestJoin(ctx context.Context, userID, eventID uuid.UUID, in
 		return nil, err
 	}
 
+	imageURL, err := s.confirmJoinRequestImage(ctx, userID, eventID, input.ImageConfirmToken)
+	if err != nil {
+		return nil, err
+	}
+
 	jr, err := s.joinRequestService.CreatePendingJoinRequest(ctx, eventID, userID, event.HostID, join_request.CreatePendingJoinRequestInput{
-		Message: input.Message,
+		Message:  input.Message,
+		ImageURL: imageURL,
 	})
 	if err != nil {
 		return nil, err
@@ -403,8 +418,25 @@ func (s *Service) RequestJoin(ctx context.Context, userID, eventID uuid.UUID, in
 		JoinRequestID: jr.ID.String(),
 		EventID:       jr.EventID.String(),
 		Status:        string(domain.JoinRequestStatusPending),
+		ImageURL:      jr.ImageURL,
 		CreatedAt:     jr.CreatedAt,
 	}, nil
+}
+
+func (s *Service) confirmJoinRequestImage(ctx context.Context, userID, eventID uuid.UUID, confirmToken *string) (*string, error) {
+	if confirmToken == nil || strings.TrimSpace(*confirmToken) == "" {
+		return nil, nil
+	}
+	if s.joinRequestImages == nil {
+		return nil, domain.ForbiddenError(domain.ErrorCodeImageUploadNotAllowed, "Join request image uploads are not available.")
+	}
+	confirmed, err := s.joinRequestImages.ConfirmEventJoinRequestImageUpload(ctx, userID, eventID, imageupload.ConfirmUploadInput{
+		ConfirmToken: *confirmToken,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &confirmed.BaseURL, nil
 }
 
 // ApproveJoinRequest allows the authenticated host to approve a pending join

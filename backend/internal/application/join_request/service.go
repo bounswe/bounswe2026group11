@@ -61,6 +61,7 @@ func (s *Service) CreatePendingJoinRequest(
 			UserID:     userID,
 			HostUserID: hostUserID,
 			Message:    input.Message,
+			ImageURL:   input.ImageURL,
 		})
 		return err
 	})

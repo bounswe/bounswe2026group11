@@ -18,6 +18,7 @@ type EventRepository interface {
 	GetEventImageState(ctx context.Context, eventID uuid.UUID) (*EventImageState, error)
 	SetEventImageIfVersion(ctx context.Context, eventID uuid.UUID, expectedVersion, nextVersion int, baseURL string, updatedAt time.Time) (bool, error)
 	GetEventReviewImageState(ctx context.Context, eventID, userID uuid.UUID) (*EventReviewImageState, error)
+	GetEventJoinRequestImageState(ctx context.Context, eventID uuid.UUID) (*EventJoinRequestImageState, error)
 }
 
 // Storage presigns uploads and verifies uploaded objects exist.

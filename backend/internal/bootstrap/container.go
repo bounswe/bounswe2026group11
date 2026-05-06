@@ -143,6 +143,9 @@ func New(ctx context.Context) (*Container, error) {
 	container.ProfileService = newProfileService(container)
 	container.FavoriteLocationService = newFavoriteLocationService(container)
 	container.ImageUploadService = newImageUploadService(container, spacesStorage)
+	if eventService, ok := container.EventService.(*event.Service); ok {
+		eventService.SetJoinRequestImageConfirmer(container.ImageUploadService)
+	}
 	if commentService, ok := container.CommentService.(*comment.Service); ok {
 		commentService.SetReviewImageConfirmer(container.ImageUploadService)
 	}

@@ -31,6 +31,7 @@ func RegisterRoutes(router fiber.Router, handler *Handler, auth fiber.Handler) {
 	events.Post("/:id/image/upload-url", handler.CreateEventImageUpload)
 	events.Post("/:id/image/confirm", handler.ConfirmEventImageUpload)
 	events.Post("/:id/review-comments/image/upload-url", handler.CreateEventReviewImageUpload)
+	events.Post("/:id/join-request/image/upload-url", handler.CreateEventJoinRequestImageUpload)
 }
 
 // CreateProfileAvatarUpload handles POST /me/avatar/upload-url.
@@ -150,6 +151,32 @@ func (h *Handler) CreateEventReviewImageUpload(c *fiber.Ctx) error {
 		c.UserContext(),
 		"event review image upload URL created",
 		httpapi.OperationAttr("image_upload.event_review.create"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		slog.String("base_url", result.BaseURL),
+		slog.Int("upload_count", len(result.Uploads)),
+	)
+
+	return c.JSON(result)
+}
+
+// CreateEventJoinRequestImageUpload handles POST /events/:id/join-request/image/upload-url.
+func (h *Handler) CreateEventJoinRequestImageUpload(c *fiber.Ctx) error {
+	eventID, err := parseEventID(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.CreateEventJoinRequestImageUpload(c.UserContext(), claims.UserID, eventID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event join request image upload URL created",
+		httpapi.OperationAttr("image_upload.event_join_request.create"),
 		httpapi.UserIDAttr(claims.UserID),
 		httpapi.EventIDAttr(eventID),
 		slog.String("base_url", result.BaseURL),

@@ -1083,6 +1083,33 @@ func TestRequestJoinParsesMessageBeforeCallingService(t *testing.T) {
 	}
 }
 
+func TestRequestJoinParsesImageConfirmTokenBeforeCallingService(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+	eventID := uuid.New()
+	token := "confirm-token"
+
+	req := httptest.NewRequest(fiber.MethodPost, "/events/"+eventID.String()+"/join-request", bytes.NewBufferString(`{"image_confirm_token":"`+token+`"}`))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("expected status %d, got %d", fiber.StatusCreated, resp.StatusCode)
+	}
+	if svc.lastRequestJoinInput.ImageConfirmToken == nil || *svc.lastRequestJoinInput.ImageConfirmToken != token {
+		t.Fatalf("expected parsed image confirm token %q, got %v", token, svc.lastRequestJoinInput.ImageConfirmToken)
+	}
+}
+
 func TestApproveJoinRequestInvalidEventIDReturns400(t *testing.T) {
 	// given
 	app := newEventTestApp(&stubEventService{}, authedVerifier())

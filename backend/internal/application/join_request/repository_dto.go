@@ -12,11 +12,13 @@ type CreateJoinRequestParams struct {
 	UserID     uuid.UUID
 	HostUserID uuid.UUID
 	Message    *string
+	ImageURL   *string
 }
 
 // CreatePendingJoinRequestInput carries optional join-request details supplied by the caller.
 type CreatePendingJoinRequestInput struct {
-	Message *string
+	Message  *string
+	ImageURL *string
 }
 
 // ApproveJoinRequestParams carries the identifiers needed to approve a join request.

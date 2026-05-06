@@ -466,7 +466,8 @@ func (h *EventHandler) RequestJoin(c *fiber.Ctx) error {
 
 	claims := httpapi.UserClaims(c)
 	result, err := h.service.RequestJoin(c.UserContext(), claims.UserID, eventID, event.RequestJoinInput{
-		Message: body.Message,
+		Message:           body.Message,
+		ImageConfirmToken: body.ImageConfirmToken,
 	})
 	if err != nil {
 		return httpapi.WriteError(c, err)
@@ -478,7 +479,10 @@ func (h *EventHandler) RequestJoin(c *fiber.Ctx) error {
 		httpapi.OperationAttr("event.join_request.create"),
 		httpapi.UserIDAttr(claims.UserID),
 		httpapi.EventIDAttr(eventID),
-		httpapi.QuerySummaryAttr(httpapi.JoinSummary(httpapi.BoolSummary("has_message", body.Message != nil && strings.TrimSpace(*body.Message) != ""))),
+		httpapi.QuerySummaryAttr(httpapi.JoinSummary(
+			httpapi.BoolSummary("has_message", body.Message != nil && strings.TrimSpace(*body.Message) != ""),
+			httpapi.BoolSummary("has_image_token", body.ImageConfirmToken != nil && strings.TrimSpace(*body.ImageConfirmToken) != ""),
+		)),
 	)
 
 	return c.Status(fiber.StatusCreated).JSON(result)
