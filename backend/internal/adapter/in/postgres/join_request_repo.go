@@ -170,6 +170,25 @@ func (r *JoinRequestRepository) RejectJoinRequest(
 	}, nil
 }
 
+// CancelJoinRequestByUser transitions the caller's own PENDING join request to CANCELED.
+func (r *JoinRequestRepository) CancelJoinRequestByUser(
+	ctx context.Context,
+	params joinrequestapp.CancelJoinRequestByUserParams,
+) (*domain.JoinRequest, error) {
+	request, err := r.loadJoinRequestByEventAndUser(ctx, params.EventID, params.UserID, true)
+	if err != nil {
+		return nil, err
+	}
+	if request == nil {
+		return nil, domain.NotFoundError(domain.ErrorCodeJoinRequestNotFound, "You do not have a join request for this event.")
+	}
+	if request.Status != domain.JoinRequestStatusPending {
+		return nil, domain.ConflictError(domain.ErrorCodeJoinRequestStateInvalid, "Only PENDING join requests can be canceled.")
+	}
+
+	return r.updateJoinRequestStatus(ctx, request.ID, domain.JoinRequestStatusCanceled, nil)
+}
+
 func (r *JoinRequestRepository) GetNotificationContext(
 	ctx context.Context,
 	joinRequestID uuid.UUID,
@@ -244,6 +263,8 @@ func (r *JoinRequestRepository) handleExistingJoinRequestForCreate(
 		if time.Now().UTC().Before(existing.UpdatedAt.Add(domain.JoinRequestCooldown)) {
 			return nil, domain.ConflictError(domain.ErrorCodeJoinRequestCooldownActive, "You must wait 3 days after rejection before requesting to join this event again.")
 		}
+		return r.reactivateJoinRequest(ctx, existing.ID, params.HostUserID, params.Message)
+	case domain.JoinRequestStatusCanceled:
 		return r.reactivateJoinRequest(ctx, existing.ID, params.HostUserID, params.Message)
 	default:
 		return nil, fmt.Errorf("unsupported join request status %q", existing.Status)
