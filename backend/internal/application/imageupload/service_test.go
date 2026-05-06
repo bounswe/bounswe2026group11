@@ -62,6 +62,8 @@ type fakeEventRepo struct {
 	getStateCallCount int
 	reviewState       *EventReviewImageState
 	reviewStateErr    error
+	reportState       *EventReportImageState
+	reportStateErr    error
 }
 
 func (r *fakeEventRepo) GetEventImageState(_ context.Context, _ uuid.UUID) (*EventImageState, error) {
@@ -103,6 +105,19 @@ func (r *fakeEventRepo) GetEventReviewImageState(_ context.Context, eventID, use
 		Status:                  string(domain.EventStatusCompleted),
 		PrivacyLevel:            string(domain.PrivacyPublic),
 		IsQualifyingParticipant: true,
+	}, nil
+}
+
+func (r *fakeEventRepo) GetEventReportImageState(_ context.Context, eventID uuid.UUID) (*EventReportImageState, error) {
+	if r.reportStateErr != nil {
+		return nil, r.reportStateErr
+	}
+	if r.reportState != nil {
+		return r.reportState, nil
+	}
+	return &EventReportImageState{
+		EventID: eventID,
+		Status:  string(domain.EventStatusInProgress),
 	}, nil
 }
 
