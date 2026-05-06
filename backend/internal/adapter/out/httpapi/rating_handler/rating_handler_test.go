@@ -85,6 +85,10 @@ func (s *stubRatingService) DeleteParticipantRating(_ context.Context, _, eventI
 	return s.err
 }
 
+func (s *stubRatingService) RefreshHostedEventScore(_ context.Context, _ uuid.UUID) error {
+	return s.err
+}
+
 type fakeVerifier struct {
 	claims *domain.AuthClaims
 	err    error

@@ -17,11 +17,15 @@ import (
 type stubImageUploadService struct {
 	createProfileResult *imageupload.CreateUploadResult
 	createEventResult   *imageupload.CreateUploadResult
+	createReviewResult  *imageupload.CreateUploadResult
 	createProfileErr    error
 	createEventErr      error
+	createReviewErr     error
 	confirmProfileErr   error
 	confirmEventErr     error
+	confirmReviewErr    error
 	lastEventID         uuid.UUID
+	lastReviewEventID   uuid.UUID
 	lastConfirmInput    imageupload.ConfirmUploadInput
 	lastConfirmEventID  uuid.UUID
 }
@@ -56,6 +60,26 @@ func (s *stubImageUploadService) ConfirmEventImageUpload(_ context.Context, _ uu
 	s.lastConfirmEventID = eventID
 	s.lastConfirmInput = input
 	return s.confirmEventErr
+}
+
+func (s *stubImageUploadService) CreateEventReviewImageUpload(_ context.Context, _ uuid.UUID, eventID uuid.UUID) (*imageupload.CreateUploadResult, error) {
+	s.lastReviewEventID = eventID
+	if s.createReviewErr != nil {
+		return nil, s.createReviewErr
+	}
+	if s.createReviewResult != nil {
+		return s.createReviewResult, nil
+	}
+	return defaultUploadResult(), nil
+}
+
+func (s *stubImageUploadService) ConfirmEventReviewImageUpload(_ context.Context, _ uuid.UUID, eventID uuid.UUID, input imageupload.ConfirmUploadInput) (*imageupload.ConfirmReviewImageResult, error) {
+	s.lastConfirmEventID = eventID
+	s.lastConfirmInput = input
+	if s.confirmReviewErr != nil {
+		return nil, s.confirmReviewErr
+	}
+	return &imageupload.ConfirmReviewImageResult{BaseURL: "https://cdn.example/review.jpg"}, nil
 }
 
 type fakeVerifier struct {

@@ -14,6 +14,7 @@ import (
 	postgresrepo "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/postgres"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/security"
 	authapp "github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
+	commentapp "github.com/bounswe/bounswe2026group11/backend/internal/application/comment"
 	eventapp "github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	favoritelocationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location"
 	invitationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/invitation"
@@ -91,6 +92,7 @@ type EventHarness struct {
 	EventRepo           *postgresrepo.EventRepository
 	TicketService       ticketapp.UseCase
 	RatingService       ratingapp.UseCase
+	CommentService      commentapp.UseCase
 	ProfileService      profileapp.UseCase
 	AuthRepo            authapp.Repository
 }
@@ -121,6 +123,7 @@ func NewEventHarness(t *testing.T) *EventHarness {
 	joinRequestRepo := postgresrepo.NewJoinRequestRepository(pool)
 	ticketRepo := postgresrepo.NewTicketRepository(pool)
 	ratingRepo := postgresrepo.NewRatingRepository(pool)
+	commentRepo := postgresrepo.NewCommentRepository(pool)
 	profileRepo := postgresrepo.NewProfileRepository(pool)
 	notificationRepo := postgresrepo.NewNotificationRepository(pool)
 	unitOfWork := postgresrepo.NewUnitOfWork(pool)
@@ -139,6 +142,12 @@ func NewEventHarness(t *testing.T) *EventHarness {
 	joinRequestService.SetNotificationService(notificationService)
 	invitationService := invitationapp.NewService(invitationRepo, unitOfWork, ticketService)
 	invitationService.SetNotificationService(notificationService)
+	ratingService := ratingapp.NewService(ratingRepo, unitOfWork, ratingapp.Settings{
+		GlobalPrior: 4.0,
+		BayesianM:   5,
+	})
+	commentService := commentapp.NewService(commentRepo, unitOfWork)
+	commentService.SetReviewScoreUpdater(ratingService)
 
 	return &EventHarness{
 		Service:             eventapp.NewService(eventRepo, participationService, joinRequestService, unitOfWork, ticketService),
@@ -146,12 +155,10 @@ func NewEventHarness(t *testing.T) *EventHarness {
 		NotificationService: notificationService,
 		EventRepo:           eventRepo,
 		TicketService:       ticketService,
-		RatingService: ratingapp.NewService(ratingRepo, unitOfWork, ratingapp.Settings{
-			GlobalPrior: 4.0,
-			BayesianM:   5,
-		}),
-		ProfileService: profileapp.NewService(profileRepo, unitOfWork),
-		AuthRepo:       postgresrepo.NewAuthRepository(pool),
+		RatingService:       ratingService,
+		CommentService:      commentService,
+		ProfileService:      profileapp.NewService(profileRepo, unitOfWork),
+		AuthRepo:            postgresrepo.NewAuthRepository(pool),
 	}
 }
 

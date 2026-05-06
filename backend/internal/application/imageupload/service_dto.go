@@ -8,8 +8,9 @@ import (
 
 // Supported upload resource types.
 const (
-	ResourceProfileAvatar = "PROFILE_AVATAR"
-	ResourceEventImage    = "EVENT_IMAGE"
+	ResourceProfileAvatar    = "PROFILE_AVATAR"
+	ResourceEventImage       = "EVENT_IMAGE"
+	ResourceEventReviewImage = "EVENT_REVIEW_IMAGE"
 
 	VariantOriginal = "ORIGINAL"
 	VariantSmall    = "SMALL"
@@ -38,11 +39,26 @@ type ConfirmUploadInput struct {
 	ConfirmToken string `json:"confirm_token"`
 }
 
+// ConfirmReviewImageResult exposes the uploaded review image URL after token
+// and object validation.
+type ConfirmReviewImageResult struct {
+	BaseURL string `json:"base_url"`
+}
+
 // EventImageState is the event image persistence state used by the service.
 type EventImageState struct {
 	EventID        uuid.UUID
 	HostID         uuid.UUID
 	CurrentVersion int
+}
+
+// EventReviewImageState is the event state used to authorize review image uploads.
+type EventReviewImageState struct {
+	EventID                 uuid.UUID
+	HostID                  uuid.UUID
+	Status                  string
+	PrivacyLevel            string
+	IsQualifyingParticipant bool
 }
 
 // ConfirmTokenPayload is signed into the confirm token and later verified.

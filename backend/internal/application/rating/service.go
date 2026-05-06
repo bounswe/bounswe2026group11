@@ -193,14 +193,19 @@ func (s *Service) validateEventRatingContext(ratingContext *EventRatingContext) 
 	if ratingContext.IsRequestingHost {
 		return domain.ForbiddenError(domain.ErrorCodeHostCannotRateSelf, "The event host cannot rate their own event.")
 	}
+	if ratingContext.PrivacyLevel == domain.PrivacyPrivate {
+		return domain.ConflictError(domain.ErrorCodeCommentsNotAllowed, "Reviews are available only for PUBLIC and PROTECTED events.")
+	}
 	if ratingContext.Status == domain.EventStatusCanceled {
-		return domain.ConflictError(domain.ErrorCodeRatingNotAllowed, "Ratings are not allowed for canceled events.")
+		return domain.ConflictError(domain.ErrorCodeReviewNotAllowed, "Reviews are not allowed for canceled events.")
 	}
-	if !ratingContext.IsApprovedParticipant {
-		return domain.ForbiddenError(domain.ErrorCodeRatingNotAllowed, "Only approved participants can rate this event.")
+	if ratingContext.Status != domain.EventStatusCompleted {
+		return domain.ConflictError(domain.ErrorCodeReviewNotAllowed, "Review comments are allowed only after the event is completed.")
 	}
-
-	return s.validateWindow(ratingContext.StartTime, ratingContext.EndTime)
+	if !ratingContext.IsQualifyingParticipant {
+		return domain.ForbiddenError(domain.ErrorCodeReviewNotAllowed, "Only participants can review this event.")
+	}
+	return nil
 }
 
 func (s *Service) validateParticipantRatingContext(
@@ -251,6 +256,19 @@ func (s *Service) refreshUserScore(ctx context.Context, repo Repository, userID 
 		HostedEventRatingCount: hostedAggregate.Count,
 		FinalScore:             calculateFinalScore(participantAggregate, hostedAggregate, s.settings),
 	})
+}
+
+// RefreshHostedEventScore recalculates the cached score for a host after review
+// comment mutations outside the rating service.
+func (s *Service) RefreshHostedEventScore(ctx context.Context, hostID uuid.UUID) error {
+	if err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		return s.refreshUserScore(ctx, s.repo, hostID)
+	}); err != nil {
+		return err
+	}
+
+	s.evaluateHostBadges(ctx, hostID)
+	return nil
 }
 
 // evaluateHostBadges runs host-side badge evaluation as a best-effort hook so

@@ -60,6 +60,8 @@ type fakeEventRepo struct {
 	lastSetBaseURL    string
 	lastSetUpdatedAt  time.Time
 	getStateCallCount int
+	reviewState       *EventReviewImageState
+	reviewStateErr    error
 }
 
 func (r *fakeEventRepo) GetEventImageState(_ context.Context, _ uuid.UUID) (*EventImageState, error) {
@@ -86,6 +88,22 @@ func (r *fakeEventRepo) SetEventImageIfVersion(
 		return false, r.setErr
 	}
 	return r.setResult, nil
+}
+
+func (r *fakeEventRepo) GetEventReviewImageState(_ context.Context, eventID, userID uuid.UUID) (*EventReviewImageState, error) {
+	if r.reviewStateErr != nil {
+		return nil, r.reviewStateErr
+	}
+	if r.reviewState != nil {
+		return r.reviewState, nil
+	}
+	return &EventReviewImageState{
+		EventID:                 eventID,
+		HostID:                  uuid.New(),
+		Status:                  string(domain.EventStatusCompleted),
+		PrivacyLevel:            string(domain.PrivacyPublic),
+		IsQualifyingParticipant: true,
+	}, nil
 }
 
 type fakeStorage struct {

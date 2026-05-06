@@ -32,18 +32,26 @@ func (r *RatingRepository) GetEventRatingContext(
 	eventID, participantUserID uuid.UUID,
 ) (*ratingapp.EventRatingContext, error) {
 	var (
-		status                string
-		endTime               pgtype.Timestamptz
-		ratingContext         ratingapp.EventRatingContext
-		isRequestingHost      bool
-		isApprovedParticipant bool
+		status                  string
+		privacyLevel            string
+		endTime                 pgtype.Timestamptz
+		ratingContext           ratingapp.EventRatingContext
+		isRequestingHost        bool
+		isApprovedParticipant   bool
+		isQualifyingParticipant bool
 	)
 
 	err := r.db.QueryRow(ctx, `
 		SELECT
 			e.id,
 			e.host_id,
-			e.status,
+			CASE
+				WHEN e.status = 'ACTIVE' AND e.end_time < NOW() THEN 'COMPLETED'
+				WHEN e.status = 'ACTIVE' AND e.start_time < NOW() THEN 'IN_PROGRESS'
+				WHEN e.status = 'IN_PROGRESS' AND e.end_time < NOW() THEN 'COMPLETED'
+				ELSE e.status
+			END AS status,
+			e.privacy_level,
 			e.start_time,
 			e.end_time,
 			(e.host_id = $2) AS is_requesting_host,
@@ -53,17 +61,29 @@ func (r *RatingRepository) GetEventRatingContext(
 				WHERE p.event_id = e.id
 				  AND p.user_id = $2
 				  AND p.status = $3
-			) AS is_approved_participant
+			) AS is_approved_participant,
+			EXISTS (
+				SELECT 1
+				FROM participation p
+				WHERE p.event_id = e.id
+				  AND p.user_id = $2
+				  AND (
+					p.status = $3
+					OR (p.status = $4 AND p.updated_at >= e.start_time)
+				  )
+			) AS is_qualifying_participant
 		FROM event e
 		WHERE e.id = $1
-	`, eventID, participantUserID, domain.ParticipationStatusApproved).Scan(
+	`, eventID, participantUserID, domain.ParticipationStatusApproved, domain.ParticipationStatusLeaved).Scan(
 		&ratingContext.EventID,
 		&ratingContext.HostUserID,
 		&status,
+		&privacyLevel,
 		&ratingContext.StartTime,
 		&endTime,
 		&isRequestingHost,
 		&isApprovedParticipant,
+		&isQualifyingParticipant,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -73,8 +93,10 @@ func (r *RatingRepository) GetEventRatingContext(
 	}
 
 	ratingContext.Status = domain.EventStatus(status)
+	ratingContext.PrivacyLevel = domain.EventPrivacyLevel(privacyLevel)
 	ratingContext.IsRequestingHost = isRequestingHost
 	ratingContext.IsApprovedParticipant = isApprovedParticipant
+	ratingContext.IsQualifyingParticipant = isQualifyingParticipant
 	if endTime.Valid {
 		ratingContext.EndTime = &endTime.Time
 	}
@@ -87,15 +109,15 @@ func (r *RatingRepository) UpsertEventRating(
 	params ratingapp.UpsertEventRatingParams,
 ) (*domain.EventRating, error) {
 	row := r.db.QueryRow(ctx, `
-		INSERT INTO event_rating (participant_user_id, event_id, rating, message)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (participant_user_id, event_id)
+		INSERT INTO event_comment (user_id, event_id, comment_type, rating, message)
+		VALUES ($1, $2, $3, $4, COALESCE($5, 'Rated this event.'))
+		ON CONFLICT (event_id, user_id) WHERE comment_type = 'REVIEW'
 		DO UPDATE SET
 			rating = EXCLUDED.rating,
 			message = EXCLUDED.message,
 			updated_at = now()
-		RETURNING id, participant_user_id, event_id, rating, message, created_at, updated_at
-	`, params.ParticipantUserID, params.EventID, params.Rating, params.Message)
+		RETURNING id, user_id, event_id, rating, message, created_at, updated_at
+	`, params.ParticipantUserID, params.EventID, string(domain.CommentTypeReview), params.Rating, params.Message)
 
 	rating, err := scanEventRating(row)
 	if err != nil {
@@ -113,6 +135,19 @@ func (r *RatingRepository) DeleteEventRating(ctx context.Context, eventID, parti
 	`, eventID, participantUserID)
 	if err != nil {
 		return false, fmt.Errorf("delete event rating: %w", err)
+	}
+	if tag.RowsAffected() == 1 {
+		return true, nil
+	}
+
+	tag, err = r.db.Exec(ctx, `
+		DELETE FROM event_comment
+		WHERE event_id = $1
+		  AND user_id = $2
+		  AND comment_type = $3
+	`, eventID, participantUserID, string(domain.CommentTypeReview))
+	if err != nil {
+		return false, fmt.Errorf("delete review comment rating: %w", err)
 	}
 
 	return tag.RowsAffected() == 1, nil
@@ -251,10 +286,11 @@ func (r *RatingRepository) CalculateHostedEventAggregate(
 
 	err := r.db.QueryRow(ctx, `
 		SELECT AVG(er.rating)::double precision, COUNT(*)
-		FROM event_rating er
+		FROM event_comment er
 		JOIN event e ON e.id = er.event_id
 		WHERE e.host_id = $1
-	`, userID).Scan(&average, &count)
+		  AND er.comment_type = $2
+	`, userID, string(domain.CommentTypeReview)).Scan(&average, &count)
 	if err != nil {
 		return nil, fmt.Errorf("calculate hosted event aggregate: %w", err)
 	}

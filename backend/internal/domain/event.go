@@ -1,8 +1,9 @@
 package domain
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"math"
-	"math/rand"
 	"time"
 
 	"github.com/google/uuid"
@@ -146,8 +147,8 @@ func ApproximateGeoPoint(p GeoPoint) GeoPoint {
 	)
 	// Uniform distribution inside a circle: scale by sqrt to avoid
 	// concentrating points near the centre.
-	angle := rand.Float64() * 2 * math.Pi
-	distance := math.Sqrt(rand.Float64()) * radiusMeters
+	angle := randomFloat64() * 2 * math.Pi
+	distance := math.Sqrt(randomFloat64()) * radiusMeters
 
 	deltaLat := distance * math.Cos(angle) / metersPerDegreeLat
 	deltaLon := distance * math.Sin(angle) / (metersPerDegreeLat * math.Cos(p.Lat*math.Pi/180))
@@ -156,6 +157,14 @@ func ApproximateGeoPoint(p GeoPoint) GeoPoint {
 		Lat: p.Lat + deltaLat,
 		Lon: p.Lon + deltaLon,
 	}
+}
+
+func randomFloat64() float64 {
+	var buf [8]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return 0.5
+	}
+	return float64(binary.BigEndian.Uint64(buf[:])) / float64(^uint64(0))
 }
 
 // Event is the core event entity.
