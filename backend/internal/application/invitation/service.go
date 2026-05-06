@@ -118,6 +118,20 @@ func (s *Service) AcceptInvitation(ctx context.Context, userID, invitationID uui
 	}, nil
 }
 
+func (s *Service) RevokeInvitation(
+	ctx context.Context,
+	hostID, eventID, invitationID uuid.UUID,
+) error {
+	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		_, err := s.repo.RevokeInvitation(ctx, RevokeInvitationParams{
+			EventID:      eventID,
+			HostID:       hostID,
+			InvitationID: invitationID,
+		})
+		return err
+	})
+}
+
 func (s *Service) DeclineInvitation(ctx context.Context, userID, invitationID uuid.UUID) (*DeclineInvitationResult, error) {
 	var invitation *domain.Invitation
 	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
