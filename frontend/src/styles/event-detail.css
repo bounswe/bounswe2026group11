@@ -1552,3 +1552,259 @@
     font-size: 0.8rem;
   }
 }
+
+/* ── Generic primary/secondary buttons (host management) ── */
+
+.ed-primary-btn {
+  padding: 0.55rem 1rem;
+  background: #111827;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ed-primary-btn:hover:not(:disabled) {
+  background: #000000;
+}
+
+.ed-primary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ed-secondary-btn {
+  padding: 0.55rem 1rem;
+  background: #ffffff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  margin-top: 8px;
+}
+
+.ed-secondary-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #9ca3af;
+}
+
+.ed-secondary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Management group header (with action button) ── */
+
+.ed-mgmt-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.ed-mgmt-action-btn {
+  flex-shrink: 0;
+}
+
+/* ── Invite Users modal ── */
+
+.ed-invite-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 600;
+  padding: 16px;
+}
+
+.ed-invite-modal {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.25);
+}
+
+.ed-invite-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.ed-invite-modal-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.ed-invite-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.ed-invite-modal-close:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.ed-invite-form {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ed-invite-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+  margin: 4px 0 6px;
+}
+
+.ed-invite-textarea {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: #0f172a;
+  resize: vertical;
+  min-height: 60px;
+  margin-bottom: 8px;
+}
+
+.ed-invite-textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.ed-invite-hint {
+  margin: 0 0 12px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.ed-invite-error {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.ed-invite-error-dismiss {
+  background: none;
+  border: none;
+  color: #b91c1c;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ed-invite-result {
+  margin: 8px 0;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.ed-invite-result-line {
+  margin: 0 0 6px;
+}
+
+.ed-invite-result-success {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.ed-invite-result-warn {
+  color: #b45309;
+}
+
+.ed-invite-result-failed-list {
+  margin: 6px 0 0;
+  padding: 0 0 0 18px;
+  color: #b91c1c;
+}
+
+.ed-invite-result-failed-list li {
+  margin-bottom: 2px;
+}
+
+.ed-invite-result-clear {
+  margin-top: 8px;
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.ed-invite-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+@media (max-width: 600px) {
+  .ed-mgmt-group-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ed-mgmt-action-btn {
+    width: 100%;
+  }
+
+  .ed-invite-modal {
+    border-radius: 12px;
+  }
+
+  .ed-invite-actions {
+    flex-direction: column-reverse;
+  }
+
+  .ed-invite-actions button {
+    width: 100%;
+  }
+}

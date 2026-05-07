@@ -108,6 +108,59 @@
   stroke-linejoin: round;
 }
 
+/* Notification bell */
+.shell-bell-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #374151;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+}
+
+.shell-bell-btn:hover {
+  color: #111827;
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.shell-bell-btn.active {
+  color: #111827;
+  background-color: #f1f5f9;
+  border-color: #d1d5db;
+}
+
+.shell-bell-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.shell-bell-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #dc2626;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 /* Create Event button */
 .shell-create-btn {
   padding: 8px 16px;

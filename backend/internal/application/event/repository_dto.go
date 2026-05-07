@@ -232,6 +232,7 @@ type EventDetailPendingJoinRequestRecord struct {
 	JoinRequestID uuid.UUID
 	Status        string
 	Message       *string
+	ImageURL      *string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	User          EventDetailHostContextUserRecord
