@@ -12,6 +12,7 @@ import CreateEventPage from './views/events/CreateEventPage';
 import EventDetailPage from './views/events/EventDetailPage';
 import MyEventsPage from './views/events/MyEventsPage';
 import InvitationsPage from './views/invitations/InvitationsPage';
+import NotificationsPage from './views/notifications/NotificationsPage';
 import FavoritesPage from './views/favorites/FavoritesPage';
 import ProfilePage from './views/profile/ProfilePage';
 import NotFoundView from './views/fallback/NotFoundView';
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/events/:id" element={<EventDetailPage />} />
         <Route path="/my-events" element={<ProtectedRoute><MyEventsPage /></ProtectedRoute>} />
         <Route path="/invitations" element={<ProtectedRoute><InvitationsPage /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
         <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route
