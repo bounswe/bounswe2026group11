@@ -9,6 +9,8 @@ on:
       - "frontend/**"
       - "deploy/**"
       - "nginx/**"
+      - "docs/openapi/**"
+      - "docs/swagger-ui/**"
       - ".github/workflows/deploy-dev.yml"
   release:
     types:
@@ -129,7 +131,7 @@ jobs:
               printf '%s=%s\n' "$1" "$2" >> "$env_file"
             }
 
-            sudo mkdir -p /opt/sem/deploy /opt/sem/nginx
+            sudo mkdir -p /opt/sem/deploy /opt/sem/nginx /opt/sem/docs
             sudo chown -R "$(id -un)":"$(id -gn)" /opt/sem
 
             install -m 600 /dev/null "$env_file"
@@ -167,6 +169,15 @@ jobs:
           target: /opt/sem/nginx
           strip_components: 1
 
+      - name: Upload API documentation assets
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_DEV_IP_ADDRESS }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: docs/openapi,docs/swagger-ui
+          target: /opt/sem
+
       - name: Pull images and restart services
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -199,6 +210,8 @@ jobs:
 
             echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
             $compose_cmd config -q
+            test -f docs/swagger-ui/index.html
+            test -f docs/openapi/auth.yaml
 
             postgres_id="$($compose_cmd ps -q postgres || true)"
             if [ -n "$postgres_id" ] && [ "$(docker inspect --format '{{.State.Running}}' "$postgres_id")" = "true" ]; then
@@ -243,18 +256,14 @@ jobs:
               exit 1
             }
 
-            nginx_id="$($compose_cmd ps -q nginx || true)"
-            if [ -n "$nginx_id" ] && [ "$(docker inspect --format '{{.State.Running}}' "$nginx_id")" = "true" ]; then
-              docker exec "$nginx_id" nginx -t
-              docker exec "$nginx_id" nginx -s reload
-            else
-              $compose_cmd up -d nginx
-            fi
+            $compose_cmd up -d nginx
 
             nginx_id="$(wait_for_container_running nginx 30)" || {
               echo "nginx container did not reach running state" >&2
               exit 1
             }
+            docker exec "$nginx_id" nginx -t
+            docker exec "$nginx_id" nginx -s reload
 
             for attempt in $(seq 1 30); do
               if docker exec "$nginx_id" wget -q -O /dev/null http://backend:8080/health; then
@@ -287,6 +296,19 @@ jobs:
               fi
               if [ "$attempt" -eq 30 ]; then
                 echo "nginx ingress smoke check failed" >&2
+                docker logs "$nginx_id"
+                exit 1
+              fi
+              sleep 2
+            done
+
+            for attempt in $(seq 1 30); do
+              if docker exec "$nginx_id" wget -q -O /dev/null --no-check-certificate https://127.0.0.1/api/docs/ && \
+                 docker exec "$nginx_id" wget -q -O /dev/null --no-check-certificate https://127.0.0.1/api/docs/openapi/auth.yaml; then
+                break
+              fi
+              if [ "$attempt" -eq 30 ]; then
+                echo "swagger docs ingress smoke check failed" >&2
                 docker logs "$nginx_id"
                 exit 1
               fi

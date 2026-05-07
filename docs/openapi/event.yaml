@@ -610,7 +610,8 @@ paths:
         The response always contains two independently paginated collections:
         `discussion_comments` and `review_comments`, both ordered by latest comment first.
         Child comments are not embedded; use `GET /events/{id}/comments/{commentId}/replies`
-        when the user chooses to see replies.
+        when the user chooses to see replies. Reply collections are ordered by oldest reply first
+        so threaded conversations read chronologically.
 
         PRIVATE events do not expose comments. If the authenticated caller can otherwise see
         the private event, the API returns `409 comments_not_allowed`; if not visible, it returns
@@ -751,7 +752,7 @@ paths:
     get:
       tags: [Events]
       summary: List replies for a discussion comment
-      description: Returns replies for a top-level DISCUSSION comment, ordered latest first.
+      description: Returns replies for a top-level DISCUSSION comment, ordered oldest first.
       operationId: listEventCommentReplies
       security:
         - bearerAuth: []
