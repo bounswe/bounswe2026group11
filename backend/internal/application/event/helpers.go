@@ -143,6 +143,13 @@ func toEventDetailResult(record *EventDetailRecord, now time.Time) *GetEventDeta
 		preferredGender := string(*record.PreferredGender)
 		result.PreferredGender = &preferredGender
 	}
+	if record.HostContext != nil {
+		result.HostContext = &EventDetailHostContext{
+			ApprovedParticipants: toEventDetailApprovedParticipants(record.HostContext.ApprovedParticipants),
+			PendingJoinRequests:  toEventDetailPendingJoinRequests(record.HostContext.PendingJoinRequests),
+			Invitations:          toEventDetailInvitations(record.HostContext.Invitations),
+		}
+	}
 
 	return result
 }
@@ -213,6 +220,7 @@ func toEventDetailPendingJoinRequests(records []EventDetailPendingJoinRequestRec
 			JoinRequestID: record.JoinRequestID.String(),
 			Status:        record.Status,
 			Message:       record.Message,
+			ImageURL:      record.ImageURL,
 			CreatedAt:     record.CreatedAt,
 			UpdatedAt:     record.UpdatedAt,
 			User:          toEventDetailHostContextUser(record.User),

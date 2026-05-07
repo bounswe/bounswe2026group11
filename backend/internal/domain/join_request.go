@@ -40,6 +40,7 @@ type JoinRequest struct {
 	HostUserID      uuid.UUID
 	Status          JoinRequestStatus
 	Message         *string
+	ImageURL        *string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
