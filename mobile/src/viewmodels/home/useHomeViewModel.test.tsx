@@ -122,7 +122,7 @@ const defaultFallbackListEventsQuery = {
   start_from: undefined,
   start_to: undefined,
   sort_by: 'START_TIME',
-  limit: 2,
+  limit: 50,
   cursor: undefined,
 };
 

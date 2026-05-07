@@ -21,6 +21,7 @@
     ],
     "ios": {
       "bundleIdentifier": "com.bounswe2026group11.socialeventmapper",
+      "deploymentTarget": "15.1",
       "googleServicesFile": "./firebase/GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": [

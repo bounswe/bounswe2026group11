@@ -44,7 +44,7 @@ interface MappableEvent {
     latitude: number;
     longitude: number;
   };
-  presentation: EventCategoryPresentation;
+  presentation: EventCategoryPresentation; 
   groupSize: number;
 }
 
@@ -166,7 +166,10 @@ function EventMapMarker({
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const { event, coordinate, presentation, groupSize } = item;
   const imageUrl = getImageUrl(event);
-  const calloutImageUrl = imageUrl && !hasImageRenderError ? imageUrl : null;
+  // Hide the callout image if the render raised an error OR the prefetch
+  // explicitly failed (resolved to false) — show the category placeholder instead.
+  const calloutImageUrl =
+    imageUrl && !hasImageRenderError && imageStatus !== 'FAILED' ? imageUrl : null;
 
   useEffect(() => {
     setHasImageRenderError(false);
@@ -185,6 +188,14 @@ function EventMapMarker({
     const t = setTimeout(() => markerRef.current?.showCallout?.(), 40);
     return () => clearTimeout(t);
   }, [isSelected, imageStatus, imageUrl]);
+
+  // On iOS, once the prefetch settles as READY, redraw the callout so the
+  // native bubble snapshot reflects the freshly loaded image.
+  useEffect(() => {
+    if (!isSelected || Platform.OS === 'android') return;
+    if (!imageUrl || imageStatus !== 'READY') return;
+    markerRef.current?.redrawCallout?.();
+  }, [isSelected, imageUrl, imageStatus]);
 
   // Re-show callout when the screen regains focus while this marker is still
   // selected (e.g. returning from the event detail screen).
@@ -269,7 +280,7 @@ function EventMapMarker({
                   // On Android the callout is only opened after the image is
                   // prefetched, so no refresh is needed here.
                   if (Platform.OS !== 'android') {
-                    markerRef.current?.showCallout?.();
+                    markerRef.current?.redrawCallout?.();
                   }
                 }}
                 onError={() => setHasImageRenderError(true)}
@@ -383,8 +394,8 @@ export default function EventMapView({
     urls.forEach((url) => {
       if (imageStatusByUrl[url]) return;
       Image.prefetch(url)
-        .then(() => {
-          setImageStatusByUrl((prev) => ({ ...prev, [url]: 'READY' }));
+        .then((success) => {
+          setImageStatusByUrl((prev) => ({ ...prev, [url]: success ? 'READY' : 'FAILED' }));
         })
         .catch(() => {
           setImageStatusByUrl((prev) => ({ ...prev, [url]: 'FAILED' }));

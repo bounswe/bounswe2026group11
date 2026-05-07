@@ -7,6 +7,18 @@ const { withPodfile, withPodfileProperties } = require('@expo/config-plugins');
 const rnFirebaseStaticFrameworkLine = '$RNFirebaseAsStaticFramework = true';
 const expoConstantsScriptPatchFunctionName =
   'patch_expo_constants_script_phase_for_spaces';
+const alignPodDeploymentTargetsDef = `
+def align_pod_deployment_targets(installer)
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      deployment_target = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+      if deployment_target.nil? || deployment_target.to_f < 15.1
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+      end
+    end
+  end
+end`;
+
 const expoConstantsScriptPatchFunction = `
 def ${expoConstantsScriptPatchFunctionName}(installer)
   installer.pods_project.targets.each do |target|
@@ -19,6 +31,7 @@ def ${expoConstantsScriptPatchFunctionName}(installer)
     end
   end
 end
+${alignPodDeploymentTargetsDef}
 `;
 
 const withIosPodBuildSettings = (config) =>
@@ -56,14 +69,27 @@ const withRnFirebaseStaticFramework = (config) =>
         "ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR']",
         `${expoConstantsScriptPatchFunction}\nENV['EX_DEV_CLIENT_NETWORK_INSPECTOR']`,
       );
+    } else if (!contents.includes('def align_pod_deployment_targets')) {
+      contents = contents.replace(
+        "ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR']",
+        `${alignPodDeploymentTargetsDef}\nENV['EX_DEV_CLIENT_NETWORK_INSPECTOR']`,
+      );
     }
 
-    const postInstallCall = `    ${expoConstantsScriptPatchFunctionName}(installer)\n`;
-    if (!contents.includes(postInstallCall)) {
-      contents = contents.replace(
-        '    )\n  end',
-        `    )\n\n${postInstallCall}  end`,
-      );
+    const postInstallCalls = `    ${expoConstantsScriptPatchFunctionName}(installer)
+    align_pod_deployment_targets(installer)
+`;
+    const postInstallCallLegacy = `    ${expoConstantsScriptPatchFunctionName}(installer)\n`;
+
+    if (!contents.includes('align_pod_deployment_targets(installer)')) {
+      if (contents.includes(postInstallCallLegacy)) {
+        contents = contents.replace(postInstallCallLegacy, postInstallCalls);
+      } else {
+        contents = contents.replace(
+          '    )\n  end',
+          `    )\n\n${postInstallCalls}  end`,
+        );
+      }
     }
 
     config.modResults.contents = contents;
