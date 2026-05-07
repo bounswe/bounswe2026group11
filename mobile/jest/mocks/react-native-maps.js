@@ -13,6 +13,11 @@ const MAP_ONLY_PROPS = new Set([
   'region',
   'initialRegion',
   'coordinate',
+  'center',
+  'radius',
+  'fillColor',
+  'strokeColor',
+  'strokeWidth',
   'provider',
   'mapPadding',
   'anchor',
@@ -20,6 +25,7 @@ const MAP_ONLY_PROPS = new Set([
   'tooltip',
   'identifier',
   'zIndex',
+  'opacity',
   'onDeselect',
   'stopPropagation',
   'onPress',
@@ -63,6 +69,7 @@ const MapView = createMockComponent('div');
 const Marker = createMockComponent('div');
 const Callout = createMockComponent('div');
 const Polyline = createMockComponent('div');
+const Circle = createMockComponent('div');
 
 module.exports = {
   __esModule: true,
@@ -70,5 +77,6 @@ module.exports = {
   Marker,
   Callout,
   Polyline,
+  Circle,
   PROVIDER_GOOGLE: 'google',
 };

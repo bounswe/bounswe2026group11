@@ -13,7 +13,7 @@ import {
   View,
   Alert,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Circle, Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -367,6 +367,9 @@ function ParticipantRatingSection({
     </>
   );
 }
+
+/** Radius (metres) of the circle drawn around a fuzzed PROTECTED event location. */
+const APPROX_LOCATION_RADIUS_METERS = 500;
 
 const darkMapStyle = [
   { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
@@ -854,6 +857,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 style={styles.miniMapContainer}
                 onPress={() => setIsMapModalVisible(true)}
                 activeOpacity={0.9}
+                testID="mini-map-touchable"
               >
                 <MapView
                   style={styles.miniMap}
@@ -861,33 +865,83 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   region={{
                     latitude: event.location.point.lat,
                     longitude: event.location.point.lon,
-                    latitudeDelta: 0.005,
-                    longitudeDelta: 0.005,
+                    latitudeDelta:
+                      event.location.is_location_approximate &&
+                      !event.viewer_context.is_host &&
+                      event.viewer_context.participation_status !== 'JOINED'
+                        ? 0.04
+                        : 0.005,
+                    longitudeDelta:
+                      event.location.is_location_approximate &&
+                      !event.viewer_context.is_host &&
+                      event.viewer_context.participation_status !== 'JOINED'
+                        ? 0.04
+                        : 0.005,
                   }}
                   scrollEnabled={false}
                   zoomEnabled={false}
                   pitchEnabled={false}
                   rotateEnabled={false}
                 >
-                  <Marker
-                    coordinate={{
-                      latitude: event.location.point.lat,
-                      longitude: event.location.point.lon,
-                    }}
-                  />
+                  {(() => {
+                    const showApprox =
+                      event.location.is_location_approximate &&
+                      !event.viewer_context.is_host &&
+                      event.viewer_context.participation_status !== 'JOINED';
+                    return (
+                      <>
+                        <Marker
+                          coordinate={{
+                            latitude: event.location.point!.lat,
+                            longitude: event.location.point!.lon,
+                          }}
+                          opacity={showApprox ? 0.5 : 1}
+                        />
+                        {showApprox ? (
+                          <Circle
+                            center={{
+                              latitude: event.location.point!.lat,
+                              longitude: event.location.point!.lon,
+                            }}
+                            radius={APPROX_LOCATION_RADIUS_METERS}
+                            fillColor="rgba(251,191,36,0.15)"
+                            strokeColor="rgba(217,119,6,0.6)"
+                            strokeWidth={2}
+                            testID="approx-location-circle"
+                          />
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </MapView>
                 <View style={styles.miniMapOverlay}>
                   <Feather name="maximize-2" size={20} color="white" />
                 </View>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.directionsButton}
-                onPress={handleGetDirections}
-                activeOpacity={0.8}
-              >
-                <MaterialIcons name="directions" size={20} color={theme.primary} />
-                <Text style={styles.directionsButtonText}>Get Directions</Text>
-              </TouchableOpacity>
+              {event.location.is_location_approximate &&
+              !event.viewer_context.is_host &&
+              event.viewer_context.participation_status !== 'JOINED' ? (
+                <View style={styles.approxMapCallout} testID="approx-map-callout">
+                  <Feather name="alert-triangle" size={16} color={theme.warningText} />
+                  <View style={styles.approxMapCalloutBody}>
+                    <Text style={styles.approxMapCalloutTitle}>
+                      You're seeing an approximate location
+                    </Text>
+                    <Text style={styles.approxMapCalloutDesc}>
+                      The exact location will be revealed once you're approved to join.
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.directionsButton}
+                  onPress={handleGetDirections}
+                  activeOpacity={0.8}
+                >
+                  <MaterialIcons name="directions" size={20} color={theme.primary} />
+                  <Text style={styles.directionsButtonText}>Get Directions</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
@@ -1216,8 +1270,18 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               initialRegion={{
                 latitude: vm.event.location.point.lat,
                 longitude: vm.event.location.point.lon,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
+                latitudeDelta:
+                  vm.event.location.is_location_approximate &&
+                  !vm.event.viewer_context.is_host &&
+                  vm.event.viewer_context.participation_status !== 'JOINED'
+                    ? 0.05
+                    : 0.01,
+                longitudeDelta:
+                  vm.event.location.is_location_approximate &&
+                  !vm.event.viewer_context.is_host &&
+                  vm.event.viewer_context.participation_status !== 'JOINED'
+                    ? 0.05
+                    : 0.01,
               }}
             >
               <Marker
@@ -1227,7 +1291,28 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 }}
                 title={vm.event.title}
                 description={vm.event.location.address || ''}
+                opacity={
+                  vm.event.location.is_location_approximate &&
+                  !vm.event.viewer_context.is_host &&
+                  vm.event.viewer_context.participation_status !== 'JOINED'
+                    ? 0.5
+                    : 1
+                }
               />
+              {vm.event.location.is_location_approximate &&
+              !vm.event.viewer_context.is_host &&
+              vm.event.viewer_context.participation_status !== 'JOINED' ? (
+                <Circle
+                  center={{
+                    latitude: vm.event.location.point.lat,
+                    longitude: vm.event.location.point.lon,
+                  }}
+                  radius={APPROX_LOCATION_RADIUS_METERS}
+                  fillColor="rgba(251,191,36,0.15)"
+                  strokeColor="rgba(217,119,6,0.6)"
+                  strokeWidth={2}
+                />
+              ) : null}
             </MapView>
 
             <SafeAreaView style={styles.fullMapHeader}>
@@ -1242,20 +1327,28 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   {vm.event.title}
                 </Text>
                 <Text style={styles.fullMapSubtitle} numberOfLines={1}>
-                  {vm.event.location.address}
+                  {vm.event.location.is_location_approximate &&
+                  !vm.event.viewer_context.is_host &&
+                  vm.event.viewer_context.participation_status !== 'JOINED'
+                    ? 'Approximate location'
+                    : vm.event.location.address}
                 </Text>
               </View>
             </SafeAreaView>
 
-            <View style={styles.fullMapFooter}>
-              <TouchableOpacity
-                style={styles.fullMapDirectionsBtn}
-                onPress={handleGetDirections}
-              >
-                <MaterialIcons name="directions" size={24} color="white" />
-                <Text style={styles.fullMapDirectionsText}>Open in Navigation</Text>
-              </TouchableOpacity>
-            </View>
+            {(!vm.event.location.is_location_approximate ||
+              vm.event.viewer_context.is_host ||
+              vm.event.viewer_context.participation_status === 'JOINED') && (
+              <View style={styles.fullMapFooter}>
+                <TouchableOpacity
+                  style={styles.fullMapDirectionsBtn}
+                  onPress={handleGetDirections}
+                >
+                  <MaterialIcons name="directions" size={24} color="white" />
+                  <Text style={styles.fullMapDirectionsText}>Open in Navigation</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </Modal>
       )}
@@ -1915,6 +2008,31 @@ function makeStyles(t: Theme, isDark: boolean) {
       fontSize: 14,
       fontWeight: '500',
       lineHeight: 20,
+    },
+    approxMapCallout: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderTopWidth: 1,
+      borderTopColor: t.warningBorder,
+      backgroundColor: t.warningBg,
+    },
+    approxMapCalloutBody: {
+      flex: 1,
+      gap: 2,
+    },
+    approxMapCalloutTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: t.warningText,
+    },
+    approxMapCalloutDesc: {
+      fontSize: 12,
+      lineHeight: 17,
+      color: t.warningText,
+      opacity: 0.85,
     },
     errorBanner: {
       backgroundColor: t.errorBg,
