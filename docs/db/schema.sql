@@ -124,6 +124,8 @@ CREATE TABLE event (
     favorite_count INT DEFAULT 0,
     minimum_age INT,
     preferred_gender TEXT,
+    child_friendly  BOOLEAN NOT NULL DEFAULT false,
+    family_oriented BOOLEAN NOT NULL DEFAULT false,
     location_type TEXT,
     image_version INT NOT NULL DEFAULT 0,
     version_no INT NOT NULL DEFAULT 0,
