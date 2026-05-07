@@ -5,6 +5,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { logout } from '@/services/authService';
 import SemLogo from '@/components/SemLogo';
+import { useUnreadCountViewModel } from '@/viewmodels/notifications/useUnreadCountViewModel';
 import '@/styles/shell.css';
 
 const AUTH_NAV = [
@@ -27,6 +28,7 @@ export default function AppShell() {
   const navItems = isLoggedIn ? AUTH_NAV : [];
   const isAdminPanel = location.pathname.startsWith('/backoffice') || location.pathname.startsWith('/admin-panel');
   const isDarkMode = theme === 'dark';
+  const { unreadCount } = useUnreadCountViewModel();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -98,6 +100,35 @@ export default function AppShell() {
             </button>
             {isLoggedIn ? (
               <>
+                <NavLink
+                  to="/notifications"
+                  className="shell-bell-btn"
+                  aria-label={
+                    unreadCount > 0
+                      ? `Notifications, ${unreadCount} unread`
+                      : 'Notifications'
+                  }
+                  title="Notifications"
+                >
+                  <svg
+                    className="shell-bell-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="shell-bell-badge" aria-hidden>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </NavLink>
                 <NavLink to="/events/create" className="shell-create-btn">
                   + Create Event
                 </NavLink>
@@ -133,6 +164,20 @@ export default function AppShell() {
                         onClick={() => setUserMenuOpen(false)}
                       >
                         Profile
+                      </NavLink>
+                      <NavLink
+                        to="/invitations"
+                        className="shell-dropdown-item"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        Invitations
+                      </NavLink>
+                      <NavLink
+                        to="/notifications"
+                        className="shell-dropdown-item"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        Notifications
                       </NavLink>
                       <button
                         className="shell-dropdown-item shell-dropdown-logout"

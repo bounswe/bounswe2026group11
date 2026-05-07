@@ -18,10 +18,12 @@ type stubImageUploadService struct {
 	createProfileResult *imageupload.CreateUploadResult
 	createEventResult   *imageupload.CreateUploadResult
 	createReviewResult  *imageupload.CreateUploadResult
+	createJoinResult    *imageupload.CreateUploadResult
 	createReportResult  *imageupload.CreateUploadResult
 	createProfileErr    error
 	createEventErr      error
 	createReviewErr     error
+	createJoinErr       error
 	createReportErr     error
 	confirmProfileErr   error
 	confirmEventErr     error
@@ -29,6 +31,7 @@ type stubImageUploadService struct {
 	confirmReportErr    error
 	lastEventID         uuid.UUID
 	lastReviewEventID   uuid.UUID
+	lastJoinEventID     uuid.UUID
 	lastReportEventID   uuid.UUID
 	lastConfirmInput    imageupload.ConfirmUploadInput
 	lastConfirmEventID  uuid.UUID
@@ -86,6 +89,17 @@ func (s *stubImageUploadService) ConfirmEventReviewImageUpload(_ context.Context
 	return &imageupload.ConfirmReviewImageResult{BaseURL: "https://cdn.example/review.jpg"}, nil
 }
 
+func (s *stubImageUploadService) CreateEventJoinRequestImageUpload(_ context.Context, _ uuid.UUID, eventID uuid.UUID) (*imageupload.CreateUploadResult, error) {
+	s.lastJoinEventID = eventID
+	if s.createJoinErr != nil {
+		return nil, s.createJoinErr
+	}
+	if s.createJoinResult != nil {
+		return s.createJoinResult, nil
+	}
+	return defaultUploadResult(), nil
+}
+
 func (s *stubImageUploadService) CreateEventReportImageUpload(_ context.Context, _ uuid.UUID, eventID uuid.UUID) (*imageupload.CreateUploadResult, error) {
 	s.lastReportEventID = eventID
 	if s.createReportErr != nil {
@@ -95,6 +109,12 @@ func (s *stubImageUploadService) CreateEventReportImageUpload(_ context.Context,
 		return s.createReportResult, nil
 	}
 	return defaultUploadResult(), nil
+}
+
+func (s *stubImageUploadService) ConfirmEventJoinRequestImageUpload(_ context.Context, _ uuid.UUID, eventID uuid.UUID, input imageupload.ConfirmUploadInput) (*imageupload.ConfirmJoinRequestImageResult, error) {
+	s.lastConfirmEventID = eventID
+	s.lastConfirmInput = input
+	return &imageupload.ConfirmJoinRequestImageResult{BaseURL: "https://cdn.example/join-request.jpg"}, nil
 }
 
 func (s *stubImageUploadService) ConfirmEventReportImageUpload(_ context.Context, _ uuid.UUID, eventID uuid.UUID, input imageupload.ConfirmUploadInput) (*imageupload.ConfirmReportImageResult, error) {
@@ -281,6 +301,52 @@ func TestCreateEventImageUploadNotFoundReturns404(t *testing.T) {
 
 	if resp.StatusCode != fiber.StatusNotFound {
 		t.Fatalf("expected status %d, got %d", fiber.StatusNotFound, resp.StatusCode)
+	}
+}
+
+func TestCreateEventJoinRequestImageUploadReturnsSignedInstructions(t *testing.T) {
+	svc := &stubImageUploadService{}
+	app := newTestApp(svc, authedVerifier())
+	eventID := uuid.New()
+
+	req := httptest.NewRequest(fiber.MethodPost, "/events/"+eventID.String()+"/join-request/image/upload-url", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if svc.lastJoinEventID != eventID {
+		t.Fatalf("expected join request image event id %s, got %s", eventID, svc.lastJoinEventID)
+	}
+	var body imageupload.CreateUploadResult
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	if body.BaseURL == "" || body.ConfirmToken == "" || len(body.Uploads) != 2 {
+		t.Fatalf("unexpected response body: %+v", body)
+	}
+}
+
+func TestCreateEventJoinRequestImageUploadWithoutAuthReturns401(t *testing.T) {
+	app := newTestApp(&stubImageUploadService{}, authedVerifier())
+	eventID := uuid.New()
+
+	req := httptest.NewRequest(fiber.MethodPost, "/events/"+eventID.String()+"/join-request/image/upload-url", nil)
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != fiber.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", fiber.StatusUnauthorized, resp.StatusCode)
 	}
 }
 

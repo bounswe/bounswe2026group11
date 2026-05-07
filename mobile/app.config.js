@@ -2,6 +2,74 @@
 // Expo reads this file automatically when it is present alongside app.json.
 // @ts-check
 
+const { withPodfile, withPodfileProperties } = require('@expo/config-plugins');
+
+const rnFirebaseStaticFrameworkLine = '$RNFirebaseAsStaticFramework = true';
+const expoConstantsScriptPatchFunctionName =
+  'patch_expo_constants_script_phase_for_spaces';
+const expoConstantsScriptPatchFunction = `
+def ${expoConstantsScriptPatchFunctionName}(installer)
+  installer.pods_project.targets.each do |target|
+    next unless target.name == 'EXConstants'
+
+    target.shell_script_build_phases.each do |phase|
+      next unless phase.name == '[CP-User] Generate app.config for prebuilt Constants.manifest'
+
+      phase.shell_script = 'bash -l "$PODS_TARGET_SRCROOT/../scripts/get-app-config-ios.sh"'
+    end
+  end
+end
+`;
+
+const withIosPodBuildSettings = (config) =>
+  withPodfileProperties(config, (config) => {
+    config.modResults['ios.buildReactNativeFromSource'] = 'true';
+    config.modResults['ios.useFrameworks'] = 'static';
+    return config;
+  });
+
+const withRnFirebaseStaticFramework = (config) =>
+  withPodfile(config, (config) => {
+    let { contents } = config.modResults;
+    if (contents.includes(rnFirebaseStaticFrameworkLine)) {
+      config.modResults.contents = contents;
+    } else {
+      const envUseFrameworksLine =
+        "  use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']\n";
+      const lineToInsert = `\n  ${rnFirebaseStaticFrameworkLine}\n`;
+
+      if (contents.includes(envUseFrameworksLine)) {
+        contents = contents.replace(
+          envUseFrameworksLine,
+          `${envUseFrameworksLine}${lineToInsert}`,
+        );
+      } else {
+        contents = contents.replace(
+          '  use_react_native!',
+          `${lineToInsert}\n  use_react_native!`,
+        );
+      }
+    }
+
+    if (!contents.includes(expoConstantsScriptPatchFunctionName)) {
+      contents = contents.replace(
+        "ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR']",
+        `${expoConstantsScriptPatchFunction}\nENV['EX_DEV_CLIENT_NETWORK_INSPECTOR']`,
+      );
+    }
+
+    const postInstallCall = `    ${expoConstantsScriptPatchFunctionName}(installer)\n`;
+    if (!contents.includes(postInstallCall)) {
+      contents = contents.replace(
+        '    )\n  end',
+        `    )\n\n${postInstallCall}  end`,
+      );
+    }
+
+    config.modResults.contents = contents;
+    return config;
+  });
+
 /** @type {import('@expo/config').ConfigContext} */
 module.exports = ({ config }) => {
   const androidMapsKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY ?? '';
@@ -19,11 +87,11 @@ module.exports = ({ config }) => {
     },
   );
 
-  return {
+  return withRnFirebaseStaticFramework(withIosPodBuildSettings({
     ...config,
     plugins: [
       ...existingPlugins,
       ['react-native-maps', { androidGoogleMapsApiKey: androidMapsKey }],
     ],
-  };
+  }));
 };
