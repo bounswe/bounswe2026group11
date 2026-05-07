@@ -44,9 +44,42 @@ jest.mock('@expo/vector-icons', () => {
 jest.mock('@/components/events/JoinRequestsModal', () => () => null);
 jest.mock('@/components/events/ParticipantListModal', () => () => null);
 jest.mock('@/components/events/InvitationsModal', () => () => null);
+jest.mock('@/components/events/EventDiscussionSection', () => () => null);
 
 jest.mock('@/viewmodels/event/useEventDetailViewModel', () => ({
   useEventDetailViewModel: jest.fn(),
+}));
+
+jest.mock('@/viewmodels/event/useEventDiscussionViewModel', () => ({
+  useEventDiscussionViewModel: jest.fn(() => ({
+    discussions: { items: [], nextCursor: null, hasNext: false, loading: false },
+    reviews: { items: [], nextCursor: null, hasNext: false, loading: false },
+    repliesMap: {},
+    newDiscussionMessage: '',
+    setNewDiscussionMessage: jest.fn(),
+    replyingToId: null,
+    setReplyingToId: jest.fn(),
+    replyMessage: '',
+    setReplyMessage: jest.fn(),
+    newReviewMessage: '',
+    setNewReviewMessage: jest.fn(),
+    newReviewRating: 0,
+    setNewReviewRating: jest.fn(),
+    discussionSubmitting: false,
+    discussionError: null,
+    reviewSubmitting: false,
+    reviewError: null,
+    loadMoreDiscussions: jest.fn(),
+    loadMoreReviews: jest.fn(),
+    loadReplies: jest.fn(),
+    loadMoreReplies: jest.fn(),
+    submitDiscussionComment: jest.fn(),
+    submitReply: jest.fn(),
+    submitReview: jest.fn(),
+    dismissDiscussionError: jest.fn(),
+    dismissReviewError: jest.fn(),
+    refresh: jest.fn(),
+  })),
 }));
 
 const mockUseEventDetailViewModel = jest.mocked(useEventDetailViewModel);
@@ -184,6 +217,8 @@ function buildViewModel(
     removeReportImage: jest.fn(),
     handleReportEvent: jest.fn().mockResolvedValue(undefined),
     canAttachReportImage: false,
+    token: 'mock-token',
+    user: null,
     ...overrides,
   };
 }

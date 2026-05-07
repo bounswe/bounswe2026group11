@@ -9,6 +9,7 @@ import {
   EventReportCategory,
   RequestReportEvent,
 } from '@/models/event';
+import type { UserSummary } from '@/models/auth';
 import {
   getEventDetail,
   getEventHostContextSummary,
@@ -147,6 +148,9 @@ export interface EventDetailViewModel {
   removeReportImage: () => void;
   handleReportEvent: () => Promise<void>;
   canAttachReportImage: boolean;
+
+  token: string | null;
+  user: UserSummary | null;
 }
 
 function mapRatingError(err: ApiError, fallback: string): string {
@@ -1229,5 +1233,8 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     removeReportImage,
     handleReportEvent,
     canAttachReportImage,
+
+    token,
+    user,
   };
 }

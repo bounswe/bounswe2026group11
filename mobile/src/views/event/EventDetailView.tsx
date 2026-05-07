@@ -33,7 +33,6 @@ import InvitationsModal from '@/components/events/InvitationsModal';
 import ReportEventModal from '@/components/events/ReportEventModal';
 import EventDiscussionSection from '@/components/events/EventDiscussionSection';
 import { useEventDiscussionViewModel } from '@/viewmodels/event/useEventDiscussionViewModel';
-import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -494,8 +493,7 @@ const darkMapStyle = [
 export default function EventDetailView({ eventId }: EventDetailViewProps) {
   const vm = useEventDetailViewModel(eventId);
   const { theme, isDark } = useTheme();
-  const { token, user } = useAuth();
-  const discussionVm = useEventDiscussionViewModel(eventId, token ?? undefined);
+  const discussionVm = useEventDiscussionViewModel(eventId, vm.token ?? undefined);
   const styles = useMemo(() => makeStyles(theme, isDark), [theme, isDark]);
   const [isMapModalVisible, setIsMapModalVisible] = useState(false);
   const [routedGeometry, setRoutedGeometry] = useState<Array<{ lat: number; lon: number }> | null>(
@@ -1281,7 +1279,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             (participationStatus === 'LEAVED' && new Date() >= new Date(event.start_time));
 
           const canPostDiscussion =
-            Boolean(token) &&
+            Boolean(vm.token) &&
             (event.status === 'ACTIVE' ||
               (event.status === 'IN_PROGRESS' && (isHost || isQualifiedParticipant)));
 
@@ -1290,7 +1288,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             new Date() <= new Date(event.rating_window.closes_at);
 
           const canPostReview =
-            Boolean(token) &&
+            Boolean(vm.token) &&
             ratingWindowOpen &&
             !isHost &&
             isQualifiedParticipant;
@@ -1304,11 +1302,11 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               <EventDiscussionSection
                 vm={discussionVm}
                 eventStatus={event.status}
-                isAuthenticated={Boolean(token)}
+                isAuthenticated={Boolean(vm.token)}
                 canPostDiscussion={canPostDiscussion}
                 canPostReview={canPostReview}
                 hasExistingReview={discussionVm.reviews.items.some(
-                  (r) => r.user.id === user?.id,
+                  (r) => r.user.id === vm.user?.id,
                 )}
                 reviewWindowClosed={
                   event.status === 'COMPLETED' && !ratingWindowOpen
