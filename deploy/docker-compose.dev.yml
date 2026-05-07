@@ -69,6 +69,8 @@ services:
     volumes:
       - ../nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
       - ../certs:/etc/nginx/certs:ro
+      - ../docs/openapi:/usr/share/nginx/html/docs/openapi:ro
+      - ../docs/swagger-ui:/usr/share/nginx/html/docs/swagger-ui:ro
     depends_on:
       - backend
       - frontend
