@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
@@ -20,6 +21,14 @@ import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/uti
 import NotFoundView from '../fallback/NotFoundView';
 import AccessDeniedView from '../fallback/AccessDeniedView';
 import '@/styles/event-detail.css';
+
+const EventDetailMiniMap = lazy(() => import('./EventDetailMiniMap'));
+
+export function buildDirectionsUrl(lat: number, lon: number): string {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+    `${lat},${lon}`,
+  )}`;
+}
 
 const FEEDBACK_MIN_LENGTH = 10;
 const FEEDBACK_MAX_LENGTH = 100;
@@ -162,6 +171,81 @@ function PrivacyBadge({ level }: { level: string }) {
   );
 }
 
+function LocationSection({ location }: { location: EventDetailResponse['location'] }) {
+  const anchor = useMemo(() => {
+    if (location.type === 'POINT' && location.point) {
+      return { lat: location.point.lat, lon: location.point.lon };
+    }
+    if (location.type === 'ROUTE' && location.route_points.length > 0) {
+      return { lat: location.route_points[0].lat, lon: location.route_points[0].lon };
+    }
+    return null;
+  }, [location]);
+
+  const hasMap = anchor !== null;
+
+  return (
+    <div className="ed-section">
+      <h2 className="ed-section-title">Location</h2>
+      <div className="ed-info-row">
+        <span className="ed-info-icon">&#128205;</span>
+        <div>
+          {location.address ? (
+            <p className="ed-info-primary">{location.address}</p>
+          ) : (
+            <p className="ed-info-secondary">No address provided</p>
+          )}
+          <p className="ed-info-secondary">
+            {location.type === 'ROUTE' ? 'Route-based event' : 'Point location'}
+            {location.point && (
+              <> &middot; {location.point.lat.toFixed(4)}, {location.point.lon.toFixed(4)}</>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {hasMap ? (
+        <div className="ed-map-panel">
+          <Suspense
+            fallback={
+              <div className="ed-map-placeholder" role="status" aria-live="polite">
+                <span className="spinner" />
+                <p>Loading map...</p>
+              </div>
+            }
+          >
+            <EventDetailMiniMap location={location} />
+          </Suspense>
+          <a
+            className="ed-directions-btn"
+            href={buildDirectionsUrl(anchor.lat, anchor.lon)}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="ed-directions-link"
+          >
+            <svg
+              width={16}
+              height={16}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <polygon points="3 11 22 2 13 21 11 13 3 11" />
+            </svg>
+            Get directions
+          </a>
+        </div>
+      ) : (
+        <p className="ed-map-fallback">Map unavailable for this event.</p>
+      )}
+    </div>
+  );
+}
+
 const FAILURE_CODE_LABELS: Record<InvitationFailureCode, string> = {
   ALREADY_INVITED: 'Already invited',
   ALREADY_PARTICIPATING: 'Already participating',
@@ -198,7 +282,7 @@ function InviteUsersModal({
 
   const canSubmit = usernames.length > 0 && usernames.length <= 100 && !loading;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
     const res = await onSubmit(usernames, message.trim() || null);
@@ -1385,26 +1469,7 @@ function EventContent({
           </div>
         </div>
 
-        {/* Location */}
-        <div className="ed-section">
-          <h2 className="ed-section-title">Location</h2>
-          <div className="ed-info-row">
-            <span className="ed-info-icon">&#128205;</span>
-            <div>
-              {event.location.address ? (
-                <p className="ed-info-primary">{event.location.address}</p>
-              ) : (
-                <p className="ed-info-secondary">No address provided</p>
-              )}
-              <p className="ed-info-secondary">
-                {event.location.type === 'ROUTE' ? 'Route-based event' : 'Point location'}
-                {event.location.point && (
-                  <> &middot; {event.location.point.lat.toFixed(4)}, {event.location.point.lon.toFixed(4)}</>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
+        <LocationSection location={event.location} />
 
         {/* Description */}
         {event.description && (
