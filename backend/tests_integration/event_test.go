@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	postgresrepo "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/postgres"
 	eventapp "github.com/bounswe/bounswe2026group11/backend/internal/application/event"
 	invitationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/invitation"
+	joinrequestapp "github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	notificationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/bounswe/bounswe2026group11/backend/tests_integration/common"
@@ -2009,6 +2011,51 @@ func TestRequestJoinSuccessPath(t *testing.T) {
 	}
 	if storedMessage == nil || *storedMessage != message {
 		t.Fatalf("expected stored message %q, got %v", message, storedMessage)
+	}
+}
+
+func TestRequestJoinImageURLIsVisibleToHostManagementFlows(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	requester := common.GivenUser(t, harness.AuthRepo)
+	event := common.GivenProtectedEvent(t, harness.Service, host.ID)
+	imageURL := "https://cdn.example/join-request.jpg"
+	repo := postgresrepo.NewJoinRequestRepository(common.RequirePool(t))
+
+	created, err := repo.CreateJoinRequest(context.Background(), joinrequestapp.CreateJoinRequestParams{
+		EventID:    event.ID,
+		UserID:     requester.ID,
+		HostUserID: host.ID,
+		ImageURL:   &imageURL,
+	})
+	if err != nil {
+		t.Fatalf("CreateJoinRequest() error = %v", err)
+	}
+
+	// when
+	hostRequests, err := harness.Service.ListEventPendingJoinRequests(context.Background(), host.ID, event.ID, eventapp.ListEventCollectionInput{})
+	if err != nil {
+		t.Fatalf("ListEventPendingJoinRequests() error = %v", err)
+	}
+
+	// then
+	var storedImageURL *string
+	err = common.RequirePool(t).QueryRow(
+		context.Background(),
+		`SELECT image_url FROM join_request WHERE id = $1`,
+		created.ID,
+	).Scan(&storedImageURL)
+	if err != nil {
+		t.Fatalf("select join_request image_url error = %v", err)
+	}
+	if storedImageURL == nil || *storedImageURL != imageURL {
+		t.Fatalf("expected stored image URL %q, got %v", imageURL, storedImageURL)
+	}
+	if len(hostRequests.Items) != 1 || hostRequests.Items[0].ImageURL == nil || *hostRequests.Items[0].ImageURL != imageURL {
+		t.Fatalf("expected pending list image URL %q, got %+v", imageURL, hostRequests.Items)
 	}
 }
 
