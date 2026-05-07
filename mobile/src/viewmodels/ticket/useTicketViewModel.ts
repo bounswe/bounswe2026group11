@@ -156,11 +156,14 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
 
   // Handle the streaming QR token
   useEffect(() => {
-    // We only want to start the stream if the ticket is ACTIVE and the event supports tickets
-    // (Only PROTECTED events support tickets according to backend logic)
-    const canStream = 
-      ticket?.ticket.id && 
-      ticket.ticket.status === 'ACTIVE' && 
+    // We only want to start the stream if:
+    // 1. Ticket is ACTIVE
+    // 2. User is ELIGIBLE (proximity etc. checks passed on backend)
+    // 3. Auth token exists
+    const canStream =
+      ticket?.ticket.id &&
+      ticket.ticket.status === 'ACTIVE' &&
+      ticket.qr_access.eligible_now &&
       token;
 
     if (!canStream) {
@@ -182,39 +185,75 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
 
     const startStream = async () => {
       const streamId = Math.random().toString(36).substring(7);
-      
+
       try {
+        // [P1 FIX] Check permission status BEFORE starting the stream loop.
+        // We use getPermissions instead of requestPermissions to avoid "surprise" popups on mount.
+        const permission = await ExpoLocation.getForegroundPermissionsAsync();
+        if (permission.status !== ExpoLocation.PermissionStatus.GRANTED) {
+          // If permission is not granted, we don't start the auto-stream.
+          // The UI will show the "locked" state and the user can manually "Refresh"
+          // which WILL trigger the requestPermission popup.
+          return;
+        }
+
         const coords = await getCurrentCoordinates();
-        
+
         // Final check before opening the connection
         if (!active || abortController.signal.aborted) return;
 
         const stream = getTicketQrTokenStream(
-          currentTicketId, 
-          coords, 
-          token, 
-          abortController.signal, 
-          streamId
+          currentTicketId,
+          coords,
+          token,
+          abortController.signal,
+          streamId,
         );
-        
+
         for await (const tokenData of stream) {
           if (!active || abortController.signal.aborted) break;
           setQrToken(tokenData);
           setQrMessage(null);
         }
+
+        // Stream ended normally — likely means the ticket was scanned/used.
+        // Reload ticket data so participant sees the updated status immediately.
+        if (active && !abortController.signal.aborted) {
+          try {
+            const updatedTicket = await getMyTicket(currentTicketId, token);
+            setTicket(updatedTicket);
+          } catch {
+            // Silently ignore — the user can always pull-to-refresh
+          }
+        }
       } catch (err) {
         if (active && !abortController.signal.aborted && err instanceof Error && err.name !== 'AbortError') {
+          // Stream closed — always reload the ticket to check if it was used.
+          try {
+            const updatedTicket = await getMyTicket(currentTicketId, token);
+            setTicket(updatedTicket);
+
+            // If the ticket was used, clear the QR and stop retrying.
+            if (updatedTicket.ticket.status === 'USED') {
+              setQrToken(null);
+              setQrMessage(null);
+              return;
+            }
+          } catch {
+            // Ignore reload errors — fall through to normal error handling
+          }
+
           const message = err.message;
           setQrMessage(message);
 
           // Permanent errors (Proximity, Privacy, etc.) usually include a specific status or message.
-          // If it's a proximity error, the user needs to move, so we stop the aggressive 10s loop.
-          // They can still pull-to-refresh or re-enter the screen to try again.
-          const isPermanentError = 
-            message.includes('Status 403') || 
-            message.includes('Status 409') || 
+          // If it's a permanent error, we stop the aggressive retry loop.
+          const isPermanentError =
+            message.includes('Status 403') ||
+            message.includes('Status 409') ||
             message.includes('near the event location') ||
-            message.includes('protected events');
+            message.includes('support mobile tickets') ||
+            message.includes('ACTIVE tickets');
 
           if (isPermanentError) {
             return;
@@ -237,7 +276,7 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
         activeStreams.delete(currentTicketId);
       }
     };
-  }, [ticket?.ticket.id, ticket?.ticket.status, token]);
+  }, [ticket?.ticket.id, ticket?.ticket.status, ticket?.qr_access.eligible_now, token]);
 
   const canRetryQr = useMemo(
     () => ticket?.ticket.status === 'ACTIVE',

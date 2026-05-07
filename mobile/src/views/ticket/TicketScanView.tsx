@@ -38,13 +38,13 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
     if (vm.isSubmitting || isScannerPaused) return;
     setIsScannerPaused(true);
     await vm.submitToken(data);
+    // Camera stays paused until user presses "Scan Another Ticket"
   }, [isScannerPaused, vm]);
 
-  React.useEffect(() => {
-    if (!vm.isSubmitting) {
-      setIsScannerPaused(false);
-    }
-  }, [vm.isSubmitting]);
+  const handleScanAnother = React.useCallback(() => {
+    setIsScannerPaused(false);
+    vm.clearResult();
+  }, [vm]);
 
   if (vm.isLoading) {
     return (
@@ -83,6 +83,43 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
               style={styles.retryButton}
             >
               <Text style={styles.retryButtonText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // GUARD: Only hosts can see the scanner UI
+  if (vm.event && !vm.isHost) {
+    return (
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+        <View style={styles.container}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              accessibilityLabel="Go back"
+              activeOpacity={0.8}
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <Ionicons name="arrow-back" size={26} color={theme.text} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Scan Ticket</Text>
+          </View>
+
+          <View style={styles.errorPanel}>
+            <Feather name="shield-off" size={48} color={theme.errorText} style={{ marginBottom: 16 }} />
+            <Text style={styles.errorTitle}>Access Denied</Text>
+            <Text style={styles.errorText}>
+              Only the event host is authorized to scan tickets. If you are the host, please make sure you are logged into the correct account.
+            </Text>
+            <TouchableOpacity
+              accessibilityLabel="Go back"
+              activeOpacity={0.85}
+              onPress={() => router.back()}
+              style={styles.retryButton}
+            >
+              <Text style={styles.retryButtonText}>Go Back</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -133,96 +170,7 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
           </View>
 
           <View style={styles.scanCard}>
-            {cameraPermissionGranted ? (
-              <View style={styles.scanFrame}>
-                <CameraView
-                  barcodeScannerSettings={{
-                    barcodeTypes: ['qr'],
-                  }}
-                  onBarcodeScanned={isScannerPaused || vm.isSubmitting ? undefined : handleBarCodeScanned}
-                  style={styles.cameraView}
-                />
-                <View pointerEvents="none" style={styles.scanOverlay}>
-                  <View style={[styles.scanCorner, styles.scanCornerTopLeft]} />
-                  <View style={[styles.scanCorner, styles.scanCornerTopRight]} />
-                  <View style={[styles.scanCorner, styles.scanCornerBottomLeft]} />
-                  <View style={[styles.scanCorner, styles.scanCornerBottomRight]} />
-                </View>
-              </View>
-            ) : (
-              <View style={[styles.scanFrame, styles.scanFrameFallback]}>
-                <Feather name="camera-off" size={48} color={theme.textTertiary} />
-                <Text style={styles.scanFrameFallbackText}>
-                  {cameraPermissionDenied
-                    ? 'Camera access is denied. You can still validate by pasting the QR token below.'
-                    : 'Camera access lets hosts scan tickets instantly.'}
-                </Text>
-                {permission?.granted === false ? (
-                  <TouchableOpacity
-                    accessibilityLabel="Enable camera access"
-                    activeOpacity={0.85}
-                    onPress={() => void requestPermission()}
-                    style={styles.permissionButton}
-                  >
-                    <Text style={styles.permissionButtonText}>
-                      {cameraPermissionDenied ? 'Request Again' : 'Enable Camera'}
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            )}
-
-            <Text style={styles.scanHint}>
-              Scan the attendee QR code with your camera, or paste the token below if manual validation is needed.
-            </Text>
-
-            <TextInput
-              accessibilityLabel="QR token input"
-              autoCapitalize="none"
-              autoCorrect={false}
-              multiline
-              onChangeText={vm.setQrToken}
-              placeholder="Enter QR token"
-              placeholderTextColor={theme.placeholder}
-              style={styles.tokenInput}
-              value={vm.qrToken}
-            />
-
-            {vm.errorMessage ? <Text style={styles.inlineError}>{vm.errorMessage}</Text> : null}
-
-            <TouchableOpacity
-              accessibilityLabel="Validate ticket"
-              activeOpacity={0.9}
-              disabled={vm.isSubmitting}
-              onPress={() => void vm.submit()}
-              style={[styles.primaryButton, vm.isSubmitting && styles.primaryButtonDisabled]}
-            >
-              {vm.isSubmitting ? (
-                <ActivityIndicator size="small" color={theme.textOnPrimary} />
-              ) : (
-                <>
-                  <Feather name="check-circle" size={18} color={theme.textOnPrimary} />
-                  <Text style={styles.primaryButtonText}>Validate Ticket</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            {cameraPermissionGranted ? (
-              <TouchableOpacity
-                accessibilityLabel="Scan another ticket"
-                activeOpacity={0.85}
-                disabled={vm.isSubmitting}
-                onPress={() => {
-                  setIsScannerPaused(false);
-                  vm.setQrToken('');
-                }}
-                style={styles.secondaryButton}
-              >
-                <Feather name="camera" size={16} color={theme.text} />
-                <Text style={styles.secondaryButtonText}>Scan Another Ticket</Text>
-              </TouchableOpacity>
-            ) : null}
-
+            {/* ── Scan result card (shown prominently at the top) ── */}
             {vm.scanResult ? (
               <View
                 style={[
@@ -233,7 +181,7 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
                 <View style={styles.resultHeader}>
                   <Feather
                     name={vm.scanResult.result === 'ACCEPTED' ? 'check-circle' : 'x-circle'}
-                    size={20}
+                    size={28}
                     color={vm.scanResult.result === 'ACCEPTED' ? theme.successText : theme.errorText}
                   />
                   <Text
@@ -242,7 +190,7 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
                       { color: vm.scanResult.result === 'ACCEPTED' ? theme.successText : theme.errorText },
                     ]}
                   >
-                    {vm.scanResult.result === 'ACCEPTED' ? 'Ticket accepted' : 'Ticket rejected'}
+                    {vm.scanResult.result === 'ACCEPTED' ? 'Ticket accepted ✓' : 'Ticket rejected'}
                   </Text>
                 </View>
 
@@ -260,6 +208,79 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
                   </View>
                 ) : null}
               </View>
+            ) : null}
+
+            {/* ── Error message ── */}
+            {vm.errorMessage ? <Text style={styles.inlineError}>{vm.errorMessage}</Text> : null}
+
+            {/* ── Scan Another Ticket button (only when there's a result or error) ── */}
+            {cameraPermissionGranted && (vm.scanResult || vm.errorMessage) ? (
+              <TouchableOpacity
+                accessibilityLabel="Scan another ticket"
+                activeOpacity={0.85}
+                disabled={vm.isSubmitting}
+                onPress={handleScanAnother}
+                style={styles.scanAnotherButton}
+              >
+                <Feather name="refresh-cw" size={18} color={theme.textOnPrimary} />
+                <Text style={styles.scanAnotherButtonText}>Scan Another Ticket</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {/* ── Camera / Permission ── */}
+            {!vm.scanResult && !vm.errorMessage ? (
+              cameraPermissionGranted ? (
+                <View style={styles.scanFrame}>
+                  <CameraView
+                    barcodeScannerSettings={{
+                      barcodeTypes: ['qr'],
+                    }}
+                    onBarcodeScanned={isScannerPaused || vm.isSubmitting ? undefined : handleBarCodeScanned}
+                    style={styles.cameraView}
+                  />
+                  {vm.isSubmitting ? (
+                    <View style={styles.scanSubmittingOverlay}>
+                      <ActivityIndicator size="large" color="#fff" />
+                      <Text style={styles.scanSubmittingText}>Validating ticket...</Text>
+                    </View>
+                  ) : (
+                    <View pointerEvents="none" style={styles.scanOverlay}>
+                      <View style={[styles.scanCorner, styles.scanCornerTopLeft]} />
+                      <View style={[styles.scanCorner, styles.scanCornerTopRight]} />
+                      <View style={[styles.scanCorner, styles.scanCornerBottomLeft]} />
+                      <View style={[styles.scanCorner, styles.scanCornerBottomRight]} />
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <View style={[styles.scanFrame, styles.scanFrameFallback]}>
+                  <Feather name="camera-off" size={48} color={theme.textTertiary} />
+                  <Text style={styles.scanFrameFallbackText}>
+                    {cameraPermissionDenied
+                      ? 'Camera access is denied. Please enable it in settings to scan tickets.'
+                      : 'Camera access lets hosts scan tickets instantly.'}
+                  </Text>
+                  {permission?.granted === false ? (
+                    <TouchableOpacity
+                      accessibilityLabel="Enable camera access"
+                      activeOpacity={0.85}
+                      onPress={() => void requestPermission()}
+                      style={styles.permissionButton}
+                    >
+                      <Text style={styles.permissionButtonText}>
+                        {cameraPermissionDenied ? 'Request Again' : 'Enable Camera'}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              )
+            ) : null}
+
+            {/* ── Hint text (only when camera is active) ── */}
+            {!vm.scanResult && !vm.errorMessage ? (
+              <Text style={styles.scanHint}>
+                Scan the attendee QR code with your camera to validate their entry.
+              </Text>
             ) : null}
           </View>
         </View>
@@ -402,25 +423,11 @@ function makeStyles(t: Theme) {
       borderBottomRightRadius: 16,
     },
     scanHint: {
-      marginTop: 18,
-      fontSize: 15,
+      marginTop: 24,
+      fontSize: 16,
       lineHeight: 24,
       color: t.textSecondary,
       textAlign: 'center',
-    },
-    tokenInput: {
-      minHeight: 120,
-      marginTop: 20,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: t.borderStrong,
-      backgroundColor: t.surfaceVariant,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      fontSize: 15,
-      lineHeight: 22,
-      color: t.text,
-      textAlignVertical: 'top',
     },
     inlineError: {
       marginTop: 12,
@@ -473,8 +480,34 @@ function makeStyles(t: Theme) {
       fontWeight: '700',
       color: t.textOnPrimary,
     },
+    scanAnotherButton: {
+      marginTop: 16,
+      minHeight: 54,
+      borderRadius: 20,
+      backgroundColor: t.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+    },
+    scanAnotherButtonText: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: t.textOnPrimary,
+    },
+    scanSubmittingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    scanSubmittingText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#fff',
+    },
     resultCard: {
-      marginTop: 20,
       borderRadius: 22,
       padding: 18,
     },

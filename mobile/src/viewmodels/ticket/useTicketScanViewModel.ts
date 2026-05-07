@@ -13,9 +13,11 @@ export interface TicketScanViewModel {
   isLoading: boolean;
   isSubmitting: boolean;
   errorMessage: string | null;
+  isHost: boolean;
   setQrToken: (value: string) => void;
   submit: () => Promise<void>;
   submitToken: (value: string) => Promise<void>;
+  clearResult: () => void;
   reload: () => Promise<void>;
 }
 
@@ -95,6 +97,12 @@ export function useTicketScanViewModel(eventId: string): TicketScanViewModel {
     await submitToken(qrToken);
   }, [qrToken, submitToken]);
 
+  const clearResult = useCallback(() => {
+    setScanResult(null);
+    setErrorMessage(null);
+    setQrToken('');
+  }, []);
+
   return {
     event,
     qrToken,
@@ -102,9 +110,11 @@ export function useTicketScanViewModel(eventId: string): TicketScanViewModel {
     isLoading,
     isSubmitting,
     errorMessage,
+    isHost: Boolean(event?.viewer_context.is_host),
     setQrToken,
     submit,
     submitToken,
+    clearResult,
     reload,
   };
 }

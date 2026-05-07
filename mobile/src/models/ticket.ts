@@ -1,4 +1,4 @@
-import type { TicketStatus } from '@/models/event';
+import type { TicketStatus, PrivacyLevel } from '@/models/event';
 
 export type TicketParticipationStatus = 'APPROVED' | 'PENDING' | 'CANCELED' | 'LEAVED';
 export type TicketEventStatus = 'ACTIVE' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED';
@@ -25,7 +25,7 @@ export interface TicketEventSummary {
   id: string;
   title: string;
   status: TicketEventStatus;
-  privacy_level: 'PROTECTED';
+  privacy_level: PrivacyLevel;
   start_time: string;
   end_time?: string | null;
   location_type: TicketLocationType;

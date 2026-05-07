@@ -61,7 +61,7 @@ const QR_ACCESS_MESSAGES: Record<string, string> = {
   EVENT_NOT_ACTIVE: 'The event is not currently accepting ticket access.',
   EVENT_CANCELED: 'This event has been canceled, so tickets are disabled.',
   EVENT_COMPLETED: 'This event has already ended.',
-  EVENT_NOT_PROTECTED: 'Only protected events have mobile tickets.',
+  EVENT_NOT_PROTECTED: 'This event type does not support mobile tickets.',
   PROXIMITY_REQUIRED: 'Move closer to the event location to reveal your live QR token.',
 };
 
