@@ -32,6 +32,22 @@ const HomeHeader = forwardRef<any, HomeHeaderProps>(function HomeHeader(
       </View>
 
       <View style={styles.rightWrap}>
+        <View ref={locationButtonRef} collapsable={false} style={styles.locationWrap}>
+          <TouchableOpacity
+            style={styles.locationButton}
+            activeOpacity={0.85}
+            onPress={onPressLocation}
+            accessibilityRole="button"
+            accessibilityLabel="Select location"
+          >
+            <Feather name="map-pin" size={16} color={theme.textOnPrimary} />
+            <Text style={styles.locationButtonText} numberOfLines={1}>
+              {locationLabel}
+            </Text>
+            <Feather name="chevron-down" size={16} color={theme.textOnPrimary} />
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity
           style={styles.bellButton}
           activeOpacity={0.75}
@@ -50,22 +66,6 @@ const HomeHeader = forwardRef<any, HomeHeaderProps>(function HomeHeader(
             </View>
           ) : null}
         </TouchableOpacity>
-
-        <View ref={locationButtonRef} collapsable={false} style={styles.locationWrap}>
-          <TouchableOpacity
-            style={styles.locationButton}
-            activeOpacity={0.85}
-            onPress={onPressLocation}
-            accessibilityRole="button"
-            accessibilityLabel="Select location"
-          >
-            <Feather name="map-pin" size={16} color={theme.textOnPrimary} />
-            <Text style={styles.locationButtonText} numberOfLines={1}>
-              {locationLabel}
-            </Text>
-            <Feather name="chevron-down" size={16} color={theme.textOnPrimary} />
-          </TouchableOpacity>
-        </View>
       </View>
     </View>
   );

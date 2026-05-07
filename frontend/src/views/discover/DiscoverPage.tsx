@@ -10,7 +10,10 @@ import type { DiscoverEventItem, DiscoverSortBy } from '@/models/event';
 import { EventCoverImage } from '@/components/EventCoverImage';
 import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
+import DiscoverMapView from './DiscoverMapView';
 import '@/styles/discover.css';
+
+type DiscoverViewMode = 'list' | 'map';
 
 const SORT_OPTIONS: { label: string; value: DiscoverSortBy; icon: 'time' | 'distance' }[] = [
   { label: 'Soonest', value: 'START_TIME', icon: 'time' },
@@ -71,6 +74,51 @@ function ChevronDownIcon({ className }: { className?: string }) {
       aria-hidden
     >
       <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function ListIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </svg>
+  );
+}
+
+function MapIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+      <line x1="8" y1="2" x2="8" y2="18" />
+      <line x1="16" y1="6" x2="16" y2="22" />
     </svg>
   );
 }
@@ -220,6 +268,7 @@ export default function DiscoverPage() {
   const { token } = useAuth();
   const vm = useDiscoverViewModel(token);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<DiscoverViewMode>('list');
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const categoryChipsRef = useRef<HTMLDivElement>(null);
   const [categoryChipsNeedExpand, setCategoryChipsNeedExpand] = useState(false);
@@ -326,6 +375,32 @@ export default function DiscoverPage() {
             value={vm.filters.q}
             onChange={(e) => vm.updateSearch(e.target.value)}
           />
+          <div
+            className="dc-view-toggle"
+            role="group"
+            aria-label="View mode"
+          >
+            <button
+              type="button"
+              className={`dc-view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => setViewMode('list')}
+              aria-pressed={viewMode === 'list'}
+              title="List view"
+            >
+              <ListIcon className="dc-view-toggle-icon" />
+              <span className="dc-view-toggle-label">List</span>
+            </button>
+            <button
+              type="button"
+              className={`dc-view-toggle-btn ${viewMode === 'map' ? 'active' : ''}`}
+              onClick={() => setViewMode('map')}
+              aria-pressed={viewMode === 'map'}
+              title="Map view"
+            >
+              <MapIcon className="dc-view-toggle-icon" />
+              <span className="dc-view-toggle-label">Map</span>
+            </button>
+          </div>
           <button
             type="button"
             className={`dc-filter-toggle ${filtersOpen ? 'active' : ''} ${hasActiveFilters ? 'has-filters' : ''}`}
@@ -615,53 +690,65 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* Error */}
-      {vm.error && (
-        <div className="error-banner">
-          {vm.error}
-          <button type="button" className="dc-retry-btn" onClick={vm.refresh}>
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* Loading */}
-      {vm.isLoading && (
-        <div className="dc-loading">
-          <span className="spinner" />
-          <p>Loading events...</p>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!vm.isLoading && !vm.error && vm.events.length === 0 && (
-        <div className="dc-empty">
-          <h2>No events found</h2>
-          <p>Try adjusting your filters or search to find events.</p>
-        </div>
-      )}
-
-      {/* Event list */}
-      {!vm.isLoading && vm.events.length > 0 && (
+      {viewMode === 'map' ? (
+        <DiscoverMapView
+          events={vm.events}
+          isLoading={vm.isLoading}
+          error={vm.error}
+          center={vm.mapCenter}
+          onRetry={vm.refresh}
+        />
+      ) : (
         <>
-          <div className="dc-grid">
-            {vm.events.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
-
-          {/* Load more */}
-          {vm.hasNext && (
-            <div className="dc-load-more">
-              <button
-                type="button"
-                className="dc-load-more-btn"
-                onClick={vm.loadMore}
-                disabled={vm.isLoadingMore}
-              >
-                {vm.isLoadingMore ? <span className="spinner" /> : 'Load More'}
+          {/* Error */}
+          {vm.error && (
+            <div className="error-banner">
+              {vm.error}
+              <button type="button" className="dc-retry-btn" onClick={vm.refresh}>
+                Retry
               </button>
             </div>
+          )}
+
+          {/* Loading */}
+          {vm.isLoading && (
+            <div className="dc-loading">
+              <span className="spinner" />
+              <p>Loading events...</p>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!vm.isLoading && !vm.error && vm.events.length === 0 && (
+            <div className="dc-empty">
+              <h2>No events found</h2>
+              <p>Try adjusting your filters or search to find events.</p>
+            </div>
+          )}
+
+          {/* Event list */}
+          {!vm.isLoading && vm.events.length > 0 && (
+            <>
+              <div className="dc-grid">
+                {vm.events.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+
+              {/* Load more */}
+              {vm.hasNext && (
+                <div className="dc-load-more">
+                  <button
+                    type="button"
+                    className="dc-load-more-btn"
+                    onClick={vm.loadMore}
+                    disabled={vm.isLoadingMore}
+                  >
+                    {vm.isLoadingMore ? <span className="spinner" /> : 'Load More'}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}

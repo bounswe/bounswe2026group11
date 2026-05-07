@@ -3,6 +3,7 @@ import {
   UserProfile,
   EventSummary,
   UpdateProfileRequest,
+  ChangePasswordRequest,
   ImageUploadInitResponse,
   ImageUploadConfirmRequest,
   FavoriteLocation,
@@ -25,6 +26,10 @@ export const profileService = {
 
   async updateMyProfile(data: UpdateProfileRequest, token: string): Promise<void> {
     return apiPatchAuth<void>('/me', data, token);
+  },
+
+  async changePassword(data: ChangePasswordRequest, token: string): Promise<void> {
+    return apiPostAuth<void>('/me/change-password', data, token);
   },
 
   async getHostedEvents(token: string): Promise<EventSummary[]> {
