@@ -171,6 +171,8 @@ function buildViewModel(
     setUserSearchQuery: jest.fn(),
     userSuggestions: [],
     isSearchingUsers: false,
+    handleCancelJoinRequest: jest.fn().mockResolvedValue(undefined),
+    handleRevokeInvitation: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }

@@ -585,7 +585,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       return (
         <View>
           <View style={styles.statusChip}>
-            <Ionicons name="checkmark-circle" size={16} color="#059669" />
+            <Ionicons name="checkmark-circle" size={16} color={theme.successText} />
             <Text style={styles.statusChipTextGreen}>{attendedLabel}</Text>
           </View>
           {vm.canLeave && (
@@ -620,9 +620,42 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
     if (status_ === 'PENDING' || vm.actionState === 'success_requested') {
       return (
-        <View style={styles.statusChip}>
-          <Feather name="clock" size={16} color="#D97706" />
-          <Text style={styles.statusChipTextAmber}>Request sent — awaiting approval</Text>
+        <View>
+          <View style={styles.statusChip}>
+            <Feather name="clock" size={16} color={theme.warningText} />
+            <Text style={styles.statusChipTextAmber}>Request sent — awaiting approval</Text>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.leaveButton,
+              vm.actionState === 'canceling_request' && styles.actionButtonLoading,
+            ]}
+            onPress={() => {
+              Alert.alert(
+                'Cancel Request',
+                'Are you sure you want to withdraw your join request?',
+                [
+                  { text: 'No', style: 'cancel' },
+                  {
+                    text: 'Yes, Cancel',
+                    style: 'destructive',
+                    onPress: vm.handleCancelJoinRequest,
+                  },
+                ],
+              );
+            }}
+            disabled={vm.actionState === 'canceling_request'}
+            activeOpacity={0.8}
+          >
+            {vm.actionState === 'canceling_request' ? (
+              <ActivityIndicator color="#DC2626" size="small" />
+            ) : (
+              <>
+                <Feather name="x-circle" size={18} color="#DC2626" />
+                <Text style={styles.leaveButtonText}>Cancel Request</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       );
     }
@@ -631,7 +664,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       return (
         <View>
           <View style={styles.statusChip}>
-            <Feather name="mail" size={16} color="#111827" />
+            <Feather name="mail" size={16} color={theme.infoText} />
             <Text style={styles.statusChipTextBlue}>You&apos;re invited</Text>
           </View>
 
@@ -1357,6 +1390,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             onLoadMore={vm.loadMoreInvitations}
             onClose={() => vm.setShowInvitationsModal(false)}
             onInvite={vm.handleInviteUsers}
+            onRevoke={vm.handleRevokeInvitation}
             isInviting={vm.isInviting}
             userSearchQuery={vm.userSearchQuery}
             setUserSearchQuery={vm.setUserSearchQuery}

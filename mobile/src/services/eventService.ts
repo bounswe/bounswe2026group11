@@ -1,4 +1,4 @@
-import { apiGet, apiGetAuth, apiPostAuth, apiPatchAuth, apiPutAuth } from '@/services/api';
+import { apiGet, apiGetAuth, apiPostAuth, apiPatchAuth, apiPutAuth, apiDeleteAuth } from '@/services/api';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
   PrivacyLevel,
@@ -170,6 +170,13 @@ export async function requestJoinEvent(
   token: string,
 ): Promise<RequestJoinResponse> {
   return apiPostAuth<RequestJoinResponse>(`/events/${id}/join-request`, body, token);
+}
+
+export async function withdrawJoinRequest(
+  eventId: string,
+  token: string,
+): Promise<void> {
+  return apiDeleteAuth<void>(`/events/${eventId}/join-requests/me`, token);
 }
 
 export async function approveJoinRequest(
