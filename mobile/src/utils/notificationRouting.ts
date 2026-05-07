@@ -1,4 +1,5 @@
 interface RoutableNotificationPayload {
+  type?: string | null;
   event_id?: string | null;
   deep_link?: string | null;
   data?: Record<string, string> | null;

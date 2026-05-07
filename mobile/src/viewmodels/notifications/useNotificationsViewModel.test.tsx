@@ -118,6 +118,21 @@ describe('useNotificationsViewModel', () => {
     expect(result.current.unreadCount).toBe(0);
   });
 
+  it('restores notification state when mark read fails', async () => {
+    mockMarkNotificationRead.mockRejectedValueOnce(new Error('boom'));
+    const { result } = renderHook(() => useNotificationsViewModel());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.markRead('n1');
+    });
+
+    expect(result.current.notifications[0].is_read).toBe(false);
+    expect(result.current.unreadCount).toBe(1);
+    expect(result.current.apiError).toBe('Failed to update notifications. Please try again.');
+  });
+
   it('marks all notifications read', async () => {
     const { result } = renderHook(() => useNotificationsViewModel());
 
@@ -129,6 +144,21 @@ describe('useNotificationsViewModel', () => {
 
     expect(mockMarkAllNotificationsRead).toHaveBeenCalledWith('mock-token');
     expect(result.current.unreadCount).toBe(0);
+  });
+
+  it('restores notification state when mark all read fails', async () => {
+    mockMarkAllNotificationsRead.mockRejectedValueOnce(new Error('boom'));
+    const { result } = renderHook(() => useNotificationsViewModel());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.markAllRead();
+    });
+
+    expect(result.current.notifications[0].is_read).toBe(false);
+    expect(result.current.unreadCount).toBe(1);
+    expect(result.current.apiError).toBe('Failed to update notifications. Please try again.');
   });
 
   it('removes a notification after delete succeeds', async () => {

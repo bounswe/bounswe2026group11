@@ -12,7 +12,8 @@ import { useInvitationsViewModel } from '@/viewmodels/invitation/useInvitationsV
 import InvitationCard from '@/components/invitation/InvitationCard';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+
+import { router, Href } from 'expo-router';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -68,6 +69,7 @@ export default function InvitationsView() {
               invitation={item}
               onAccept={vm.handleAccept}
               onDecline={vm.handleDecline}
+              onPress={(eventId) => router.push(`/event/${eventId}` as Href)}
               isActionLoading={vm.isActionLoading === item.invitation_id}
             />
           )}
