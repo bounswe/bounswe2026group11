@@ -798,6 +798,7 @@ body {
 :root[data-theme='dark'] .ed-join-disabled-banner,
 :root[data-theme='dark'] .fallback-content,
 :root[data-theme='dark'] .profile-history-empty,
+:root[data-theme='dark'] .change-password-form,
 :root[data-theme='dark'] .bo-sidebar,
 :root[data-theme='dark'] .bo-filter-bar,
 :root[data-theme='dark'] .bo-table-wrap,
@@ -863,6 +864,44 @@ body {
   background: #2b2b2b !important;
   border-color: #686868 !important;
   color: #e3e3e3 !important;
+}
+
+:root[data-theme='dark'] .change-password-section {
+  border-top-color: #4f4f4f !important;
+}
+
+:root[data-theme='dark'] .change-password-title {
+  color: #e8e8e8 !important;
+}
+
+:root[data-theme='dark'] .change-password-subtitle {
+  color: #c6c6c6 !important;
+}
+
+:root[data-theme='dark'] .change-password-toggle,
+:root[data-theme='dark'] .password-visibility-btn {
+  background: #2b2b2b !important;
+  border-color: #686868 !important;
+  color: #e3e3e3 !important;
+}
+
+:root[data-theme='dark'] .change-password-toggle:hover:not(:disabled),
+:root[data-theme='dark'] .password-visibility-btn:hover:not(:disabled) {
+  background: #333333 !important;
+  border-color: #8a8a8a !important;
+  color: #e8e8e8 !important;
+}
+
+:root[data-theme='dark'] .change-password-error {
+  background: rgba(127, 29, 29, 0.34) !important;
+  border-color: #7f1d1d !important;
+  color: #fecaca !important;
+}
+
+:root[data-theme='dark'] .change-password-success {
+  background: rgba(20, 83, 45, 0.32) !important;
+  border-color: #166534 !important;
+  color: #bbf7d0 !important;
 }
 
 :root[data-theme='dark'] .dc-filter-toggle.active,

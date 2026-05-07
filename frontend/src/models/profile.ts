@@ -42,6 +42,11 @@ export interface UpdateProfileRequest {
   default_location_lon?: number | null;
 }
 
+export interface ChangePasswordRequest {
+  old_password: string;
+  new_password: string;
+}
+
 /* ── Favorite Locations ── */
 
 export interface FavoriteLocation {

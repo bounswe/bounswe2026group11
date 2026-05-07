@@ -13,6 +13,7 @@ const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp';
 const MAX_SIZE_MB = 10;
 
 type ProfileHistoryTab = 'hosted' | 'attended';
+type PasswordFieldKey = 'current' | 'new' | 'confirm';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -86,6 +87,184 @@ function ProfileHistoryCard({ event }: { event: EventSummary }) {
   );
 }
 
+type ChangePasswordSectionProps = {
+  isPasswordFormOpen: boolean;
+  togglePasswordForm: () => void;
+  currentPassword: string;
+  setCurrentPassword: (value: string) => void;
+  newPassword: string;
+  setNewPassword: (value: string) => void;
+  confirmPassword: string;
+  setConfirmPassword: (value: string) => void;
+  passwordErrors: {
+    currentPassword?: string;
+    newPassword?: string;
+    confirmPassword?: string;
+  };
+  passwordError: string | null;
+  passwordSuccess: string | null;
+  isChangingPassword: boolean;
+  handleChangePassword: (e: React.FormEvent) => void;
+};
+
+function ChangePasswordSection({
+  isPasswordFormOpen,
+  togglePasswordForm,
+  currentPassword,
+  setCurrentPassword,
+  newPassword,
+  setNewPassword,
+  confirmPassword,
+  setConfirmPassword,
+  passwordErrors,
+  passwordError,
+  passwordSuccess,
+  isChangingPassword,
+  handleChangePassword,
+}: ChangePasswordSectionProps) {
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<PasswordFieldKey, boolean>>({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+
+  const togglePasswordVisibility = (field: PasswordFieldKey) => {
+    setVisiblePasswords((current) => ({ ...current, [field]: !current[field] }));
+  };
+
+  return (
+    <section className="change-password-section">
+      <div className="change-password-header">
+        <div>
+          <h2 className="change-password-title">Change Password</h2>
+          <p className="change-password-subtitle">Update your account password without changing profile details.</p>
+        </div>
+        <button
+          type="button"
+          className="change-password-toggle"
+          onClick={togglePasswordForm}
+          disabled={isChangingPassword}
+          aria-expanded={isPasswordFormOpen}
+        >
+          {isPasswordFormOpen ? 'Close' : 'Change Password'}
+        </button>
+      </div>
+
+      {passwordSuccess && (
+        <div className="change-password-success" role="status">
+          {passwordSuccess}
+        </div>
+      )}
+
+      {passwordError && (
+        <div className="change-password-error" role="alert">
+          {passwordError}
+        </div>
+      )}
+
+      {isPasswordFormOpen && (
+        <form className="change-password-form" onSubmit={handleChangePassword}>
+          <div className="form-group">
+            <label htmlFor="current-password">Current password</label>
+            <div className="password-input-row">
+              <input
+                id="current-password"
+                type={visiblePasswords.current ? 'text' : 'password'}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                disabled={isChangingPassword}
+                autoComplete="current-password"
+                aria-invalid={Boolean(passwordErrors.currentPassword)}
+              />
+              <button
+                type="button"
+                className="password-visibility-btn"
+                onClick={() => togglePasswordVisibility('current')}
+                disabled={isChangingPassword}
+              >
+                {visiblePasswords.current ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {passwordErrors.currentPassword && (
+              <p className="field-error">{passwordErrors.currentPassword}</p>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="new-password">New password</label>
+            <div className="password-input-row">
+              <input
+                id="new-password"
+                type={visiblePasswords.new ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                disabled={isChangingPassword}
+                autoComplete="new-password"
+                aria-invalid={Boolean(passwordErrors.newPassword)}
+              />
+              <button
+                type="button"
+                className="password-visibility-btn"
+                onClick={() => togglePasswordVisibility('new')}
+                disabled={isChangingPassword}
+              >
+                {visiblePasswords.new ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {passwordErrors.newPassword && (
+              <p className="field-error">{passwordErrors.newPassword}</p>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="confirm-new-password">Confirm new password</label>
+            <div className="password-input-row">
+              <input
+                id="confirm-new-password"
+                type={visiblePasswords.confirm ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isChangingPassword}
+                autoComplete="new-password"
+                aria-invalid={Boolean(passwordErrors.confirmPassword)}
+              />
+              <button
+                type="button"
+                className="password-visibility-btn"
+                onClick={() => togglePasswordVisibility('confirm')}
+                disabled={isChangingPassword}
+              >
+                {visiblePasswords.confirm ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {passwordErrors.confirmPassword && (
+              <p className="field-error">{passwordErrors.confirmPassword}</p>
+            )}
+          </div>
+
+          <div className="change-password-actions">
+            <button
+              type="button"
+              className="cancel-btn"
+              onClick={togglePasswordForm}
+              disabled={isChangingPassword}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="save-btn"
+              disabled={isChangingPassword}
+            >
+              {isChangingPassword ? 'Updating...' : 'Update Password'}
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
 export default function ProfilePage() {
   const { token } = useAuth();
   const {
@@ -113,6 +292,19 @@ export default function ProfilePage() {
     clearLocation,
     isSearchingLocation,
     locationCleared,
+    isPasswordFormOpen,
+    togglePasswordForm,
+    currentPassword,
+    setCurrentPassword,
+    newPassword,
+    setNewPassword,
+    confirmPassword,
+    setConfirmPassword,
+    passwordErrors,
+    passwordError,
+    passwordSuccess,
+    isChangingPassword,
+    handleChangePassword,
   } = useProfileViewModel(token);
   const [activeHistoryTab, setActiveHistoryTab] = useState<ProfileHistoryTab>('hosted');
 
@@ -147,6 +339,23 @@ export default function ProfilePage() {
 
   const displayAvatar = avatarPreview ?? profile.avatar_url;
   const activeHistoryEvents = activeHistoryTab === 'hosted' ? hostedEvents : attendedEvents;
+  const changePasswordSection = (
+    <ChangePasswordSection
+      isPasswordFormOpen={isPasswordFormOpen}
+      togglePasswordForm={togglePasswordForm}
+      currentPassword={currentPassword}
+      setCurrentPassword={setCurrentPassword}
+      newPassword={newPassword}
+      setNewPassword={setNewPassword}
+      confirmPassword={confirmPassword}
+      setConfirmPassword={setConfirmPassword}
+      passwordErrors={passwordErrors}
+      passwordError={passwordError}
+      passwordSuccess={passwordSuccess}
+      isChangingPassword={isChangingPassword}
+      handleChangePassword={handleChangePassword}
+    />
+  );
 
   return (
     <div className="profile-container">
@@ -221,6 +430,8 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
+
+        {changePasswordSection}
 
         <section className="profile-history">
           <div className="profile-history-header">
@@ -392,6 +603,8 @@ export default function ProfilePage() {
               </button>
             </div>
           </form>
+
+          {changePasswordSection}
         </div>
       )}
     </div>
