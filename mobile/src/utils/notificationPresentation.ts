@@ -7,6 +7,7 @@ export interface NotificationPresentation {
   accentColor: string;
   accentBackgroundColor: string;
   badgeLabel: string | null;
+  title: string | null;
   eventTitle: string | null;
   iconName:
     | 'mail-open-outline'
@@ -24,6 +25,9 @@ const PARTICIPATION_NOTIFICATION_TYPES: NotificationType[] = [
   'PROTECTED_EVENT_JOIN_REQUEST_APPROVED',
   'PROTECTED_EVENT_JOIN_REQUEST_REJECTED',
   'PROTECTED_EVENT_JOIN_REQUEST_SUBMITTED',
+  'EVENT_CANCELED',
+  'PRIVATE_EVENT_INVITATION_ACCEPTED',
+  'PRIVATE_EVENT_INVITATION_DECLINED',
 ];
 
 function firstNonEmpty(...values: Array<string | null | undefined>): string | null {
@@ -59,14 +63,13 @@ function buildFallbackPresentation(
 ): NotificationPresentation {
   const eventTitle = firstNonEmpty(notification.data.event_title);
   const eventTime = formatEventTime(notification.data);
-  const metadata = [eventTitle, eventTime].filter(
-    (value): value is string => Boolean(value),
-  );
+  const metadata: string[] = [];
 
   return {
     accentColor: '#0F172A',
     accentBackgroundColor: '#E2E8F0',
     badgeLabel: null,
+    title: notification.title,
     eventTitle,
     iconName: 'notifications-outline',
     summary: notification.body,
@@ -99,14 +102,13 @@ export function getNotificationPresentation(
         accentColor: '#5B21B6',
         accentBackgroundColor: '#EDE9FE',
         badgeLabel: 'Invitation',
+        title: 'Private event invitation',
         eventTitle,
         iconName: 'mail-open-outline',
         summary: actorLabel
           ? `${actorLabel} invited you to a private event.`
           : 'You received a private event invitation.',
-        metadata: [eventTitle, eventTime, 'Open invitation flow'].filter(
-          (value): value is string => Boolean(value),
-        ),
+        metadata: [],
         actionLabel: 'Review invitation',
         actionTarget: 'INVITATIONS',
       };
@@ -115,14 +117,13 @@ export function getNotificationPresentation(
         accentColor: '#047857',
         accentBackgroundColor: '#DCFCE7',
         badgeLabel: 'Approved',
+        title: 'Join request approved',
         eventTitle,
         iconName: 'checkmark-circle-outline',
         summary: actorLabel
           ? `${actorLabel} approved your join request.`
           : 'Your join request was approved.',
-        metadata: [eventTitle, eventTime, 'You can open the event now'].filter(
-          (value): value is string => Boolean(value),
-        ),
+        metadata: [],
         actionLabel: 'Open event',
         actionTarget: 'EVENT',
       };
@@ -132,14 +133,13 @@ export function getNotificationPresentation(
         accentColor: '#B45309',
         accentBackgroundColor: '#FEF3C7',
         badgeLabel: 'Rejected',
+        title: 'Join request rejected',
         eventTitle,
         iconName: 'close-circle-outline',
         summary: actorLabel
           ? `${actorLabel} rejected your join request.`
           : 'Your join request was rejected.',
-        metadata: [eventTitle, eventTime, cooldown ?? 'Check the event for current details'].filter(
-          (value): value is string => Boolean(value),
-        ),
+        metadata: cooldown ? [cooldown] : ([] as string[]),
         actionLabel: 'View event details',
         actionTarget: 'EVENT',
       };
@@ -149,15 +149,59 @@ export function getNotificationPresentation(
         accentColor: '#D97706',
         accentBackgroundColor: '#FEF3C7',
         badgeLabel: 'New Request',
+        title: 'Join request submitted',
         eventTitle,
         iconName: 'mail-open-outline',
         summary: actorLabel
           ? `${actorLabel} wants to join your event.`
           : 'Someone wants to join your event.',
-        metadata: [eventTitle, eventTime, 'Review this join request'].filter(
-          (value): value is string => Boolean(value),
-        ),
+        metadata: [],
         actionLabel: 'Review request',
+        actionTarget: 'EVENT',
+      };
+    case 'EVENT_CANCELED':
+      return {
+        accentColor: '#B91C1C',
+        accentBackgroundColor: '#FEE2E2',
+        badgeLabel: 'Canceled',
+        title: 'Event canceled',
+        eventTitle,
+        iconName: 'close-circle-outline',
+        summary: eventTitle
+          ? `The event "${eventTitle}" has been canceled.`
+          : 'An event you were interested in has been canceled.',
+        metadata: [],
+        actionLabel: 'View event',
+        actionTarget: 'EVENT',
+      };
+    case 'PRIVATE_EVENT_INVITATION_ACCEPTED':
+      return {
+        accentColor: '#047857',
+        accentBackgroundColor: '#DCFCE7',
+        badgeLabel: 'Accepted',
+        title: 'Invitation accepted',
+        eventTitle,
+        iconName: 'checkmark-circle-outline',
+        summary: actorLabel
+          ? `${actorLabel} accepted your invitation.`
+          : 'Your invitation was accepted.',
+        metadata: [],
+        actionLabel: 'View event',
+        actionTarget: 'EVENT',
+      };
+    case 'PRIVATE_EVENT_INVITATION_DECLINED':
+      return {
+        accentColor: '#B45309',
+        accentBackgroundColor: '#FEF3C7',
+        badgeLabel: 'Declined',
+        title: 'Invitation declined',
+        eventTitle,
+        iconName: 'close-circle-outline',
+        summary: actorLabel
+          ? `${actorLabel} declined your invitation.`
+          : 'Your invitation was declined.',
+        metadata: [],
+        actionLabel: 'View event',
         actionTarget: 'EVENT',
       };
     default:

@@ -283,7 +283,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         if (!silent) {
           if (err instanceof ApiError && err.status === 404) {
             setApiError(
-              'This event is private. If you have an invitation, you must accept it from your invitations tab to view the details.',
+              'This event is private and only accessible to invited guests. If you don\'t have a valid invitation or if you have previously declined one, you cannot view the details.',
             );
           } else {
             setApiError('Failed to load event details. Please try again.');

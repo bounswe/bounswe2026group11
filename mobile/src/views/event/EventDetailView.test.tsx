@@ -188,14 +188,14 @@ describe('EventDetailView', () => {
     mockUseEventDetailViewModel.mockReturnValue(
       buildViewModel({
         event: null,
-        apiError: 'This event is either private or does not exist. You may need an invitation to view it.',
+        apiError: 'This event is private and only accessible to invited guests. If you don\'t have a valid invitation or if you have previously declined one, you cannot view the details.',
       }),
     );
 
     render(<EventDetailView eventId="event-1" />);
 
     expect(screen.getByText('Event Inaccessible')).toBeTruthy();
-    expect(screen.getByText(/You may need an invitation/)).toBeTruthy();
+    expect(screen.getByText(/If you don't have a valid invitation/)).toBeTruthy();
     expect(screen.getByText('Go Back to Discovery')).toBeTruthy();
     
     // Check for the lock icon

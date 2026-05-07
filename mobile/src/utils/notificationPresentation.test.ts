@@ -46,7 +46,7 @@ describe('notificationPresentation', () => {
     ).toBe(true);
     expect(
       isDedicatedParticipationNotification('PRIVATE_EVENT_INVITATION_ACCEPTED'),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('builds a dedicated invitation presentation', () => {
@@ -61,7 +61,7 @@ describe('notificationPresentation', () => {
     expect(presentation.actionTarget).toBe('INVITATIONS');
     expect(presentation.actionLabel).toBe('Review invitation');
     expect(presentation.summary).toContain('invited you');
-    expect(presentation.metadata).toContain('Sunrise Hike');
+    expect(presentation.metadata).toHaveLength(0);
   });
 
   it('builds a dedicated rejection presentation with cooldown metadata', () => {
