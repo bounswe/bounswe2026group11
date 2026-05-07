@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
@@ -280,6 +281,26 @@ type fakeJoinRequestService struct {
 	lastInput         join_request.CreatePendingJoinRequestInput
 }
 
+type fakeJoinRequestImageConfirmer struct {
+	baseURL          string
+	err              error
+	callCount        int
+	lastUserID       uuid.UUID
+	lastEventID      uuid.UUID
+	lastConfirmToken string
+}
+
+func (f *fakeJoinRequestImageConfirmer) ConfirmEventJoinRequestImageUpload(_ context.Context, userID, eventID uuid.UUID, input imageupload.ConfirmUploadInput) (*imageupload.ConfirmJoinRequestImageResult, error) {
+	f.callCount++
+	f.lastUserID = userID
+	f.lastEventID = eventID
+	f.lastConfirmToken = input.ConfirmToken
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &imageupload.ConfirmJoinRequestImageResult{BaseURL: f.baseURL}, nil
+}
+
 type fakeTicketLifecycle struct {
 	cancelParticipationCallCount int
 	cancelEventCallCount         int
@@ -336,6 +357,7 @@ func (s *fakeJoinRequestService) CreatePendingJoinRequest(
 		UserID:     userID,
 		HostUserID: hostUserID,
 		Status:     domain.JoinRequestStatusPending,
+		ImageURL:   input.ImageURL,
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}, nil
@@ -405,6 +427,10 @@ func (s *fakeJoinRequestService) RejectJoinRequest(
 		},
 		CooldownEndsAt: now.Add(domain.JoinRequestCooldown),
 	}, nil
+}
+
+func (s *fakeJoinRequestService) CancelJoinRequest(_ context.Context, _, _ uuid.UUID) (*domain.JoinRequest, error) {
+	return nil, nil
 }
 
 func newTestEventService() (*Service, *fakeEventRepo, *fakeParticipationService, *fakeJoinRequestService) {
@@ -498,6 +524,7 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 	viewerRatingMessage := "Great event host."
 	viewerRatingCreatedAt := createdAt.Add(5 * time.Minute)
 	viewerRatingUpdatedAt := viewerRatingCreatedAt.Add(2 * time.Minute)
+	joinRequestImageURL := "https://cdn.example/join-request.jpg"
 	svc.now = func() time.Time { return fixedNow }
 
 	eventRepo.detailRecord = &EventDetailRecord{
@@ -554,6 +581,21 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 			CreatedAt: viewerRatingCreatedAt,
 			UpdatedAt: viewerRatingUpdatedAt,
 		},
+		HostContext: &EventDetailHostContextRecord{
+			PendingJoinRequests: []EventDetailPendingJoinRequestRecord{
+				{
+					JoinRequestID: uuid.New(),
+					Status:        string(domain.JoinRequestStatusPending),
+					ImageURL:      &joinRequestImageURL,
+					CreatedAt:     createdAt,
+					UpdatedAt:     updatedAt,
+					User: EventDetailHostContextUserRecord{
+						ID:       uuid.New(),
+						Username: "requester_user",
+					},
+				},
+			},
+		},
 	}
 
 	// when
@@ -589,6 +631,9 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 	}
 	if len(result.Location.RoutePoints) != 2 {
 		t.Fatalf("expected 2 route points, got %d", len(result.Location.RoutePoints))
+	}
+	if result.HostContext == nil || len(result.HostContext.PendingJoinRequests) != 1 || result.HostContext.PendingJoinRequests[0].ImageURL == nil || *result.HostContext.PendingJoinRequests[0].ImageURL != joinRequestImageURL {
+		t.Fatalf("expected host context join request image URL %q, got %+v", joinRequestImageURL, result.HostContext)
 	}
 }
 
@@ -1822,6 +1867,63 @@ func TestRequestJoinSuccessReturnsPending(t *testing.T) {
 	}
 	if joinRequestService.lastInput.Message == nil || *joinRequestService.lastInput.Message != message {
 		t.Fatalf("expected join request service to receive message %q, got %v", message, joinRequestService.lastInput.Message)
+	}
+}
+
+func TestRequestJoinWithImageTokenConfirmsAndStoresImageURL(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	requesterID := uuid.New()
+	ev := protectedEvent(hostID)
+	svc, _, _, joinRequestService := newTestEventServiceWithEvent(ev)
+	confirmer := &fakeJoinRequestImageConfirmer{baseURL: "https://cdn.example/join-request.jpg"}
+	svc.SetJoinRequestImageConfirmer(confirmer)
+	token := "confirm-token"
+
+	// when
+	result, err := svc.RequestJoin(context.Background(), requesterID, ev.ID, RequestJoinInput{
+		ImageConfirmToken: &token,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+	if confirmer.callCount != 1 {
+		t.Fatalf("expected image confirmer to be called once, got %d", confirmer.callCount)
+	}
+	if confirmer.lastUserID != requesterID || confirmer.lastEventID != ev.ID || confirmer.lastConfirmToken != token {
+		t.Fatalf("unexpected image confirmer input: user=%s event=%s token=%q", confirmer.lastUserID, confirmer.lastEventID, confirmer.lastConfirmToken)
+	}
+	if joinRequestService.lastInput.ImageURL == nil || *joinRequestService.lastInput.ImageURL != confirmer.baseURL {
+		t.Fatalf("expected join request image URL %q, got %v", confirmer.baseURL, joinRequestService.lastInput.ImageURL)
+	}
+	if result.ImageURL == nil || *result.ImageURL != confirmer.baseURL {
+		t.Fatalf("expected response image URL %q, got %v", confirmer.baseURL, result.ImageURL)
+	}
+}
+
+func TestRequestJoinWithoutImageTokenDoesNotConfirmImage(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	requesterID := uuid.New()
+	ev := protectedEvent(hostID)
+	svc, _, _, joinRequestService := newTestEventServiceWithEvent(ev)
+	confirmer := &fakeJoinRequestImageConfirmer{baseURL: "https://cdn.example/join-request.jpg"}
+	svc.SetJoinRequestImageConfirmer(confirmer)
+
+	// when
+	_, err := svc.RequestJoin(context.Background(), requesterID, ev.ID, RequestJoinInput{})
+
+	// then
+	if err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+	if confirmer.callCount != 0 {
+		t.Fatalf("expected image confirmer not to be called, got %d", confirmer.callCount)
+	}
+	if joinRequestService.lastInput.ImageURL != nil {
+		t.Fatalf("expected no join request image URL, got %v", joinRequestService.lastInput.ImageURL)
 	}
 }
 

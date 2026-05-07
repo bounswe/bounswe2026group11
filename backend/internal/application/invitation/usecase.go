@@ -11,4 +11,5 @@ type UseCase interface {
 	ListReceivedInvitations(ctx context.Context, userID uuid.UUID) (*ReceivedInvitationsResult, error)
 	AcceptInvitation(ctx context.Context, userID, invitationID uuid.UUID) (*AcceptInvitationResult, error)
 	DeclineInvitation(ctx context.Context, userID, invitationID uuid.UUID) (*DeclineInvitationResult, error)
+	RevokeInvitation(ctx context.Context, hostID, eventID, invitationID uuid.UUID) error
 }

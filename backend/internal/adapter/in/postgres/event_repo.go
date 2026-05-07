@@ -1287,6 +1287,7 @@ func (r *EventRepository) loadPendingJoinRequests(
 			jr.id,
 			jr.status,
 			jr.message,
+			jr.image_url,
 			jr.created_at,
 			jr.updated_at,
 			u.id,
@@ -1316,6 +1317,7 @@ func (r *EventRepository) loadPendingJoinRequests(
 			joinRequestID uuid.UUID
 			status        string
 			message       pgtype.Text
+			imageURL      pgtype.Text
 			createdAt     time.Time
 			updatedAt     time.Time
 			userID        uuid.UUID
@@ -1329,6 +1331,7 @@ func (r *EventRepository) loadPendingJoinRequests(
 			&joinRequestID,
 			&status,
 			&message,
+			&imageURL,
 			&createdAt,
 			&updatedAt,
 			&userID,
@@ -1354,6 +1357,9 @@ func (r *EventRepository) loadPendingJoinRequests(
 		}
 		if message.Valid {
 			request.Message = &message.String
+		}
+		if imageURL.Valid {
+			request.ImageURL = &imageURL.String
 		}
 		if displayName.Valid {
 			request.User.DisplayName = &displayName.String
@@ -1636,6 +1642,39 @@ func (r *EventRepository) SetEventImageIfVersion(
 
 var _ imageuploadapp.EventRepository = (*EventRepository)(nil)
 
+// GetEventJoinRequestImageState loads the event state needed to authorize
+// join-request image uploads.
+func (r *EventRepository) GetEventJoinRequestImageState(ctx context.Context, eventID uuid.UUID) (*imageuploadapp.EventJoinRequestImageState, error) {
+	var state imageuploadapp.EventJoinRequestImageState
+	err := r.db.QueryRow(ctx, `
+		SELECT
+			e.id,
+			e.host_id,
+			CASE
+				WHEN e.status = 'ACTIVE' AND e.end_time < NOW() THEN 'COMPLETED'
+				WHEN e.status = 'ACTIVE' AND e.start_time < NOW() THEN 'IN_PROGRESS'
+				WHEN e.status = 'IN_PROGRESS' AND e.end_time < NOW() THEN 'COMPLETED'
+				ELSE e.status
+			END AS status,
+			e.privacy_level
+		FROM event e
+		WHERE e.id = $1
+	`, eventID).Scan(
+		&state.EventID,
+		&state.HostID,
+		&state.Status,
+		&state.PrivacyLevel,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("get event join request image state: %w", err)
+	}
+
+	return &state, nil
+}
+
 // GetEventReviewImageState loads the event and caller relation needed to
 // authorize review image uploads.
 func (r *EventRepository) GetEventReviewImageState(ctx context.Context, eventID, userID uuid.UUID) (*imageuploadapp.EventReviewImageState, error) {
@@ -1684,6 +1723,36 @@ func (r *EventRepository) GetEventReviewImageState(ctx context.Context, eventID,
 
 	state.Status = status
 	state.PrivacyLevel = privacyLevel
+	return &state, nil
+}
+
+// GetEventReportImageState loads event state needed to authorize report image uploads.
+func (r *EventRepository) GetEventReportImageState(ctx context.Context, eventID uuid.UUID) (*imageuploadapp.EventReportImageState, error) {
+	var (
+		state  imageuploadapp.EventReportImageState
+		status string
+	)
+
+	err := r.db.QueryRow(ctx, `
+		SELECT
+			e.id,
+			CASE
+				WHEN e.status = 'ACTIVE' AND e.end_time < NOW() THEN 'COMPLETED'
+				WHEN e.status = 'ACTIVE' AND e.start_time < NOW() THEN 'IN_PROGRESS'
+				WHEN e.status = 'IN_PROGRESS' AND e.end_time < NOW() THEN 'COMPLETED'
+				ELSE e.status
+			END AS status
+		FROM event e
+		WHERE e.id = $1
+	`, eventID).Scan(&state.EventID, &status)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("get event report image state: %w", err)
+	}
+
+	state.Status = status
 	return &state, nil
 }
 

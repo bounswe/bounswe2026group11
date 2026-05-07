@@ -1,9 +1,18 @@
+export type NotificationType =
+  | 'PRIVATE_EVENT_INVITATION_RECEIVED'
+  | 'PRIVATE_EVENT_INVITATION_ACCEPTED'
+  | 'PRIVATE_EVENT_INVITATION_DECLINED'
+  | 'PROTECTED_EVENT_JOIN_REQUEST_APPROVED'
+  | 'PROTECTED_EVENT_JOIN_REQUEST_REJECTED'
+  | 'PROTECTED_EVENT_JOIN_REQUEST_SUBMITTED'
+  | 'EVENT_CANCELED';
+
 export interface NotificationItem {
   id: string;
   event_id: string | null;
   title: string;
   body: string;
-  type: string | null;
+  type: NotificationType | string | null;
   deep_link: string | null;
   image_url: string | null;
   data: Record<string, string>;

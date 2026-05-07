@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { ApiError } from '@/services/api';
 import { EventSummary, UserProfile, UpdateProfileRequest } from '../../models/profile';
 import { profileService } from '../../services/profileService';
 import { prepareAvatarBlobs } from '../../utils/imageResize';
@@ -9,6 +10,18 @@ import { shouldShowProfileEvent } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
 
 const SEARCH_DEBOUNCE_MS = 300;
+const MIN_PASSWORD_LENGTH = 8;
+
+type ChangePasswordErrors = {
+  currentPassword?: string;
+  newPassword?: string;
+  confirmPassword?: string;
+};
+
+function getBackendValidationMessage(err: ApiError): string {
+  const details = err.details ? Object.values(err.details).filter(Boolean) : [];
+  return details.length > 0 ? details.join(' ') : err.message;
+}
 
 export function useProfileViewModel(token: string | null) {
   const { setProfileSummary } = useAuth();
@@ -37,6 +50,17 @@ export function useProfileViewModel(token: string | null) {
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [locationCleared, setLocationCleared] = useState(false);
   const locationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Change password states
+  const [isPasswordFormOpen, setIsPasswordFormOpen] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordErrors, setPasswordErrors] = useState<ChangePasswordErrors>({});
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+  const passwordSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchProfile = useCallback(async () => {
     if (!token) return;
@@ -88,6 +112,7 @@ export function useProfileViewModel(token: string | null) {
   useEffect(
     () => () => {
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      if (passwordSuccessTimerRef.current) clearTimeout(passwordSuccessTimerRef.current);
       if (locationTimerRef.current) clearTimeout(locationTimerRef.current);
     },
     [],
@@ -230,6 +255,93 @@ export function useProfileViewModel(token: string | null) {
     }
   };
 
+  const resetPasswordForm = useCallback(() => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordErrors({});
+    setPasswordError(null);
+  }, []);
+
+  const togglePasswordForm = useCallback(() => {
+    setIsPasswordFormOpen((open) => {
+      if (open) resetPasswordForm();
+      setPasswordSuccess(null);
+      return !open;
+    });
+  }, [resetPasswordForm]);
+
+  const validateChangePassword = useCallback((): boolean => {
+    const nextErrors: ChangePasswordErrors = {};
+
+    if (!currentPassword) {
+      nextErrors.currentPassword = 'Current password is required.';
+    }
+
+    if (!newPassword) {
+      nextErrors.newPassword = 'New password is required.';
+    } else if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      nextErrors.newPassword = `New password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+    }
+
+    if (!confirmPassword) {
+      nextErrors.confirmPassword = 'Confirm new password is required.';
+    } else if (newPassword && newPassword !== confirmPassword) {
+      nextErrors.confirmPassword = 'New password and confirmation must match.';
+    }
+
+    if (currentPassword && newPassword && currentPassword === newPassword) {
+      nextErrors.newPassword = 'New password must differ from current password.';
+    }
+
+    setPasswordErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }, [confirmPassword, currentPassword, newPassword]);
+
+  const handleChangePassword = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!validateChangePassword()) return;
+
+    if (!token) {
+      setPasswordError('Authentication token is missing.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await profileService.changePassword({
+        old_password: currentPassword,
+        new_password: newPassword,
+      }, token);
+
+      resetPasswordForm();
+      setIsPasswordFormOpen(false);
+      setPasswordSuccess('Password changed successfully.');
+      if (passwordSuccessTimerRef.current) clearTimeout(passwordSuccessTimerRef.current);
+      passwordSuccessTimerRef.current = setTimeout(() => {
+        setPasswordSuccess(null);
+        passwordSuccessTimerRef.current = null;
+      }, 5000);
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        if (err.status === 401 || err.status === 403) {
+          setPasswordError('Current password is incorrect');
+        } else if (err.status === 400) {
+          setPasswordError(getBackendValidationMessage(err));
+        } else {
+          setPasswordError(err.message);
+        }
+      } else {
+        setPasswordError(err instanceof Error ? err.message : 'Failed to change password');
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
+  }, [currentPassword, newPassword, resetPasswordForm, token, validateChangePassword]);
+
   return {
     profile,
     hostedEvents,
@@ -256,5 +368,19 @@ export function useProfileViewModel(token: string | null) {
     clearLocation,
     isSearchingLocation,
     locationCleared,
+    // Change password
+    isPasswordFormOpen,
+    togglePasswordForm,
+    currentPassword,
+    setCurrentPassword,
+    newPassword,
+    setNewPassword,
+    confirmPassword,
+    setConfirmPassword,
+    passwordErrors,
+    passwordError,
+    passwordSuccess,
+    isChangingPassword,
+    handleChangePassword,
   };
 }

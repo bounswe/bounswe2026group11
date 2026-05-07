@@ -23,6 +23,11 @@ import {
   listEventInvitations,
   createEventInvitations,
 } from '@/services/eventService';
+import {
+  acceptInvitation,
+  declineInvitation,
+  listMyInvitations,
+} from '@/services/invitationService';
 import { addFavorite, removeFavorite } from '@/services/favoriteService';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiError } from '@/services/api';
@@ -33,6 +38,8 @@ export type ActionState =
   | 'joining'
   | 'leaving'
   | 'requesting'
+  | 'accepting_invitation'
+  | 'declining_invitation'
   | 'saving'
   | 'success_joined'
   | 'success_left'
@@ -86,6 +93,8 @@ export interface EventDetailViewModel {
   handleJoin: () => Promise<void>;
   handleLeaveEvent: () => Promise<void>;
   handleRequestJoin: () => Promise<void>;
+  handleAcceptInvitation: () => Promise<void>;
+  handleDeclineInvitation: () => Promise<void>;
   handleToggleFavorite: () => Promise<void>;
   handleViewerRatingSubmit: (rating: number, message?: string) => Promise<void>;
   handleParticipantRatingSubmit: (participantUserId: string, rating: number, message?: string) => Promise<void>;
@@ -274,7 +283,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         if (!silent) {
           if (err instanceof ApiError && err.status === 404) {
             setApiError(
-              'This event is private. If you have an invitation, you must accept it from your invitations tab to view the details.',
+              'This event is private and only accessible to invited guests. If you don\'t have a valid invitation or if you have previously declined one, you cannot view the details.',
             );
           } else {
             setApiError('Failed to load event details. Please try again.');
@@ -533,6 +542,69 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     }
   }, [token, event, joinRequestMessage]);
 
+  const resolveCurrentInvitationID = useCallback(async () => {
+    if (!token || !event) return null;
+
+    const response = await listMyInvitations(token);
+    const invitation = response.items.find((item) => item.event.id === event.id);
+    return invitation?.invitation_id ?? null;
+  }, [event, token]);
+
+  const handleAcceptInvitation = useCallback(async () => {
+    if (!token || !event) return;
+
+    setActionError(null);
+    setActionState('accepting_invitation');
+
+    try {
+      const invitationID = await resolveCurrentInvitationID();
+      if (!invitationID) {
+        throw new Error('This invitation is no longer available.');
+      }
+
+      await acceptInvitation(invitationID, token);
+      await fetchEvent(true);
+      setParticipationStatus('JOINED');
+      setActionState('success_joined');
+    } catch (err: unknown) {
+      setActionState('idle');
+      if (err && typeof err === 'object' && 'message' in err) {
+        setActionError((err as { message: string }).message);
+      } else {
+        setActionError('Failed to accept invitation. Please try again.');
+      }
+    }
+  }, [event, fetchEvent, resolveCurrentInvitationID, token]);
+
+  const handleDeclineInvitation = useCallback(async () => {
+    if (!token || !event) return;
+
+    setActionError(null);
+    setActionState('declining_invitation');
+
+    try {
+      const invitationID = await resolveCurrentInvitationID();
+      if (!invitationID) {
+        throw new Error('This invitation is no longer available.');
+      }
+
+      await declineInvitation(invitationID, token);
+      setParticipationStatus(null);
+      setEvent(null);
+      setApiError(
+        'You declined this private event invitation. The event detail is no longer available.',
+      );
+      setActionState('idle');
+    } catch (err: unknown) {
+      setActionState('idle');
+      if (err && typeof err === 'object' && 'message' in err) {
+        setActionError((err as { message: string }).message);
+      } else {
+        setActionError('Failed to decline invitation. Please try again.');
+      }
+    }
+  }, [event, resolveCurrentInvitationID, token]);
+
   const handleToggleFavorite = useCallback(async () => {
     if (!token || !event) return;
 
@@ -742,6 +814,8 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     handleJoin,
     handleLeaveEvent,
     handleRequestJoin,
+    handleAcceptInvitation,
+    handleDeclineInvitation,
     handleToggleFavorite,
     handleViewerRatingSubmit,
     handleParticipantRatingSubmit,

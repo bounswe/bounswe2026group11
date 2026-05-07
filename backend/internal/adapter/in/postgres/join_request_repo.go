@@ -170,6 +170,25 @@ func (r *JoinRequestRepository) RejectJoinRequest(
 	}, nil
 }
 
+// CancelJoinRequestByUser transitions the caller's own PENDING join request to CANCELED.
+func (r *JoinRequestRepository) CancelJoinRequestByUser(
+	ctx context.Context,
+	params joinrequestapp.CancelJoinRequestByUserParams,
+) (*domain.JoinRequest, error) {
+	request, err := r.loadJoinRequestByEventAndUser(ctx, params.EventID, params.UserID, true)
+	if err != nil {
+		return nil, err
+	}
+	if request == nil {
+		return nil, domain.NotFoundError(domain.ErrorCodeJoinRequestNotFound, "You do not have a join request for this event.")
+	}
+	if request.Status != domain.JoinRequestStatusPending {
+		return nil, domain.ConflictError(domain.ErrorCodeJoinRequestStateInvalid, "Only PENDING join requests can be canceled.")
+	}
+
+	return r.updateJoinRequestStatus(ctx, request.ID, domain.JoinRequestStatusCanceled, nil)
+}
+
 func (r *JoinRequestRepository) GetNotificationContext(
 	ctx context.Context,
 	joinRequestID uuid.UUID,
@@ -237,14 +256,16 @@ func (r *JoinRequestRepository) handleExistingJoinRequestForCreate(
 		return nil, domain.ConflictError(domain.ErrorCodeAlreadyRequested, "You already have a pending join request for this event.")
 	case domain.JoinRequestStatusApproved:
 		if canReactivateLeavedParticipation(participation, eventStart) {
-			return r.reactivateJoinRequest(ctx, existing.ID, params.HostUserID, params.Message)
+			return r.reactivateJoinRequest(ctx, existing.ID, params.HostUserID, params.Message, params.ImageURL)
 		}
 		return nil, domain.ConflictError(domain.ErrorCodeAlreadyParticipating, "You are already participating in this event.")
 	case domain.JoinRequestStatusRejected:
 		if time.Now().UTC().Before(existing.UpdatedAt.Add(domain.JoinRequestCooldown)) {
 			return nil, domain.ConflictError(domain.ErrorCodeJoinRequestCooldownActive, "You must wait 3 days after rejection before requesting to join this event again.")
 		}
-		return r.reactivateJoinRequest(ctx, existing.ID, params.HostUserID, params.Message)
+		return r.reactivateJoinRequest(ctx, existing.ID, params.HostUserID, params.Message, params.ImageURL)
+	case domain.JoinRequestStatusCanceled:
+		return r.reactivateJoinRequest(ctx, existing.ID, params.HostUserID, params.Message, params.ImageURL)
 	default:
 		return nil, fmt.Errorf("unsupported join request status %q", existing.Status)
 	}
@@ -297,7 +318,7 @@ func (r *JoinRequestRepository) loadJoinRequestByEventAndUser(
 	forUpdate bool,
 ) (*domain.JoinRequest, error) {
 	query := `
-		SELECT id, event_id, user_id, participation_id, host_user_id, status, message, created_at, updated_at
+		SELECT id, event_id, user_id, participation_id, host_user_id, status, message, image_url, created_at, updated_at
 		FROM join_request
 		WHERE event_id = $1
 		  AND user_id = $2
@@ -315,7 +336,7 @@ func (r *JoinRequestRepository) loadJoinRequestByID(
 	forUpdate bool,
 ) (*domain.JoinRequest, error) {
 	query := `
-		SELECT id, event_id, user_id, participation_id, host_user_id, status, message, created_at, updated_at
+		SELECT id, event_id, user_id, participation_id, host_user_id, status, message, image_url, created_at, updated_at
 		FROM join_request
 		WHERE event_id = $1
 		  AND id = $2
@@ -332,10 +353,10 @@ func (r *JoinRequestRepository) insertJoinRequest(
 	params joinrequestapp.CreateJoinRequestParams,
 ) (*domain.JoinRequest, error) {
 	row := r.db.QueryRow(ctx, `
-		INSERT INTO join_request (event_id, user_id, host_user_id, status, message)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, event_id, user_id, participation_id, host_user_id, status, message, created_at, updated_at
-	`, params.EventID, params.UserID, params.HostUserID, domain.JoinRequestStatusPending, params.Message)
+		INSERT INTO join_request (event_id, user_id, host_user_id, status, message, image_url)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, event_id, user_id, participation_id, host_user_id, status, message, image_url, created_at, updated_at
+	`, params.EventID, params.UserID, params.HostUserID, domain.JoinRequestStatusPending, params.Message, params.ImageURL)
 
 	request, err := scanJoinRequest(row)
 	if err != nil {
@@ -349,6 +370,7 @@ func (r *JoinRequestRepository) reactivateJoinRequest(
 	ctx context.Context,
 	joinRequestID, hostUserID uuid.UUID,
 	message *string,
+	imageURL *string,
 ) (*domain.JoinRequest, error) {
 	row := r.db.QueryRow(ctx, `
 		UPDATE join_request
@@ -356,11 +378,12 @@ func (r *JoinRequestRepository) reactivateJoinRequest(
 			status = $3,
 			participation_id = NULL,
 			message = $4,
+			image_url = $5,
 			created_at = now(),
 			updated_at = now()
 		WHERE id = $1
-		RETURNING id, event_id, user_id, participation_id, host_user_id, status, message, created_at, updated_at
-	`, joinRequestID, hostUserID, domain.JoinRequestStatusPending, message)
+		RETURNING id, event_id, user_id, participation_id, host_user_id, status, message, image_url, created_at, updated_at
+	`, joinRequestID, hostUserID, domain.JoinRequestStatusPending, message, imageURL)
 
 	request, err := scanJoinRequest(row)
 	if err != nil {
@@ -437,7 +460,7 @@ func (r *JoinRequestRepository) updateJoinRequestStatus(
 			participation_id = $3,
 			updated_at = now()
 		WHERE id = $1
-		RETURNING id, event_id, user_id, participation_id, host_user_id, status, message, created_at, updated_at
+		RETURNING id, event_id, user_id, participation_id, host_user_id, status, message, image_url, created_at, updated_at
 	`, joinRequestID, status, participationID)
 
 	request, err := scanJoinRequest(row)
@@ -457,6 +480,7 @@ func scanJoinRequest(row pgx.Row) (*domain.JoinRequest, error) {
 		hostUserID      uuid.UUID
 		status          string
 		message         pgtype.Text
+		imageURL        pgtype.Text
 		createdAt       time.Time
 		updatedAt       time.Time
 	)
@@ -469,6 +493,7 @@ func scanJoinRequest(row pgx.Row) (*domain.JoinRequest, error) {
 		&hostUserID,
 		&status,
 		&message,
+		&imageURL,
 		&createdAt,
 		&updatedAt,
 	)
@@ -499,6 +524,9 @@ func scanJoinRequest(row pgx.Row) (*domain.JoinRequest, error) {
 	}
 	if message.Valid {
 		request.Message = &message.String
+	}
+	if imageURL.Valid {
+		request.ImageURL = &imageURL.String
 	}
 
 	return request, nil

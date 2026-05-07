@@ -555,9 +555,70 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
     if (status_ === 'INVITED') {
       return (
+        <View>
+          <View style={styles.statusChip}>
+            <Feather name="mail" size={16} color="#111827" />
+            <Text style={styles.statusChipTextBlue}>You&apos;re invited</Text>
+          </View>
+
+          <View style={styles.invitationActionRow}>
+            <TouchableOpacity
+              style={[
+                styles.invitationSecondaryButton,
+                vm.actionState === 'declining_invitation' &&
+                  styles.actionButtonLoading,
+              ]}
+              onPress={vm.handleDeclineInvitation}
+              disabled={
+                vm.actionState === 'accepting_invitation' ||
+                vm.actionState === 'declining_invitation'
+              }
+              activeOpacity={0.8}
+            >
+              {vm.actionState === 'declining_invitation' ? (
+                <ActivityIndicator color="#DC2626" size="small" />
+              ) : (
+                <>
+                  <Feather name="x" size={18} color="#DC2626" />
+                  <Text style={styles.invitationSecondaryButtonText}>
+                    Decline
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.invitationPrimaryButton,
+                vm.actionState === 'accepting_invitation' &&
+                  styles.actionButtonLoading,
+              ]}
+              onPress={vm.handleAcceptInvitation}
+              disabled={
+                vm.actionState === 'accepting_invitation' ||
+                vm.actionState === 'declining_invitation'
+              }
+              activeOpacity={0.8}
+            >
+              {vm.actionState === 'accepting_invitation' ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <>
+                  <Feather name="check" size={18} color="#FFFFFF" />
+                  <Text style={styles.actionButtonText}>Accept Invitation</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    if (vm.actionState === 'declining_invitation') {
+      return (
         <View style={styles.statusChip}>
           <Feather name="mail" size={16} color={theme.primary} />
-          <Text style={styles.statusChipTextBlue}>You&apos;re invited</Text>
+          <Text style={styles.statusChipTextBlue}>Invitation response pending</Text>
         </View>
       );
     }
@@ -1468,17 +1529,17 @@ function makeStyles(t: Theme, isDark: boolean) {
     statusChipTextGreen: {
       fontSize: 15,
       fontWeight: '700',
-      color: '#059669',
+      color: t.successText,
     },
     statusChipTextAmber: {
       fontSize: 15,
       fontWeight: '700',
-      color: '#D97706',
+      color: t.warningText,
     },
     statusChipTextBlue: {
       fontSize: 15,
       fontWeight: '700',
-      color: '#2563EB',
+      color: t.infoText,
     },
     statusChipTextPurple: {
       fontSize: 15,
@@ -1488,7 +1549,39 @@ function makeStyles(t: Theme, isDark: boolean) {
     statusChipTextGray: {
       fontSize: 15,
       fontWeight: '700',
-      color: t.textTertiary,
+      color: t.textSecondary,
+    },
+    invitationActionRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 10,
+    },
+    invitationPrimaryButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: t.primary,
+    },
+    invitationSecondaryButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: t.errorBg,
+      borderWidth: 1,
+      borderColor: t.errorBorder,
+    },
+    invitationSecondaryButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: t.errorText,
     },
     leaveButton: {
       flexDirection: 'row',
@@ -1505,7 +1598,7 @@ function makeStyles(t: Theme, isDark: boolean) {
     leaveButtonText: {
       fontSize: 15,
       fontWeight: '700',
-      color: '#DC2626',
+      color: t.errorText,
     },
 
     /* Rating card */
@@ -1588,10 +1681,10 @@ function makeStyles(t: Theme, isDark: boolean) {
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 999,
-      backgroundColor: 'rgba(255, 251, 235, 0.9)',
+      backgroundColor: t.warningBg,
       borderWidth: 1,
-      borderColor: 'rgba(245, 158, 11, 0.35)',
-      color: '#9A6700',
+      borderColor: t.warningBorder,
+      color: t.warningText,
       fontSize: 14,
       fontWeight: '700',
       overflow: 'hidden',
@@ -1617,7 +1710,7 @@ function makeStyles(t: Theme, isDark: boolean) {
     },
     ratingStarIcon: {
       fontSize: 40,
-      color: t.border,
+      color: t.borderStrong,
     },
     ratingStarIconActive: {
       color: '#F59E0B',
@@ -1635,9 +1728,9 @@ function makeStyles(t: Theme, isDark: boolean) {
       fontWeight: '600',
     },
     ratingSelectionSummaryActive: {
-      color: '#9A6700',
-      borderColor: 'rgba(245, 158, 11, 0.35)',
-      backgroundColor: 'rgba(255, 251, 235, 0.9)',
+      color: t.warningText,
+      borderColor: t.warningBorder,
+      backgroundColor: t.warningBg,
     },
     ratingFieldLabel: {
       fontSize: 13,

@@ -5,6 +5,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import * as eventService from '@/services/eventService';
 import * as favoriteService from '@/services/favoriteService';
 import * as profileService from '@/services/profileService';
+import * as invitationService from '@/services/invitationService';
 import { ApiError } from '@/services/api';
 import type {
   EventDetail,
@@ -21,6 +22,7 @@ import {
 jest.mock('@/services/eventService');
 jest.mock('@/services/favoriteService');
 jest.mock('@/services/profileService');
+jest.mock('@/services/invitationService');
 
 const mockUser: UserSummary = {
   id: 'user-uuid-001',
@@ -65,6 +67,9 @@ const mockRemoveFavorite = jest.mocked(favoriteService.removeFavorite);
 const mockListEventInvitations = jest.mocked(eventService.listEventInvitations);
 const mockCreateEventInvitations = jest.mocked(eventService.createEventInvitations);
 const mockSearchUsers = jest.mocked(profileService.searchUsers);
+const mockListMyInvitations = jest.mocked(invitationService.listMyInvitations);
+const mockAcceptInvitation = jest.mocked(invitationService.acceptInvitation);
+const mockDeclineInvitation = jest.mocked(invitationService.declineInvitation);
 
 const mockErrorBody = { error: { code: 'server_error', message: 'Unexpected error' } };
 
@@ -226,6 +231,17 @@ const completedHostedEventFixture: EventDetail = {
   },
 };
 
+const invitedPrivateEventFixture: EventDetail = {
+  ...publicEventFixture,
+  id: 'event-uuid-004',
+  privacy_level: 'PRIVATE',
+  viewer_context: {
+    is_host: false,
+    is_favorited: false,
+    participation_status: 'INVITED',
+  },
+};
+
 describe('resolveConstraintViolation', () => {
   it('returns null when event has no gender or age constraints', () => {
     expect(
@@ -372,6 +388,36 @@ describe('useEventDetailViewModel', () => {
       failed: [],
     });
     mockSearchUsers.mockResolvedValue({ items: [] });
+    mockListMyInvitations.mockResolvedValue({
+      items: [
+        {
+          invitation_id: 'inv-1',
+          status: 'PENDING',
+          event: {
+            id: invitedPrivateEventFixture.id,
+            title: invitedPrivateEventFixture.title,
+            image_url: invitedPrivateEventFixture.image_url ?? null,
+            start_time: invitedPrivateEventFixture.start_time,
+          },
+          host: {
+            username: invitedPrivateEventFixture.host.username,
+            display_name: invitedPrivateEventFixture.host.display_name ?? null,
+            profile_image_url: invitedPrivateEventFixture.host.avatar_url ?? null,
+          },
+          message: null,
+          created_at: invitedPrivateEventFixture.created_at,
+          updated_at: invitedPrivateEventFixture.updated_at,
+        },
+      ],
+      total: 1,
+    });
+    mockAcceptInvitation.mockResolvedValue({
+      message: 'Invitation accepted',
+      event_id: invitedPrivateEventFixture.id,
+    });
+    mockDeclineInvitation.mockResolvedValue({
+      message: 'Invitation declined',
+    });
   });
 
   // ─── Initial loading state ───
@@ -812,6 +858,55 @@ describe('useEventDetailViewModel', () => {
       expect(result.current.actionState).toBe('idle');
       expect(result.current.actionError).toBe('You already have a pending join request.');
       expect(result.current.showJoinRequestModal).toBe(true);
+    });
+  });
+
+  describe('invitation actions', () => {
+    it('accepts an invitation and refreshes the event as joined', async () => {
+      mockGetEventDetail
+        .mockResolvedValueOnce(invitedPrivateEventFixture)
+        .mockResolvedValueOnce({
+          ...invitedPrivateEventFixture,
+          viewer_context: {
+            ...invitedPrivateEventFixture.viewer_context,
+            participation_status: 'JOINED',
+          },
+        });
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel(invitedPrivateEventFixture.id),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleAcceptInvitation();
+      });
+
+      expect(mockListMyInvitations).toHaveBeenCalledWith('mock-token');
+      expect(mockAcceptInvitation).toHaveBeenCalledWith('inv-1', 'mock-token');
+      expect(result.current.participationStatus).toBe('JOINED');
+      expect(result.current.actionState).toBe('success_joined');
+      expect(result.current.actionError).toBeNull();
+    });
+
+    it('declines an invitation and hides the event detail', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(invitedPrivateEventFixture);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel(invitedPrivateEventFixture.id),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleDeclineInvitation();
+      });
+
+      expect(mockDeclineInvitation).toHaveBeenCalledWith('inv-1', 'mock-token');
+      expect(result.current.event).toBeNull();
+      expect(result.current.apiError).toContain('declined this private event invitation');
+      expect(result.current.actionState).toBe('idle');
     });
   });
 

@@ -1,10 +1,13 @@
 package ticket_handler
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -68,6 +71,12 @@ func (v fakeVerifier) VerifyAccessToken(string) (*domain.AuthClaims, error) {
 	return v.claims, nil
 }
 
+type failingWriter struct{}
+
+func (f failingWriter) Write([]byte) (int, error) {
+	return 0, errors.New("broken pipe")
+}
+
 func TestScanTicketRequiresMobileHeader(t *testing.T) {
 	app := newTicketTestApp(&fakeTicketService{}, uuid.New())
 	req := httptest.NewRequest(fiber.MethodPost, "/host/events/"+uuid.NewString()+"/ticket-scans", bytes.NewBufferString(`{"qr_token":"token"}`))
@@ -126,6 +135,31 @@ func TestListMyTicketsDoesNotRequireMobileHeader(t *testing.T) {
 
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestWriteSSEFlushesEventPayload(t *testing.T) {
+	var buf bytes.Buffer
+	writer := bufio.NewWriter(&buf)
+
+	ok := writeSSE(writer, "qr_token", fiber.Map{"token": "signed-token"})
+
+	if !ok {
+		t.Fatal("expected writeSSE to report success")
+	}
+	body := buf.String()
+	if !strings.Contains(body, "event: qr_token\n") || !strings.Contains(body, `"token":"signed-token"`) {
+		t.Fatalf("unexpected SSE payload: %q", body)
+	}
+}
+
+func TestWriteSSEReturnsFalseWhenFlushFails(t *testing.T) {
+	writer := bufio.NewWriter(failingWriter{})
+
+	ok := writeSSE(writer, "qr_token", fiber.Map{"token": "signed-token"})
+
+	if ok {
+		t.Fatal("expected writeSSE to report flush failure")
 	}
 }
 

@@ -231,6 +231,86 @@ func (s *Service) ConfirmEventReviewImageUpload(ctx context.Context, userID, eve
 	return &ConfirmReviewImageResult{BaseURL: payload.BaseURL}, nil
 }
 
+// CreateEventJoinRequestImageUpload prepares a direct-upload flow for one join-request image.
+func (s *Service) CreateEventJoinRequestImageUpload(ctx context.Context, userID, eventID uuid.UUID) (*CreateUploadResult, error) {
+	state, err := s.eventRepo.GetEventJoinRequestImageState(ctx, eventID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+		}
+		return nil, err
+	}
+	if err := validateJoinRequestImageState(state, userID); err != nil {
+		return nil, err
+	}
+
+	uploadID := uuid.NewString()
+	return s.createUpload(ctx, uploadDescriptor{
+		Resource:     ResourceJoinRequestImage,
+		OwnerUserID:  userID,
+		NextVersion:  1,
+		OriginalKey:  fmt.Sprintf("events/%s/join-requests/%s/%s", eventID, userID, uploadID),
+		UploadID:     uploadID,
+		CurrentEvent: &eventID,
+	})
+}
+
+// CreateEventReportImageUpload prepares a direct-upload flow for one event report image.
+func (s *Service) CreateEventReportImageUpload(ctx context.Context, userID, eventID uuid.UUID) (*CreateUploadResult, error) {
+	state, err := s.eventRepo.GetEventReportImageState(ctx, eventID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+		}
+		return nil, err
+	}
+	if err := validateReportImageState(state); err != nil {
+		return nil, err
+	}
+
+	uploadID := uuid.NewString()
+	return s.createUpload(ctx, uploadDescriptor{
+		Resource:     ResourceEventReportImage,
+		OwnerUserID:  userID,
+		NextVersion:  1,
+		OriginalKey:  fmt.Sprintf("events/%s/reports/%s/%s", eventID, userID, uploadID),
+		UploadID:     uploadID,
+		CurrentEvent: &eventID,
+	})
+}
+
+// ConfirmEventJoinRequestImageUpload verifies a join-request image upload and
+// returns the public image URL. Persistence happens when the join request is created.
+func (s *Service) ConfirmEventJoinRequestImageUpload(ctx context.Context, userID, eventID uuid.UUID, input ConfirmUploadInput) (*ConfirmJoinRequestImageResult, error) {
+	payload, err := s.verifyConfirmToken(input, ResourceJoinRequestImage)
+	if err != nil {
+		return nil, err
+	}
+	if payload.OwnerUserID != userID || payload.EventID == nil || *payload.EventID != eventID {
+		return nil, invalidConfirmTokenError()
+	}
+	if err := s.ensureUploadedObjectsExist(ctx, payload); err != nil {
+		return nil, err
+	}
+	return &ConfirmJoinRequestImageResult{BaseURL: payload.BaseURL}, nil
+}
+
+// ConfirmEventReportImageUpload verifies a report image upload and returns the
+// public image URL. Persistence happens when the event report is created.
+func (s *Service) ConfirmEventReportImageUpload(ctx context.Context, userID, eventID uuid.UUID, input ConfirmUploadInput) (*ConfirmReportImageResult, error) {
+	payload, err := s.verifyConfirmToken(input, ResourceEventReportImage)
+	if err != nil {
+		return nil, err
+	}
+	if payload.OwnerUserID != userID || payload.EventID == nil || *payload.EventID != eventID {
+		return nil, invalidConfirmTokenError()
+	}
+	if err := s.ensureUploadedObjectsExist(ctx, payload); err != nil {
+		return nil, err
+	}
+	return &ConfirmReportImageResult{BaseURL: payload.BaseURL}, nil
+}
+
 type uploadDescriptor struct {
 	Resource     string
 	OwnerUserID  uuid.UUID
@@ -255,6 +335,26 @@ func validateReviewImageState(state *EventReviewImageState, userID uuid.UUID) er
 	}
 	if !state.IsQualifyingParticipant {
 		return domain.ForbiddenError(domain.ErrorCodeReviewImageNotAllowed, "Only participants can upload review images.")
+	}
+	return nil
+}
+
+func validateJoinRequestImageState(state *EventJoinRequestImageState, userID uuid.UUID) error {
+	if state.HostID == userID {
+		return domain.ForbiddenError(domain.ErrorCodeHostCannotJoin, "The event host cannot request to join their own event.")
+	}
+	if state.Status == string(domain.EventStatusCanceled) || state.Status == string(domain.EventStatusCompleted) {
+		return domain.ConflictError(domain.ErrorCodeEventNotJoinable, "This event is no longer accepting participants.")
+	}
+	if state.PrivacyLevel != string(domain.PrivacyProtected) {
+		return domain.ConflictError(domain.ErrorCodeEventJoinNotAllowed, "Only PROTECTED events accept join requests.")
+	}
+	return nil
+}
+
+func validateReportImageState(state *EventReportImageState) error {
+	if state.Status != string(domain.EventStatusInProgress) && state.Status != string(domain.EventStatusCompleted) {
+		return domain.ConflictError(domain.ErrorCodeEventReportImageNotAllowed, "Report images are allowed only while an event is in progress or completed.")
 	}
 	return nil
 }

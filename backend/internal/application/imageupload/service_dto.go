@@ -11,6 +11,8 @@ const (
 	ResourceProfileAvatar    = "PROFILE_AVATAR"
 	ResourceEventImage       = "EVENT_IMAGE"
 	ResourceEventReviewImage = "EVENT_REVIEW_IMAGE"
+	ResourceJoinRequestImage = "EVENT_JOIN_REQUEST_IMAGE"
+	ResourceEventReportImage = "EVENT_REPORT_IMAGE"
 
 	VariantOriginal = "ORIGINAL"
 	VariantSmall    = "SMALL"
@@ -45,6 +47,18 @@ type ConfirmReviewImageResult struct {
 	BaseURL string `json:"base_url"`
 }
 
+// ConfirmJoinRequestImageResult exposes the uploaded join-request image URL
+// after token and object validation.
+type ConfirmJoinRequestImageResult struct {
+	BaseURL string `json:"base_url"`
+}
+
+// ConfirmReportImageResult exposes the uploaded report image URL after token
+// and object validation.
+type ConfirmReportImageResult struct {
+	BaseURL string `json:"base_url"`
+}
+
 // EventImageState is the event image persistence state used by the service.
 type EventImageState struct {
 	EventID        uuid.UUID
@@ -59,6 +73,20 @@ type EventReviewImageState struct {
 	Status                  string
 	PrivacyLevel            string
 	IsQualifyingParticipant bool
+}
+
+// EventJoinRequestImageState is the event state used to authorize join-request image uploads.
+type EventJoinRequestImageState struct {
+	EventID      uuid.UUID
+	HostID       uuid.UUID
+	Status       string
+	PrivacyLevel string
+}
+
+// EventReportImageState is the event state used to authorize report image uploads.
+type EventReportImageState struct {
+	EventID uuid.UUID
+	Status  string
 }
 
 // ConfirmTokenPayload is signed into the confirm token and later verified.
