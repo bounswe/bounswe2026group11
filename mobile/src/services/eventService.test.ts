@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { listMyEvents, searchLocation, uploadFileToPresignedUrl } from './eventService';
+import { listMyEvents, reverseGeocode, searchLocation, uploadFileToPresignedUrl } from './eventService';
 
 jest.mock('expo-file-system/legacy');
 
@@ -455,5 +455,84 @@ describe('searchLocation', () => {
 
     const result = await searchLocation('Istanbul');
     expect(result[0].display_name).toBe('Istanbul, Turkey');
+  });
+});
+
+describe('reverseGeocode', () => {
+  beforeEach(() => {
+    global.fetch = mockFetch as any;
+    mockFetch.mockReset();
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('returns null without calling fetch when coords are not finite', async () => {
+    const a = await reverseGeocode(NaN, 29.0);
+    const b = await reverseGeocode(41.0, Infinity);
+    expect(a).toBeNull();
+    expect(b).toBeNull();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('hits the Photon /reverse endpoint with the expected query params', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ features: [] }));
+
+    await reverseGeocode(41.0082, 28.9784);
+
+    const calledUrl: string = mockFetch.mock.calls[0][0];
+    expect(calledUrl).toContain('https://photon.komoot.io/reverse?');
+    expect(calledUrl).toContain('lat=41.0082');
+    expect(calledUrl).toContain('lon=28.9784');
+    expect(calledUrl).toContain('lang=en');
+  });
+
+  it('returns a LocationSuggestion with the user-tap coords (not the snapped Photon coords)', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        features: [
+          {
+            geometry: { coordinates: [29.05, 41.02] },
+            properties: { name: 'Anıtkabir', city: 'Ankara', country: 'Turkey' },
+          },
+        ],
+      }),
+    );
+
+    const result = await reverseGeocode(41.0, 29.0);
+
+    expect(result).toEqual({
+      display_name: 'Anıtkabir, Ankara, Turkey',
+      lat: '41.02',
+      lon: '29.05',
+    });
+  });
+
+  it('returns null when Photon returns no features', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ features: [] }));
+    expect(await reverseGeocode(41.0, 29.0)).toBeNull();
+  });
+
+  it('returns null on network error / non-2xx / invalid JSON', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('Network down'));
+    expect(await reverseGeocode(41.0, 29.0)).toBeNull();
+
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 503, json: jest.fn() });
+    expect(await reverseGeocode(41.0, 29.0)).toBeNull();
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockRejectedValue(new SyntaxError('bad json')),
+    });
+    expect(await reverseGeocode(41.0, 29.0)).toBeNull();
+  });
+
+  it('returns null when properties produce an empty display name', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ features: [{ geometry: { coordinates: [29.0, 41.0] }, properties: {} }] }),
+    );
+    expect(await reverseGeocode(41.0, 29.0)).toBeNull();
   });
 });
