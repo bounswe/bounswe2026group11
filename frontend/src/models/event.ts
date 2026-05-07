@@ -91,6 +91,8 @@ export interface DiscoverEventItem {
   start_time: string;
   status: string;
   location_address: string | null;
+  location_lat?: number;
+  location_lon?: number;
   privacy_level: 'PUBLIC' | 'PROTECTED';
   approved_participant_count: number;
   is_favorited: boolean;
