@@ -28,7 +28,7 @@ export default function ProfileView() {
   const vm = useProfileViewModel();
   const notificationSettings = usePushNotificationPreference();
   const [activeTab, setActiveTab] = useState<ProfileEventTab>('hosted');
-  const { theme } = useTheme();
+  const { theme, isDark, setThemePreference } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const { isLoggingOut, logoutError, handleLogout } = useLogoutViewModel(
@@ -279,6 +279,34 @@ export default function ProfileView() {
                 {notificationSettings.errorMessage}
               </Text>
             ) : null}
+
+            <View style={styles.menuDivider} />
+
+            <View style={styles.settingRow}>
+              <View style={styles.menuRowLeft}>
+                <Ionicons
+                  name={isDark ? 'moon-outline' : 'sunny-outline'}
+                  size={20}
+                  color={theme.text}
+                />
+                <View style={styles.settingTextBlock}>
+                  <Text style={styles.menuRowText}>Dark Mode</Text>
+                  <Text style={styles.settingSubtitle}>
+                    {isDark ? 'Dark theme is on' : 'Light theme is on'}
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                value={isDark}
+                onValueChange={(enabled) =>
+                  void setThemePreference(enabled ? 'dark' : 'light')
+                }
+                trackColor={{ false: theme.switchTrackFalse, true: theme.switchTrackTrue }}
+                thumbColor={isDark ? theme.switchThumbTrue : theme.switchThumbFalse}
+                ios_backgroundColor={theme.switchIosBg}
+                accessibilityLabel="Toggle dark mode"
+              />
+            </View>
 
             <View style={styles.menuDivider} />
 
