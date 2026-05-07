@@ -9,6 +9,7 @@ import {
   listEventApprovedParticipants,
   listEventPendingJoinRequests,
   listEventInvitations,
+  createEventInvitations,
   approveJoinRequest,
   rejectJoinRequest,
   cancelEvent,
@@ -25,6 +26,7 @@ import type {
   EventDetailResponse,
   EventHostContextSummary,
 } from '@/models/event';
+import type { CreateEventInvitationsResponse } from '@/models/invitation';
 import { ApiError } from '@/services/api';
 import { prepareAvatarBlobs } from '@/utils/imageResize';
 
@@ -64,6 +66,9 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   const [coverImageError, setCoverImageError] = useState<string | null>(null);
   const [coverImageSuccessMessage, setCoverImageSuccessMessage] = useState<string | null>(null);
   const coverImageSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteResult, setInviteResult] = useState<CreateEventInvitationsResponse | null>(null);
 
   useEffect(
     () => () => {
@@ -579,6 +584,35 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     refreshInvitations,
   ]);
 
+  const handleCreateInvitations = useCallback(
+    async (usernames: string[], message: string | null): Promise<CreateEventInvitationsResponse | null> => {
+      if (!eventId || !token) return null;
+      setInviteLoading(true);
+      setInviteError(null);
+      setInviteResult(null);
+      try {
+        const response = await createEventInvitations(
+          eventId,
+          { usernames, message: message ?? null },
+          token,
+        );
+        setInviteResult(response);
+        // Refresh invitations and host summary so counts and list update
+        await Promise.all([refreshInvitations(undefined, false), refreshHostContextSummary()]);
+        return response;
+      } catch (err) {
+        setInviteError(err instanceof ApiError ? err.message : 'Failed to send invitations');
+        return null;
+      } finally {
+        setInviteLoading(false);
+      }
+    },
+    [eventId, token, refreshInvitations, refreshHostContextSummary],
+  );
+
+  const dismissInviteError = useCallback(() => setInviteError(null), []);
+  const clearInviteResult = useCallback(() => setInviteResult(null), []);
+
   return {
     event,
     status,
@@ -594,6 +628,12 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     invitations,
     invitationsLoading,
     invitationsHasNext,
+    inviteLoading,
+    inviteError,
+    inviteResult,
+    handleCreateInvitations,
+    dismissInviteError,
+    clearInviteResult,
     joinLoading,
     joinError,
     leaveLoading,
