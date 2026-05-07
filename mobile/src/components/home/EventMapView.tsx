@@ -36,6 +36,8 @@ interface EventMapViewProps {
   apiError: string | null;
   region: MapRegion;
   onMarkerPress: (eventId: string) => void;
+  /** Extra top pixels to add to map padding (e.g. safe-area inset when map is full-screen). */
+  headerTopInset?: number;
 }
 
 interface MappableEvent {
@@ -53,8 +55,8 @@ type EventWithCoordinates = EventSummary & {
   location_lon: number;
 };
 
-const DISCOVERY_MAP_PADDING = {
-  top: 224,
+const DISCOVERY_MAP_PADDING_BASE = {
+  top: 120,
   right: 20,
   bottom: 96,
   left: 20,
@@ -362,9 +364,14 @@ export default function EventMapView({
   apiError,
   region,
   onMarkerPress,
+  headerTopInset = 0,
 }: EventMapViewProps) {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const mapPadding = useMemo(
+    () => ({ ...DISCOVERY_MAP_PADDING_BASE, top: DISCOVERY_MAP_PADDING_BASE.top + headerTopInset }),
+    [headerTopInset],
+  );
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [imageStatusByUrl, setImageStatusByUrl] = useState<
     Record<string, ImageStatus>
@@ -431,7 +438,7 @@ export default function EventMapView({
         style={styles.map}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         region={region}
-        mapPadding={DISCOVERY_MAP_PADDING}
+        mapPadding={mapPadding}
         onPress={() => setSelectedEventId(null)}
         testID="map-surface"
       >
