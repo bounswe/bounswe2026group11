@@ -71,6 +71,7 @@ export interface EventSummary {
   capacity?: number;
   favorite_count?: number;
   status?: string;
+  is_location_approximate?: boolean | null;
 }
 
 export type MyEventStatus =
@@ -163,6 +164,8 @@ export interface EventDetailLocation {
   point?: EventDetailPoint | null;
   route_points?: EventDetailPoint[];
   meeting_instructions?: string | null;
+  /** True when the backend has fuzzed the coordinates for a PROTECTED event. */
+  is_location_approximate?: boolean;
 }
 
 export interface EventDetailRatingWindow {

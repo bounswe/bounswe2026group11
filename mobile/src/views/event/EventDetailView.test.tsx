@@ -232,6 +232,88 @@ describe('EventDetailView', () => {
     expect(screen.queryByText('Get Directions')).toBeNull();
   });
 
+  // ── approximate-location UX ────────────────────────────────────────────────
+
+  it('shows approximate-location banner and hides Get Directions for PROTECTED non-participant', () => {
+    const approxEvent = makeEvent({
+      privacy_level: 'PROTECTED',
+      location: { type: 'POINT', address: 'Kadikoy, Istanbul', point: { lat: 40.99, lon: 29.03 }, route_points: [], is_location_approximate: true },
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'NONE',
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: approxEvent, participationStatus: 'NONE' }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByTestId('approx-map-callout')).toBeTruthy();
+    expect(screen.getByText("You're seeing an approximate location")).toBeTruthy();
+    expect(screen.queryByText('Get Directions')).toBeNull();
+  });
+
+  it('hides the approximate-location callout and shows Get Directions for an approved participant', () => {
+    const exactEvent = makeEvent({
+      privacy_level: 'PROTECTED',
+      location: { type: 'POINT', address: 'Kadikoy, Istanbul', point: { lat: 40.99, lon: 29.03 }, route_points: [], is_location_approximate: false },
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'JOINED',
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: exactEvent, participationStatus: 'JOINED' }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.queryByTestId('approx-map-callout')).toBeNull();
+    expect(screen.getByText('Get Directions')).toBeTruthy();
+  });
+
+  it('hides approximate-location callout for the event host', () => {
+    const hostEvent = makeEvent({
+      privacy_level: 'PROTECTED',
+      location: { type: 'POINT', address: 'Kadikoy, Istanbul', point: { lat: 40.99, lon: 29.03 }, route_points: [], is_location_approximate: false },
+      viewer_context: {
+        is_host: true,
+        is_favorited: false,
+        participation_status: 'NONE',
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: hostEvent }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.queryByTestId('approx-map-callout')).toBeNull();
+  });
+
+  it('shows approximate-location callout for a pending-request viewer', () => {
+    const pendingEvent = makeEvent({
+      privacy_level: 'PROTECTED',
+      location: { type: 'POINT', address: 'Kadikoy, Istanbul', point: { lat: 40.99, lon: 29.03 }, route_points: [], is_location_approximate: true },
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'PENDING',
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: pendingEvent, participationStatus: 'PENDING' }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByTestId('approx-map-callout')).toBeTruthy();
+    expect(screen.queryByText('Get Directions')).toBeNull();
+  });
+
   it('renders meeting instructions when available', () => {
     const eventWithInstructions = makeEvent({
       location: {
