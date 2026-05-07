@@ -129,6 +129,12 @@ function makeReadyViewModel(event: EventDetailResponse) {
     loadMoreApprovedParticipants: vi.fn(),
     loadMorePendingJoinRequests: vi.fn(),
     loadMoreInvitations: vi.fn(),
+    inviteLoading: false,
+    inviteError: null,
+    inviteResult: null,
+    handleCreateInvitations: vi.fn(),
+    dismissInviteError: vi.fn(),
+    clearInviteResult: vi.fn(),
   };
 }
 
@@ -210,6 +216,67 @@ describe('EventDetailPage ratings', () => {
     expect(screen.getByText(/4\/5/i)).toBeDefined();
     expect(screen.getByText(/reliable and easy to coordinate with\./i)).toBeDefined();
     expect(screen.getByRole('button', { name: /edit rating/i })).toBeDefined();
+  });
+
+  it('shows the Invite Users button on private events for the host', () => {
+    const event = makeBaseEvent();
+    event.privacy_level = 'PRIVATE';
+    event.status = 'ACTIVE';
+    event.viewer_context = {
+      is_host: true,
+      is_favorited: false,
+      participation_status: 'NONE',
+    };
+    const vm = makeReadyViewModel(event);
+    vm.hostContextSummary = {
+      approved_participant_count: 0,
+      pending_join_request_count: 0,
+      invitation_count: 0,
+    };
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+    renderPage();
+
+    expect(screen.getByTestId('ed-invite-open')).toBeDefined();
+    expect(screen.getByText(/no invitations sent yet/i)).toBeDefined();
+  });
+
+  it('hides the Invite Users button on public events even for the host', () => {
+    const event = makeBaseEvent();
+    event.privacy_level = 'PUBLIC';
+    event.status = 'ACTIVE';
+    event.viewer_context = {
+      is_host: true,
+      is_favorited: false,
+      participation_status: 'NONE',
+    };
+    const vm = makeReadyViewModel(event);
+    vm.hostContextSummary = {
+      approved_participant_count: 0,
+      pending_join_request_count: 0,
+      invitation_count: 0,
+    };
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+    renderPage();
+
+    expect(screen.queryByTestId('ed-invite-open')).toBeNull();
+  });
+
+  it('hides the Invite Users button for non-host viewers on private events', () => {
+    const event = makeBaseEvent();
+    event.privacy_level = 'PRIVATE';
+    event.status = 'ACTIVE';
+    event.viewer_context = {
+      is_host: false,
+      is_favorited: false,
+      participation_status: 'NONE',
+    };
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+    renderPage();
+
+    expect(screen.queryByTestId('ed-invite-open')).toBeNull();
   });
 
   it('shows a pending join-request banner instead of join actions', () => {

@@ -591,3 +591,10 @@
     flex-shrink: 0;
   }
 }
+
+.field-hint {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+}

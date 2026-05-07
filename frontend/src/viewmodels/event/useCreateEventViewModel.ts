@@ -29,6 +29,7 @@ export const MAX_CONSTRAINTS = 5;
 export const PRIVACY_OPTIONS: { label: string; value: PrivacyLevel }[] = [
   { label: 'Public', value: 'PUBLIC' },
   { label: 'Protected', value: 'PROTECTED' },
+  { label: 'Private', value: 'PRIVATE' },
 ];
 
 export type ConstraintType = 'gender' | 'age' | 'capacity' | 'other';
