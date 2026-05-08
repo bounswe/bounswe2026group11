@@ -9,6 +9,11 @@ export interface EventConstraint {
   info: string;
 }
 
+export interface RoutePointInput {
+  lat: number;
+  lon: number;
+}
+
 export interface CreateEventRequest {
   title: string;
   description: string;
@@ -18,6 +23,7 @@ export interface CreateEventRequest {
   lat?: number;
   lon?: number;
   location_type: LocationType;
+  route_points?: RoutePointInput[];
   start_time: string;
   end_time?: string;
   capacity?: number;

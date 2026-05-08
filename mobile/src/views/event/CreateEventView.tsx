@@ -28,6 +28,8 @@ import {
   TITLE_MAX_LENGTH,
   DESCRIPTION_MAX_LENGTH,
 } from '@/viewmodels/event/useCreateEventViewModel';
+import RoutePointsEditor from '@/components/events/RoutePointsEditor';
+import PointPickerMap from '@/components/events/PointPickerMap';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -359,41 +361,123 @@ export default function CreateEventView() {
           <Text style={styles.label}>
             Location <Text style={styles.required}>*</Text>
           </Text>
-          <View style={styles.locationInputRow}>
-            <TextInput
-              style={[styles.input, styles.locationInput, vm.errors.location && styles.inputError]}
-              placeholder="Search for a place..."
-              placeholderTextColor={theme.placeholder}
-              value={vm.formData.locationQuery}
-              onChangeText={(v) => vm.handleLocationSearch(v)}
-              editable={!vm.isLoading}
-            />
-            {vm.formData.lat !== null && (
-              <TouchableOpacity style={styles.clearLocationBtn} onPress={vm.clearLocation}>
-                <Text style={styles.clearLocationText}>X</Text>
-              </TouchableOpacity>
-            )}
+
+          {/* Point / Route toggle */}
+          <View style={styles.locationTypeToggle} testID="location-type-toggle">
+            <TouchableOpacity
+              style={[
+                styles.locationTypeOption,
+                vm.formData.locationType === 'POINT' && styles.locationTypeOptionActive,
+              ]}
+              onPress={() => vm.setLocationType('POINT')}
+              disabled={vm.isLoading}
+              testID="location-type-point"
+            >
+              <Feather
+                name="map-pin"
+                size={16}
+                color={
+                  vm.formData.locationType === 'POINT' ? theme.textOnPrimary : theme.text
+                }
+              />
+              <Text
+                style={[
+                  styles.locationTypeOptionText,
+                  vm.formData.locationType === 'POINT' && styles.locationTypeOptionTextActive,
+                ]}
+              >
+                Single point
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.locationTypeOption,
+                vm.formData.locationType === 'ROUTE' && styles.locationTypeOptionActive,
+              ]}
+              onPress={() => vm.setLocationType('ROUTE')}
+              disabled={vm.isLoading}
+              testID="location-type-route"
+            >
+              <Feather
+                name="navigation"
+                size={16}
+                color={
+                  vm.formData.locationType === 'ROUTE' ? theme.textOnPrimary : theme.text
+                }
+              />
+              <Text
+                style={[
+                  styles.locationTypeOptionText,
+                  vm.formData.locationType === 'ROUTE' && styles.locationTypeOptionTextActive,
+                ]}
+              >
+                Route
+              </Text>
+            </TouchableOpacity>
           </View>
-          {vm.isSearchingLocation && (
-            <ActivityIndicator size="small" color={theme.text} style={styles.searchSpinner} />
-          )}
-          {vm.locationSuggestions.length > 0 && (
-            <View style={styles.suggestionsContainer}>
-              {vm.locationSuggestions.map((s, i) => (
-                <TouchableOpacity
-                  key={`${s.lat}-${s.lon}-${i}`}
-                  style={styles.suggestionItem}
-                  onPress={() => vm.selectLocation(s)}
-                >
-                  <Text style={styles.suggestionText} numberOfLines={2}>
-                    {s.display_name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-          {vm.errors.location && (
-            <Text style={styles.fieldError}>{vm.errors.location}</Text>
+
+          {vm.formData.locationType === 'POINT' ? (
+            <>
+              <View style={styles.locationInputRow}>
+                <TextInput
+                  style={[styles.input, styles.locationInput, vm.errors.location && styles.inputError]}
+                  placeholder="Search for a place or tap the map below..."
+                  placeholderTextColor={theme.placeholder}
+                  value={vm.formData.locationQuery}
+                  onChangeText={(v) => vm.handleLocationSearch(v)}
+                  editable={!vm.isLoading}
+                />
+                {vm.formData.lat !== null && (
+                  <TouchableOpacity style={styles.clearLocationBtn} onPress={vm.clearLocation}>
+                    <Text style={styles.clearLocationText}>X</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {vm.isSearchingLocation && (
+                <ActivityIndicator size="small" color={theme.text} style={styles.searchSpinner} />
+              )}
+              {vm.locationSuggestions.length > 0 && (
+                <View style={styles.suggestionsContainer}>
+                  {vm.locationSuggestions.map((s, i) => (
+                    <TouchableOpacity
+                      key={`${s.lat}-${s.lon}-${i}`}
+                      style={styles.suggestionItem}
+                      onPress={() => vm.selectLocation(s)}
+                    >
+                      <Text style={styles.suggestionText} numberOfLines={2}>
+                        {s.display_name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <View style={styles.pointMapWrapper}>
+                <PointPickerMap
+                  lat={vm.formData.lat}
+                  lon={vm.formData.lon}
+                  disabled={vm.isLoading}
+                  onSelect={vm.setPointFromCoordinate}
+                />
+              </View>
+              {vm.errors.location && (
+                <Text style={styles.fieldError}>{vm.errors.location}</Text>
+              )}
+            </>
+          ) : (
+            <RoutePointsEditor
+              routePoints={vm.formData.routePoints}
+              locationQuery={vm.formData.locationQuery}
+              isSearching={vm.isSearchingLocation}
+              suggestions={vm.locationSuggestions}
+              errorText={vm.errors.location}
+              disabled={vm.isLoading}
+              onSearch={vm.handleLocationSearch}
+              onAddFromSuggestion={vm.addRoutePointFromSuggestion}
+              onAddFromCoordinate={vm.addRoutePointFromCoordinate}
+              onRemove={vm.removeRoutePoint}
+              onMove={vm.moveRoutePoint}
+              onUpdateLabel={vm.updateRoutePointLabel}
+            />
           )}
         </View>
 
@@ -1165,6 +1249,38 @@ function makeStyles(t: Theme) {
       fontSize: 13,
       color: t.primary,
       fontWeight: '600',
+    },
+    locationTypeToggle: {
+      flexDirection: 'row',
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.surfaceVariant,
+      padding: 3,
+      marginBottom: 10,
+    },
+    locationTypeOption: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 8,
+      borderRadius: 8,
+    },
+    locationTypeOptionActive: {
+      backgroundColor: t.primary,
+    },
+    locationTypeOptionText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: t.text,
+    },
+    locationTypeOptionTextActive: {
+      color: t.textOnPrimary,
+    },
+    pointMapWrapper: {
+      marginTop: 10,
     },
     locationInputRow: {
       flexDirection: 'row',
