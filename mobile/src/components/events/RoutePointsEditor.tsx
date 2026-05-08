@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -13,8 +13,10 @@ import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 import type { LocationSuggestion } from '@/models/event';
 import type { RouteWaypoint } from '@/viewmodels/event/useCreateEventViewModel';
-import { reverseGeocode } from '@/services/eventService';
+import { fetchRoutedGeometry, reverseGeocode } from '@/services/eventService';
 import MapZoomControls from './MapZoomControls';
+
+const ROUTED_GEOMETRY_DEBOUNCE_MS = 400;
 
 interface Props {
   routePoints: RouteWaypoint[];
@@ -56,6 +58,33 @@ export default function RoutePointsEditor({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const mapRef = useRef<MapView>(null);
   const lastRegionRef = useRef(DEFAULT_REGION);
+  const [routedGeometry, setRoutedGeometry] = useState<Array<{ lat: number; lon: number }> | null>(
+    null,
+  );
+
+  // Debounced fetch of the road-following geometry so the in-create preview
+  // matches what the detail page will render after submit. While a fetch is in
+  // flight (or if it fails) we fall back to straight segments between waypoints.
+  useEffect(() => {
+    if (routePoints.length < 2) {
+      setRoutedGeometry(null);
+      return;
+    }
+    let cancelled = false;
+    const handle = setTimeout(() => {
+      fetchRoutedGeometry(routePoints.map((p) => ({ lat: p.lat, lon: p.lon })))
+        .then((geom) => {
+          if (!cancelled) setRoutedGeometry(geom);
+        })
+        .catch(() => {
+          if (!cancelled) setRoutedGeometry(null);
+        });
+    }, ROUTED_GEOMETRY_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [routePoints]);
 
   const handleZoom = useCallback((factor: number) => {
     const region = lastRegionRef.current;
@@ -85,10 +114,12 @@ export default function RoutePointsEditor({
     [disabled, routePoints.length, onAddFromCoordinate, onUpdateLabel],
   );
 
-  const polylineCoords: LatLng[] = useMemo(
-    () => routePoints.map((p) => ({ latitude: p.lat, longitude: p.lon })),
-    [routePoints],
-  );
+  const polylineCoords: LatLng[] = useMemo(() => {
+    if (routedGeometry && routedGeometry.length >= 2) {
+      return routedGeometry.map((p) => ({ latitude: p.lat, longitude: p.lon }));
+    }
+    return routePoints.map((p) => ({ latitude: p.lat, longitude: p.lon }));
+  }, [routedGeometry, routePoints]);
 
   const initialRegion = useMemo(() => {
     if (routePoints.length === 0) {
