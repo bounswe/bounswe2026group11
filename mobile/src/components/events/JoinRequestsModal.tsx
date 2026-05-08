@@ -124,7 +124,7 @@ export default function JoinRequestsModal({
                   </Text>
                   <Text style={styles.username}>@{item.user.username}</Text>
                   {item.message ? (
-                    <Text style={styles.message} numberOfLines={2}>
+                    <Text style={styles.message}>
                       "{item.message}"
                     </Text>
                   ) : null}
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   requestRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',

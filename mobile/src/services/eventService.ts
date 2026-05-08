@@ -24,6 +24,9 @@ import {
   EventInvitationsResponse,
   RatingWriteRequest,
   RatingResponse,
+  EventReportCategory,
+  RequestReportEvent,
+  ReportEventResponse,
 } from '@/models/event';
 import { shouldShowProfileEvent } from '@/utils/eventStatus';
 
@@ -575,4 +578,23 @@ export async function listMyEvents(token: string): Promise<MyEventsResponse> {
     hosted_events: hostedEvents,
     attended_events: attendedEvents,
   };
+}
+
+export async function reportEvent(
+  id: string,
+  body: RequestReportEvent,
+  token: string,
+): Promise<ReportEventResponse> {
+  return apiPostAuth<ReportEventResponse>(`/events/${id}/reports`, body, token);
+}
+
+export async function getEventReportImageUploadUrl(
+  eventId: string,
+  token: string,
+): Promise<ImageUploadInitResponse> {
+  return apiPostAuth<ImageUploadInitResponse>(
+    `/events/${eventId}/reports/image/upload-url`,
+    {},
+    token,
+  );
 }
