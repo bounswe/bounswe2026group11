@@ -1,4 +1,4 @@
-import { apiGetAuth, apiPostAuth } from './api';
+import { apiGetAuth, apiPostAuth, apiDeleteAuth } from './api';
 import {
   AcceptInvitationResponse,
   DeclineInvitationResponse,
@@ -38,4 +38,15 @@ export async function declineInvitation(
     {},
     token,
   );
+}
+
+/**
+ * Revokes a pending invitation (Host only).
+ */
+export async function revokeInvitation(
+  eventId: string,
+  invitationId: string,
+  token: string,
+): Promise<void> {
+  return apiDeleteAuth<void>(`/events/${eventId}/invitations/${invitationId}`, token);
 }

@@ -22,11 +22,13 @@ import {
   upsertParticipantRating,
   listEventInvitations,
   createEventInvitations,
+  withdrawJoinRequest,
 } from '@/services/eventService';
 import {
   acceptInvitation,
   declineInvitation,
   listMyInvitations,
+  revokeInvitation,
 } from '@/services/invitationService';
 import { addFavorite, removeFavorite } from '@/services/favoriteService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,7 +53,9 @@ export type ActionState =
   | 'success_joined'
   | 'success_left'
   | 'success_requested'
-  | 'success_saved';
+  | 'success_saved'
+  | 'canceling_request'
+  | 'revoking_invitation';
 
 export interface EventDetailViewModel {
   event: EventDetail | null;
@@ -118,12 +122,13 @@ export interface EventDetailViewModel {
   handleApproveRequest: (joinRequestId: string) => Promise<void>;
   handleRejectRequest: (joinRequestId: string) => Promise<void>;
   handleCancelEvent: () => Promise<void>;
-
   selectedImageUri: string | null;
   isUploadingImage: boolean;
   imageError: string | null;
   pickImage: () => Promise<void>;
   removeImage: () => void;
+  handleCancelJoinRequest: () => Promise<void>;
+  handleRevokeInvitation: (invitationId: string) => Promise<void>;
 }
 
 function mapRatingError(err: ApiError, fallback: string): string {
@@ -656,6 +661,31 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     }
   }, [token, event, joinRequestMessage, selectedImageUri, uploadJoinRequestImage]);
 
+  const handleCancelJoinRequest = useCallback(async () => {
+    if (!token || !event) return;
+ 
+    setActionError(null);
+    setActionState('canceling_request');
+ 
+    try {
+      await withdrawJoinRequest(event.id, token);
+      setParticipationStatus(null);
+      await fetchEvent(true);
+      setActionState('idle');
+    } catch (err: unknown) {
+      setActionState('idle');
+      if (err instanceof ApiError && err.status === 409) {
+        // Request no longer pending
+        await fetchEvent(true);
+        setActionError('This request is no longer pending.');
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        setActionError((err as { message: string }).message);
+      } else {
+        setActionError('Failed to cancel join request. Please try again.');
+      }
+    }
+  }, [token, event, fetchEvent]);
+ 
   const resolveCurrentInvitationID = useCallback(async () => {
     if (!token || !event) return null;
 
@@ -860,6 +890,30 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     }
   }, [token, event, fetchEvent]);
 
+  const handleRevokeInvitation = useCallback(async (invitationId: string) => {
+    if (!token || !event) return;
+
+    setActionError(null);
+    setActionState('revoking_invitation');
+
+    try {
+      await revokeInvitation(event.id, invitationId, token);
+      await refreshHostContextSummary();
+      setInvitations([]);
+      setInvitationsCursor(null);
+      setInvitationsHasNext(false);
+      await loadMoreInvitations();
+      setActionState('idle');
+    } catch (err: unknown) {
+      setActionState('idle');
+      if (err && typeof err === 'object' && 'message' in err) {
+        setActionError((err as { message: string }).message);
+      } else {
+        setActionError('Failed to revoke invitation.');
+      }
+    }
+  }, [token, event, refreshHostContextSummary, loadMoreInvitations]);
+
   const openJoinRequestModal = useCallback(() => {
     setActionError(null);
     setShowJoinRequestModal(true);
@@ -958,12 +1012,11 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     isFavorited,
     participationStatus,
     isQuotaFull,
+    constraintViolation,
     viewerRatingLoading,
     viewerRatingError,
     participantRatingLoadingId,
     participantRatingError,
-    canLeave,
-    constraintViolation,
     showJoinRequestModal,
     joinRequestMessage,
     selectedImageUri,
@@ -974,6 +1027,19 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     pickImage,
     removeImage,
     setJoinRequestMessage,
+    userSearchQuery,
+    setUserSearchQuery,
+    userSuggestions,
+    isSearchingUsers,
+    showInvitationsModal,
+    setShowInvitationsModal,
+    invitations,
+    invitationsLoading,
+    invitationsHasNext,
+    loadMoreInvitations,
+    handleInviteUsers,
+    isInviting,
+    canLeave,
     handleJoin,
     handleLeaveEvent,
     handleRequestJoin,
@@ -989,22 +1055,12 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     setShowRequestsModal,
     showAttendeesModal,
     setShowAttendeesModal,
-    showInvitationsModal,
-    setShowInvitationsModal,
-    invitations,
-    invitationsLoading,
-    invitationsHasNext,
-    loadMoreInvitations,
-    handleInviteUsers,
-    isInviting,
-    userSearchQuery,
-    setUserSearchQuery,
-    userSuggestions,
-    isSearchingUsers,
     loadMoreApprovedParticipants,
     loadMorePendingJoinRequests,
     handleApproveRequest,
     handleRejectRequest,
     handleCancelEvent,
+    handleCancelJoinRequest,
+    handleRevokeInvitation,
   };
 }

@@ -58,6 +58,16 @@ jest.mock('@react-native-community/datetimepicker', () => {
   };
 });
 
+jest.mock('@/components/events/PointPickerMap', () => {
+  const ReactLocal = require('react');
+  return () => ReactLocal.createElement('div', { 'data-testid': 'PointPickerMap' });
+});
+
+jest.mock('@/components/events/RoutePointsEditor', () => {
+  const ReactLocal = require('react');
+  return () => ReactLocal.createElement('div', { 'data-testid': 'RoutePointsEditor' });
+});
+
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }));

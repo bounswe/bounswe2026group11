@@ -84,6 +84,8 @@ const mockAcceptInvitation = jest.mocked(invitationService.acceptInvitation);
 const mockDeclineInvitation = jest.mocked(invitationService.declineInvitation);
 const mockGetJoinRequestImageUploadUrl = jest.mocked(eventService.getJoinRequestImageUploadUrl);
 const mockUploadFileToPresignedUrl = jest.mocked(eventService.uploadFileToPresignedUrl);
+const mockWithdrawJoinRequest = jest.mocked(eventService.withdrawJoinRequest);
+const mockRevokeInvitation = jest.mocked(invitationService.revokeInvitation);
 
 const mockImagePicker = jest.mocked(ImagePicker);
 const mockImageManipulator = jest.mocked(ImageManipulator);
@@ -435,6 +437,8 @@ describe('useEventDetailViewModel', () => {
     mockDeclineInvitation.mockResolvedValue({
       message: 'Invitation declined',
     });
+    mockWithdrawJoinRequest.mockResolvedValue(undefined);
+    mockRevokeInvitation.mockResolvedValue(undefined);
   });
 
   // ─── Initial loading state ───
@@ -1684,12 +1688,6 @@ describe('useEventDetailViewModel', () => {
       const { result } = renderHook(() => useEventDetailViewModel('event-uuid-002'));
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      // Manually set image (or use pickImage)
-      act(() => {
-        // We can't set it directly as it's not in the return object as a setter, 
-        // so we'll use pickImage mock
-      });
-      
       mockImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValueOnce({ status: 'granted' } as any);
       mockImagePicker.launchImageLibraryAsync.mockResolvedValueOnce({
         canceled: false,
@@ -1731,12 +1729,10 @@ describe('useEventDetailViewModel', () => {
       const { result } = renderHook(() => useEventDetailViewModel('event-uuid-002'));
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      // 1. Pick image
       await act(async () => {
         await result.current.pickImage();
       });
 
-      // 2. Request join
       await act(async () => {
         await result.current.handleRequestJoin();
       });
@@ -1749,6 +1745,66 @@ describe('useEventDetailViewModel', () => {
         'mock-token',
       );
       expect(result.current.selectedImageUri).toBeNull();
+    });
+  });
+
+  describe('handleCancelJoinRequest', () => {
+    it('calls withdrawJoinRequest, clears status, and refreshes event', async () => {
+      const pendingEvent: EventDetail = {
+        ...protectedEventFixture,
+        viewer_context: { ...protectedEventFixture.viewer_context, participation_status: 'PENDING' },
+      };
+      mockGetEventDetail
+        .mockResolvedValueOnce(pendingEvent)
+        .mockResolvedValueOnce(protectedEventFixture); // back to none
+
+      const { result } = renderHook(() => useEventDetailViewModel(pendingEvent.id));
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleCancelJoinRequest();
+      });
+
+      expect(mockWithdrawJoinRequest).toHaveBeenCalledWith(pendingEvent.id, 'mock-token');
+      expect(result.current.participationStatus).toBe('NONE');
+      expect(result.current.actionState).toBe('idle');
+    });
+
+    it('handles 409 conflict by refreshing and showing an error', async () => {
+      const pendingEvent: EventDetail = {
+        ...protectedEventFixture,
+        viewer_context: { ...protectedEventFixture.viewer_context, participation_status: 'PENDING' },
+      };
+      mockGetEventDetail.mockResolvedValue(pendingEvent);
+      mockWithdrawJoinRequest.mockRejectedValueOnce(new ApiError(409, { error: { code: 'not_pending', message: 'Not pending' } }));
+
+      const { result } = renderHook(() => useEventDetailViewModel(pendingEvent.id));
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleCancelJoinRequest();
+      });
+
+      expect(result.current.actionError).toBe('This request is no longer pending.');
+      expect(mockGetEventDetail).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('handleRevokeInvitation', () => {
+    it('calls revokeInvitation and refreshes host context', async () => {
+      const eventId = hostedEventFixture.id;
+      mockGetEventDetail.mockResolvedValue(hostedEventFixture);
+
+      const { result } = renderHook(() => useEventDetailViewModel(eventId));
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleRevokeInvitation('inv-123');
+      });
+
+      expect(mockRevokeInvitation).toHaveBeenCalledWith(eventId, 'inv-123', 'mock-token');
+      expect(mockGetEventHostContextSummary).toHaveBeenCalledTimes(3);
+      expect(result.current.actionState).toBe('idle');
     });
   });
 });
