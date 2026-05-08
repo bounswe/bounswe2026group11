@@ -26,6 +26,15 @@ type fakeRepo struct {
 	revokeCallCount  int
 	lastRevokeParams RevokeInvitationParams
 	revokeErr        error
+	// pending and past hold canned responses for the receive-list paths.
+	// past returns up to FetchLimit rows, optionally honoring the cursor's
+	// strict-less-than (updated_at, id) DESC predicate so tests can drive
+	// pagination behavior without spinning up Postgres.
+	pending             []ReceivedInvitationRecord
+	past                []ReceivedInvitationRecord
+	lastPastParams      ListPastInvitationsParams
+	pastErr             error
+	pendingErr          error
 }
 
 func (r *fakeRepo) CreateInvitations(_ context.Context, params CreateInvitationsParams) (*CreateInvitationsRecord, error) {
@@ -37,11 +46,34 @@ func (r *fakeRepo) CreateInvitations(_ context.Context, params CreateInvitations
 }
 
 func (r *fakeRepo) ListReceivedPendingInvitations(context.Context, uuid.UUID) ([]ReceivedInvitationRecord, error) {
-	return nil, nil
+	if r.pendingErr != nil {
+		return nil, r.pendingErr
+	}
+	return r.pending, nil
 }
 
-func (r *fakeRepo) ListReceivedPastInvitations(context.Context, uuid.UUID, ListPastInvitationsParams) ([]ReceivedInvitationRecord, error) {
-	return nil, nil
+func (r *fakeRepo) ListReceivedPastInvitations(_ context.Context, _ uuid.UUID, params ListPastInvitationsParams) ([]ReceivedInvitationRecord, error) {
+	r.lastPastParams = params
+	if r.pastErr != nil {
+		return nil, r.pastErr
+	}
+	// Apply the cursor predicate so pagination tests can rely on
+	// (updated_at, id) DESC strict-less-than semantics without a real DB.
+	rows := r.past
+	if params.Cursor != nil {
+		filtered := rows[:0:0]
+		for _, row := range rows {
+			if row.UpdatedAt.Before(params.Cursor.UpdatedAt) ||
+				(row.UpdatedAt.Equal(params.Cursor.UpdatedAt) && row.InvitationID.String() < params.Cursor.InvitationID.String()) {
+				filtered = append(filtered, row)
+			}
+		}
+		rows = filtered
+	}
+	if params.FetchLimit > 0 && len(rows) > params.FetchLimit {
+		rows = rows[:params.FetchLimit]
+	}
+	return rows, nil
 }
 
 func (r *fakeRepo) AcceptInvitation(context.Context, uuid.UUID, uuid.UUID) (*AcceptInvitationRecord, error) {
@@ -74,6 +106,225 @@ func (r *fakeRepo) RevokeInvitation(_ context.Context, params RevokeInvitationPa
 		CreatedAt: now.Add(-time.Hour),
 		UpdatedAt: now,
 	}, nil
+}
+
+func TestListReceivedInvitationsBucketsAndPagination(t *testing.T) {
+	t1 := time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)
+	t2 := t1.Add(-1 * time.Hour) // older — appears second under updated_at DESC
+	pendingID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	pastID1 := uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	pastID2 := uuid.MustParse("00000000-0000-0000-0000-000000000003")
+	pendingRec := ReceivedInvitationRecord{InvitationID: pendingID, Status: domain.InvitationStatusPending, UpdatedAt: t1}
+	pastRec1 := ReceivedInvitationRecord{InvitationID: pastID1, Status: domain.InvitationStatusDeclined, UpdatedAt: t1}
+	pastRec2 := ReceivedInvitationRecord{InvitationID: pastID2, Status: domain.InvitationStatusExpired, UpdatedAt: t2}
+
+	t.Run("empty result returns empty buckets and no cursor", func(t *testing.T) {
+		// given
+		repo := &fakeRepo{}
+		service := NewService(repo, fakeUnitOfWork{})
+
+		// when
+		result, err := service.ListReceivedInvitations(context.Background(), ListReceivedInvitationsInput{
+			UserID: uuid.New(),
+		})
+
+		// then
+		if err != nil {
+			t.Fatalf("ListReceivedInvitations() error = %v", err)
+		}
+		if len(result.Pending) != 0 {
+			t.Errorf("expected empty pending, got %d", len(result.Pending))
+		}
+		if len(result.Past.Items) != 0 {
+			t.Errorf("expected empty past items, got %d", len(result.Past.Items))
+		}
+		if result.Past.PageInfo.HasNext {
+			t.Errorf("expected has_next=false on empty result")
+		}
+		if result.Past.PageInfo.NextCursor != nil {
+			t.Errorf("expected nil next_cursor on empty result")
+		}
+	})
+
+	t.Run("populated buckets with implicit limit do not produce a cursor", func(t *testing.T) {
+		// given
+		repo := &fakeRepo{
+			pending: []ReceivedInvitationRecord{pendingRec},
+			past:    []ReceivedInvitationRecord{pastRec1, pastRec2},
+		}
+		service := NewService(repo, fakeUnitOfWork{})
+
+		// when
+		result, err := service.ListReceivedInvitations(context.Background(), ListReceivedInvitationsInput{
+			UserID: uuid.New(),
+		})
+
+		// then
+		if err != nil {
+			t.Fatalf("ListReceivedInvitations() error = %v", err)
+		}
+		if got, want := len(result.Pending), 1; got != want {
+			t.Errorf("pending = %d, want %d", got, want)
+		}
+		if got, want := len(result.Past.Items), 2; got != want {
+			t.Errorf("past items = %d, want %d", got, want)
+		}
+		if result.Past.PageInfo.HasNext {
+			t.Errorf("has_next = true, want false (only 2 items, default limit 25)")
+		}
+		// FetchLimit asked the repo for limit+1 = 26 to detect overflow.
+		if got, want := repo.lastPastParams.FetchLimit, DefaultPastInvitationLimit+1; got != want {
+			t.Errorf("FetchLimit = %d, want %d", got, want)
+		}
+	})
+
+	t.Run("explicit limit produces a next_cursor when more rows exist", func(t *testing.T) {
+		// given — past has 2 rows, limit = 1, so first page should be 1 item + has_next=true
+		repo := &fakeRepo{
+			past: []ReceivedInvitationRecord{pastRec1, pastRec2},
+		}
+		service := NewService(repo, fakeUnitOfWork{})
+		limit := 1
+
+		// when
+		result, err := service.ListReceivedInvitations(context.Background(), ListReceivedInvitationsInput{
+			UserID:    uuid.New(),
+			PastLimit: &limit,
+		})
+
+		// then
+		if err != nil {
+			t.Fatalf("ListReceivedInvitations() error = %v", err)
+		}
+		if got, want := len(result.Past.Items), 1; got != want {
+			t.Fatalf("page1 items = %d, want %d", got, want)
+		}
+		if !result.Past.PageInfo.HasNext {
+			t.Errorf("page1 has_next = false, want true")
+		}
+		if result.Past.PageInfo.NextCursor == nil {
+			t.Fatalf("page1 next_cursor is nil, want non-nil")
+		}
+
+		// and — the cursor decodes back to the page tail's (updated_at, id)
+		decoded, err := decodePastInvitationCursor(*result.Past.PageInfo.NextCursor)
+		if err != nil {
+			t.Fatalf("decode round-trip: %v", err)
+		}
+		if decoded.InvitationID != pastID1 {
+			t.Errorf("cursor invitation_id = %s, want %s (newest declined)", decoded.InvitationID, pastID1)
+		}
+	})
+
+	t.Run("invalid cursor returns validation_error", func(t *testing.T) {
+		// given
+		repo := &fakeRepo{}
+		service := NewService(repo, fakeUnitOfWork{})
+		bad := "!!!not-a-cursor!!!"
+
+		// when
+		_, err := service.ListReceivedInvitations(context.Background(), ListReceivedInvitationsInput{
+			UserID:     uuid.New(),
+			PastCursor: &bad,
+		})
+
+		// then
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		var appErr *domain.AppError
+		if !errors.As(err, &appErr) {
+			t.Fatalf("expected *domain.AppError, got %T", err)
+		}
+		if appErr.Code != domain.ErrorCodeValidation {
+			t.Errorf("Code = %s, want %s", appErr.Code, domain.ErrorCodeValidation)
+		}
+		if _, ok := appErr.Details["past_cursor"]; !ok {
+			t.Errorf("expected past_cursor detail, got %v", appErr.Details)
+		}
+	})
+
+	t.Run("out-of-range past_limit returns validation_error", func(t *testing.T) {
+		cases := []struct {
+			name  string
+			limit int
+		}{
+			{"zero", 0},
+			{"negative", -5},
+			{"above max", MaxPastInvitationLimit + 1},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				// given
+				repo := &fakeRepo{}
+				service := NewService(repo, fakeUnitOfWork{})
+
+				// when
+				_, err := service.ListReceivedInvitations(context.Background(), ListReceivedInvitationsInput{
+					UserID:    uuid.New(),
+					PastLimit: &tc.limit,
+				})
+
+				// then
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				var appErr *domain.AppError
+				if !errors.As(err, &appErr) {
+					t.Fatalf("expected *domain.AppError, got %T", err)
+				}
+				if appErr.Code != domain.ErrorCodeValidation {
+					t.Errorf("Code = %s, want %s", appErr.Code, domain.ErrorCodeValidation)
+				}
+				if _, ok := appErr.Details["past_limit"]; !ok {
+					t.Errorf("expected past_limit detail, got %v", appErr.Details)
+				}
+			})
+		}
+	})
+
+	t.Run("empty cursor string is ignored (treated as no cursor)", func(t *testing.T) {
+		// given — empty string after trim should not trip the decoder
+		repo := &fakeRepo{
+			past: []ReceivedInvitationRecord{pastRec1},
+		}
+		service := NewService(repo, fakeUnitOfWork{})
+		emptyCursor := "   "
+
+		// when
+		result, err := service.ListReceivedInvitations(context.Background(), ListReceivedInvitationsInput{
+			UserID:     uuid.New(),
+			PastCursor: &emptyCursor,
+		})
+
+		// then
+		if err != nil {
+			t.Fatalf("expected empty cursor to be ignored, got error: %v", err)
+		}
+		if got, want := len(result.Past.Items), 1; got != want {
+			t.Errorf("past items = %d, want %d", got, want)
+		}
+		if repo.lastPastParams.Cursor != nil {
+			t.Errorf("expected nil Cursor passed to repo, got %v", repo.lastPastParams.Cursor)
+		}
+	})
+
+	t.Run("repository error on past bucket propagates", func(t *testing.T) {
+		// given
+		expected := errors.New("db down")
+		repo := &fakeRepo{pastErr: expected}
+		service := NewService(repo, fakeUnitOfWork{})
+
+		// when
+		_, err := service.ListReceivedInvitations(context.Background(), ListReceivedInvitationsInput{
+			UserID: uuid.New(),
+		})
+
+		// then
+		if !errors.Is(err, expected) {
+			t.Errorf("expected wrapped %v, got %v", expected, err)
+		}
+	})
 }
 
 func TestRevokeInvitationDelegatesToRepo(t *testing.T) {
