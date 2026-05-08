@@ -507,4 +507,132 @@ describe('EventDetailPage ratings', () => {
 
     expect(screen.queryByTestId('ed-mgmt-attachment-jr-2')).toBeNull();
   });
+
+  it('shows a Cancel Request button only when the user has a pending request', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PROTECTED';
+    event.viewer_context.participation_status = 'PENDING';
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.getByTestId('ed-cancel-request-btn')).toBeDefined();
+  });
+
+  it('does not show a Cancel Request button for non-pending viewers', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PROTECTED';
+    event.viewer_context.participation_status = 'NONE';
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.queryByTestId('ed-cancel-request-btn')).toBeNull();
+  });
+
+  it('opens a confirmation modal and only calls handleCancelJoinRequest after confirming', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PROTECTED';
+    event.viewer_context.participation_status = 'PENDING';
+    const vm = makeReadyViewModel(event);
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+
+    renderPage();
+
+    fireEvent.click(screen.getByTestId('ed-cancel-request-btn'));
+    expect(vm.handleCancelJoinRequest).not.toHaveBeenCalled();
+
+    expect(screen.getByText(/are you sure you want to withdraw/i)).toBeDefined();
+
+    fireEvent.click(screen.getByTestId('ed-cancel-request-confirm'));
+    expect(vm.handleCancelJoinRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders a dismissible error message when cancel fails', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PROTECTED';
+    event.viewer_context.participation_status = 'PENDING';
+    const vm = makeReadyViewModel(event);
+    vm.cancelJoinRequestError = 'Your request status changed. Please review the latest state of this event.';
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+
+    renderPage();
+
+    expect(screen.getByText(/your request status changed/i)).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: /dismiss error/i }));
+    expect(vm.dismissCancelJoinRequestError).toHaveBeenCalled();
+  });
+
+  it('shows the View Ticket CTA for joined participants on public events', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PUBLIC';
+    event.viewer_context.participation_status = 'JOINED';
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.getByTestId('ed-view-ticket-cta')).toBeDefined();
+  });
+
+  it('shows the View Ticket CTA for joined participants on protected events', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PROTECTED';
+    event.viewer_context.participation_status = 'JOINED';
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.getByTestId('ed-view-ticket-cta')).toBeDefined();
+  });
+
+  it('shows the View Ticket CTA for joined participants on private events', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PRIVATE';
+    event.viewer_context.participation_status = 'JOINED';
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.getByTestId('ed-view-ticket-cta')).toBeDefined();
+  });
+
+  it('hides the View Ticket CTA for non-participants', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PUBLIC';
+    event.viewer_context.participation_status = 'NONE';
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.queryByTestId('ed-view-ticket-cta')).toBeNull();
+  });
+
+  it('hides the View Ticket CTA for completed or canceled events', () => {
+    const event = makeBaseEvent();
+    event.status = 'COMPLETED';
+    event.privacy_level = 'PUBLIC';
+    event.viewer_context.participation_status = 'JOINED';
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.queryByTestId('ed-view-ticket-cta')).toBeNull();
+  });
 });

@@ -179,6 +179,13 @@ export default function AppShell() {
                       >
                         Notifications
                       </NavLink>
+                      <NavLink
+                        to="/tickets"
+                        className="shell-dropdown-item"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        My Tickets
+                      </NavLink>
                       <button
                         className="shell-dropdown-item shell-dropdown-logout"
                         onClick={handleLogout}
