@@ -40,6 +40,10 @@ func (r *fakeRepo) ListReceivedPendingInvitations(context.Context, uuid.UUID) ([
 	return nil, nil
 }
 
+func (r *fakeRepo) ListReceivedPastInvitations(context.Context, uuid.UUID, ListPastInvitationsParams) ([]ReceivedInvitationRecord, error) {
+	return nil, nil
+}
+
 func (r *fakeRepo) AcceptInvitation(context.Context, uuid.UUID, uuid.UUID) (*AcceptInvitationRecord, error) {
 	return r.acceptResult, nil
 }

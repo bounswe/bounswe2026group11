@@ -54,6 +54,14 @@ type InvitationNotificationContext struct {
 	InvitedDisplayName *string
 }
 
+// ListPastInvitationsParams carries the keyset cursor and fetch budget for
+// the past bucket. FetchLimit is normally Limit+1 so the service can
+// detect whether another page exists without an extra query.
+type ListPastInvitationsParams struct {
+	Cursor     *PastInvitationCursor
+	FetchLimit int
+}
+
 type ReceivedInvitationRecord struct {
 	InvitationID uuid.UUID
 	Status       domain.InvitationStatus
