@@ -1711,17 +1711,26 @@ func TestListReceivedInvitationsReturnsCurrentPendingOnly(t *testing.T) {
 	insertInvitation(t, declinedEventID, host.ID, invitee.ID, domain.InvitationStatusDeclined, nil, nil)
 
 	// when
-	result, err := harness.InvitationService.ListReceivedInvitations(context.Background(), invitee.ID)
+	result, err := harness.InvitationService.ListReceivedInvitations(context.Background(), invitationapp.ListReceivedInvitationsInput{
+		UserID: invitee.ID,
+	})
 
 	// then
 	if err != nil {
 		t.Fatalf("ListReceivedInvitations() error = %v", err)
 	}
-	if len(result.Items) != 1 {
-		t.Fatalf("expected 1 current invitation, got %d", len(result.Items))
+	if len(result.Pending) != 1 {
+		t.Fatalf("expected 1 pending invitation, got %d", len(result.Pending))
 	}
-	if result.Items[0].Event.ID != pendingEventID.String() {
-		t.Fatalf("expected pending event %s, got %s", pendingEventID, result.Items[0].Event.ID)
+	if result.Pending[0].Event.ID != pendingEventID.String() {
+		t.Fatalf("expected pending event %s, got %s", pendingEventID, result.Pending[0].Event.ID)
+	}
+	// DECLINED now belongs to the past bucket, not pending.
+	if len(result.Past.Items) != 1 {
+		t.Fatalf("expected 1 past invitation, got %d", len(result.Past.Items))
+	}
+	if result.Past.Items[0].Event.ID != declinedEventID.String() {
+		t.Fatalf("expected past event %s, got %s", declinedEventID, result.Past.Items[0].Event.ID)
 	}
 }
 
