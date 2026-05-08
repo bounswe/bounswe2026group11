@@ -12,6 +12,7 @@ jest.mock('react-native', () => {
     'activeOpacity',
     'collapsable',
     'numberOfLines',
+    'testID',
   ]);
 
   const strip = (props: any) => {
