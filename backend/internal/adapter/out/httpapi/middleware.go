@@ -10,6 +10,25 @@ import (
 // contextKeyUserClaims is the key used to store AuthClaims in the Fiber context.
 const contextKeyUserClaims = "user_claims"
 
+// Catalog keys used by auth middleware error responses.
+const (
+	msgKeyMissingToken        = "error.missing_token"
+	msgKeyInvalidToken        = "error.invalid_token"
+	msgKeyAdminAccessRequired = "error.admin_access_required"
+)
+
+func missingTokenError() *domain.AppError {
+	return domain.AuthErrorI18n("missing_token", msgKeyMissingToken)
+}
+
+func invalidTokenError() *domain.AppError {
+	return domain.AuthErrorI18n("invalid_token", msgKeyInvalidToken)
+}
+
+func adminAccessRequiredError() *domain.AppError {
+	return domain.ForbiddenErrorI18n(domain.ErrorCodeAdminAccessRequired, msgKeyAdminAccessRequired)
+}
+
 // RequireAuth returns a middleware that validates the Bearer access token in the
 // Authorization header. On success it stores the claims in the request context
 // so downstream handlers can call UserClaims(c). On failure it returns 401.
@@ -18,25 +37,16 @@ func RequireAuth(verifier domain.TokenVerifier) fiber.Handler {
 		header := c.Get(fiber.HeaderAuthorization)
 		token, ok := extractBearer(header)
 		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(ErrorEnvelope{
-				Error: ErrorBody{
-					Code:    "missing_token",
-					Message: "Authorization header with Bearer token is required.",
-				},
-			})
+			return WriteError(c, missingTokenError())
 		}
 
 		claims, err := verifier.VerifyAccessToken(token)
 		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(ErrorEnvelope{
-				Error: ErrorBody{
-					Code:    "invalid_token",
-					Message: "The access token is invalid or expired.",
-				},
-			})
+			return WriteError(c, invalidTokenError())
 		}
 
 		c.Locals(contextKeyUserClaims, claims)
+		applyLocalePreference(c, claims.UserID)
 		return c.Next()
 	}
 }
@@ -49,33 +59,19 @@ func RequireAdmin(verifier domain.TokenVerifier) fiber.Handler {
 		header := c.Get(fiber.HeaderAuthorization)
 		token, ok := extractBearer(header)
 		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(ErrorEnvelope{
-				Error: ErrorBody{
-					Code:    "missing_token",
-					Message: "Authorization header with Bearer token is required.",
-				},
-			})
+			return WriteError(c, missingTokenError())
 		}
 
 		claims, err := verifier.VerifyAccessToken(token)
 		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(ErrorEnvelope{
-				Error: ErrorBody{
-					Code:    "invalid_token",
-					Message: "The access token is invalid or expired.",
-				},
-			})
+			return WriteError(c, invalidTokenError())
 		}
 		if claims.Role != domain.UserRoleAdmin {
-			return c.Status(fiber.StatusForbidden).JSON(ErrorEnvelope{
-				Error: ErrorBody{
-					Code:    domain.ErrorCodeAdminAccessRequired,
-					Message: "Admin access is required for this endpoint.",
-				},
-			})
+			return WriteError(c, adminAccessRequiredError())
 		}
 
 		c.Locals(contextKeyUserClaims, claims)
+		applyLocalePreference(c, claims.UserID)
 		return c.Next()
 	}
 }
@@ -94,15 +90,11 @@ func OptionalAuth(verifier domain.TokenVerifier) fiber.Handler {
 
 		claims, err := verifier.VerifyAccessToken(token)
 		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(ErrorEnvelope{
-				Error: ErrorBody{
-					Code:    "invalid_token",
-					Message: "The access token is invalid or expired.",
-				},
-			})
+			return WriteError(c, invalidTokenError())
 		}
 
 		c.Locals(contextKeyUserClaims, claims)
+		applyLocalePreference(c, claims.UserID)
 		return c.Next()
 	}
 }
@@ -119,20 +111,10 @@ func UserClaims(c *fiber.Ctx) *domain.AuthClaims {
 func RequireAdminRole(c *fiber.Ctx) error {
 	claims := UserClaims(c)
 	if claims == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(ErrorEnvelope{
-			Error: ErrorBody{
-				Code:    "missing_token",
-				Message: "Authorization header with Bearer token is required.",
-			},
-		})
+		return WriteError(c, missingTokenError())
 	}
 	if claims.Role != domain.UserRoleAdmin {
-		return c.Status(fiber.StatusForbidden).JSON(ErrorEnvelope{
-			Error: ErrorBody{
-				Code:    domain.ErrorCodeAdminAccessRequired,
-				Message: "Admin access is required for this endpoint.",
-			},
-		})
+		return WriteError(c, adminAccessRequiredError())
 	}
 	return c.Next()
 }

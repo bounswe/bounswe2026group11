@@ -41,6 +41,7 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 			u.birth_date,
 			u.email_verified_at,
 			u.status,
+			u.locale,
 			u.default_location_address,
 			ST_Y(u.default_location_point::geometry) AS lat,
 			ST_X(u.default_location_point::geometry) AS lon,
@@ -65,6 +66,7 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 		birthDate              pgtype.Date
 		emailVerifiedAt        pgtype.Timestamptz
 		status                 pgtype.Text
+		locale                 pgtype.Text
 		defaultLocAddress      pgtype.Text
 		lat                    pgtype.Float8
 		lon                    pgtype.Float8
@@ -87,6 +89,7 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 		&birthDate,
 		&emailVerifiedAt,
 		&status,
+		&locale,
 		&defaultLocAddress,
 		&lat,
 		&lon,
@@ -110,6 +113,7 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 	up.BirthDate = datePtr(birthDate)
 	up.EmailVerified = emailVerifiedAt.Valid
 	up.Status = textValue(status)
+	up.Locale = textValue(locale)
 	up.DefaultLocationAddress = textPtr(defaultLocAddress)
 	if lat.Valid {
 		up.DefaultLocationLat = &lat.Float64
@@ -351,6 +355,10 @@ func (r *ProfileRepository) UpdateProfile(ctx context.Context, params profileapp
 		setClauses += fmt.Sprintf(", birth_date = $%d", len(userArgs)+1)
 		userArgs = append(userArgs, *params.BirthDate)
 	}
+	if params.Locale != nil {
+		setClauses += fmt.Sprintf(", locale = $%d", len(userArgs)+1)
+		userArgs = append(userArgs, *params.Locale)
+	}
 	if params.DefaultLocationAddress != nil {
 		setClauses += fmt.Sprintf(", default_location_address = $%d", len(userArgs)+1)
 		userArgs = append(userArgs, *params.DefaultLocationAddress)
@@ -436,6 +444,20 @@ func (r *ProfileRepository) SetAvatarIfVersion(
 	}
 
 	return tag.RowsAffected() == 1, nil
+}
+
+// GetLocale returns the persisted locale preference for the given user.
+// Returns domain.ErrNotFound when the user does not exist.
+func (r *ProfileRepository) GetLocale(ctx context.Context, userID uuid.UUID) (string, error) {
+	var locale string
+	err := r.pool.QueryRow(ctx, `SELECT locale FROM app_user WHERE id = $1`, userID).Scan(&locale)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", domain.ErrNotFound
+		}
+		return "", fmt.Errorf("get locale: %w", err)
+	}
+	return locale, nil
 }
 
 // GetPasswordHash returns the bcrypt hash stored for the given user.

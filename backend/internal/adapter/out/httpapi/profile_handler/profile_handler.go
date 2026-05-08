@@ -141,6 +141,7 @@ type updateProfileBody struct {
 	PhoneNumber            *string  `json:"phone_number"`
 	Gender                 *string  `json:"gender"`
 	BirthDate              *string  `json:"birth_date"`
+	Locale                 *string  `json:"locale"`
 	DefaultLocationAddress *string  `json:"default_location_address"`
 	DefaultLocationLat     *float64 `json:"default_location_lat"`
 	DefaultLocationLon     *float64 `json:"default_location_lon"`
@@ -155,7 +156,7 @@ func (h *ProfileHandler) UpdateMyProfile(c *fiber.Ctx) error {
 
 	var body updateProfileBody
 	if err := c.BodyParser(&body); err != nil {
-		return httpapi.WriteError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
+		return httpapi.WriteError(c, domain.ValidationErrorI18n(map[string]string{"body": "validation.body.invalid_json"}))
 	}
 
 	if err := h.service.UpdateMyProfile(c.UserContext(), profile.UpdateProfileInput{
@@ -163,6 +164,7 @@ func (h *ProfileHandler) UpdateMyProfile(c *fiber.Ctx) error {
 		PhoneNumber:            body.PhoneNumber,
 		Gender:                 body.Gender,
 		BirthDate:              body.BirthDate,
+		Locale:                 body.Locale,
 		DefaultLocationAddress: body.DefaultLocationAddress,
 		DefaultLocationLat:     body.DefaultLocationLat,
 		DefaultLocationLon:     body.DefaultLocationLon,
@@ -326,6 +328,9 @@ func summarizeUpdatedProfileFields(body updateProfileBody) string {
 	}
 	if body.BirthDate != nil {
 		fields = append(fields, "birth_date")
+	}
+	if body.Locale != nil {
+		fields = append(fields, "locale")
 	}
 	if body.DefaultLocationAddress != nil {
 		fields = append(fields, "default_location_address")

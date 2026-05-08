@@ -220,12 +220,17 @@ func (s *Service) notifyModeratedJoinRequest(ctx context.Context, joinRequestID 
 
 	notificationType := "PROTECTED_EVENT_JOIN_REQUEST_APPROVED"
 	title := "Join request approved"
-	body := fmt.Sprintf("%s approved your request to join %s.", displayLabel(notificationCtx.HostDisplayName, notificationCtx.HostUsername), notificationCtx.EventTitle)
+	titleKey := "notification.join_request.approved.title"
+	bodyKey := "notification.join_request.approved.body"
+	hostLabel := displayLabel(notificationCtx.HostDisplayName, notificationCtx.HostUsername)
+	body := fmt.Sprintf("%s approved your request to join %s.", hostLabel, notificationCtx.EventTitle)
 	idempotencyKey := fmt.Sprintf("JOIN_REQUEST_APPROVED:%s", notificationCtx.JoinRequestID.String())
 	if status == domain.JoinRequestStatusRejected {
 		notificationType = "PROTECTED_EVENT_JOIN_REQUEST_REJECTED"
 		title = "Join request rejected"
-		body = fmt.Sprintf("%s rejected your request to join %s.", displayLabel(notificationCtx.HostDisplayName, notificationCtx.HostUsername), notificationCtx.EventTitle)
+		titleKey = "notification.join_request.rejected.title"
+		bodyKey = "notification.join_request.rejected.body"
+		body = fmt.Sprintf("%s rejected your request to join %s.", hostLabel, notificationCtx.EventTitle)
 		idempotencyKey = fmt.Sprintf("JOIN_REQUEST_REJECTED:%s", notificationCtx.JoinRequestID.String())
 	}
 
@@ -237,8 +242,11 @@ func (s *Service) notifyModeratedJoinRequest(ctx context.Context, joinRequestID 
 	_, err = s.notifications.SendNotificationToUsers(ctx, notificationapp.SendNotificationInput{
 		UserIDs:        []uuid.UUID{notificationCtx.RequesterUserID},
 		Title:          title,
+		TitleKey:       titleKey,
 		Type:           &notificationType,
 		Body:           body,
+		BodyKey:        bodyKey,
+		BodyArgs:       []any{hostLabel, notificationCtx.EventTitle},
 		DeepLink:       &deepLink,
 		EventID:        &notificationCtx.EventID,
 		ImageURL:       notificationCtx.EventImageURL,

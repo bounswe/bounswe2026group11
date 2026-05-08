@@ -221,19 +221,27 @@ func (s *Service) notifyInvitationResponse(ctx context.Context, invitationID uui
 
 	notificationType := "PRIVATE_EVENT_INVITATION_ACCEPTED"
 	title := "Invitation accepted"
-	body := fmt.Sprintf("%s accepted your invitation to %s.", displayLabel(notificationCtx.InvitedDisplayName, notificationCtx.InvitedUsername), notificationCtx.EventTitle)
+	titleKey := "notification.invitation.accepted.title"
+	bodyKey := "notification.invitation.accepted.body"
+	invitedLabel := displayLabel(notificationCtx.InvitedDisplayName, notificationCtx.InvitedUsername)
+	body := fmt.Sprintf("%s accepted your invitation to %s.", invitedLabel, notificationCtx.EventTitle)
 	if status == domain.InvitationStatusDeclined {
 		notificationType = "PRIVATE_EVENT_INVITATION_DECLINED"
 		title = "Invitation declined"
-		body = fmt.Sprintf("%s declined your invitation to %s.", displayLabel(notificationCtx.InvitedDisplayName, notificationCtx.InvitedUsername), notificationCtx.EventTitle)
+		titleKey = "notification.invitation.declined.title"
+		bodyKey = "notification.invitation.declined.body"
+		body = fmt.Sprintf("%s declined your invitation to %s.", invitedLabel, notificationCtx.EventTitle)
 	}
 
 	deepLink := fmt.Sprintf("/events/%s", notificationCtx.EventID.String())
 	_, err = s.notifications.SendNotificationToUsers(ctx, notificationapp.SendNotificationInput{
 		UserIDs:  []uuid.UUID{notificationCtx.HostUserID},
 		Title:    title,
+		TitleKey: titleKey,
 		Type:     &notificationType,
 		Body:     body,
+		BodyKey:  bodyKey,
+		BodyArgs: []any{invitedLabel, notificationCtx.EventTitle},
 		DeepLink: &deepLink,
 		EventID:  &notificationCtx.EventID,
 		ImageURL: notificationCtx.EventImageURL,
@@ -263,11 +271,15 @@ func (s *Service) sendInvitationReceivedNotification(ctx context.Context, notifi
 	}
 	notificationType := "PRIVATE_EVENT_INVITATION_RECEIVED"
 	deepLink := fmt.Sprintf("/events/%s", notificationCtx.EventID.String())
+	hostLabel := displayLabel(notificationCtx.HostDisplayName, notificationCtx.HostUsername)
 	_, err := s.notifications.SendNotificationToUsers(ctx, notificationapp.SendNotificationInput{
 		UserIDs:  []uuid.UUID{notificationCtx.InvitedUserID},
 		Title:    "Private event invitation",
+		TitleKey: "notification.invitation.received.title",
 		Type:     &notificationType,
-		Body:     fmt.Sprintf("%s invited you to %s.", displayLabel(notificationCtx.HostDisplayName, notificationCtx.HostUsername), notificationCtx.EventTitle),
+		Body:     fmt.Sprintf("%s invited you to %s.", hostLabel, notificationCtx.EventTitle),
+		BodyKey:  "notification.invitation.received.body",
+		BodyArgs: []any{hostLabel, notificationCtx.EventTitle},
 		DeepLink: &deepLink,
 		EventID:  &notificationCtx.EventID,
 		ImageURL: notificationCtx.EventImageURL,

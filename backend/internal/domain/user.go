@@ -67,6 +67,7 @@ type User struct {
 	LastLogin       *time.Time
 	Status          UserStatus
 	Role            UserRole
+	Locale          string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }

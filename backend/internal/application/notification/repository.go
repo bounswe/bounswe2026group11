@@ -10,6 +10,9 @@ import (
 
 // Repository is the application-layer persistence port for push notifications.
 type Repository interface {
+	// GetLocale returns the recipient's persisted locale preference. The
+	// service uses it to translate keyed notification text per recipient.
+	GetLocale(ctx context.Context, userID uuid.UUID) (string, error)
 	LockUser(ctx context.Context, userID uuid.UUID) error
 	UpsertDevice(ctx context.Context, params RegisterDeviceParams) (*domain.PushDevice, error)
 	CountActiveDevices(ctx context.Context, userID uuid.UUID) (int, error)

@@ -35,6 +35,19 @@ func NewNotificationRepositoryWithTx(pool *pgxpool.Pool, tx pgx.Tx) *Notificatio
 	}
 }
 
+// GetLocale returns the recipient's persisted locale preference. Used by
+// the notification service to translate keyed text per recipient.
+func (r *NotificationRepository) GetLocale(ctx context.Context, userID uuid.UUID) (string, error) {
+	var locale string
+	if err := r.db.QueryRow(ctx, `SELECT locale FROM app_user WHERE id = $1`, userID).Scan(&locale); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", domain.ErrNotFound
+		}
+		return "", fmt.Errorf("get locale: %w", err)
+	}
+	return locale, nil
+}
+
 func (r *NotificationRepository) LockUser(ctx context.Context, userID uuid.UUID) error {
 	var lockedID uuid.UUID
 	if err := r.db.QueryRow(ctx, `

@@ -90,11 +90,18 @@ var ErrNotFound = errors.New("not found")
 // AppError is the structured error type used across the application. It carries
 // an HTTP status code, a machine-readable code, a human-readable message, and
 // optional per-field validation details.
+//
+// MessageKey/DetailKeys, when set, point to entries in the i18n catalog and
+// are resolved against the request locale by the HTTP layer. They take
+// precedence over Message/Details. Existing constructors that set only
+// Message/Details remain backward compatible.
 type AppError struct {
-	Code    string
-	Message string
-	Status  int
-	Details map[string]string
+	Code       string
+	Message    string
+	Status     int
+	Details    map[string]string
+	MessageKey string
+	DetailKeys map[string]string
 }
 
 func (e *AppError) Error() string {
@@ -111,6 +118,19 @@ func ValidationError(details map[string]string) *AppError {
 	}
 }
 
+// ValidationErrorI18n creates a 400 Bad Request whose per-field details are
+// catalog keys. The HTTP layer resolves them against the request locale.
+// The top-level message uses the standard validation key.
+func ValidationErrorI18n(detailKeys map[string]string) *AppError {
+	return &AppError{
+		Code:       ErrorCodeValidation,
+		MessageKey: "error.validation",
+		Message:    "The request body contains invalid fields. See error.details for field-specific messages.",
+		Status:     StatusBadRequest,
+		DetailKeys: detailKeys,
+	}
+}
+
 // BadRequestError creates a 400 Bad Request error for invalid request states
 // that are not field-validation failures.
 func BadRequestError(code, message string) *AppError {
@@ -118,6 +138,15 @@ func BadRequestError(code, message string) *AppError {
 		Code:    code,
 		Message: message,
 		Status:  StatusBadRequest,
+	}
+}
+
+// BadRequestErrorI18n is the i18n-aware variant of BadRequestError.
+func BadRequestErrorI18n(code, messageKey string) *AppError {
+	return &AppError{
+		Code:       code,
+		MessageKey: messageKey,
+		Status:     StatusBadRequest,
 	}
 }
 
@@ -147,6 +176,24 @@ func AuthError(code, message string) *AppError {
 		Code:    code,
 		Message: message,
 		Status:  StatusUnauthorized,
+	}
+}
+
+// AuthErrorI18n is the i18n-aware variant of AuthError.
+func AuthErrorI18n(code, messageKey string) *AppError {
+	return &AppError{
+		Code:       code,
+		MessageKey: messageKey,
+		Status:     StatusUnauthorized,
+	}
+}
+
+// ForbiddenErrorI18n is the i18n-aware variant of ForbiddenError.
+func ForbiddenErrorI18n(code, messageKey string) *AppError {
+	return &AppError{
+		Code:       code,
+		MessageKey: messageKey,
+		Status:     StatusForbidden,
 	}
 }
 

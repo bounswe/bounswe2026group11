@@ -18,4 +18,8 @@ type Repository interface {
 	SearchUsers(ctx context.Context, query string, limit int) ([]UserSearchRecord, error)
 	GetPasswordHash(ctx context.Context, userID uuid.UUID) (string, error)
 	UpdatePasswordHash(ctx context.Context, userID uuid.UUID, newHash string) error
+	// GetLocale returns the persisted locale preference (e.g. "en", "tr") for
+	// the given user. Used by the locale resolution middleware as a fallback
+	// when the request has no Accept-Language header.
+	GetLocale(ctx context.Context, userID uuid.UUID) (string, error)
 }

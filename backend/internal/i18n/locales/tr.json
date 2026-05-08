@@ -1,0 +1,33 @@
+{
+  "error.internal": "Beklenmeyen bir hata oluştu.",
+  "error.missing_token": "Bearer formatında bir Authorization başlığı gereklidir.",
+  "error.invalid_token": "Erişim belirteci geçersiz veya süresi dolmuş.",
+  "error.admin_access_required": "Bu işlem için yönetici erişimi gereklidir.",
+  "error.validation": "İstek gövdesi geçersiz alanlar içeriyor. Alan bazlı mesajlar için error.details'i inceleyin.",
+
+  "validation.body.invalid_json": "geçerli bir JSON olmalı",
+  "validation.phone_number.too_long": "en fazla 32 karakter olabilir",
+  "validation.gender.invalid": "şu değerlerden biri olmalı: MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY",
+  "validation.birth_date.format": "YYYY-MM-DD biçiminde olmalı",
+  "validation.default_location_address.too_long": "en fazla 512 karakter olabilir",
+  "validation.default_location_lat.range": "-90 ile 90 arasında olmalı",
+  "validation.default_location_lon.range": "-180 ile 180 arasında olmalı",
+  "validation.default_location.lat_lon_pair_required": "lat ve lon birlikte verilmelidir",
+  "validation.display_name.too_long": "en fazla 64 karakter olabilir",
+  "validation.bio.too_long": "en fazla 512 karakter olabilir",
+  "validation.avatar_url.too_long": "en fazla 512 karakter olabilir",
+  "validation.locale.unsupported": "şu değerlerden biri olmalı: en, tr",
+
+  "notification.event.cancelled.title": "Etkinlik iptal edildi",
+  "notification.event.cancelled.body": "\"%s\" etkinliği ev sahibi tarafından iptal edildi.",
+  "notification.invitation.received.title": "Özel etkinlik davetiyesi",
+  "notification.invitation.received.body": "%s seni %s etkinliğine davet etti.",
+  "notification.invitation.accepted.title": "Davet kabul edildi",
+  "notification.invitation.accepted.body": "%s, %s etkinliğine yaptığın daveti kabul etti.",
+  "notification.invitation.declined.title": "Davet reddedildi",
+  "notification.invitation.declined.body": "%s, %s etkinliğine yaptığın daveti reddetti.",
+  "notification.join_request.approved.title": "Katılım isteği onaylandı",
+  "notification.join_request.approved.body": "%s, %s etkinliğine katılım isteğini onayladı.",
+  "notification.join_request.rejected.title": "Katılım isteği reddedildi",
+  "notification.join_request.rejected.body": "%s, %s etkinliğine katılım isteğini reddetti."
+}

@@ -1,0 +1,2 @@
+ALTER TABLE app_user DROP CONSTRAINT IF EXISTS chk_app_user_locale;
+ALTER TABLE app_user DROP COLUMN IF EXISTS locale;

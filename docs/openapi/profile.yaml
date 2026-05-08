@@ -2,6 +2,15 @@ openapi: 3.1.0
 info:
   title: Social Event Mapper - Profile API
   version: 0.1.0
+  description: >
+    Localization: every error response and notification body honors the
+    request's locale, resolved in this order: (1) `Accept-Language` header
+    (q-weighted, region tags stripped), (2) the authenticated user's
+    `locale` preference, (3) the default `en`. The `code` field on error
+    envelopes is locale-stable; clients must switch on `code`, not on
+    `message`. Notification rows persist text already rendered in the
+    recipient's locale; switching `locale` afterwards does not retranslate
+    historical notifications.
 
 servers:
   - url: /api
@@ -338,6 +347,11 @@ components:
           type: string
           description: Account status.
           example: active
+        locale:
+          type: string
+          enum: [en, tr]
+          description: User's preferred locale. Drives error/notification text when no Accept-Language header is sent. Defaults to "en" for new accounts.
+          example: tr
         phone_number:
           type:
             - string
@@ -703,6 +717,14 @@ components:
           maxLength: 512
           description: URL of the user's avatar image.
           example: "https://example.com/avatars/john.jpg"
+        locale:
+          type: string
+          enum: [en, tr]
+          description: >
+            Preferred locale, used as the per-user fallback when subsequent
+            requests omit Accept-Language. Region tags such as "tr-TR" are
+            accepted on input but normalized to the base language.
+          example: tr
 
     ImageUploadInitResponse:
       type: object
