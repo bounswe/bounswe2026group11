@@ -1167,6 +1167,39 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             />
             <Text style={styles.charCount}>{vm.joinRequestMessage.length}/500</Text>
 
+            <View style={styles.attachmentSection}>
+              <Text style={styles.label}>Attachment (Evidence)</Text>
+              {vm.selectedImageUri ? (
+                <View style={styles.attachmentPreviewContainer}>
+                  <Image source={{ uri: vm.selectedImageUri }} style={styles.attachmentPreview} />
+                  <TouchableOpacity
+                    style={styles.removeAttachmentBtn}
+                    onPress={vm.removeImage}
+                    disabled={vm.isUploadingImage}
+                  >
+                    <Feather name="x" size={16} color="white" />
+                  </TouchableOpacity>
+                  {vm.isUploadingImage && (
+                    <View style={styles.attachmentLoadingOverlay}>
+                      <ActivityIndicator color="white" size="small" />
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.addAttachmentBtn}
+                  onPress={vm.pickImage}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="image" size={20} color={theme.primary} />
+                  <Text style={styles.addAttachmentText}>Add Photo Evidence</Text>
+                </TouchableOpacity>
+              )}
+              {vm.imageError ? (
+                <Text style={styles.attachmentErrorText}>{vm.imageError}</Text>
+              ) : null}
+            </View>
+
             {vm.actionError ? (
               <View style={styles.errorBanner}>
                 <Text style={styles.errorBannerText}>{vm.actionError}</Text>
@@ -1427,6 +1460,65 @@ function makeStyles(t: Theme, isDark: boolean) {
       left: 14,
       flexDirection: 'row',
       gap: 8,
+    },
+
+    /* Join Request Modal Attachments */
+    attachmentSection: {
+      marginTop: 20,
+      marginBottom: 10,
+    },
+    addAttachmentBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: t.primary,
+      borderStyle: 'dashed',
+      borderRadius: 12,
+      backgroundColor: t.primary + '08',
+    },
+    addAttachmentText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.primary,
+    },
+    attachmentPreviewContainer: {
+      position: 'relative',
+      width: '100%',
+      height: 180,
+      borderRadius: 12,
+      overflow: 'hidden',
+      backgroundColor: t.surfaceVariant,
+    },
+    attachmentPreview: {
+      width: '100%',
+      height: '100%',
+      resizeMode: 'cover',
+    },
+    removeAttachmentBtn: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    attachmentLoadingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.3)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    attachmentErrorText: {
+      fontSize: 12,
+      color: '#DC2626',
+      marginTop: 6,
+      fontWeight: '500',
     },
 
     /* Section */
