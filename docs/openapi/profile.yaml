@@ -138,12 +138,34 @@ paths:
 
   /me/invitations:
     get:
-      summary: Get current private-event invitations
-      description: Returns the authenticated user's current `PENDING` invitations for active private events.
+      summary: Get the authenticated user's invitations
+      description: |
+        Returns the authenticated user's invitations split into two buckets:
+
+        - `pending`: actionable invitations — `status = PENDING`, `event.privacy_level = PRIVATE`, event status in `ACTIVE` or `IN_PROGRESS`. Ordered `created_at ASC, id ASC`. Always returned in full (unpaginated).
+        - `past`: history of `DECLINED` and `EXPIRED` invitations for `PRIVATE` events, regardless of event status (so a declined invitation for a now-ended event is still visible). Ordered `updated_at DESC, id DESC`. Paginated via `past_cursor` / `past_limit`.
+
+        `ACCEPTED` invitations are intentionally absent from `past` because the resulting participation is already visible via `GET /me/events/upcoming` and `/me/events/completed`. `CANCELED` invitations (host-revoked) are also absent so the recipient is not confronted with host-side decisions.
       tags:
         - Profile
       security:
         - bearerAuth: []
+      parameters:
+        - in: query
+          name: past_cursor
+          required: false
+          schema:
+            type: string
+          description: Opaque pagination cursor for the past bucket. Echo back the `past.page_info.next_cursor` value from the previous response. Omit on the first page. Returns `validation_error` (400) when the cursor is malformed.
+        - in: query
+          name: past_limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+          description: Page size for the past bucket. Pending bucket ignores this parameter.
       responses:
         "200":
           description: Invitations retrieved successfully.
@@ -151,6 +173,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReceivedInvitationsResponse"
+        "400":
+          description: Validation error (invalid `past_cursor` or `past_limit` out of range).
         "401":
           description: Missing or invalid access token.
 
@@ -499,12 +523,41 @@ components:
     ReceivedInvitationsResponse:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [pending, past]
+      properties:
+        pending:
+          type: array
+          description: Actionable invitations (`status = PENDING`) for `PRIVATE` events whose status is `ACTIVE` or `IN_PROGRESS`. Unpaginated.
+          items:
+            $ref: "#/components/schemas/ReceivedInvitation"
+        past:
+          $ref: "#/components/schemas/ReceivedInvitationsPast"
+
+    ReceivedInvitationsPast:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
       properties:
         items:
           type: array
+          description: Page of past invitations (`status` ∈ {`DECLINED`, `EXPIRED`}) ordered by `updated_at` descending.
           items:
             $ref: "#/components/schemas/ReceivedInvitation"
+        page_info:
+          $ref: "#/components/schemas/InvitationPageInfo"
+
+    InvitationPageInfo:
+      type: object
+      additionalProperties: false
+      required: [next_cursor, has_next]
+      properties:
+        next_cursor:
+          type:
+            - string
+            - "null"
+          description: Token to pass as `past_cursor` on the next request. `null` when `has_next` is `false`.
+        has_next:
+          type: boolean
 
     ReceivedInvitation:
       type: object
@@ -516,7 +569,7 @@ components:
           format: uuid
         status:
           type: string
-          enum: [PENDING]
+          enum: [PENDING, DECLINED, EXPIRED]
         message:
           type:
             - string
