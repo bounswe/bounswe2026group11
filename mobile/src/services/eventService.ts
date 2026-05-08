@@ -379,6 +379,17 @@ function appendArrayParam(
   params.set(key, values.join(','));
 }
 
+export async function getJoinRequestImageUploadUrl(
+  eventId: string,
+  token: string,
+): Promise<ImageUploadInitResponse> {
+  return apiPostAuth<ImageUploadInitResponse>(
+    `/events/${eventId}/join-request/image/upload-url`,
+    {},
+    token,
+  );
+}
+
 export async function getEventImageUploadUrl(
   eventId: string,
   token: string,

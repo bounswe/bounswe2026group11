@@ -78,8 +78,9 @@ type ListCommentsParams struct {
 	DecodedCursor        *CommentCursor
 }
 
-// CommentCursor is the opaque keyset cursor payload for comments ordered by
-// created_at DESC, id DESC.
+// CommentCursor is the opaque keyset cursor payload for comment collections.
+// Top-level collections use newest-first ordering; replies use oldest-first
+// ordering so a conversation reads chronologically.
 type CommentCursor struct {
 	Collection string    `json:"collection"`
 	CreatedAt  time.Time `json:"created_at"`

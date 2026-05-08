@@ -32,6 +32,13 @@ import { addFavorite, removeFavorite } from '@/services/favoriteService';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiError } from '@/services/api';
 import { searchUsers } from '@/services/profileService';
+import { Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import {
+  getJoinRequestImageUploadUrl,
+  uploadFileToPresignedUrl,
+} from '@/services/eventService';
 
 export type ActionState =
   | 'idle'
@@ -111,6 +118,12 @@ export interface EventDetailViewModel {
   handleApproveRequest: (joinRequestId: string) => Promise<void>;
   handleRejectRequest: (joinRequestId: string) => Promise<void>;
   handleCancelEvent: () => Promise<void>;
+
+  selectedImageUri: string | null;
+  isUploadingImage: boolean;
+  imageError: string | null;
+  pickImage: () => Promise<void>;
+  removeImage: () => void;
 }
 
 function mapRatingError(err: ApiError, fallback: string): string {
@@ -170,6 +183,48 @@ export function resolveConstraintViolation(
   return violations.length > 0 ? violations.join(' · ') : null;
 }
 
+function decodeFileUriOnce(uri: string): string {
+  if (!uri.startsWith('file://')) {
+    return uri;
+  }
+  try {
+    return `file://${decodeURIComponent(uri.slice('file://'.length))}`;
+  } catch {
+    return uri;
+  }
+}
+
+function normalizePickedImageUri(uri: string): string {
+  let normalized = uri;
+  for (let i = 0; i < 3; i += 1) {
+    const next = decodeFileUriOnce(normalized);
+    if (next === normalized) break;
+    normalized = next;
+  }
+  return normalized;
+}
+
+function getPickedImageUriCandidates(uri: string): string[] {
+  return [...new Set([uri, decodeFileUriOnce(uri), normalizePickedImageUri(uri)])];
+}
+
+async function preparePickedImageUri(uri: string): Promise<string> {
+  let lastError: unknown = null;
+  for (const candidateUri of getPickedImageUriCandidates(uri)) {
+    try {
+      const preparedImage = await ImageManipulator.manipulateAsync(
+        candidateUri,
+        [],
+        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG },
+      );
+      return preparedImage.uri;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error('Could not prepare the selected image');
+}
+
 export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
   const hostCollectionPageSize = 25;
   const { token, user } = useAuth();
@@ -199,6 +254,9 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
 
   const [showJoinRequestModal, setShowJoinRequestModal] = useState(false);
   const [joinRequestMessage, setJoinRequestMessage] = useState('');
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [showAttendeesModal, setShowAttendeesModal] = useState(false);
@@ -505,6 +563,53 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     }
   }, [token, event, fetchEvent]);
 
+  const uploadJoinRequestImage = useCallback(
+    async (eventId: string, imageUri: string, token: string): Promise<string> => {
+      setIsUploadingImage(true);
+      setImageError(null);
+      try {
+        const original = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        const small = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 400 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        const uploadInit = await getJoinRequestImageUploadUrl(eventId, token);
+
+        const originalUpload = uploadInit.uploads.find((u) => u.variant === 'ORIGINAL');
+        const smallUpload = uploadInit.uploads.find((u) => u.variant === 'SMALL');
+        if (!originalUpload || !smallUpload) {
+          throw new Error('Missing upload instructions from server');
+        }
+
+        await Promise.all([
+          uploadFileToPresignedUrl(
+            originalUpload.method,
+            originalUpload.url,
+            originalUpload.headers,
+            original.uri,
+          ),
+          uploadFileToPresignedUrl(smallUpload.method, smallUpload.url, smallUpload.headers, small.uri),
+        ]);
+
+        return uploadInit.confirm_token;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to upload image evidence.';
+        setImageError(msg);
+        throw err;
+      } finally {
+        setIsUploadingImage(false);
+      }
+    },
+    [],
+  );
+
   const handleRequestJoin = useCallback(async () => {
     if (!token || !event) return;
 
@@ -512,9 +617,17 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     setActionState('requesting');
 
     try {
+      let imageConfirmToken: string | null = null;
+      if (selectedImageUri) {
+        imageConfirmToken = await uploadJoinRequestImage(event.id, selectedImageUri, token);
+      }
+
       await requestJoinEvent(
         event.id,
-        { message: joinRequestMessage.trim() || null },
+        {
+          message: joinRequestMessage.trim() || null,
+          image_confirm_token: imageConfirmToken,
+        },
         token,
       );
       setEvent((prev) =>
@@ -532,6 +645,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       setActionState('success_requested');
       setShowJoinRequestModal(false);
       setJoinRequestMessage('');
+      setSelectedImageUri(null);
     } catch (err: unknown) {
       setActionState('idle');
       if (err && typeof err === 'object' && 'message' in err) {
@@ -540,7 +654,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         setActionError('Failed to send join request. Please try again.');
       }
     }
-  }, [token, event, joinRequestMessage]);
+  }, [token, event, joinRequestMessage, selectedImageUri, uploadJoinRequestImage]);
 
   const resolveCurrentInvitationID = useCallback(async () => {
     if (!token || !event) return null;
@@ -754,7 +868,51 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
   const closeJoinRequestModal = useCallback(() => {
     setShowJoinRequestModal(false);
     setJoinRequestMessage('');
+    setSelectedImageUri(null);
+    setImageError(null);
     setActionError(null);
+  }, []);
+
+  const pickImage = useCallback(async () => {
+    setImageError(null);
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        const message = 'Please allow access to your photo library to add an attachment.';
+        setImageError(message);
+        Alert.alert('Permission required', message);
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      if (!asset?.uri) {
+        setImageError('We could not read the selected image. Please try a different one.');
+        return;
+      }
+
+      try {
+        const preparedImageUri = await preparePickedImageUri(asset.uri);
+        setSelectedImageUri(preparedImageUri);
+      } catch {
+        setImageError('We could not process the selected image. Please try a different one.');
+      }
+    } catch {
+      setImageError('We could not open your photo library. Please try again.');
+    }
+  }, []);
+
+  const removeImage = useCallback(() => {
+    setSelectedImageUri(null);
+    setImageError(null);
   }, []);
 
   const retry = useCallback(() => {
@@ -808,8 +966,13 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     constraintViolation,
     showJoinRequestModal,
     joinRequestMessage,
+    selectedImageUri,
+    isUploadingImage,
+    imageError,
     openJoinRequestModal,
     closeJoinRequestModal,
+    pickImage,
+    removeImage,
     setJoinRequestMessage,
     handleJoin,
     handleLeaveEvent,
