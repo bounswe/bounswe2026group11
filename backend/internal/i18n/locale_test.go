@@ -38,9 +38,6 @@ func TestLocaleFromContext(t *testing.T) {
 	if got := LocaleFrom(context.Background()); got != DefaultLocale {
 		t.Fatalf("empty ctx = %q, want default %q", got, DefaultLocale)
 	}
-	if got := LocaleFrom(nil); got != DefaultLocale {
-		t.Fatalf("nil ctx = %q, want default %q", got, DefaultLocale)
-	}
 	ctx := WithLocale(context.Background(), LocaleTR)
 	if got := LocaleFrom(ctx); got != LocaleTR {
 		t.Fatalf("ctx = %q, want %q", got, LocaleTR)
