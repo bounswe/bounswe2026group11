@@ -313,6 +313,59 @@ export async function reverseGeocode(
   };
 }
 
+const OSRM_BASE = 'https://router.project-osrm.org';
+
+interface OSRMRoute {
+  geometry?: { coordinates?: Array<[number, number]> };
+}
+
+interface OSRMResponse {
+  code?: string;
+  routes?: OSRMRoute[];
+}
+
+/**
+ * Fetches a routed geometry that follows the road network between the given
+ * waypoints (in order). Uses OSRM's public driving profile — keyless and free,
+ * but rate-limited and not for production-grade traffic. Returns null on any
+ * failure so callers can fall back to a straight polyline.
+ */
+export async function fetchRoutedGeometry(
+  waypoints: Array<{ lat: number; lon: number }>,
+): Promise<Array<{ lat: number; lon: number }> | null> {
+  if (waypoints.length < 2) return null;
+  if (waypoints.some((p) => !Number.isFinite(p.lat) || !Number.isFinite(p.lon))) {
+    return null;
+  }
+
+  const coords = waypoints.map((p) => `${p.lon},${p.lat}`).join(';');
+  const url =
+    `${OSRM_BASE}/route/v1/driving/${coords}` +
+    `?overview=full&geometries=geojson`;
+
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch {
+    return null;
+  }
+  if (!response.ok) return null;
+
+  const data = (await response.json().catch(() => null)) as OSRMResponse | null;
+  if (!data || data.code !== 'Ok') return null;
+  const geom = data.routes?.[0]?.geometry?.coordinates;
+  if (!Array.isArray(geom) || geom.length < 2) return null;
+
+  const points: Array<{ lat: number; lon: number }> = [];
+  for (const pair of geom) {
+    if (!Array.isArray(pair) || pair.length < 2) continue;
+    const [lon, lat] = pair;
+    if (typeof lat !== 'number' || typeof lon !== 'number') continue;
+    points.push({ lat, lon });
+  }
+  return points.length >= 2 ? points : null;
+}
+
 export async function listCategories(): Promise<ListCategoriesResponse> {
   return apiGet<ListCategoriesResponse>('/categories');
 }

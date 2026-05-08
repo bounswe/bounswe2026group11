@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
+import { fetchRoutedGeometry } from '@/services/eventService';
 import { formatEventDateLabel, getAutoCompletionDaysLeft } from '@/utils/eventDate';
 import {
   formatEventStatusLabel,
@@ -491,6 +492,39 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(theme, isDark), [theme, isDark]);
   const [isMapModalVisible, setIsMapModalVisible] = useState(false);
+  const [routedGeometry, setRoutedGeometry] = useState<Array<{ lat: number; lon: number }> | null>(
+    null,
+  );
+
+  const routeWaypoints = useMemo(() => {
+    if (vm.event?.location.type !== 'ROUTE') return null;
+    return vm.event.location.route_points ?? [];
+  }, [vm.event?.location.type, vm.event?.location.route_points]);
+
+  useEffect(() => {
+    if (!routeWaypoints || routeWaypoints.length < 2) {
+      setRoutedGeometry(null);
+      return;
+    }
+    let cancelled = false;
+    fetchRoutedGeometry(routeWaypoints)
+      .then((geom) => {
+        if (!cancelled) setRoutedGeometry(geom);
+      })
+      .catch(() => {
+        if (!cancelled) setRoutedGeometry(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [routeWaypoints]);
+
+  // Polyline coords: prefer the routed geometry (follows roads); fall back to
+  // straight-line waypoints if routing is unavailable or still loading.
+  const polylineCoords = useMemo(() => {
+    if (routedGeometry && routedGeometry.length >= 2) return routedGeometry;
+    return routeWaypoints && routeWaypoints.length >= 2 ? routeWaypoints : null;
+  }, [routedGeometry, routeWaypoints]);
 
   const handleGetDirections = () => {
     if (!vm.event) return;
@@ -935,9 +969,9 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                     pitchEnabled={false}
                     rotateEnabled={false}
                   >
-                    {isRoute && routePoints.length >= 2 && (
+                    {isRoute && polylineCoords && polylineCoords.length >= 2 && (
                       <Polyline
-                        coordinates={routePoints.map((p) => ({
+                        coordinates={polylineCoords.map((p) => ({
                           latitude: p.lat,
                           longitude: p.lon,
                         }))}
@@ -1357,9 +1391,9 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               customMapStyle={isDark ? darkMapStyle : []}
               initialRegion={initialRegion}
             >
-              {isRoute && routePoints.length >= 2 && (
+              {isRoute && polylineCoords && polylineCoords.length >= 2 && (
                 <Polyline
-                  coordinates={routePoints.map((p) => ({ latitude: p.lat, longitude: p.lon }))}
+                  coordinates={polylineCoords.map((p) => ({ latitude: p.lat, longitude: p.lon }))}
                   strokeColor={theme.primary}
                   strokeWidth={5}
                 />
