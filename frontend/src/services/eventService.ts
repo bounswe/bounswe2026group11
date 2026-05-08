@@ -1,5 +1,9 @@
 import { apiDeleteAuth, apiPostAuth, apiPatchAuth, apiGet, apiGetAuth, apiPutAuth } from './api';
 import type { ImageUploadConfirmRequest, ImageUploadInitResponse } from '@/models/profile';
+import type {
+  CreateEventInvitationsRequest,
+  CreateEventInvitationsResponse,
+} from '@/models/invitation';
 import {
   CreateEventRequest,
   CreateEventResponse,
@@ -114,6 +118,18 @@ export function listEventInvitations(
 ): Promise<EventInvitationsResponse> {
   return apiGetAuth<EventInvitationsResponse>(
     buildCollectionPath(eventId, 'invitations', options.limit, options.cursor),
+    token,
+  );
+}
+
+export function createEventInvitations(
+  eventId: string,
+  body: CreateEventInvitationsRequest,
+  token: string,
+): Promise<CreateEventInvitationsResponse> {
+  return apiPostAuth<CreateEventInvitationsResponse>(
+    `/events/${eventId}/invitations`,
+    body,
     token,
   );
 }

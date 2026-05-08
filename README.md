@@ -57,7 +57,7 @@ Useful local details:
 
 - Postgres is exposed at `127.0.0.1:5433` for local tools.
 - The dev-server compose file is different: [`deploy/docker-compose.dev.yml`](deploy/docker-compose.dev.yml) is for the remote droplet, not local development.
-- API docs are local-only; the shared dev deployment does not expose `/api/docs`.
+- API docs are exposed by both local Compose and the shared dev deployment at `/api/docs/`.
 
 `deploy/docker-compose.dev.yml` is different: on the dev host, Postgres is published on **127.0.0.1:5432** for manual inspection and SSH tunneling, still with user `postgres`, database `sem`, and password from `deploy/.env`. That exposure is dev-only and loopback-bound, not a production pattern. If host `5432` is already in use on the dev machine, use a local Compose override file for that machine instead of changing the shared dev compose file; [`docs/deploy.md`](docs/deploy.md) shows the pattern.
 

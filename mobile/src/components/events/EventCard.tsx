@@ -5,6 +5,7 @@ import { EventSummary } from '@/models/event';
 import { getFavoriteCountForDisplay } from '@/utils/eventFavoriteCount';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
+import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -18,8 +19,12 @@ function formatPrivacyLabel(value: EventSummary['privacy_level']) {
 }
 
 export default function EventCard({ event, onPress }: EventCardProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const categoryPresentation = getEventCategoryPresentation(
+    event.category_name,
+    isDark,
+  );
 
   const favoriteCount = getFavoriteCountForDisplay(event);
   const ratingLabel =
@@ -80,8 +85,21 @@ export default function EventCard({ event, onPress }: EventCardProps) {
           </View>
 
           <View style={styles.imageBottomRow}>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>{event.category_name}</Text>
+            <View
+              style={[
+                styles.categoryBadge,
+                { backgroundColor: categoryPresentation.color },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.categoryBadgeText,
+                  { color: categoryPresentation.textColor },
+                ]}
+                numberOfLines={1}
+              >
+                {categoryPresentation.emoji} {categoryPresentation.label}
+              </Text>
             </View>
           </View>
         </View>
@@ -190,13 +208,12 @@ function makeStyles(t: Theme) {
       fontWeight: '700',
     },
     categoryBadge: {
-      backgroundColor: 'rgba(15, 23, 42, 0.72)',
+      maxWidth: '100%',
       paddingHorizontal: 14,
       paddingVertical: 8,
       borderRadius: 999,
     },
     categoryBadgeText: {
-      color: '#FFFFFF',
       fontSize: 13,
       fontWeight: '700',
     },

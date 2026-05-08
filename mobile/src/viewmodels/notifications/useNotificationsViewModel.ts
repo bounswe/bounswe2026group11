@@ -148,6 +148,7 @@ export function useNotificationsViewModel(): NotificationsViewModel {
     async (notificationId: string) => {
       if (!token) return;
 
+      const previous = notifications;
       setNotifications((current) =>
         current.map((notification) =>
           notification.id === notificationId
@@ -163,15 +164,17 @@ export function useNotificationsViewModel(): NotificationsViewModel {
       try {
         await markNotificationRead(notificationId, token);
       } catch (error) {
+        setNotifications(previous);
         setApiError(getMutationErrorMessage(error));
       }
     },
-    [token],
+    [notifications, token],
   );
 
   const markAllRead = useCallback(async () => {
     if (!token) return;
 
+    const previous = notifications;
     const readAt = new Date().toISOString();
     setNotifications((current) =>
       current.map((notification) => ({
@@ -184,9 +187,10 @@ export function useNotificationsViewModel(): NotificationsViewModel {
     try {
       await markAllNotificationsRead(token);
     } catch (error) {
+      setNotifications(previous);
       setApiError(getMutationErrorMessage(error));
     }
-  }, [token]);
+  }, [notifications, token]);
 
   const removeNotification = useCallback(
     async (notificationId: string) => {

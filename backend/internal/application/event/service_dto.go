@@ -1,10 +1,18 @@
 package event
 
 import (
+	"context"
 	"time"
 
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
+	"github.com/google/uuid"
 )
+
+// JoinRequestImageConfirmer verifies a previously uploaded join-request image.
+type JoinRequestImageConfirmer interface {
+	ConfirmEventJoinRequestImageUpload(ctx context.Context, userID, eventID uuid.UUID, input imageupload.ConfirmUploadInput) (*imageupload.ConfirmJoinRequestImageResult, error)
+}
 
 // CreateEventInput is the validated input for creating an event.
 type CreateEventInput struct {
@@ -253,6 +261,7 @@ type EventDetailPendingJoinRequest struct {
 	JoinRequestID string                     `json:"join_request_id"`
 	Status        string                     `json:"status"`
 	Message       *string                    `json:"message"`
+	ImageURL      *string                    `json:"image_url"`
 	CreatedAt     time.Time                  `json:"created_at"`
 	UpdatedAt     time.Time                  `json:"updated_at"`
 	User          EventDetailHostContextUser `json:"user"`
@@ -324,7 +333,8 @@ type LeaveEventResult struct {
 
 // RequestJoinInput is the validated input for creating a protected-event join request.
 type RequestJoinInput struct {
-	Message *string
+	Message           *string
+	ImageConfirmToken *string
 }
 
 // RequestJoinResult is returned after a user successfully creates a join request
@@ -333,6 +343,7 @@ type RequestJoinResult struct {
 	JoinRequestID string    `json:"join_request_id"`
 	EventID       string    `json:"event_id"`
 	Status        string    `json:"status"`
+	ImageURL      *string   `json:"image_url"`
 	CreatedAt     time.Time `json:"created_at"`
 }
 

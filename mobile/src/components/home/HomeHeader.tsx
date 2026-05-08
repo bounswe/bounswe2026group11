@@ -1,26 +1,26 @@
 import React, { forwardRef, useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import SemLogo from '@/components/common/SemLogo';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
 interface HomeHeaderProps {
-  locationLabel: string;
-  onPressLocation?: () => void;
+  /** Whether dark mode is currently active — determines the sun/moon icon. */
+  isDark: boolean;
+  onPressThemeToggle: () => void;
   onPressNotifications?: () => void;
   unreadNotificationCount?: number;
 }
 
 const HomeHeader = forwardRef<any, HomeHeaderProps>(function HomeHeader(
   {
-    locationLabel,
-    onPressLocation,
+    isDark,
+    onPressThemeToggle,
     onPressNotifications,
     unreadNotificationCount = 0,
   },
-  locationButtonRef,
+  _ref,
 ) {
   const { theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -28,12 +28,13 @@ const HomeHeader = forwardRef<any, HomeHeaderProps>(function HomeHeader(
   return (
     <View style={styles.container}>
       <View style={styles.logoWrap}>
-        <SemLogo height={56} color={theme.text} />
+        <SemLogo height={52} color={theme.text} />
       </View>
 
       <View style={styles.rightWrap}>
+        {/* Bell */}
         <TouchableOpacity
-          style={styles.bellButton}
+          style={styles.iconButton}
           activeOpacity={0.75}
           onPress={onPressNotifications}
           accessibilityRole="button"
@@ -43,29 +44,23 @@ const HomeHeader = forwardRef<any, HomeHeaderProps>(function HomeHeader(
           {unreadNotificationCount > 0 ? (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>
-                {unreadNotificationCount > 99
-                  ? '99+'
-                  : String(unreadNotificationCount)}
+                {unreadNotificationCount > 99 ? '99+' : String(unreadNotificationCount)}
               </Text>
             </View>
           ) : null}
         </TouchableOpacity>
 
-        <View ref={locationButtonRef} collapsable={false} style={styles.locationWrap}>
-          <TouchableOpacity
-            style={styles.locationButton}
-            activeOpacity={0.85}
-            onPress={onPressLocation}
-            accessibilityRole="button"
-            accessibilityLabel="Select location"
-          >
-            <Feather name="map-pin" size={16} color={theme.textOnPrimary} />
-            <Text style={styles.locationButtonText} numberOfLines={1}>
-              {locationLabel}
-            </Text>
-            <Feather name="chevron-down" size={16} color={theme.textOnPrimary} />
-          </TouchableOpacity>
-        </View>
+        {/* Theme toggle */}
+        <TouchableOpacity
+          style={styles.iconButton}
+          activeOpacity={0.75}
+          onPress={onPressThemeToggle}
+          accessibilityRole="button"
+          accessibilityLabel={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          testID="theme-toggle"
+        >
+          <Feather name={isDark ? 'sun' : 'moon'} size={20} color={theme.text} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -74,35 +69,31 @@ const HomeHeader = forwardRef<any, HomeHeaderProps>(function HomeHeader(
 function makeStyles(t: Theme) {
   return StyleSheet.create({
     container: {
-      marginTop: 20,
-      marginBottom: 14,
+      marginTop: 12,
+      marginBottom: 10,
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
     },
     logoWrap: {
       flexShrink: 0,
-      marginRight: 8,
     },
     rightWrap: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
-      flexShrink: 1,
-      minWidth: 0,
+      gap: 4,
     },
-    bellButton: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
+    iconButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
-      flexShrink: 0,
     },
     badge: {
       position: 'absolute',
-      top: 2,
-      right: 2,
+      top: 4,
+      right: 4,
       minWidth: 16,
       height: 16,
       borderRadius: 8,
@@ -116,30 +107,6 @@ function makeStyles(t: Theme) {
       fontSize: 9,
       fontWeight: '700',
       lineHeight: 12,
-    },
-    locationWrap: {
-      flexShrink: 1,
-      minWidth: 0,
-      maxWidth: '80%',
-      alignItems: 'flex-end',
-    },
-    locationButton: {
-      maxWidth: '100%',
-      minWidth: 0,
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: t.primary,
-      borderRadius: 999,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-    },
-    locationButtonText: {
-      color: t.textOnPrimary,
-      fontSize: 12,
-      fontWeight: '800',
-      fontStyle: 'italic',
-      marginHorizontal: 8,
-      flexShrink: 1,
     },
   });
 }

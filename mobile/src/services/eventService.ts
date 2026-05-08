@@ -28,7 +28,7 @@ import {
 import { shouldShowProfileEvent } from '@/utils/eventStatus';
 
 
-const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
+const PHOTON_BASE = 'https://photon.komoot.io';
 type SupportedUploadMethod = 'POST' | 'PUT' | 'PATCH';
 
 interface BackendEventSummary {
@@ -194,6 +194,45 @@ export async function upsertParticipantRating(
   );
 }
 
+interface PhotonProperties {
+  name?: string;
+  street?: string;
+  housenumber?: string;
+  postcode?: string;
+  district?: string;
+  city?: string;
+  county?: string;
+  state?: string;
+  country?: string;
+}
+
+interface PhotonFeature {
+  geometry?: { coordinates?: [number, number] };
+  properties?: PhotonProperties;
+}
+
+function buildPhotonDisplayName(props: PhotonProperties): string {
+  const parts = [
+    [props.name, props.street && props.housenumber ? `${props.street} ${props.housenumber}` : props.street].filter(Boolean).join(' '),
+    props.district,
+    props.city,
+    props.state,
+    props.country,
+  ];
+
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  for (const part of parts) {
+    const value = (part ?? '').trim();
+    if (!value) continue;
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(value);
+  }
+  return deduped.join(', ');
+}
+
 export async function searchLocation(
   query: string,
 ): Promise<LocationSuggestion[]> {
@@ -201,25 +240,39 @@ export async function searchLocation(
 
   const params = new URLSearchParams({
     q: query,
-    format: 'json',
-    addressdetails: '1',
     limit: '5',
+    lang: 'en',
   });
 
-  const response = await fetch(`${NOMINATIM_BASE}/search?${params}`, {
-    headers: { 'User-Agent': 'BounSWE2026Group11MobileApp' },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${PHOTON_BASE}/api?${params}`);
+  } catch {
+    return [];
+  }
 
   if (!response.ok) return [];
 
-  const data = await response.json();
-  return data.map(
-    (item: { display_name: string; lat: string; lon: string }) => ({
-      display_name: item.display_name,
-      lat: item.lat,
-      lon: item.lon,
-    }),
-  );
+  const data = await response.json().catch(() => null);
+  if (!data || !Array.isArray(data.features)) return [];
+
+  return (data.features as PhotonFeature[])
+    .map((feature): LocationSuggestion | null => {
+      const coords = feature.geometry?.coordinates;
+      if (!Array.isArray(coords) || coords.length < 2) return null;
+      const [lon, lat] = coords;
+      if (typeof lon !== 'number' || typeof lat !== 'number') return null;
+
+      const displayName = buildPhotonDisplayName(feature.properties ?? {});
+      if (!displayName) return null;
+
+      return {
+        display_name: displayName,
+        lat: String(lat),
+        lon: String(lon),
+      };
+    })
+    .filter((s): s is LocationSuggestion => s !== null);
 }
 
 export async function listCategories(): Promise<ListCategoriesResponse> {

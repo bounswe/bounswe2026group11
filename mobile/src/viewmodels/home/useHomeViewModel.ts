@@ -20,7 +20,7 @@ import { getMyProfile } from '@/services/profileService';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { useAuth } from '@/contexts/AuthContext';
 
-const PAGE_SIZE = 2;
+const PAGE_SIZE = 50;
 const MAX_FAVORITE_LOCATION_OPTIONS = 3;
 
 const DEFAULT_LOCATION = {

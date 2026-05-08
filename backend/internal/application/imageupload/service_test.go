@@ -62,6 +62,8 @@ type fakeEventRepo struct {
 	getStateCallCount int
 	reviewState       *EventReviewImageState
 	reviewStateErr    error
+	joinState         *EventJoinRequestImageState
+	joinStateErr      error
 	reportState       *EventReportImageState
 	reportStateErr    error
 }
@@ -105,6 +107,21 @@ func (r *fakeEventRepo) GetEventReviewImageState(_ context.Context, eventID, use
 		Status:                  string(domain.EventStatusCompleted),
 		PrivacyLevel:            string(domain.PrivacyPublic),
 		IsQualifyingParticipant: true,
+	}, nil
+}
+
+func (r *fakeEventRepo) GetEventJoinRequestImageState(_ context.Context, eventID uuid.UUID) (*EventJoinRequestImageState, error) {
+	if r.joinStateErr != nil {
+		return nil, r.joinStateErr
+	}
+	if r.joinState != nil {
+		return r.joinState, nil
+	}
+	return &EventJoinRequestImageState{
+		EventID:      eventID,
+		HostID:       uuid.New(),
+		Status:       string(domain.EventStatusActive),
+		PrivacyLevel: string(domain.PrivacyProtected),
 	}, nil
 }
 
@@ -341,5 +358,112 @@ func TestConfirmEventImageUploadRejectsInvalidToken(t *testing.T) {
 	}
 	if appErr.Code != domain.ErrorCodeImageUploadTokenInvalid {
 		t.Fatalf("expected error code %q, got %q", domain.ErrorCodeImageUploadTokenInvalid, appErr.Code)
+	}
+}
+
+func TestCreateEventJoinRequestImageUploadBuildsKeysAndToken(t *testing.T) {
+	// given
+	svc, _, _, storage, tokens := newServiceForTests()
+	userID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	eventID := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+
+	// when
+	result, err := svc.CreateEventJoinRequestImageUpload(context.Background(), userID, eventID)
+
+	// then
+	if err != nil {
+		t.Fatalf("CreateEventJoinRequestImageUpload() error = %v", err)
+	}
+	expectedPrefix := "events/" + eventID.String() + "/join-requests/" + userID.String() + "/"
+	if len(storage.presignedKeys) != 2 {
+		t.Fatalf("expected 2 presigned keys, got %d", len(storage.presignedKeys))
+	}
+	if tokens.payload.Resource != ResourceJoinRequestImage {
+		t.Fatalf("expected token resource %q, got %q", ResourceJoinRequestImage, tokens.payload.Resource)
+	}
+	if tokens.payload.EventID == nil || *tokens.payload.EventID != eventID {
+		t.Fatalf("expected token event %s, got %v", eventID, tokens.payload.EventID)
+	}
+	if tokens.payload.OwnerUserID != userID {
+		t.Fatalf("expected token owner %s, got %s", userID, tokens.payload.OwnerUserID)
+	}
+	if tokens.payload.OriginalKey[:len(expectedPrefix)] != expectedPrefix {
+		t.Fatalf("expected original key prefix %q, got %q", expectedPrefix, tokens.payload.OriginalKey)
+	}
+	if got, want := result.BaseURL, "https://sem-bucket.fra1.cdn.digitaloceanspaces.com/"+tokens.payload.OriginalKey; got != want {
+		t.Fatalf("expected base URL %q, got %q", want, got)
+	}
+}
+
+func TestConfirmEventJoinRequestImageUploadReturnsBaseURLWhenObjectsExist(t *testing.T) {
+	// given
+	svc, _, _, storage, tokens := newServiceForTests()
+	userID := uuid.New()
+	eventID := uuid.New()
+	_, err := svc.CreateEventJoinRequestImageUpload(context.Background(), userID, eventID)
+	if err != nil {
+		t.Fatalf("CreateEventJoinRequestImageUpload() error = %v", err)
+	}
+	storage.existingKeys[tokens.payload.OriginalKey] = true
+	storage.existingKeys[tokens.payload.SmallKey] = true
+
+	// when
+	result, err := svc.ConfirmEventJoinRequestImageUpload(context.Background(), userID, eventID, ConfirmUploadInput{ConfirmToken: "confirm-token"})
+
+	// then
+	if err != nil {
+		t.Fatalf("ConfirmEventJoinRequestImageUpload() error = %v", err)
+	}
+	if result.BaseURL != tokens.payload.BaseURL {
+		t.Fatalf("expected base URL %q, got %q", tokens.payload.BaseURL, result.BaseURL)
+	}
+}
+
+func TestConfirmEventJoinRequestImageUploadRejectsWrongOwner(t *testing.T) {
+	// given
+	svc, _, _, storage, tokens := newServiceForTests()
+	userID := uuid.New()
+	eventID := uuid.New()
+	_, err := svc.CreateEventJoinRequestImageUpload(context.Background(), userID, eventID)
+	if err != nil {
+		t.Fatalf("CreateEventJoinRequestImageUpload() error = %v", err)
+	}
+	storage.existingKeys[tokens.payload.OriginalKey] = true
+	storage.existingKeys[tokens.payload.SmallKey] = true
+
+	// when
+	_, err = svc.ConfirmEventJoinRequestImageUpload(context.Background(), uuid.New(), eventID, ConfirmUploadInput{ConfirmToken: "confirm-token"})
+
+	// then
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("expected *domain.AppError, got %T", err)
+	}
+	if appErr.Code != domain.ErrorCodeImageUploadTokenInvalid {
+		t.Fatalf("expected error code %q, got %q", domain.ErrorCodeImageUploadTokenInvalid, appErr.Code)
+	}
+}
+
+func TestConfirmEventJoinRequestImageUploadRejectsIncompleteUpload(t *testing.T) {
+	// given
+	svc, _, _, storage, tokens := newServiceForTests()
+	userID := uuid.New()
+	eventID := uuid.New()
+	_, err := svc.CreateEventJoinRequestImageUpload(context.Background(), userID, eventID)
+	if err != nil {
+		t.Fatalf("CreateEventJoinRequestImageUpload() error = %v", err)
+	}
+	storage.existingKeys[tokens.payload.OriginalKey] = true
+
+	// when
+	_, err = svc.ConfirmEventJoinRequestImageUpload(context.Background(), userID, eventID, ConfirmUploadInput{ConfirmToken: "confirm-token"})
+
+	// then
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("expected *domain.AppError, got %T", err)
+	}
+	if appErr.Code != domain.ErrorCodeImageUploadIncomplete {
+		t.Fatalf("expected error code %q, got %q", domain.ErrorCodeImageUploadIncomplete, appErr.Code)
 	}
 }

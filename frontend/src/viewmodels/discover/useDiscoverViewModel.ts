@@ -523,6 +523,11 @@ export function useDiscoverViewModel(token: string | null) {
     defaultProfileLocation,
   );
 
+  const mapCenter: { lat: number; lon: number } = {
+    lat: selectedLocation ? Number(selectedLocation.lat) : DEFAULT_LAT,
+    lon: selectedLocation ? Number(selectedLocation.lon) : DEFAULT_LON,
+  };
+
   return {
     events,
     filters,
@@ -561,5 +566,6 @@ export function useDiscoverViewModel(token: string | null) {
     dismissBrowserLocationPrompt,
     browserLocationRequestPending,
     browserLocationError,
+    mapCenter,
   };
 }

@@ -13,7 +13,7 @@ import {
   View,
   Alert,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Circle, Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -24,6 +24,7 @@ import {
   getEventStatusBadgeColors,
 } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
+import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import { EventDetail } from '@/models/event';
 import JoinRequestsModal from '@/components/events/JoinRequestsModal';
 import ParticipantListModal from '@/components/events/ParticipantListModal';
@@ -367,6 +368,9 @@ function ParticipantRatingSection({
   );
 }
 
+/** Radius (metres) of the circle drawn around a fuzzed PROTECTED event location. */
+const APPROX_LOCATION_RADIUS_METERS = 500;
+
 const darkMapStyle = [
   { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
   { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
@@ -555,9 +559,70 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
     if (status_ === 'INVITED') {
       return (
+        <View>
+          <View style={styles.statusChip}>
+            <Feather name="mail" size={16} color="#111827" />
+            <Text style={styles.statusChipTextBlue}>You&apos;re invited</Text>
+          </View>
+
+          <View style={styles.invitationActionRow}>
+            <TouchableOpacity
+              style={[
+                styles.invitationSecondaryButton,
+                vm.actionState === 'declining_invitation' &&
+                  styles.actionButtonLoading,
+              ]}
+              onPress={vm.handleDeclineInvitation}
+              disabled={
+                vm.actionState === 'accepting_invitation' ||
+                vm.actionState === 'declining_invitation'
+              }
+              activeOpacity={0.8}
+            >
+              {vm.actionState === 'declining_invitation' ? (
+                <ActivityIndicator color="#DC2626" size="small" />
+              ) : (
+                <>
+                  <Feather name="x" size={18} color="#DC2626" />
+                  <Text style={styles.invitationSecondaryButtonText}>
+                    Decline
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.invitationPrimaryButton,
+                vm.actionState === 'accepting_invitation' &&
+                  styles.actionButtonLoading,
+              ]}
+              onPress={vm.handleAcceptInvitation}
+              disabled={
+                vm.actionState === 'accepting_invitation' ||
+                vm.actionState === 'declining_invitation'
+              }
+              activeOpacity={0.8}
+            >
+              {vm.actionState === 'accepting_invitation' ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <>
+                  <Feather name="check" size={18} color="#FFFFFF" />
+                  <Text style={styles.actionButtonText}>Accept Invitation</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    if (vm.actionState === 'declining_invitation') {
+      return (
         <View style={styles.statusChip}>
           <Feather name="mail" size={16} color={theme.primary} />
-          <Text style={styles.statusChipTextBlue}>You&apos;re invited</Text>
+          <Text style={styles.statusChipTextBlue}>Invitation response pending</Text>
         </View>
       );
     }
@@ -671,6 +736,9 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     event.capacity != null
       ? `${event.approved_participant_count} / ${event.capacity}`
       : `${event.approved_participant_count}`;
+  const categoryPresentation = event.category
+    ? getEventCategoryPresentation(event.category.name, isDark)
+    : null;
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
@@ -727,9 +795,22 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
         {/* Core info */}
         <View style={styles.section}>
-          {event.category && (
-            <View style={styles.categoryChip}>
-              <Text style={styles.categoryChipText}>{event.category.name}</Text>
+          {categoryPresentation && (
+            <View
+              style={[
+                styles.categoryChip,
+                { backgroundColor: categoryPresentation.color },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.categoryChipText,
+                  { color: categoryPresentation.textColor },
+                ]}
+                numberOfLines={1}
+              >
+                {categoryPresentation.emoji} {categoryPresentation.label}
+              </Text>
             </View>
           )}
 
@@ -776,6 +857,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 style={styles.miniMapContainer}
                 onPress={() => setIsMapModalVisible(true)}
                 activeOpacity={0.9}
+                testID="mini-map-touchable"
               >
                 <MapView
                   style={styles.miniMap}
@@ -783,33 +865,83 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   region={{
                     latitude: event.location.point.lat,
                     longitude: event.location.point.lon,
-                    latitudeDelta: 0.005,
-                    longitudeDelta: 0.005,
+                    latitudeDelta:
+                      event.location.is_location_approximate &&
+                      !event.viewer_context.is_host &&
+                      event.viewer_context.participation_status !== 'JOINED'
+                        ? 0.04
+                        : 0.005,
+                    longitudeDelta:
+                      event.location.is_location_approximate &&
+                      !event.viewer_context.is_host &&
+                      event.viewer_context.participation_status !== 'JOINED'
+                        ? 0.04
+                        : 0.005,
                   }}
                   scrollEnabled={false}
                   zoomEnabled={false}
                   pitchEnabled={false}
                   rotateEnabled={false}
                 >
-                  <Marker
-                    coordinate={{
-                      latitude: event.location.point.lat,
-                      longitude: event.location.point.lon,
-                    }}
-                  />
+                  {(() => {
+                    const showApprox =
+                      event.location.is_location_approximate &&
+                      !event.viewer_context.is_host &&
+                      event.viewer_context.participation_status !== 'JOINED';
+                    return (
+                      <>
+                        <Marker
+                          coordinate={{
+                            latitude: event.location.point!.lat,
+                            longitude: event.location.point!.lon,
+                          }}
+                          opacity={showApprox ? 0.5 : 1}
+                        />
+                        {showApprox ? (
+                          <Circle
+                            center={{
+                              latitude: event.location.point!.lat,
+                              longitude: event.location.point!.lon,
+                            }}
+                            radius={APPROX_LOCATION_RADIUS_METERS}
+                            fillColor="rgba(251,191,36,0.15)"
+                            strokeColor="rgba(217,119,6,0.6)"
+                            strokeWidth={2}
+                            testID="approx-location-circle"
+                          />
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </MapView>
                 <View style={styles.miniMapOverlay}>
                   <Feather name="maximize-2" size={20} color="white" />
                 </View>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.directionsButton}
-                onPress={handleGetDirections}
-                activeOpacity={0.8}
-              >
-                <MaterialIcons name="directions" size={20} color={theme.primary} />
-                <Text style={styles.directionsButtonText}>Get Directions</Text>
-              </TouchableOpacity>
+              {event.location.is_location_approximate &&
+              !event.viewer_context.is_host &&
+              event.viewer_context.participation_status !== 'JOINED' ? (
+                <View style={styles.approxMapCallout} testID="approx-map-callout">
+                  <Feather name="alert-triangle" size={16} color={theme.warningText} />
+                  <View style={styles.approxMapCalloutBody}>
+                    <Text style={styles.approxMapCalloutTitle}>
+                      You're seeing an approximate location
+                    </Text>
+                    <Text style={styles.approxMapCalloutDesc}>
+                      The exact location will be revealed once you're approved to join.
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.directionsButton}
+                  onPress={handleGetDirections}
+                  activeOpacity={0.8}
+                >
+                  <MaterialIcons name="directions" size={20} color={theme.primary} />
+                  <Text style={styles.directionsButtonText}>Get Directions</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
@@ -1138,8 +1270,18 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               initialRegion={{
                 latitude: vm.event.location.point.lat,
                 longitude: vm.event.location.point.lon,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
+                latitudeDelta:
+                  vm.event.location.is_location_approximate &&
+                  !vm.event.viewer_context.is_host &&
+                  vm.event.viewer_context.participation_status !== 'JOINED'
+                    ? 0.05
+                    : 0.01,
+                longitudeDelta:
+                  vm.event.location.is_location_approximate &&
+                  !vm.event.viewer_context.is_host &&
+                  vm.event.viewer_context.participation_status !== 'JOINED'
+                    ? 0.05
+                    : 0.01,
               }}
             >
               <Marker
@@ -1149,7 +1291,28 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 }}
                 title={vm.event.title}
                 description={vm.event.location.address || ''}
+                opacity={
+                  vm.event.location.is_location_approximate &&
+                  !vm.event.viewer_context.is_host &&
+                  vm.event.viewer_context.participation_status !== 'JOINED'
+                    ? 0.5
+                    : 1
+                }
               />
+              {vm.event.location.is_location_approximate &&
+              !vm.event.viewer_context.is_host &&
+              vm.event.viewer_context.participation_status !== 'JOINED' ? (
+                <Circle
+                  center={{
+                    latitude: vm.event.location.point.lat,
+                    longitude: vm.event.location.point.lon,
+                  }}
+                  radius={APPROX_LOCATION_RADIUS_METERS}
+                  fillColor="rgba(251,191,36,0.15)"
+                  strokeColor="rgba(217,119,6,0.6)"
+                  strokeWidth={2}
+                />
+              ) : null}
             </MapView>
 
             <SafeAreaView style={styles.fullMapHeader}>
@@ -1164,20 +1327,28 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   {vm.event.title}
                 </Text>
                 <Text style={styles.fullMapSubtitle} numberOfLines={1}>
-                  {vm.event.location.address}
+                  {vm.event.location.is_location_approximate &&
+                  !vm.event.viewer_context.is_host &&
+                  vm.event.viewer_context.participation_status !== 'JOINED'
+                    ? 'Approximate location'
+                    : vm.event.location.address}
                 </Text>
               </View>
             </SafeAreaView>
 
-            <View style={styles.fullMapFooter}>
-              <TouchableOpacity
-                style={styles.fullMapDirectionsBtn}
-                onPress={handleGetDirections}
-              >
-                <MaterialIcons name="directions" size={24} color="white" />
-                <Text style={styles.fullMapDirectionsText}>Open in Navigation</Text>
-              </TouchableOpacity>
-            </View>
+            {(!vm.event.location.is_location_approximate ||
+              vm.event.viewer_context.is_host ||
+              vm.event.viewer_context.participation_status === 'JOINED') && (
+              <View style={styles.fullMapFooter}>
+                <TouchableOpacity
+                  style={styles.fullMapDirectionsBtn}
+                  onPress={handleGetDirections}
+                >
+                  <MaterialIcons name="directions" size={24} color="white" />
+                  <Text style={styles.fullMapDirectionsText}>Open in Navigation</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </Modal>
       )}
@@ -1280,7 +1451,7 @@ function makeStyles(t: Theme, isDark: boolean) {
     /* Category chip */
     categoryChip: {
       alignSelf: 'flex-start',
-      backgroundColor: 'rgba(15, 23, 42, 0.72)',
+      maxWidth: '100%',
       paddingHorizontal: 12,
       paddingVertical: 4,
       borderRadius: 999,
@@ -1289,7 +1460,6 @@ function makeStyles(t: Theme, isDark: boolean) {
     categoryChipText: {
       fontSize: 12,
       fontWeight: '700',
-      color: '#FFFFFF',
     },
 
     /* Event title */
@@ -1468,17 +1638,17 @@ function makeStyles(t: Theme, isDark: boolean) {
     statusChipTextGreen: {
       fontSize: 15,
       fontWeight: '700',
-      color: '#059669',
+      color: t.successText,
     },
     statusChipTextAmber: {
       fontSize: 15,
       fontWeight: '700',
-      color: '#D97706',
+      color: t.warningText,
     },
     statusChipTextBlue: {
       fontSize: 15,
       fontWeight: '700',
-      color: '#2563EB',
+      color: t.infoText,
     },
     statusChipTextPurple: {
       fontSize: 15,
@@ -1488,7 +1658,39 @@ function makeStyles(t: Theme, isDark: boolean) {
     statusChipTextGray: {
       fontSize: 15,
       fontWeight: '700',
-      color: t.textTertiary,
+      color: t.textSecondary,
+    },
+    invitationActionRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 10,
+    },
+    invitationPrimaryButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: t.primary,
+    },
+    invitationSecondaryButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: t.errorBg,
+      borderWidth: 1,
+      borderColor: t.errorBorder,
+    },
+    invitationSecondaryButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: t.errorText,
     },
     leaveButton: {
       flexDirection: 'row',
@@ -1505,7 +1707,7 @@ function makeStyles(t: Theme, isDark: boolean) {
     leaveButtonText: {
       fontSize: 15,
       fontWeight: '700',
-      color: '#DC2626',
+      color: t.errorText,
     },
 
     /* Rating card */
@@ -1588,10 +1790,10 @@ function makeStyles(t: Theme, isDark: boolean) {
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 999,
-      backgroundColor: 'rgba(255, 251, 235, 0.9)',
+      backgroundColor: t.warningBg,
       borderWidth: 1,
-      borderColor: 'rgba(245, 158, 11, 0.35)',
-      color: '#9A6700',
+      borderColor: t.warningBorder,
+      color: t.warningText,
       fontSize: 14,
       fontWeight: '700',
       overflow: 'hidden',
@@ -1617,7 +1819,7 @@ function makeStyles(t: Theme, isDark: boolean) {
     },
     ratingStarIcon: {
       fontSize: 40,
-      color: t.border,
+      color: t.borderStrong,
     },
     ratingStarIconActive: {
       color: '#F59E0B',
@@ -1635,9 +1837,9 @@ function makeStyles(t: Theme, isDark: boolean) {
       fontWeight: '600',
     },
     ratingSelectionSummaryActive: {
-      color: '#9A6700',
-      borderColor: 'rgba(245, 158, 11, 0.35)',
-      backgroundColor: 'rgba(255, 251, 235, 0.9)',
+      color: t.warningText,
+      borderColor: t.warningBorder,
+      backgroundColor: t.warningBg,
     },
     ratingFieldLabel: {
       fontSize: 13,
@@ -1806,6 +2008,31 @@ function makeStyles(t: Theme, isDark: boolean) {
       fontSize: 14,
       fontWeight: '500',
       lineHeight: 20,
+    },
+    approxMapCallout: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderTopWidth: 1,
+      borderTopColor: t.warningBorder,
+      backgroundColor: t.warningBg,
+    },
+    approxMapCalloutBody: {
+      flex: 1,
+      gap: 2,
+    },
+    approxMapCalloutTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: t.warningText,
+    },
+    approxMapCalloutDesc: {
+      fontSize: 12,
+      lineHeight: 17,
+      color: t.warningText,
+      opacity: 0.85,
     },
     errorBanner: {
       backgroundColor: t.errorBg,

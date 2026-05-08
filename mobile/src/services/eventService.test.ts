@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { listMyEvents, uploadFileToPresignedUrl } from './eventService';
+import { listMyEvents, searchLocation, uploadFileToPresignedUrl } from './eventService';
 
 jest.mock('expo-file-system/legacy');
 
@@ -269,5 +269,191 @@ describe('uploadFileToPresignedUrl', () => {
       hosted_events: [],
       attended_events: [],
     });
+  });
+});
+
+describe('searchLocation', () => {
+  beforeEach(() => {
+    global.fetch = mockFetch as any;
+    mockFetch.mockReset();
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('returns [] without calling fetch when query is shorter than 2 chars', async () => {
+    const result = await searchLocation('a');
+    expect(result).toEqual([]);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('returns [] for whitespace-only queries', async () => {
+    const result = await searchLocation('   ');
+    expect(result).toEqual([]);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('hits the Photon endpoint with the expected query params', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ features: [] }));
+
+    await searchLocation('Istanbul');
+
+    const calledUrl: string = mockFetch.mock.calls[0][0];
+    expect(calledUrl).toContain('https://photon.komoot.io/api?');
+    expect(calledUrl).toContain('q=Istanbul');
+    expect(calledUrl).toContain('limit=5');
+    expect(calledUrl).toContain('lang=en');
+  });
+
+  it('does NOT hit the legacy Nominatim endpoint', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ features: [] }));
+
+    await searchLocation('Kadikoy');
+
+    const calledUrl: string = mockFetch.mock.calls[0][0];
+    expect(calledUrl).not.toContain('nominatim');
+  });
+
+  it('maps Photon GeoJSON features to LocationSuggestion shape', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        features: [
+          {
+            geometry: { type: 'Point', coordinates: [28.9784, 41.0082] },
+            properties: {
+              name: 'Istanbul',
+              city: 'Istanbul',
+              state: 'Marmara',
+              country: 'Turkey',
+              type: 'city',
+            },
+          },
+          {
+            geometry: { type: 'Point', coordinates: [29.0376, 41.0014] },
+            properties: {
+              name: 'Kadikoy',
+              city: 'Istanbul',
+              country: 'Turkey',
+            },
+          },
+        ],
+      }),
+    );
+
+    const result = await searchLocation('Istanbul');
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({
+      display_name: 'Istanbul, Marmara, Turkey',
+      lat: '41.0082',
+      lon: '28.9784',
+    });
+    expect(result[1]).toEqual({
+      display_name: 'Kadikoy, Istanbul, Turkey',
+      lat: '41.0014',
+      lon: '29.0376',
+    });
+  });
+
+  it('combines street and house number into display_name when present', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        features: [
+          {
+            geometry: { coordinates: [29.0, 41.0] },
+            properties: {
+              street: 'Bagdat Caddesi',
+              housenumber: '42',
+              city: 'Istanbul',
+              country: 'Turkey',
+            },
+          },
+        ],
+      }),
+    );
+
+    const result = await searchLocation('Bagdat');
+
+    expect(result[0].display_name).toBe('Bagdat Caddesi 42, Istanbul, Turkey');
+  });
+
+  it('skips features with missing or invalid coordinates', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        features: [
+          { geometry: { coordinates: [29.0, 41.0] }, properties: { name: 'Valid', country: 'Turkey' } },
+          { geometry: undefined, properties: { name: 'Bad' } },
+          { geometry: { coordinates: [] }, properties: { name: 'Empty coords' } },
+          { geometry: { coordinates: ['x', 'y'] }, properties: { name: 'Non-numeric' } },
+        ],
+      }),
+    );
+
+    const result = await searchLocation('test');
+
+    expect(result).toHaveLength(1);
+    expect(result[0].display_name).toBe('Valid, Turkey');
+  });
+
+  it('skips features whose properties produce an empty display_name', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        features: [
+          { geometry: { coordinates: [29.0, 41.0] }, properties: {} },
+        ],
+      }),
+    );
+
+    const result = await searchLocation('blank');
+    expect(result).toEqual([]);
+  });
+
+  it('returns [] on non-2xx HTTP response', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 503, json: jest.fn() });
+
+    const result = await searchLocation('Istanbul');
+    expect(result).toEqual([]);
+  });
+
+  it('returns [] when fetch rejects (network error)', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('Network down'));
+
+    const result = await searchLocation('Istanbul');
+    expect(result).toEqual([]);
+  });
+
+  it('returns [] when response body is not valid JSON', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockRejectedValue(new SyntaxError('bad json')),
+    });
+
+    const result = await searchLocation('Istanbul');
+    expect(result).toEqual([]);
+  });
+
+  it('returns [] when response shape is missing features array', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ unexpected: 'shape' }));
+
+    const result = await searchLocation('Istanbul');
+    expect(result).toEqual([]);
+  });
+
+  it('deduplicates repeated parts in display_name', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        features: [
+          {
+            geometry: { coordinates: [29.0, 41.0] },
+            properties: { name: 'Istanbul', city: 'Istanbul', country: 'Turkey' },
+          },
+        ],
+      }),
+    );
+
+    const result = await searchLocation('Istanbul');
+    expect(result[0].display_name).toBe('Istanbul, Turkey');
   });
 });

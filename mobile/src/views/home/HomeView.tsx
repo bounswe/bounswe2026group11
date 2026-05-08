@@ -4,12 +4,15 @@ import {
   FlatList,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect, type Href } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeHeader from '@/components/home/HomeHeader';
+import SemLogo from '@/components/common/SemLogo';
 import SearchSection from '@/components/home/SearchSection';
 import EmptyState from '@/components/home/EmptyState';
 import LoadingState from '@/components/home/LoadingState';
@@ -28,8 +31,10 @@ const MIN_DELTA = 0.02;
 export default function HomeView() {
   const vm = useHomeViewModel();
   const { unreadCount, refresh: refreshUnreadCount } = useUnreadNotificationCount();
-  const { theme } = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { theme, isDark, setThemePreference } = useTheme();
+  const styles = useMemo(() => makeStyles(theme, isDark), [theme, isDark]);
+  const isMapMode = vm.viewMode === 'MAP';
+  const insets = useSafeAreaInsets();
 
   useFocusEffect(
     useCallback(() => {
@@ -39,6 +44,10 @@ export default function HomeView() {
 
   const locationButtonRef = useRef<any>(null);
   const [locationPopupTop, setLocationPopupTop] = useState(140);
+
+  const handleThemeToggle = useCallback(() => {
+    void setThemePreference(isDark ? 'light' : 'dark');
+  }, [isDark, setThemePreference]);
 
   const handleOpenLocationPicker = () => {
     if (locationButtonRef.current?.measureInWindow) {
@@ -68,116 +77,230 @@ export default function HomeView() {
   }, [vm.activeLocation, vm.filterDraft.radiusKm]);
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.topSection}>
-          <HomeHeader
-            ref={locationButtonRef}
-            locationLabel={vm.locationLabel}
-            onPressLocation={handleOpenLocationPicker}
-            onPressNotifications={() => router.push('/notifications' as Href)}
-            unreadNotificationCount={unreadCount}
+    <SafeAreaView
+      edges={isMapMode ? [] : ['top', 'left', 'right']}
+      style={styles.safeArea}
+    >
+      {isMapMode ? (
+        <>
+          <EventMapView
+            events={vm.events}
+            isLoading={vm.isLoading}
+            apiError={vm.apiError}
+            region={mapRegion}
+            onMarkerPress={(id) => router.push(`/event/${id}` as Href)}
+            headerTopInset={insets.top}
           />
 
-          <SearchSection
-            query={vm.searchText}
-            onChangeQuery={vm.updateSearchText}
-            onSubmitSearch={vm.submitSearch}
-            onPressFilter={vm.openFilterModal}
-          />
+          {/* Floating overlay — search, location and list toggle above the map */}
+          <View
+            style={[styles.mapOverlay, { top: insets.top + 12 }]}
+            pointerEvents="box-none"
+          >
+            {/* Row 1: logo + location pill + bell + theme toggle + list toggle */}
+            <View style={styles.mapOverlayRow}>
+              <SemLogo height={36} color={theme.text} />
 
-          <View style={styles.viewToggleRow}>
-            <TouchableOpacity
-              style={[
-                styles.viewToggleButton,
-                styles.viewToggleLeft,
-                vm.viewMode === 'LIST' && styles.viewToggleActive,
-              ]}
-              onPress={() => vm.viewMode !== 'LIST' && vm.toggleViewMode()}
-              accessibilityRole="button"
-              accessibilityLabel="List view"
-              accessibilityState={{ selected: vm.viewMode === 'LIST' }}
-              testID="toggle-list"
-            >
-              <Text
-                style={[
-                  styles.viewToggleText,
-                  vm.viewMode === 'LIST' && styles.viewToggleTextActive,
-                ]}
-              >
-                List
-              </Text>
-            </TouchableOpacity>
+              <View ref={locationButtonRef} collapsable={false}>
+                <TouchableOpacity
+                  style={styles.mapLocationPill}
+                  onPress={handleOpenLocationPicker}
+                  accessibilityRole="button"
+                  accessibilityLabel="Select location"
+                >
+                  <Feather name="map-pin" size={14} color={styles.mapLocationIconColor.color} />
+                  <Text style={styles.mapLocationText} numberOfLines={1}>
+                    {vm.locationLabel}
+                  </Text>
+                  <Feather name="chevron-down" size={14} color={styles.mapLocationIconColor.color} />
+                </TouchableOpacity>
+              </View>
 
-            <TouchableOpacity
-              style={[
-                styles.viewToggleButton,
-                styles.viewToggleRight,
-                vm.viewMode === 'MAP' && styles.viewToggleActive,
-              ]}
-              onPress={() => vm.viewMode !== 'MAP' && vm.toggleViewMode()}
-              accessibilityRole="button"
-              accessibilityLabel="Map view"
-              accessibilityState={{ selected: vm.viewMode === 'MAP' }}
-              testID="toggle-map"
-            >
-              <Text
-                style={[
-                  styles.viewToggleText,
-                  vm.viewMode === 'MAP' && styles.viewToggleTextActive,
-                ]}
+              <View style={styles.mapOverlayRowSpacer} />
+
+              <TouchableOpacity
+                style={styles.mapIconBtn}
+                onPress={() => router.push('/notifications' as Href)}
+                accessibilityRole="button"
+                accessibilityLabel="Open notifications"
               >
-                Map
-              </Text>
-            </TouchableOpacity>
+                <Feather name="bell" size={18} color={theme.text} />
+                {unreadCount > 0 ? <View style={styles.mapIconBadge} /> : null}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.mapIconBtn}
+                onPress={handleThemeToggle}
+                accessibilityRole="button"
+                accessibilityLabel={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                <Feather name={isDark ? 'sun' : 'moon'} size={18} color={theme.text} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.mapIconBtn}
+                onPress={vm.toggleViewMode}
+                accessibilityRole="button"
+                accessibilityLabel="Switch to list view"
+                testID="toggle-list"
+              >
+                <Feather name="list" size={20} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Row 2: search bar + filter button */}
+            <View style={styles.mapSearchRow}>
+              <View style={styles.mapSearchContainer}>
+                <Feather
+                  name="search"
+                  size={18}
+                  color={theme.textSecondary}
+                  style={styles.mapSearchIcon}
+                />
+                <TextInput
+                  value={vm.searchText}
+                  onChangeText={vm.updateSearchText}
+                  onSubmitEditing={vm.submitSearch}
+                  placeholder="Search events on map…"
+                  placeholderTextColor={theme.placeholder}
+                  style={styles.mapSearchInput}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="search"
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.mapFilterBtn}
+                onPress={vm.openFilterModal}
+                accessibilityRole="button"
+                accessibilityLabel="Open filters"
+                testID="map-filter-btn"
+              >
+                <Feather name="sliders" size={20} color={styles.mapLocationIconColor.color} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </>
+      ) : (
+        <View style={styles.container}>
+          <View style={styles.topSection}>
+            <HomeHeader
+              isDark={isDark}
+              onPressThemeToggle={handleThemeToggle}
+              onPressNotifications={() => router.push('/notifications' as Href)}
+              unreadNotificationCount={unreadCount}
+            />
+
+            {/* Location row */}
+            <View ref={locationButtonRef} collapsable={false} style={styles.locationRow}>
+              <TouchableOpacity
+                style={styles.locationPill}
+                onPress={handleOpenLocationPicker}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Select location"
+              >
+                <Feather name="map-pin" size={14} color={isDark ? theme.text : theme.textOnPrimary} />
+                <Text style={styles.locationPillText} numberOfLines={1}>
+                  {vm.locationLabel}
+                </Text>
+                <Feather name="chevron-down" size={14} color={isDark ? theme.text : theme.textOnPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <SearchSection
+              query={vm.searchText}
+              onChangeQuery={vm.updateSearchText}
+              onSubmitSearch={vm.submitSearch}
+              onPressFilter={vm.openFilterModal}
+            />
+
+            <View style={styles.viewToggleRow}>
+              <TouchableOpacity
+                style={[
+                  styles.viewToggleButton,
+                  styles.viewToggleLeft,
+                  vm.viewMode === 'LIST' && styles.viewToggleActive,
+                ]}
+                onPress={() => vm.viewMode !== 'LIST' && vm.toggleViewMode()}
+                accessibilityRole="button"
+                accessibilityLabel="List view"
+                accessibilityState={{ selected: vm.viewMode === 'LIST' }}
+                testID="toggle-list"
+              >
+                <Text
+                  style={[
+                    styles.viewToggleText,
+                    vm.viewMode === 'LIST' && styles.viewToggleTextActive,
+                  ]}
+                >
+                  List
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.viewToggleButton,
+                  styles.viewToggleRight,
+                  vm.viewMode === 'MAP' && styles.viewToggleActive,
+                ]}
+                onPress={() => vm.viewMode !== 'MAP' && vm.toggleViewMode()}
+                accessibilityRole="button"
+                accessibilityLabel="Map view"
+                accessibilityState={{ selected: vm.viewMode === 'MAP' }}
+                testID="toggle-map"
+              >
+                <Text
+                  style={[
+                    styles.viewToggleText,
+                    vm.viewMode === 'MAP' && styles.viewToggleTextActive,
+                  ]}
+                >
+                  Map
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {vm.apiError ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorBannerText}>{vm.apiError}</Text>
+              </View>
+            ) : null}
           </View>
 
-          {vm.apiError && vm.viewMode === 'LIST' ? (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorBannerText}>{vm.apiError}</Text>
-            </View>
-          ) : null}
+          <View style={styles.listWrapper}>
+            {vm.isLoading ? (
+              <LoadingState />
+            ) : (
+              <FlatList
+                data={vm.events}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <EventCard
+                    event={item}
+                    onPress={(id) => router.push(`/event/${id}` as Href)}
+                  />
+                )}
+                showsVerticalScrollIndicator={false}
+                onEndReachedThreshold={0.35}
+                onEndReached={vm.loadMoreEvents}
+                onRefresh={vm.refreshEvents}
+                refreshing={vm.isRefreshing}
+                contentContainerStyle={styles.listContent}
+                ListEmptyComponent={<EmptyState />}
+                ListFooterComponent={
+                  vm.isLoadingMore ? (
+                    <View style={styles.footerLoader}>
+                      <ActivityIndicator size="small" color={theme.text} />
+                    </View>
+                  ) : null
+                }
+              />
+            )}
+          </View>
         </View>
-
-        <View style={styles.listWrapper}>
-          {vm.viewMode === 'MAP' ? (
-            <EventMapView
-              events={vm.events}
-              isLoading={vm.isLoading}
-              apiError={vm.apiError}
-              region={mapRegion}
-              onMarkerPress={(id) => router.push(`/event/${id}` as Href)}
-            />
-          ) : vm.isLoading ? (
-            <LoadingState />
-          ) : (
-            <FlatList
-              data={vm.events}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <EventCard
-                  event={item}
-                  onPress={(id) => router.push(`/event/${id}` as Href)}
-                />
-              )}
-              showsVerticalScrollIndicator={false}
-              onEndReachedThreshold={0.35}
-              onEndReached={vm.loadMoreEvents}
-              onRefresh={vm.refreshEvents}
-              refreshing={vm.isRefreshing}
-              contentContainerStyle={styles.listContent}
-              ListEmptyComponent={<EmptyState />}
-              ListFooterComponent={
-                vm.isLoadingMore ? (
-                  <View style={styles.footerLoader}>
-                    <ActivityIndicator size="small" color={theme.text} />
-                  </View>
-                ) : null
-              }
-            />
-          )}
-        </View>
-      </View>
+      )}
 
       <FiltersBottomSheet
         visible={vm.isFilterModalOpen}
@@ -218,7 +341,7 @@ export default function HomeView() {
   );
 }
 
-function makeStyles(t: Theme) {
+function makeStyles(t: Theme, isDark: boolean) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
@@ -230,6 +353,29 @@ function makeStyles(t: Theme) {
     },
     topSection: {
       paddingTop: 8,
+    },
+    locationRow: {
+      marginBottom: 10,
+    },
+    locationPill: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: isDark ? t.surface : t.primary,
+      borderWidth: isDark ? 1 : 0,
+      borderColor: t.border,
+      maxWidth: '80%',
+    },
+    locationPillText: {
+      color: isDark ? t.text : t.textOnPrimary,
+      fontSize: 13,
+      fontWeight: '700',
+      fontStyle: 'italic',
+      flexShrink: 1,
     },
     listWrapper: {
       flex: 1,
@@ -287,6 +433,138 @@ function makeStyles(t: Theme) {
     },
     viewToggleTextActive: {
       color: t.textOnPrimary,
+    },
+    // ── full-screen map floating overlay ─────────────────────────────────────
+    mapOverlay: {
+      position: 'absolute',
+      left: 14,
+      right: 14,
+      zIndex: 20,
+      gap: 8,
+    },
+    mapOverlayRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    mapOverlayRowSpacer: {
+      flex: 1,
+    },
+    mapLocationPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 999,
+      backgroundColor: isDark ? t.surface : t.primary,
+      borderWidth: isDark ? 1 : 0,
+      borderColor: t.border,
+      maxWidth: 150,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.18,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    mapLocationText: {
+      color: isDark ? t.text : t.textOnPrimary,
+      fontSize: 13,
+      fontWeight: '700',
+      flexShrink: 1,
+    },
+    mapLocationIconColor: {
+      color: isDark ? t.text : t.textOnPrimary,
+    },
+    mapIconBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    mapIconBadge: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: t.notificationBadge,
+    },
+    mapFloatingBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 999,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    mapFloatingBtnText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: t.text,
+    },
+    mapSearchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    mapSearchContainer: {
+      flex: 1,
+      height: 50,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      borderRadius: 16,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.12,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    mapSearchIcon: {
+      marginRight: 8,
+    },
+    mapSearchInput: {
+      flex: 1,
+      fontSize: 15,
+      color: t.text,
+      paddingVertical: 0,
+    },
+    mapFilterBtn: {
+      width: 50,
+      height: 50,
+      borderRadius: 16,
+      backgroundColor: isDark ? t.surface : t.primary,
+      borderWidth: isDark ? 1 : 0,
+      borderColor: t.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.18,
+      shadowRadius: 6,
+      elevation: 4,
     },
   });
 }

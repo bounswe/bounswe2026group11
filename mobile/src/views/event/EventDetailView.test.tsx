@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { EventDetail } from '@/models/event';
 import type { EventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import EventDetailView from './EventDetailView';
@@ -137,6 +137,8 @@ function buildViewModel(
     handleJoin: jest.fn().mockResolvedValue(undefined),
     handleLeaveEvent: jest.fn().mockResolvedValue(undefined),
     handleRequestJoin: jest.fn().mockResolvedValue(undefined),
+    handleAcceptInvitation: jest.fn().mockResolvedValue(undefined),
+    handleDeclineInvitation: jest.fn().mockResolvedValue(undefined),
     handleToggleFavorite: jest.fn().mockResolvedValue(undefined),
     handleViewerRatingSubmit: jest.fn().mockResolvedValue(undefined),
     handleParticipantRatingSubmit: jest.fn().mockResolvedValue(undefined),
@@ -186,14 +188,14 @@ describe('EventDetailView', () => {
     mockUseEventDetailViewModel.mockReturnValue(
       buildViewModel({
         event: null,
-        apiError: 'This event is either private or does not exist. You may need an invitation to view it.',
+        apiError: 'This event is private and only accessible to invited guests. If you don\'t have a valid invitation or if you have previously declined one, you cannot view the details.',
       }),
     );
 
     render(<EventDetailView eventId="event-1" />);
 
     expect(screen.getByText('Event Inaccessible')).toBeTruthy();
-    expect(screen.getByText(/You may need an invitation/)).toBeTruthy();
+    expect(screen.getByText(/If you don't have a valid invitation/)).toBeTruthy();
     expect(screen.getByText('Go Back to Discovery')).toBeTruthy();
     
     // Check for the lock icon
@@ -230,6 +232,88 @@ describe('EventDetailView', () => {
     expect(screen.queryByText('Get Directions')).toBeNull();
   });
 
+  // ── approximate-location UX ────────────────────────────────────────────────
+
+  it('shows approximate-location banner and hides Get Directions for PROTECTED non-participant', () => {
+    const approxEvent = makeEvent({
+      privacy_level: 'PROTECTED',
+      location: { type: 'POINT', address: 'Kadikoy, Istanbul', point: { lat: 40.99, lon: 29.03 }, route_points: [], is_location_approximate: true },
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'NONE',
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: approxEvent, participationStatus: 'NONE' }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByTestId('approx-map-callout')).toBeTruthy();
+    expect(screen.getByText("You're seeing an approximate location")).toBeTruthy();
+    expect(screen.queryByText('Get Directions')).toBeNull();
+  });
+
+  it('hides the approximate-location callout and shows Get Directions for an approved participant', () => {
+    const exactEvent = makeEvent({
+      privacy_level: 'PROTECTED',
+      location: { type: 'POINT', address: 'Kadikoy, Istanbul', point: { lat: 40.99, lon: 29.03 }, route_points: [], is_location_approximate: false },
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'JOINED',
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: exactEvent, participationStatus: 'JOINED' }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.queryByTestId('approx-map-callout')).toBeNull();
+    expect(screen.getByText('Get Directions')).toBeTruthy();
+  });
+
+  it('hides approximate-location callout for the event host', () => {
+    const hostEvent = makeEvent({
+      privacy_level: 'PROTECTED',
+      location: { type: 'POINT', address: 'Kadikoy, Istanbul', point: { lat: 40.99, lon: 29.03 }, route_points: [], is_location_approximate: false },
+      viewer_context: {
+        is_host: true,
+        is_favorited: false,
+        participation_status: 'NONE',
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: hostEvent }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.queryByTestId('approx-map-callout')).toBeNull();
+  });
+
+  it('shows approximate-location callout for a pending-request viewer', () => {
+    const pendingEvent = makeEvent({
+      privacy_level: 'PROTECTED',
+      location: { type: 'POINT', address: 'Kadikoy, Istanbul', point: { lat: 40.99, lon: 29.03 }, route_points: [], is_location_approximate: true },
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'PENDING',
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: pendingEvent, participationStatus: 'PENDING' }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByTestId('approx-map-callout')).toBeTruthy();
+    expect(screen.queryByText('Get Directions')).toBeNull();
+  });
+
   it('renders meeting instructions when available', () => {
     const eventWithInstructions = makeEvent({
       location: {
@@ -246,5 +330,35 @@ describe('EventDetailView', () => {
 
     expect(screen.getByText('Meeting Instructions')).toBeTruthy();
     expect(screen.getByText('Wait at the statue')).toBeTruthy();
+  });
+
+  it('shows accept and decline actions for invited users', () => {
+    const handleAcceptInvitation = jest.fn().mockResolvedValue(undefined);
+    const handleDeclineInvitation = jest.fn().mockResolvedValue(undefined);
+    const invitedEvent = makeEvent({
+      privacy_level: 'PRIVATE',
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'INVITED',
+      },
+    });
+
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({
+        event: invitedEvent,
+        participationStatus: 'INVITED',
+        handleAcceptInvitation,
+        handleDeclineInvitation,
+      }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    fireEvent.click(screen.getByText('Accept Invitation'));
+    fireEvent.click(screen.getByText('Decline'));
+
+    expect(handleAcceptInvitation).toHaveBeenCalledTimes(1);
+    expect(handleDeclineInvitation).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
@@ -9,12 +10,25 @@ import type {
   EventDetailResponse,
   EventHostContextSummary,
 } from '@/models/event';
+import type {
+  CreateEventInvitationsResponse,
+  EventInvitationFailure,
+  InvitationFailureCode,
+} from '@/models/invitation';
 import { EventCoverImage } from '@/components/EventCoverImage';
 import { UserAvatar } from '@/components/UserAvatar';
 import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/utils/eventStatus';
 import NotFoundView from '../fallback/NotFoundView';
 import AccessDeniedView from '../fallback/AccessDeniedView';
 import '@/styles/event-detail.css';
+
+const EventDetailMiniMap = lazy(() => import('./EventDetailMiniMap'));
+
+export function buildDirectionsUrl(lat: number, lon: number): string {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+    `${lat},${lon}`,
+  )}`;
+}
 
 const FEEDBACK_MIN_LENGTH = 10;
 const FEEDBACK_MAX_LENGTH = 100;
@@ -154,6 +168,357 @@ function PrivacyBadge({ level }: { level: string }) {
     <span className={`ed-privacy-badge ed-privacy-${level.toLowerCase()}`}>
       {label}
     </span>
+  );
+}
+
+function LocationSection({ location }: { location: EventDetailResponse['location'] }) {
+  const anchor = useMemo(() => {
+    if (location.type === 'POINT' && location.point) {
+      return { lat: location.point.lat, lon: location.point.lon };
+    }
+    if (location.type === 'ROUTE' && location.route_points.length > 0) {
+      return { lat: location.route_points[0].lat, lon: location.route_points[0].lon };
+    }
+    return null;
+  }, [location]);
+
+  const hasMap = anchor !== null;
+
+  return (
+    <div className="ed-section">
+      <h2 className="ed-section-title">Location</h2>
+      <div className="ed-info-row">
+        <span className="ed-info-icon">&#128205;</span>
+        <div>
+          {location.address ? (
+            <p className="ed-info-primary">{location.address}</p>
+          ) : (
+            <p className="ed-info-secondary">No address provided</p>
+          )}
+          <p className="ed-info-secondary">
+            {location.type === 'ROUTE' ? 'Route-based event' : 'Point location'}
+            {location.point && (
+              <> &middot; {location.point.lat.toFixed(4)}, {location.point.lon.toFixed(4)}</>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {hasMap ? (
+        <div className="ed-map-panel">
+          <Suspense
+            fallback={
+              <div className="ed-map-placeholder" role="status" aria-live="polite">
+                <span className="spinner" />
+                <p>Loading map...</p>
+              </div>
+            }
+          >
+            <EventDetailMiniMap location={location} />
+          </Suspense>
+          <a
+            className="ed-directions-btn"
+            href={buildDirectionsUrl(anchor.lat, anchor.lon)}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="ed-directions-link"
+          >
+            <svg
+              width={16}
+              height={16}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <polygon points="3 11 22 2 13 21 11 13 3 11" />
+            </svg>
+            Get directions
+          </a>
+        </div>
+      ) : (
+        <p className="ed-map-fallback">Map unavailable for this event.</p>
+      )}
+    </div>
+  );
+}
+
+const FAILURE_CODE_LABELS: Record<InvitationFailureCode, string> = {
+  ALREADY_INVITED: 'Already invited',
+  ALREADY_PARTICIPATING: 'Already participating',
+  HOST_USER: 'Cannot invite the host',
+  DECLINE_COOLDOWN_ACTIVE: 'Recently declined — try again later',
+  CAPACITY_EXCEEDED: 'Event is full',
+  DUPLICATE_USERNAME: 'Duplicate username in batch',
+};
+
+function InviteUsersModal({
+  loading,
+  error,
+  result,
+  onClose,
+  onSubmit,
+  onDismissError,
+  onClearResult,
+}: {
+  loading: boolean;
+  error: string | null;
+  result: CreateEventInvitationsResponse | null;
+  onClose: () => void;
+  onSubmit: (usernames: string[], message: string | null) => Promise<CreateEventInvitationsResponse | null>;
+  onDismissError: () => void;
+  onClearResult: () => void;
+}) {
+  const [usernamesInput, setUsernamesInput] = useState('');
+  const [message, setMessage] = useState('');
+
+  const usernames = usernamesInput
+    .split(/[\s,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const canSubmit = usernames.length > 0 && usernames.length <= 100 && !loading;
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    const res = await onSubmit(usernames, message.trim() || null);
+    if (res && res.success_count > 0 && res.failed_count === 0 && res.invalid_username_count === 0) {
+      // All succeeded — auto close
+      setUsernamesInput('');
+      setMessage('');
+      onClose();
+    }
+  };
+
+  return (
+    <div
+      className="ed-invite-modal-overlay"
+      role="presentation"
+      onClick={loading ? undefined : onClose}
+    >
+      <div
+        className="ed-invite-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ed-invite-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="ed-invite-modal-header">
+          <h3 id="ed-invite-title">Invite Users</h3>
+          <button
+            type="button"
+            className="ed-invite-modal-close"
+            onClick={onClose}
+            disabled={loading}
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="ed-invite-form">
+          <label className="ed-invite-label" htmlFor="ed-invite-usernames">
+            Usernames
+          </label>
+          <textarea
+            id="ed-invite-usernames"
+            className="ed-invite-textarea"
+            placeholder="Enter usernames separated by commas, spaces, or new lines"
+            value={usernamesInput}
+            onChange={(e) => setUsernamesInput(e.target.value)}
+            disabled={loading}
+            rows={3}
+          />
+          <p className="ed-invite-hint">
+            {usernames.length === 0
+              ? 'Enter at least one username.'
+              : usernames.length > 100
+                ? `Too many — limit is 100 (you have ${usernames.length}).`
+                : `${usernames.length} username${usernames.length !== 1 ? 's' : ''} ready to invite.`}
+          </p>
+
+          <label className="ed-invite-label" htmlFor="ed-invite-message">
+            Message (optional)
+          </label>
+          <textarea
+            id="ed-invite-message"
+            className="ed-invite-textarea"
+            placeholder="Add a personal note for invitees..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            disabled={loading}
+            maxLength={300}
+            rows={2}
+          />
+
+          {error && (
+            <div className="ed-invite-error" role="alert">
+              <span>{error}</span>
+              <button type="button" className="ed-invite-error-dismiss" onClick={onDismissError}>
+                &times;
+              </button>
+            </div>
+          )}
+
+          {result && (
+            <div className="ed-invite-result">
+              {result.success_count > 0 && (
+                <p className="ed-invite-result-line ed-invite-result-success">
+                  &#10003; Sent {result.success_count} invitation
+                  {result.success_count !== 1 ? 's' : ''}.
+                </p>
+              )}
+              {result.invalid_usernames.length > 0 && (
+                <p className="ed-invite-result-line ed-invite-result-warn">
+                  Unknown username{result.invalid_usernames.length !== 1 ? 's' : ''}:{' '}
+                  <strong>{result.invalid_usernames.join(', ')}</strong>
+                </p>
+              )}
+              {result.failed.length > 0 && (
+                <ul className="ed-invite-result-failed-list">
+                  {result.failed.map((f: EventInvitationFailure) => (
+                    <li key={`${f.username}-${f.code}`}>
+                      <strong>@{f.username}</strong>: {FAILURE_CODE_LABELS[f.code] ?? f.code}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                className="ed-invite-result-clear"
+                onClick={onClearResult}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          <div className="ed-invite-actions">
+            <button
+              type="button"
+              className="ed-secondary-btn"
+              onClick={onClose}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="ed-primary-btn"
+              disabled={!canSubmit}
+            >
+              {loading ? <span className="spinner" /> : 'Send Invitations'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function InvitationsManagementSection({
+  invitations,
+  invitationsLoading,
+  invitationsHasNext,
+  hostContextSummary,
+  isCancelable,
+  inviteLoading,
+  inviteError,
+  inviteResult,
+  onLoadMoreInvitations,
+  onCreateInvitations,
+  onDismissInviteError,
+  onClearInviteResult,
+}: {
+  invitations: EventDetailInvitation[];
+  invitationsLoading: boolean;
+  invitationsHasNext: boolean;
+  hostContextSummary: EventHostContextSummary | null;
+  isCancelable: boolean;
+  inviteLoading: boolean;
+  inviteError: string | null;
+  inviteResult: CreateEventInvitationsResponse | null;
+  onLoadMoreInvitations: () => void;
+  onCreateInvitations: (usernames: string[], message: string | null) => Promise<CreateEventInvitationsResponse | null>;
+  onDismissInviteError: () => void;
+  onClearInviteResult: () => void;
+}) {
+  const [showModal, setShowModal] = useState(false);
+  const total = hostContextSummary?.invitation_count ?? invitations.length;
+
+  return (
+    <div className="ed-mgmt-group">
+      <div className="ed-mgmt-group-header">
+        <h3 className="ed-mgmt-title">Invitations ({total})</h3>
+        {isCancelable && (
+          <button
+            type="button"
+            className="ed-primary-btn ed-mgmt-action-btn"
+            onClick={() => setShowModal(true)}
+            data-testid="ed-invite-open"
+          >
+            + Invite Users
+          </button>
+        )}
+      </div>
+
+      {invitationsLoading && invitations.length === 0 ? (
+        <p className="ed-mgmt-empty">Loading invitations...</p>
+      ) : invitations.length === 0 ? (
+        <p className="ed-mgmt-empty">No invitations sent yet.</p>
+      ) : (
+        <ul className="ed-mgmt-list">
+          {invitations.map((inv) => (
+            <li key={inv.invitation_id} className="ed-mgmt-item">
+              <UserAvatar
+                username={inv.user.username}
+                displayName={inv.user.display_name}
+                avatarUrl={inv.user.avatar_url}
+                size="sm"
+                variant="muted"
+              />
+              <div className="ed-mgmt-user-info">
+                <span className="ed-mgmt-name">{inv.user.display_name ?? inv.user.username}</span>
+                <span className="ed-mgmt-username">@{inv.user.username}</span>
+              </div>
+              <span className={`ed-invitation-status ed-inv-${inv.status.toLowerCase()}`}>
+                {inv.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {invitationsHasNext && (
+        <button
+          type="button"
+          className="ed-secondary-btn"
+          onClick={onLoadMoreInvitations}
+          disabled={invitationsLoading}
+        >
+          {invitationsLoading ? 'Loading...' : 'Load More Invitations'}
+        </button>
+      )}
+
+      {showModal && (
+        <InviteUsersModal
+          loading={inviteLoading}
+          error={inviteError}
+          result={inviteResult}
+          onClose={() => {
+            setShowModal(false);
+            onClearInviteResult();
+          }}
+          onSubmit={onCreateInvitations}
+          onDismissError={onDismissInviteError}
+          onClearResult={onClearInviteResult}
+        />
+      )}
+    </div>
   );
 }
 
@@ -875,6 +1240,12 @@ function EventContent({
   onLoadMoreApprovedParticipants,
   onLoadMorePendingJoinRequests,
   onLoadMoreInvitations,
+  inviteLoading,
+  inviteError,
+  inviteResult,
+  onCreateInvitations,
+  onDismissInviteError,
+  onClearInviteResult,
   coverImageUploading,
   coverImageError,
   coverImageSuccessMessage,
@@ -925,6 +1296,12 @@ function EventContent({
   onLoadMoreApprovedParticipants: () => void;
   onLoadMorePendingJoinRequests: () => void;
   onLoadMoreInvitations: () => void;
+  inviteLoading: boolean;
+  inviteError: string | null;
+  inviteResult: CreateEventInvitationsResponse | null;
+  onCreateInvitations: (usernames: string[], message: string | null) => Promise<CreateEventInvitationsResponse | null>;
+  onDismissInviteError: () => void;
+  onClearInviteResult: () => void;
   coverImageUploading: boolean;
   coverImageError: string | null;
   coverImageSuccessMessage: string | null;
@@ -1092,26 +1469,7 @@ function EventContent({
           </div>
         </div>
 
-        {/* Location */}
-        <div className="ed-section">
-          <h2 className="ed-section-title">Location</h2>
-          <div className="ed-info-row">
-            <span className="ed-info-icon">&#128205;</span>
-            <div>
-              {event.location.address ? (
-                <p className="ed-info-primary">{event.location.address}</p>
-              ) : (
-                <p className="ed-info-secondary">No address provided</p>
-              )}
-              <p className="ed-info-secondary">
-                {event.location.type === 'ROUTE' ? 'Route-based event' : 'Point location'}
-                {event.location.point && (
-                  <> &middot; {event.location.point.lat.toFixed(4)}, {event.location.point.lon.toFixed(4)}</>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
+        <LocationSection location={event.location} />
 
         {/* Description */}
         {event.description && (
@@ -1344,47 +1702,22 @@ function EventContent({
               </div>
             )}
 
-            {/* Invitations */}
-            {(invitations.length > 0 || (hostContextSummary?.invitation_count ?? 0) > 0) && (
-              <div className="ed-mgmt-group">
-                <h3 className="ed-mgmt-title">
-                  Invitations ({hostContextSummary?.invitation_count ?? invitations.length})
-                </h3>
-                {invitationsLoading && invitations.length === 0 ? (
-                  <p className="ed-mgmt-empty">Loading invitations...</p>
-                ) : (
-                <ul className="ed-mgmt-list">
-                  {invitations.map((inv) => (
-                    <li key={inv.invitation_id} className="ed-mgmt-item">
-                      <UserAvatar
-                        username={inv.user.username}
-                        displayName={inv.user.display_name}
-                        avatarUrl={inv.user.avatar_url}
-                        size="sm"
-                        variant="muted"
-                      />
-                      <div className="ed-mgmt-user-info">
-                        <span className="ed-mgmt-name">{inv.user.display_name ?? inv.user.username}</span>
-                        <span className="ed-mgmt-username">@{inv.user.username}</span>
-                      </div>
-                      <span className={`ed-invitation-status ed-inv-${inv.status.toLowerCase()}`}>
-                        {inv.status}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                )}
-                {invitationsHasNext && (
-                  <button
-                    type="button"
-                    className="ed-secondary-btn"
-                    onClick={onLoadMoreInvitations}
-                    disabled={invitationsLoading}
-                  >
-                    {invitationsLoading ? 'Loading...' : 'Load More Invitations'}
-                  </button>
-                )}
-              </div>
+            {/* Invitations (private events only) */}
+            {event.privacy_level === 'PRIVATE' && (
+              <InvitationsManagementSection
+                invitations={invitations}
+                invitationsLoading={invitationsLoading}
+                invitationsHasNext={invitationsHasNext}
+                hostContextSummary={hostContextSummary}
+                isCancelable={event.status === 'ACTIVE'}
+                inviteLoading={inviteLoading}
+                inviteError={inviteError}
+                inviteResult={inviteResult}
+                onLoadMoreInvitations={onLoadMoreInvitations}
+                onCreateInvitations={onCreateInvitations}
+                onDismissInviteError={onDismissInviteError}
+                onClearInviteResult={onClearInviteResult}
+              />
             )}
           </div>
         )}
@@ -1501,6 +1834,12 @@ export default function EventDetailPage() {
       onLoadMoreApprovedParticipants={vm.loadMoreApprovedParticipants}
       onLoadMorePendingJoinRequests={vm.loadMorePendingJoinRequests}
       onLoadMoreInvitations={vm.loadMoreInvitations}
+      inviteLoading={vm.inviteLoading}
+      inviteError={vm.inviteError}
+      inviteResult={vm.inviteResult}
+      onCreateInvitations={vm.handleCreateInvitations}
+      onDismissInviteError={vm.dismissInviteError}
+      onClearInviteResult={vm.clearInviteResult}
     />
   );
 }
