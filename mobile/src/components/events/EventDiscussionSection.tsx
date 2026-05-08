@@ -112,7 +112,21 @@ function DiscussionCommentItem({
 }) {
   const replies = vm.repliesMap[comment.id];
   const isReplying = vm.replyingToId === comment.id;
-  const showReplies = Boolean(replies);
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const showReplies = isExpanded && Boolean(replies);
+  const replyCount = replies ? replies.items.length : comment.reply_count;
+  const replyCountLabel = `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`;
+
+  const handleToggleReplies = () => {
+    if (isExpanded) {
+      setIsExpanded(false);
+      return;
+    }
+    setIsExpanded(true);
+    if (!replies) {
+      void vm.loadReplies(comment.id);
+    }
+  };
 
   return (
     <View style={styles.commentCard}>
@@ -129,24 +143,21 @@ function DiscussionCommentItem({
       <Text style={styles.commentMessage}>{comment.message}</Text>
 
       <View style={styles.commentActions}>
-        {comment.reply_count > 0 && !showReplies && (
+        {replyCount > 0 && (
           <TouchableOpacity
-            onPress={() => void vm.loadReplies(comment.id)}
+            onPress={handleToggleReplies}
             style={styles.replyToggle}
+            testID={`reply-toggle-${comment.id}`}
           >
-            <Feather name="message-square" size={13} color="#6366F1" />
+            <Feather
+              name={isExpanded ? 'chevron-up' : 'chevron-down'}
+              size={13}
+              color="#6366F1"
+            />
             <Text style={styles.replyToggleText}>
-              {comment.reply_count} {comment.reply_count === 1 ? 'reply' : 'replies'}
+              {isExpanded ? `Hide ${replyCountLabel}` : `View ${replyCountLabel}`}
             </Text>
           </TouchableOpacity>
-        )}
-        {showReplies && (
-          <View style={styles.replyToggle}>
-            <Feather name="message-square" size={13} color="#6366F1" />
-            <Text style={styles.replyToggleText}>
-              {replies.items.length} {replies.items.length === 1 ? 'reply' : 'replies'}
-            </Text>
-          </View>
         )}
         {isAuthenticated && canPost && !isReplying && (
           <TouchableOpacity
