@@ -183,6 +183,8 @@ type Event struct {
 	ApprovedParticipantCount int
 	MinimumAge               *int
 	PreferredGender          *EventParticipantGender
+	ChildFriendly            bool
+	FamilyOriented           bool
 	LocationType             *EventLocationType
 	CreatedAt                time.Time
 	UpdatedAt                time.Time

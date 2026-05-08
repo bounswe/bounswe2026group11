@@ -45,6 +45,8 @@ func toCreateEventParams(hostID uuid.UUID, input CreateEventInput) CreateEventPa
 		Capacity:        input.Capacity,
 		MinimumAge:      input.MinimumAge,
 		PreferredGender: input.PreferredGender,
+		ChildFriendly:   input.ChildFriendly,
+		FamilyOriented:  input.FamilyOriented,
 		LocationType:    input.LocationType,
 		Address:         input.Address,
 		Tags:            input.Tags,
@@ -89,6 +91,8 @@ func toDiscoverableEventItem(record DiscoverableEventRecord) DiscoverableEventIt
 		item.LocationLat = &lat
 		item.LocationLon = &lon
 	}
+	item.ChildFriendly = record.ChildFriendly
+	item.FamilyOriented = record.FamilyOriented
 	return item
 }
 
@@ -143,6 +147,8 @@ func toEventDetailResult(record *EventDetailRecord, now time.Time) *GetEventDeta
 		preferredGender := string(*record.PreferredGender)
 		result.PreferredGender = &preferredGender
 	}
+	result.ChildFriendly = record.ChildFriendly
+	result.FamilyOriented = record.FamilyOriented
 
 	return result
 }

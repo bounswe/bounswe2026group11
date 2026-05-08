@@ -25,6 +25,8 @@ type CreateEventInput struct {
 	Constraints     []ConstraintInput
 	MinimumAge      *int
 	PreferredGender *domain.EventParticipantGender
+	ChildFriendly   bool
+	FamilyOriented  bool
 }
 
 // ConstraintInput is a single constraint attached to an event.
@@ -61,8 +63,10 @@ type DiscoverEventsInput struct {
 	StartFrom     *time.Time
 	StartTo       *time.Time
 	TagNames      []string
-	OnlyFavorited bool
-	SortBy        *domain.EventDiscoverySort
+	OnlyFavorited      bool
+	OnlyChildFriendly  bool
+	OnlyFamilyOriented bool
+	SortBy             *domain.EventDiscoverySort
 	Limit         *int
 	Cursor        *string
 }
@@ -89,6 +93,8 @@ type DiscoverableEventItem struct {
 	ApprovedParticipantCount int                   `json:"approved_participant_count"`
 	FavoriteCount            int                   `json:"favorite_count"`
 	IsFavorited              bool                  `json:"is_favorited"`
+	ChildFriendly            bool                  `json:"child_friendly"`
+	FamilyOriented           bool                  `json:"family_oriented"`
 	HostScore                EventHostScoreSummary `json:"host_score"`
 }
 
@@ -111,6 +117,8 @@ type GetEventDetailResult struct {
 	Capacity                 *int                     `json:"capacity"`
 	MinimumAge               *int                     `json:"minimum_age"`
 	PreferredGender          *string                  `json:"preferred_gender"`
+	ChildFriendly            bool                     `json:"child_friendly"`
+	FamilyOriented           bool                     `json:"family_oriented"`
 	ApprovedParticipantCount int                      `json:"approved_participant_count"`
 	PendingParticipantCount  int                      `json:"pending_participant_count"`
 	FavoriteCount            int                      `json:"favorite_count"`

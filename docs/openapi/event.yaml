@@ -2193,6 +2193,18 @@ paths:
           schema:
             type: string
           description: Opaque cursor returned by a previous page of the same query.
+        - name: child_friendly
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: If true, return only child-friendly events.
+        - name: family_oriented
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: If true, return only family-oriented events.
       responses:
         '200':
           description: Discovery results returned successfully.
@@ -2650,6 +2662,14 @@ components:
             $ref: '#/components/schemas/ConstraintInput'
           maxItems: 5
           description: Optional participation constraints. At most 5 items.
+        child_friendly:
+          type: boolean
+          default: false
+          description: Whether the event is suitable for children.
+        family_oriented:
+          type: boolean
+          default: false
+          description: Whether the event is family-oriented.
 
     CreatePointEventRequest:
       allOf:
@@ -2807,6 +2827,12 @@ components:
           example: true
         host_score:
           $ref: '#/components/schemas/EventHostScoreSummary'
+        child_friendly:
+          type: boolean
+          description: Whether the event is suitable for children.
+        family_oriented:
+          type: boolean
+          description: Whether the event is family-oriented.
 
     DiscoverEventsPageInfo:
       type: object
@@ -2899,6 +2925,12 @@ components:
             - type: string
               enum: [MALE, FEMALE, OTHER]
             - type: "null"
+        child_friendly:
+          type: boolean
+          description: Whether the event is suitable for children.
+        family_oriented:
+          type: boolean
+          description: Whether the event is family-oriented.
         approved_participant_count:
           type: integer
           minimum: 0
