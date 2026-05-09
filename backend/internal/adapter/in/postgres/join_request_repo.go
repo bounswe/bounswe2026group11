@@ -273,7 +273,7 @@ func (r *JoinRequestRepository) handleExistingJoinRequestForCreate(
 
 func (r *JoinRequestRepository) loadEventState(ctx context.Context, eventID uuid.UUID, forUpdate bool) (*domain.Event, error) {
 	query := `
-		SELECT host_id, privacy_level, capacity, approved_participant_count, pending_participant_count, start_time
+		SELECT host_id, privacy_level, capacity, approved_participant_count, pending_participant_count, start_time, version_no
 		FROM event
 		WHERE id = $1
 	`
@@ -288,9 +288,10 @@ func (r *JoinRequestRepository) loadEventState(ctx context.Context, eventID uuid
 		approvedCount int
 		pendingCount  int
 		startTime     time.Time
+		versionNo     int
 	)
 
-	err := r.db.QueryRow(ctx, query, eventID).Scan(&hostID, &privacyLevel, &capacity, &approvedCount, &pendingCount, &startTime)
+	err := r.db.QueryRow(ctx, query, eventID).Scan(&hostID, &privacyLevel, &capacity, &approvedCount, &pendingCount, &startTime, &versionNo)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -305,6 +306,7 @@ func (r *JoinRequestRepository) loadEventState(ctx context.Context, eventID uuid
 		ApprovedParticipantCount: approvedCount,
 		PendingParticipantCount:  pendingCount,
 		StartTime:                startTime,
+		VersionNo:                versionNo,
 	}
 	if capacity.Valid {
 		value := int(capacity.Int32)
@@ -404,28 +406,30 @@ func (r *JoinRequestRepository) insertOrReactivateApprovedParticipation(
 		WITH reactivated AS (
 			UPDATE participation
 			SET status = $3,
+			    reconfirmed_at = NULL,
+			    last_confirmed_event_version = $6,
 			    created_at = NOW(),
 			    updated_at = NOW()
 			WHERE event_id = $1
 			  AND user_id = $2
 			  AND status = $4
 			  AND updated_at < $5
-			RETURNING id, status, created_at, updated_at
+			RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		),
 		inserted AS (
-			INSERT INTO participation (event_id, user_id, status)
-			SELECT $1, $2, $3
+			INSERT INTO participation (event_id, user_id, status, last_confirmed_event_version)
+			SELECT $1, $2, $3, $6
 			WHERE NOT EXISTS (SELECT 1 FROM reactivated)
 			ON CONFLICT ON CONSTRAINT uq_event_user DO NOTHING
-			RETURNING id, status, created_at, updated_at
+			RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		)
-		SELECT id, status, created_at, updated_at
+		SELECT id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		FROM reactivated
 		UNION ALL
-		SELECT id, status, created_at, updated_at
+		SELECT id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		FROM inserted
 		LIMIT 1
-	`, event.ID, userID, domain.ParticipationStatusApproved, domain.ParticipationStatusLeaved, event.StartTime), event.ID, userID, "approve join request participation")
+	`, event.ID, userID, domain.ParticipationStatusApproved, domain.ParticipationStatusLeaved, event.StartTime, event.VersionNo), event.ID, userID, "approve join request participation")
 	if err != nil {
 		return nil, err
 	}

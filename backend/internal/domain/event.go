@@ -30,10 +30,6 @@ type EventCategory struct {
 	Name string
 }
 
-// EventDetailParticipationStatus describes the authenticated viewer's relation
-// to an event detail payload.
-type EventDetailParticipationStatus string
-
 // Accepted values for event fields.
 const (
 	PrivacyPublic    EventPrivacyLevel = "PUBLIC"
@@ -55,13 +51,6 @@ const (
 	EventDiscoverySortStartTime EventDiscoverySort = "START_TIME"
 	EventDiscoverySortDistance  EventDiscoverySort = "DISTANCE"
 	EventDiscoverySortRelevance EventDiscoverySort = "RELEVANCE"
-
-	EventDetailParticipationStatusJoined   EventDetailParticipationStatus = "JOINED"
-	EventDetailParticipationStatusLeaved   EventDetailParticipationStatus = "LEAVED"
-	EventDetailParticipationStatusPending  EventDetailParticipationStatus = "PENDING"
-	EventDetailParticipationStatusInvited  EventDetailParticipationStatus = "INVITED"
-	EventDetailParticipationStatusNone     EventDetailParticipationStatus = "NONE"
-	EventDetailParticipationStatusCanceled EventDetailParticipationStatus = "CANCELED"
 
 	MaxEventTags        = 5
 	MaxEventConstraints = 5
@@ -171,6 +160,7 @@ func randomFloat64() float64 {
 type Event struct {
 	ID                       uuid.UUID
 	HostID                   uuid.UUID
+	VersionNo                int
 	Title                    string
 	Description              *string
 	ImageURL                 *string

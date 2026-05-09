@@ -164,6 +164,7 @@ type DiscoverEventsPageInfo struct {
 // GetEventDetailResult is the full event payload used by the detail page.
 type GetEventDetailResult struct {
 	ID                       string                   `json:"id"`
+	VersionNo                int                      `json:"version_no"`
 	Title                    string                   `json:"title"`
 	Description              *string                  `json:"description"`
 	ImageURL                 *string                  `json:"image_url"`
@@ -263,9 +264,31 @@ type EventDetailRating struct {
 
 // EventDetailViewerContext describes how the authenticated user relates to the event.
 type EventDetailViewerContext struct {
-	IsHost              bool   `json:"is_host"`
-	IsFavorited         bool   `json:"is_favorited"`
-	ParticipationStatus string `json:"participation_status"`
+	IsHost                    bool                        `json:"is_host"`
+	IsFavorited               bool                        `json:"is_favorited"`
+	ParticipationStatus       *domain.ParticipationStatus `json:"participation_status"`
+	JoinRequestStatus         *domain.JoinRequestStatus   `json:"join_request_status"`
+	InvitationStatus          *domain.InvitationStatus    `json:"invitation_status"`
+	NeedsReconfirmation       bool                        `json:"needs_reconfirmation"`
+	LastConfirmedEventVersion *int                        `json:"last_confirmed_event_version"`
+	LatestEventVersion        int                         `json:"latest_event_version"`
+	EventDiff                 *EventDetailDiff            `json:"event_diff"`
+}
+
+// EventDetailDiff contains the viewer-specific event field changes since the
+// user's last confirmed event version.
+type EventDetailDiff struct {
+	FromVersionNo int                     `json:"from_version_no"`
+	ToVersionNo   int                     `json:"to_version_no"`
+	ChangedFields []string                `json:"changed_fields"`
+	Changes       []EventDetailDiffChange `json:"changes"`
+}
+
+// EventDetailDiffChange describes one field-level before/after value.
+type EventDetailDiffChange struct {
+	Field    string `json:"field"`
+	OldValue any    `json:"old_value"`
+	NewValue any    `json:"new_value"`
 }
 
 // EventHostContextSummary exposes host-only management counters without loading
@@ -384,12 +407,14 @@ type LeaveEventResult struct {
 // ReconfirmParticipationResult is returned after a pending participant accepts
 // the latest event details.
 type ReconfirmParticipationResult struct {
-	ParticipationID string                     `json:"participation_id"`
-	EventID         string                     `json:"event_id"`
-	Status          domain.ParticipationStatus `json:"status"`
-	ReconfirmedAt   time.Time                  `json:"reconfirmed_at"`
-	UpdatedAt       time.Time                  `json:"updated_at"`
-	TicketStatus    *domain.TicketStatus       `json:"ticket_status,omitempty"`
+	ParticipationID           string                     `json:"participation_id"`
+	EventID                   string                     `json:"event_id"`
+	Status                    domain.ParticipationStatus `json:"status"`
+	ReconfirmedAt             time.Time                  `json:"reconfirmed_at"`
+	UpdatedAt                 time.Time                  `json:"updated_at"`
+	LastConfirmedEventVersion int                        `json:"last_confirmed_event_version"`
+	LatestEventVersion        int                        `json:"latest_event_version"`
+	TicketStatus              *domain.TicketStatus       `json:"ticket_status,omitempty"`
 }
 
 // RequestJoinInput is the validated input for creating a protected-event join request.

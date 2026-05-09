@@ -32,7 +32,7 @@ func NewParticipationRepository(pool *pgxpool.Pool) *ParticipationRepository {
 func (r *ParticipationRepository) CreateParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
 	participation, err := scanParticipation(r.db.QueryRow(ctx, `
 		WITH joinable_event AS (
-			SELECT id, start_time
+			SELECT id, start_time, version_no
 			FROM event
 			WHERE id = $1
 			  AND host_id <> $2
@@ -42,26 +42,28 @@ func (r *ParticipationRepository) CreateParticipation(ctx context.Context, event
 		reactivated AS (
 			UPDATE participation
 			SET status = $4,
+			    reconfirmed_at = NULL,
+			    last_confirmed_event_version = (SELECT version_no FROM joinable_event),
 			    created_at = NOW(),
 			    updated_at = NOW()
 			WHERE event_id = $1
 			  AND user_id = $2
 			  AND status = $5
 			  AND updated_at < (SELECT start_time FROM joinable_event)
-			RETURNING id, status, created_at, updated_at
+			RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		),
 		inserted AS (
-			INSERT INTO participation (event_id, user_id, status)
-			SELECT id, $2, $4
+			INSERT INTO participation (event_id, user_id, status, last_confirmed_event_version)
+			SELECT id, $2, $4, version_no
 			FROM joinable_event
 			WHERE NOT EXISTS (SELECT 1 FROM reactivated)
 			ON CONFLICT ON CONSTRAINT uq_event_user DO NOTHING
-			RETURNING id, status, created_at, updated_at
+			RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		)
-		SELECT id, status, created_at, updated_at
+		SELECT id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		FROM reactivated
 		UNION ALL
-		SELECT id, status, created_at, updated_at
+		SELECT id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		FROM inserted
 		LIMIT 1
 	`, eventID, userID, domain.PrivacyPublic, domain.ParticipationStatusApproved, domain.ParticipationStatusLeaved), eventID, userID, "create participation")
@@ -85,7 +87,7 @@ func (r *ParticipationRepository) LeaveParticipation(ctx context.Context, eventI
 		WHERE event_id = $1
 		  AND user_id = $2
 		  AND status IN ($4, $5)
-		RETURNING id, status, created_at, updated_at
+		RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 	`, eventID, userID, domain.ParticipationStatusLeaved, domain.ParticipationStatusApproved, domain.ParticipationStatusPending), eventID, userID, "leave participation")
 	if err != nil {
 		return nil, err
@@ -258,7 +260,7 @@ func (r *ParticipationRepository) ReconfirmParticipation(ctx context.Context, ev
 		WHERE event_id = $1
 		  AND user_id = $2
 		  AND status = $5
-		RETURNING id, status, created_at, updated_at
+		RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 	`, eventID, userID, eventVersion, domain.ParticipationStatusApproved, domain.ParticipationStatusPending), eventID, userID, "reconfirm participation")
 	if err != nil {
 		return nil, err

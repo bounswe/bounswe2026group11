@@ -30,6 +30,7 @@ import { EventDetail } from '@/models/event';
 import JoinRequestsModal from '@/components/events/JoinRequestsModal';
 import ParticipantListModal from '@/components/events/ParticipantListModal';
 import InvitationsModal from '@/components/events/InvitationsModal';
+import ReportEventModal from '@/components/events/ReportEventModal';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -853,13 +854,24 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         <Text style={styles.headerTitle} numberOfLines={1}>
           Event Details
         </Text>
-        <TouchableOpacity style={styles.headerIconBtn} onPress={vm.handleToggleFavorite}>
-          <MaterialIcons
-            name={vm.isFavorited ? 'favorite' : 'favorite-border'}
-            size={22}
-            color={vm.isFavorited ? '#EF4444' : theme.text}
-          />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.headerIconBtn} onPress={vm.handleToggleFavorite}>
+            <MaterialIcons
+              name={vm.isFavorited ? 'favorite' : 'favorite-border'}
+              size={22}
+              color={vm.isFavorited ? '#EF4444' : theme.text}
+            />
+          </TouchableOpacity>
+          {!vm.event.viewer_context.is_host && (
+            <TouchableOpacity
+              style={styles.headerIconBtn}
+              onPress={() => vm.setShowReportModal(true)}
+              accessibilityLabel="Report event"
+            >
+              <Feather name="flag" size={20} color={theme.text} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <ScrollView
@@ -1539,6 +1551,23 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         </Modal>
         );
       })()}
+
+      {vm.event && (
+        <ReportEventModal
+          visible={vm.showReportModal}
+          onClose={() => vm.setShowReportModal(false)}
+          category={vm.reportCategory}
+          onCategoryChange={vm.setReportCategory}
+          message={vm.reportMessage}
+          onMessageChange={vm.setReportMessage}
+          onSubmit={vm.handleReportEvent}
+          loading={vm.actionState === 'reporting'}
+          imageUri={vm.reportImageUri}
+          onPickImage={vm.pickReportImage}
+          onRemoveImage={vm.removeReportImage}
+          allowImage={vm.canAttachReportImage}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -1582,6 +1611,11 @@ function makeStyles(t: Theme, isDark: boolean) {
       color: t.text,
       textAlign: 'center',
       marginHorizontal: 8,
+    },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
     },
 
     /* Scroll */

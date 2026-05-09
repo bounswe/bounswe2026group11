@@ -2,6 +2,7 @@ package profile_handler
 
 import (
 	"log/slog"
+	"strconv"
 	"strings"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
@@ -41,6 +42,7 @@ func RegisterProfileRoutes(router fiber.Router, handler *ProfileHandler, auth fi
 	me.Get("/events/canceled", handler.GetMyCanceledEvents)
 	me.Get("/favorites", handler.ListFavoriteEvents)
 	me.Get("/invitations", handler.ListReceivedInvitations)
+	me.Get("/invitations/:invitationId", handler.GetReceivedInvitation)
 	me.Post("/invitations/:invitationId/accept", handler.AcceptInvitation)
 	me.Post("/invitations/:invitationId/decline", handler.DeclineInvitation)
 }
@@ -205,13 +207,31 @@ func (h *ProfileHandler) ListFavoriteEvents(c *fiber.Ctx) error {
 	return c.JSON(result)
 }
 
-// ListReceivedInvitations handles GET /me/invitations.
+// ListReceivedInvitations handles GET /me/invitations and returns the
+// authenticated user's invitations split into pending and past buckets.
+// Past is paginated via past_cursor / past_limit query params; pending is
+// always returned in full because it is small and clients render it eagerly.
 func (h *ProfileHandler) ListReceivedInvitations(c *fiber.Ctx) error {
 	if h.invitationService == nil {
 		return httpapi.WriteError(c, domain.ConflictError(domain.ErrorCodeInvitationNotAllowed, "Invitations are not available."))
 	}
 	claims := httpapi.UserClaims(c)
-	result, err := h.invitationService.ListReceivedInvitations(c.UserContext(), claims.UserID)
+
+	input := invitation.ListReceivedInvitationsInput{UserID: claims.UserID}
+	if raw := strings.TrimSpace(c.Query("past_cursor")); raw != "" {
+		input.PastCursor = &raw
+	}
+	if raw := strings.TrimSpace(c.Query("past_limit")); raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			return httpapi.WriteError(c, domain.ValidationError(map[string]string{
+				"past_limit": "must be an integer",
+			}))
+		}
+		input.PastLimit = &v
+	}
+
+	result, err := h.invitationService.ListReceivedInvitations(c.UserContext(), input)
 	if err != nil {
 		return httpapi.WriteError(c, err)
 	}
@@ -221,7 +241,39 @@ func (h *ProfileHandler) ListReceivedInvitations(c *fiber.Ctx) error {
 		"my invitations fetched",
 		httpapi.OperationAttr("profile.invitations.list"),
 		httpapi.UserIDAttr(claims.UserID),
-		slog.Int("result_count", len(result.Items)),
+		slog.Int("pending_count", len(result.Pending)),
+		slog.Int("past_count", len(result.Past.Items)),
+		slog.Bool("past_has_next", result.Past.PageInfo.HasNext),
+	)
+	return c.JSON(result)
+}
+
+// GetReceivedInvitation handles GET /me/invitations/:invitationId. It
+// returns the latest state of an invitation addressed to the authenticated
+// user, regardless of status. Clients use this to refresh modal content
+// opened from a (possibly stale) notification — e.g. to render a "host
+// canceled" banner when the underlying invitation is no longer actionable.
+func (h *ProfileHandler) GetReceivedInvitation(c *fiber.Ctx) error {
+	if h.invitationService == nil {
+		return httpapi.WriteError(c, domain.ConflictError(domain.ErrorCodeInvitationNotAllowed, "Invitations are not available."))
+	}
+	invitationID, err := parseInvitationIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	claims := httpapi.UserClaims(c)
+	result, err := h.invitationService.GetReceivedInvitation(c.UserContext(), claims.UserID, invitationID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"my invitation fetched",
+		httpapi.OperationAttr("profile.invitations.get"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.String("invitation_id", invitationID.String()),
+		slog.String("status", result.Status),
 	)
 	return c.JSON(result)
 }

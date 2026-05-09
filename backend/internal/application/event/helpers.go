@@ -121,6 +121,7 @@ func toEventDetailResult(record *EventDetailRecord, now time.Time) *GetEventDeta
 
 	result := &GetEventDetailResult{
 		ID:                       record.ID.String(),
+		VersionNo:                record.VersionNo,
 		Title:                    record.Title,
 		Description:              record.Description,
 		ImageURL:                 record.ImageURL,
@@ -147,9 +148,13 @@ func toEventDetailResult(record *EventDetailRecord, now time.Time) *GetEventDeta
 		},
 		ViewerEventRating: toEventDetailRating(record.ViewerEventRating),
 		ViewerContext: EventDetailViewerContext{
-			IsHost:              record.ViewerContext.IsHost,
-			IsFavorited:         record.ViewerContext.IsFavorited,
-			ParticipationStatus: string(record.ViewerContext.ParticipationStatus),
+			IsHost:                    record.ViewerContext.IsHost,
+			IsFavorited:               record.ViewerContext.IsFavorited,
+			ParticipationStatus:       record.ViewerContext.ParticipationStatus,
+			JoinRequestStatus:         record.ViewerContext.JoinRequestStatus,
+			InvitationStatus:          record.ViewerContext.InvitationStatus,
+			LastConfirmedEventVersion: record.ViewerContext.LastConfirmedEventVersion,
+			LatestEventVersion:        record.ViewerContext.LatestEventVersion,
 		},
 	}
 
@@ -180,11 +185,13 @@ func toEventDetailLocation(
 	record EventDetailLocationRecord,
 	privacyLevel domain.EventPrivacyLevel,
 	isHost bool,
-	participationStatus domain.EventDetailParticipationStatus,
+	participationStatus *domain.ParticipationStatus,
 ) EventDetailLocation {
+	isAcceptedParticipant := participationStatus != nil &&
+		(*participationStatus == domain.ParticipationStatusApproved || *participationStatus == domain.ParticipationStatusPending)
 	shouldApproximate := privacyLevel == domain.PrivacyProtected &&
 		!isHost &&
-		participationStatus != domain.EventDetailParticipationStatusJoined
+		!isAcceptedParticipant
 
 	location := EventDetailLocation{
 		Type:                  string(record.Type),

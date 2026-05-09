@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { EventCoverImage } from '@/components/EventCoverImage';
 import { useProfileViewModel } from '../../viewmodels/profile/useProfileViewModel';
-import type { EventSummary } from '../../models/profile';
+import type { BadgeCategory, CatalogBadge, EarnedBadge, EventSummary } from '../../models/profile';
 import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
 
@@ -14,6 +14,267 @@ const MAX_SIZE_MB = 10;
 
 type ProfileHistoryTab = 'hosted' | 'attended';
 type PasswordFieldKey = 'current' | 'new' | 'confirm';
+
+const BADGE_CATEGORY_LABELS: Record<BadgeCategory, string> = {
+  HOSTING: 'Hosting',
+  PARTICIPATION: 'Participation',
+  SOCIAL: 'Social',
+};
+
+function formatBadgeDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function getBadgeIcon(badge: Pick<CatalogBadge, 'slug' | 'category' | 'icon_url'>): string {
+  if (badge.icon_url) return badge.icon_url;
+  const bySlug: Record<string, string> = {
+    FIRST_STEPS: '👣',
+    REGULAR: '🎟️',
+    VETERAN: '🏅',
+    EXPLORER: '🧭',
+    HOST_DEBUT: '🎤',
+    SUPER_HOST: '🌟',
+    TOP_RATED: '⭐',
+    FAVORITE_FINDER: '📍',
+  };
+  if (bySlug[badge.slug]) return bySlug[badge.slug];
+  if (badge.category === 'HOSTING') return '🎤';
+  if (badge.category === 'SOCIAL') return '🤝';
+  return '🏅';
+}
+
+function earnedToCatalogBadge(badge: EarnedBadge): CatalogBadge {
+  return {
+    ...badge,
+    earned: true,
+    earned_at: badge.earned_at,
+  };
+}
+
+function BadgeIcon({ badge }: { badge: CatalogBadge }) {
+  if (badge.icon_url) {
+    return <img src={badge.icon_url} alt="" className="profile-badge-icon-img" />;
+  }
+  return <span className="profile-badge-icon-emoji" aria-hidden>{getBadgeIcon(badge)}</span>;
+}
+
+function BadgeCard({
+  badge,
+  compact = false,
+  onClick,
+}: {
+  badge: CatalogBadge;
+  compact?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`profile-badge-card ${compact ? 'compact' : ''} ${badge.earned ? 'earned' : 'locked'}`}
+      onClick={onClick}
+    >
+      <span className="profile-badge-icon-wrap">
+        <BadgeIcon badge={badge} />
+        {!badge.earned && <span className="profile-badge-lock" aria-label="Locked">🔒</span>}
+      </span>
+      <span className="profile-badge-name">{badge.name}</span>
+      <span className="profile-badge-date">
+        {badge.earned_at ? formatBadgeDate(badge.earned_at) : 'Not earned'}
+      </span>
+    </button>
+  );
+}
+
+function BadgeDetail({
+  badge,
+  onBack,
+  onClose,
+}: {
+  badge: CatalogBadge;
+  onBack: (() => void) | null;
+  onClose: () => void;
+}) {
+  return (
+    <div className="profile-badge-modal-card" role="dialog" aria-modal="true" aria-labelledby="profile-badge-detail-title">
+      <div className="profile-badge-modal-header">
+        {onBack ? (
+          <button type="button" className="profile-badge-modal-text-btn" onClick={onBack}>
+            Back
+          </button>
+        ) : (
+          <span className="profile-badge-modal-spacer" aria-hidden />
+        )}
+        <h2 id="profile-badge-detail-title" className="profile-badge-modal-title">Badge details</h2>
+        <button type="button" className="profile-badge-modal-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div className={`profile-badge-detail ${badge.earned ? 'earned' : 'locked'}`}>
+        <span className="profile-badge-detail-icon">
+          <BadgeIcon badge={badge} />
+          {!badge.earned && <span className="profile-badge-lock detail" aria-label="Locked">🔒</span>}
+        </span>
+        <h3>{badge.name}</h3>
+        <p className="profile-badge-detail-category">{BADGE_CATEGORY_LABELS[badge.category] ?? badge.category}</p>
+        <p className="profile-badge-detail-description">{badge.description}</p>
+        <p className="profile-badge-detail-status">
+          {badge.earned_at
+            ? `Earned ${formatBadgeDate(badge.earned_at)}`
+            : `Not yet earned. ${badge.description}`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function BadgeCatalogModal({
+  badges,
+  activeCategory,
+  onCategoryChange,
+  onSelectBadge,
+  onClose,
+}: {
+  badges: CatalogBadge[];
+  activeCategory: BadgeCategory | 'ALL';
+  onCategoryChange: (category: BadgeCategory | 'ALL') => void;
+  onSelectBadge: (badge: CatalogBadge) => void;
+  onClose: () => void;
+}) {
+  const categories: Array<BadgeCategory | 'ALL'> = ['ALL', 'HOSTING', 'PARTICIPATION', 'SOCIAL'];
+  const visibleBadges = activeCategory === 'ALL'
+    ? badges
+    : badges.filter((badge) => badge.category === activeCategory);
+
+  return (
+    <div className="profile-badge-modal-card wide" role="dialog" aria-modal="true" aria-labelledby="profile-badge-catalog-title">
+      <div className="profile-badge-modal-header">
+        <span className="profile-badge-modal-spacer" aria-hidden />
+        <h2 id="profile-badge-catalog-title" className="profile-badge-modal-title">All Badges</h2>
+        <button type="button" className="profile-badge-modal-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div className="profile-badge-tabs" role="tablist" aria-label="Badge categories">
+        {categories.map((category) => (
+          <button
+            key={category}
+            type="button"
+            className={`profile-badge-tab ${activeCategory === category ? 'active' : ''}`}
+            onClick={() => onCategoryChange(category)}
+          >
+            {category === 'ALL' ? 'All' : BADGE_CATEGORY_LABELS[category]}
+          </button>
+        ))}
+      </div>
+      {visibleBadges.length > 0 ? (
+        <div className="profile-badge-catalog-grid">
+          {visibleBadges.map((badge) => (
+            <BadgeCard key={badge.slug} badge={badge} onClick={() => onSelectBadge(badge)} />
+          ))}
+        </div>
+      ) : (
+        <div className="profile-badges-empty">No badges in this category yet.</div>
+      )}
+    </div>
+  );
+}
+
+function ProfileBadgesSection({
+  earnedBadges,
+  badgeCatalog,
+  badgesLoading,
+  badgeError,
+  onRetry,
+}: {
+  earnedBadges: EarnedBadge[];
+  badgeCatalog: CatalogBadge[];
+  badgesLoading: boolean;
+  badgeError: string | null;
+  onRetry: () => void;
+}) {
+  const [selectedBadge, setSelectedBadge] = useState<CatalogBadge | null>(null);
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<BadgeCategory | 'ALL'>('ALL');
+  const badgesForPreview = badgeCatalog.length > 0
+    ? badgeCatalog
+    : earnedBadges.map(earnedToCatalogBadge);
+
+  const closeModal = () => {
+    setSelectedBadge(null);
+    setCatalogOpen(false);
+  };
+
+  return (
+    <section className="profile-badges">
+      <div className="profile-badges-header">
+        <div>
+          <h2 className="profile-badges-title">Badges</h2>
+          <p className="profile-badges-subtitle">Achievements earned through hosting, participation, and social activity</p>
+        </div>
+        <button
+          type="button"
+          className="profile-badges-view-all"
+          onClick={() => {
+            setCatalogOpen(true);
+            setSelectedBadge(null);
+          }}
+          disabled={badgesLoading || badgesForPreview.length === 0}
+        >
+          View All Badges
+        </button>
+      </div>
+
+      {badgesLoading ? (
+        <div className="profile-badges-state">Loading badges...</div>
+      ) : badgeError ? (
+        <div className="profile-badges-state error">
+          <span>{badgeError}</span>
+          <button type="button" onClick={onRetry}>Retry</button>
+        </div>
+      ) : badgesForPreview.length > 0 ? (
+        <div className="profile-badges-row" aria-label="Profile badges">
+          {badgesForPreview.map((badge) => (
+            <BadgeCard
+              key={badge.slug}
+              badge={badge}
+              compact
+              onClick={() => setSelectedBadge(badge)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="profile-badges-empty">No badges available yet.</div>
+      )}
+
+      {(selectedBadge || catalogOpen) && (
+        <div className="profile-badge-modal-overlay" role="presentation" onClick={closeModal}>
+          <div onClick={(e) => e.stopPropagation()}>
+            {selectedBadge ? (
+              <BadgeDetail
+                badge={selectedBadge}
+                onBack={catalogOpen ? () => setSelectedBadge(null) : null}
+                onClose={closeModal}
+              />
+            ) : (
+              <BadgeCatalogModal
+                badges={badgesForPreview}
+                activeCategory={activeCategory}
+                onCategoryChange={setActiveCategory}
+                onSelectBadge={setSelectedBadge}
+                onClose={closeModal}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -271,6 +532,11 @@ export default function ProfilePage() {
     profile,
     hostedEvents,
     attendedEvents,
+    earnedBadges,
+    badgeCatalog,
+    badgesLoading,
+    badgeError,
+    refreshBadges,
     isLoading,
     isEditing,
     isSaving,
@@ -430,6 +696,14 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
+
+        <ProfileBadgesSection
+          earnedBadges={earnedBadges}
+          badgeCatalog={badgeCatalog}
+          badgesLoading={badgesLoading}
+          badgeError={badgeError}
+          onRetry={refreshBadges}
+        />
 
         {changePasswordSection}
 
