@@ -324,3 +324,67 @@ export interface FavoriteEventItem {
 export interface FavoriteEventsResponse {
   items: FavoriteEventItem[];
 }
+
+/* ── Comments (Discussion + Review) ── */
+
+export type CommentType = 'DISCUSSION' | 'REVIEW';
+
+export interface EventCommentAuthor {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+export interface EventComment {
+  id: string;
+  event_id: string;
+  user: EventCommentAuthor;
+  comment_type: CommentType;
+  message: string;
+  parent_id: string | null;
+  rating: number | null;
+  image_url: string | null;
+  likes_count: number;
+  reply_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventCommentPageInfo {
+  next_cursor: string | null;
+  has_next: boolean;
+}
+
+export interface EventCommentCollection {
+  items: EventComment[];
+  page_info: EventCommentPageInfo;
+}
+
+export interface EventCommentsResponse {
+  discussion_comments: EventCommentCollection;
+  review_comments: EventCommentCollection;
+}
+
+export interface ListEventCommentsParams {
+  discussion_limit?: number;
+  discussion_cursor?: string | null;
+  review_limit?: number;
+  review_cursor?: string | null;
+}
+
+export interface ListEventCommentRepliesParams {
+  limit?: number;
+  cursor?: string | null;
+}
+
+export interface CreateDiscussionCommentRequest {
+  message: string;
+  parent_id?: string | null;
+}
+
+export interface UpsertReviewCommentRequest {
+  message: string;
+  rating: number;
+  image_confirm_token?: string | null;
+}
