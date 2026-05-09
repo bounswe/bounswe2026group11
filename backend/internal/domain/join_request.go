@@ -31,6 +31,10 @@ func ParseJoinRequestStatus(value string) (JoinRequestStatus, bool) {
 	return status, ok
 }
 
+func (s JoinRequestStatus) String() string {
+	return string(s)
+}
+
 // JoinRequest records a pending request to join a protected event.
 type JoinRequest struct {
 	ID              uuid.UUID

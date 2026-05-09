@@ -13,7 +13,8 @@ const AUTH_NAV = [
   { to: '/discover', label: 'Discover' },
   { to: '/my-events', label: 'My Events' },
   { to: '/favorites', label: 'Favorites' },
-  { to: '/profile', label: 'Profile' },
+  { to: '/tickets', label: 'My Tickets' },
+  { to: '/invitations', label: 'Invitations' },
 ];
 
 export default function AppShell() {
@@ -185,7 +186,10 @@ export default function AppShell() {
                     </span>
                   )}
                 </NavLink>
-                <NavLink to="/events/create" className="shell-create-btn">
+                <NavLink
+                  to="/events/create"
+                  className={({ isActive }) => `shell-create-btn ${isActive ? 'active' : ''}`}
+                >
                   + Create Event
                 </NavLink>
                 {role === 'ADMIN' && (

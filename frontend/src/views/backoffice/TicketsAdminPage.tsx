@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { AdminTicketFilters } from '@/models/admin';
 import { listAdminTickets } from '@/services/adminService';
 import { useAdminListViewModel } from '@/viewmodels/admin/useAdminListViewModel';
-import { BackofficeIdCell, BackofficePageShell, BackofficePagination, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
+import { BackofficeIdCell, BackofficePageShell, BackofficePagination, BackofficeStatusPill, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
 
 const INITIAL_FILTERS: AdminTicketFilters = {
   q: '',
@@ -68,7 +68,7 @@ export default function TicketsAdminPage() {
                 <td>{ticket.event_title}</td>
                 <td>{ticket.username}</td>
                 <td>{ticket.user_email}</td>
-                <td>{ticket.status}</td>
+                <td><BackofficeStatusPill status={ticket.status} /></td>
                 <td>{formatAdminDate(ticket.expires_at)}</td>
                 <td>{formatAdminDate(ticket.used_at)}</td>
                 <td>{formatAdminDate(ticket.canceled_at)}</td>

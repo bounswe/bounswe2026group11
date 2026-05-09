@@ -118,6 +118,10 @@ func ParseEventStatus(value string) (EventStatus, bool) {
 	return status, ok
 }
 
+func (s EventStatus) String() string {
+	return string(s)
+}
+
 // GeoPoint is a single WGS84 coordinate used for event locations.
 type GeoPoint struct {
 	Lat float64

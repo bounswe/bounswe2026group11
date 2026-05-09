@@ -50,6 +50,75 @@ func (s *stubAdminService) ListNotifications(_ context.Context, input admin.List
 	return &admin.ListNotificationsResult{Items: []admin.AdminNotificationItem{}, PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
 }
 
+func (s *stubAdminService) ListEventReports(_ context.Context, input admin.ListEventReportsInput) (*admin.ListEventReportsResult, error) {
+	return &admin.ListEventReportsResult{Items: []admin.AdminEventReportItem{}, PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
+}
+
+func (s *stubAdminService) ListCategories(context.Context) (*admin.ListCategoriesResult, error) {
+	return &admin.ListCategoriesResult{}, nil
+}
+func (s *stubAdminService) CreateCategory(context.Context, admin.CreateCategoryInput) (*admin.AdminCategoryItem, error) {
+	return &admin.AdminCategoryItem{}, nil
+}
+func (s *stubAdminService) DeleteCategory(context.Context, admin.DeleteCategoryInput) error {
+	return nil
+}
+func (s *stubAdminService) UpdateEventReportStatus(context.Context, admin.UpdateEventReportStatusInput) (*admin.AdminEventReportItem, error) {
+	return &admin.AdminEventReportItem{}, nil
+}
+func (s *stubAdminService) UpdateEventStatus(context.Context, admin.UpdateEventStatusInput) (*admin.AdminEventItem, error) {
+	return &admin.AdminEventItem{}, nil
+}
+func (s *stubAdminService) CancelEvent(_ context.Context, input admin.CancelEventInput) (*admin.CancelEventResult, error) {
+	return &admin.CancelEventResult{EventID: input.EventID, Status: domain.EventStatusCanceled}, nil
+}
+func (s *stubAdminService) DeactivateUser(_ context.Context, input admin.DeactivateUserInput) (*admin.DeactivateUserResult, error) {
+	return &admin.DeactivateUserResult{UserID: input.UserID, Status: domain.UserStatusDeactivated}, nil
+}
+func (s *stubAdminService) ListInvitations(_ context.Context, input admin.ListInvitationsInput) (*admin.ListInvitationsResult, error) {
+	return &admin.ListInvitationsResult{PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
+}
+func (s *stubAdminService) UpdateInvitationStatus(context.Context, admin.UpdateInvitationStatusInput) (*admin.AdminInvitationItem, error) {
+	return &admin.AdminInvitationItem{}, nil
+}
+func (s *stubAdminService) ListJoinRequests(_ context.Context, input admin.ListJoinRequestsInput) (*admin.ListJoinRequestsResult, error) {
+	return &admin.ListJoinRequestsResult{PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
+}
+func (s *stubAdminService) UpdateJoinRequestStatus(context.Context, admin.UpdateJoinRequestStatusInput) (*admin.AdminJoinRequestItem, error) {
+	return &admin.AdminJoinRequestItem{}, nil
+}
+func (s *stubAdminService) ListComments(_ context.Context, input admin.ListCommentsInput) (*admin.ListCommentsResult, error) {
+	return &admin.ListCommentsResult{PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
+}
+func (s *stubAdminService) DeleteComment(context.Context, admin.DeleteCommentInput) error { return nil }
+func (s *stubAdminService) ListEventRatings(_ context.Context, input admin.ListEventRatingsInput) (*admin.ListEventRatingsResult, error) {
+	return &admin.ListEventRatingsResult{PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
+}
+func (s *stubAdminService) ListParticipantRatings(_ context.Context, input admin.ListParticipantRatingsInput) (*admin.ListParticipantRatingsResult, error) {
+	return &admin.ListParticipantRatingsResult{PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
+}
+func (s *stubAdminService) DeleteEventRating(context.Context, admin.DeleteRatingInput) error {
+	return nil
+}
+func (s *stubAdminService) DeleteParticipantRating(context.Context, admin.DeleteRatingInput) error {
+	return nil
+}
+func (s *stubAdminService) ListFavoriteEvents(_ context.Context, input admin.ListFavoriteEventsInput) (*admin.ListFavoriteEventsResult, error) {
+	return &admin.ListFavoriteEventsResult{PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
+}
+func (s *stubAdminService) ListFavoriteLocations(_ context.Context, input admin.ListFavoriteLocationsInput) (*admin.ListFavoriteLocationsResult, error) {
+	return &admin.ListFavoriteLocationsResult{PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
+}
+func (s *stubAdminService) ListUserBadges(_ context.Context, input admin.ListUserBadgesInput) (*admin.ListUserBadgesResult, error) {
+	return &admin.ListUserBadgesResult{PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
+}
+func (s *stubAdminService) ListPushDevices(_ context.Context, input admin.ListPushDevicesInput) (*admin.ListPushDevicesResult, error) {
+	return &admin.ListPushDevicesResult{PageMeta: admin.PageMeta{Limit: input.Limit, Offset: input.Offset}}, nil
+}
+func (s *stubAdminService) RevokePushDevice(context.Context, admin.RevokePushDeviceInput) error {
+	return nil
+}
+
 func (s *stubAdminService) SendCustomNotification(_ context.Context, input admin.SendCustomNotificationInput) (*admin.SendCustomNotificationResult, error) {
 	s.lastNotification = input
 	return &admin.SendCustomNotificationResult{TargetUserCount: len(input.UserIDs), CreatedCount: len(input.UserIDs)}, nil

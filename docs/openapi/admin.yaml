@@ -26,7 +26,7 @@ paths:
         - $ref: '#/components/parameters/TextQuery'
         - name: status
           in: query
-          schema: { type: string, enum: [active] }
+          schema: { type: string, enum: [active, deactivated] }
         - name: role
           in: query
           schema: { type: string, enum: [USER, ADMIN] }
@@ -53,6 +53,43 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/users/{user_id}/deactivate:
+    post:
+      tags: [Admin]
+      summary: Deactivate a user account
+      operationId: adminDeactivateUser
+      description: |
+        Sets the account status to `deactivated`, revokes active sessions and push
+        devices, cancels hosted active/in-progress events, cancels active/pending
+        non-host participations and linked tickets, and cancels pending invitations
+        and join requests involving the user. Repeating the request is idempotent.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: User deactivated or already deactivated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user_id, status, already_deactivated, canceled_event_count]
+                properties:
+                  user_id: { type: string, format: uuid }
+                  status: { type: string, enum: [deactivated] }
+                  already_deactivated: { type: boolean }
+                  canceled_event_count: { type: integer }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /admin/events:
     get:
       tags: [Admin]
@@ -97,6 +134,182 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/events/{event_id}/status:
+    patch:
+      tags: [Admin]
+      summary: Change event status
+      operationId: adminUpdateEventStatus
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminEventStatusRequest' }
+      responses:
+        '200':
+          description: Updated event row.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminEvent' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/events/{event_id}/cancel:
+    post:
+      tags: [Admin]
+      summary: Cancel an event
+      operationId: adminCancelEvent
+      description: Cancels the event plus active/pending participations, linked tickets, pending invitations, and pending join requests in one application transaction.
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Event canceled or already canceled.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event_id, status, already_canceled]
+                properties:
+                  event_id: { type: string, format: uuid }
+                  status: { type: string, enum: [CANCELED] }
+                  already_canceled: { type: boolean }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/event-reports:
+    get:
+      tags: [Admin]
+      summary: List event reports
+      operationId: adminListEventReports
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/TextQuery'
+        - name: status
+          in: query
+          schema: { type: string, enum: [PENDING, REVIEWED, DISMISSED] }
+        - name: report_category
+          in: query
+          schema: { type: string, enum: [SAFETY, HARASSMENT, SPAM_OR_SCAM, INAPPROPRIATE_CONTENT, EVENT_NOT_AS_DESCRIBED, ILLEGAL_OR_DANGEROUS, OTHER] }
+        - name: event_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: reporter_user_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: created_from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: created_to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Offset-paginated event reports.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminEventReport' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/event-reports/{report_id}/status:
+    patch:
+      tags: [Admin]
+      summary: Change event report moderation status
+      operationId: adminUpdateEventReportStatus
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminEventReportStatusRequest' }
+      responses:
+        '200':
+          description: Updated event report.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminEventReport' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/categories:
+    get:
+      tags: [Admin]
+      summary: List event categories
+      operationId: adminListCategories
+      responses:
+        '200':
+          description: All event categories.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminCategory' }
+    post:
+      tags: [Admin]
+      summary: Create event category
+      operationId: adminCreateCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCreateCategoryRequest' }
+      responses:
+        '201':
+          description: Created category.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCategory' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/categories/{category_id}:
+    delete:
+      tags: [Admin]
+      summary: Delete event category
+      operationId: adminDeleteCategory
+      description: Returns `409 category_in_use` when any event still references the category.
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: Category deleted. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /admin/participations:
     get:
       tags: [Admin]
@@ -253,6 +466,420 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/invitations:
+    get:
+      tags: [Admin]
+      summary: List invitations
+      operationId: adminListInvitations
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: status
+          in: query
+          schema: { type: string, enum: [PENDING, ACCEPTED, DECLINED, CANCELED] }
+        - name: event_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: host_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: invited_user_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Offset-paginated invitations.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminInvitation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/invitations/{invitation_id}/status:
+    patch:
+      tags: [Admin]
+      summary: Change invitation status
+      operationId: adminUpdateInvitationStatus
+      description: Admins may cancel pending invitations. Non-pending rows return a conflict.
+      parameters:
+        - name: invitation_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminInvitationStatusRequest' }
+      responses:
+        '200':
+          description: Updated invitation.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminInvitation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/join-requests:
+    get:
+      tags: [Admin]
+      summary: List join requests
+      operationId: adminListJoinRequests
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: status
+          in: query
+          schema: { type: string, enum: [PENDING, APPROVED, REJECTED, CANCELED] }
+        - name: event_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: user_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: host_user_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Offset-paginated join requests.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminJoinRequest' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/join-requests/{join_request_id}/status:
+    patch:
+      tags: [Admin]
+      summary: Change join request status
+      operationId: adminUpdateJoinRequestStatus
+      description: Admins may cancel or reject pending join requests. Non-pending rows return a conflict.
+      parameters:
+        - name: join_request_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminJoinRequestStatusRequest' }
+      responses:
+        '200':
+          description: Updated join request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminJoinRequest' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/comments:
+    get:
+      tags: [Admin]
+      summary: List discussion and review comments
+      operationId: adminListComments
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: kind
+          in: query
+          schema: { type: string, enum: [DISCUSSION, REVIEW] }
+        - name: event_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: user_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Offset-paginated comments.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminComment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/comments/{comment_id}:
+    delete:
+      tags: [Admin]
+      summary: Delete a comment
+      operationId: adminDeleteComment
+      description: Hard-deletes the comment because the current schema has no comment soft-delete status.
+      parameters:
+        - name: comment_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Comment deleted. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/ratings/events:
+    get:
+      tags: [Admin]
+      summary: List event ratings
+      operationId: adminListEventRatings
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: event_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: user_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Offset-paginated event ratings.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminEventRating' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/ratings/events/{rating_id}:
+    delete:
+      tags: [Admin]
+      summary: Delete an event rating
+      operationId: adminDeleteEventRating
+      parameters:
+        - name: rating_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Event rating deleted. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/ratings/participants:
+    get:
+      tags: [Admin]
+      summary: List participant ratings
+      operationId: adminListParticipantRatings
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: event_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: rater_user_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: rated_user_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Offset-paginated participant ratings.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminParticipantRating' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/ratings/participants/{rating_id}:
+    delete:
+      tags: [Admin]
+      summary: Delete a participant rating
+      operationId: adminDeleteParticipantRating
+      parameters:
+        - name: rating_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Participant rating deleted. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/favorites/events:
+    get:
+      tags: [Admin]
+      summary: List favorite events
+      operationId: adminListFavoriteEvents
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: user_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: event_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Offset-paginated favorite events.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminFavoriteEvent' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/favorites/locations:
+    get:
+      tags: [Admin]
+      summary: List favorite locations
+      operationId: adminListFavoriteLocations
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: user_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Offset-paginated favorite locations.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminFavoriteLocation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/badges/users:
+    get:
+      tags: [Admin]
+      summary: List user badges
+      operationId: adminListUserBadges
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: user_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Offset-paginated user badges.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminUserBadge' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/push-devices:
+    get:
+      tags: [Admin]
+      summary: List push devices
+      operationId: adminListPushDevices
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: user_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: active
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Offset-paginated push devices.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminPushDevice' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/push-devices/{device_id}/revoke:
+    post:
+      tags: [Admin]
+      summary: Revoke a push device
+      operationId: adminRevokePushDevice
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Updated push device.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPushDevice' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /admin/notifications:
     get:
       tags: [Admin]
@@ -374,7 +1001,7 @@ components:
         phone_number: { type: [string, 'null'] }
         email_verified: { type: boolean }
         last_login: { type: [string, 'null'], format: date-time }
-        status: { type: string, example: active }
+        status: { type: string, enum: [active, deactivated] }
         role: { type: string, enum: [USER, ADMIN] }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
@@ -537,6 +1164,195 @@ components:
         user_id: { type: string, format: uuid }
         status: { type: string, enum: [CANCELED] }
         already_canceled: { type: boolean }
+    AdminReasonRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: [string, 'null']
+          description: Optional admin note/reason accepted for audit-aware clients but not persisted yet.
+    AdminEventStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [ACTIVE, IN_PROGRESS, CANCELED, COMPLETED] }
+        reason: { type: [string, 'null'] }
+    AdminEventReportStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [PENDING, REVIEWED, DISMISSED] }
+        reason: { type: [string, 'null'] }
+    AdminInvitationStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [CANCELED] }
+        reason: { type: [string, 'null'] }
+    AdminJoinRequestStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [CANCELED, REJECTED] }
+        reason: { type: [string, 'null'] }
+    AdminCategory:
+      type: object
+      additionalProperties: false
+      required: [id, name, created_at, updated_at]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AdminCreateCategoryRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+    AdminEventReport:
+      type: object
+      additionalProperties: false
+      required: [id, event_id, reporter_user_id, report_category, message, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        event_title: { type: [string, 'null'] }
+        reporter_user_id: { type: string, format: uuid }
+        reporter_username: { type: [string, 'null'] }
+        reporter_email: { type: [string, 'null'], format: email }
+        report_category: { type: string, enum: [SAFETY, HARASSMENT, SPAM_OR_SCAM, INAPPROPRIATE_CONTENT, EVENT_NOT_AS_DESCRIBED, ILLEGAL_OR_DANGEROUS, OTHER] }
+        message: { type: string }
+        image_url: { type: [string, 'null'] }
+        status: { type: string, enum: [PENDING, REVIEWED, DISMISSED] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AdminInvitation:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        event_title: { type: string }
+        host_id: { type: string, format: uuid }
+        host_username: { type: string }
+        invited_user_id: { type: string, format: uuid }
+        invited_username: { type: string }
+        invited_email: { type: string, format: email }
+        status: { type: string, enum: [PENDING, ACCEPTED, DECLINED, CANCELED] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AdminJoinRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        event_title: { type: string }
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        user_email: { type: string, format: email }
+        host_user_id: { type: string, format: uuid }
+        host_username: { type: string }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, CANCELED] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AdminComment:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [DISCUSSION, REVIEW] }
+        event_id: { type: string, format: uuid }
+        event_title: { type: string }
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        user_email: { type: string, format: email }
+        body: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AdminEventRating:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        event_title: { type: string }
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        user_email: { type: string, format: email }
+        score: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AdminParticipantRating:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        event_title: { type: string }
+        rater_user_id: { type: string, format: uuid }
+        rater_username: { type: string }
+        rated_user_id: { type: string, format: uuid }
+        rated_username: { type: string }
+        score: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AdminFavoriteEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        user_email: { type: string, format: email }
+        event_id: { type: string, format: uuid }
+        event_title: { type: string }
+        created_at: { type: string, format: date-time }
+    AdminFavoriteLocation:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        user_email: { type: string, format: email }
+        name: { type: string }
+        latitude: { type: number, format: double }
+        longitude: { type: number, format: double }
+        address: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AdminUserBadge:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        user_email: { type: string, format: email }
+        badge_id: { type: string, format: uuid }
+        badge_name: { type: string }
+        awarded_at: { type: string, format: date-time }
+    AdminPushDevice:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        user_email: { type: string, format: email }
+        platform: { type: string }
+        token_last4: { type: string }
+        active: { type: boolean }
+        last_seen_at: { type: [string, 'null'], format: date-time }
+        revoked_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     ErrorResponse:
       type: object
       additionalProperties: false
@@ -564,6 +1380,16 @@ components:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
     Forbidden:
       description: The bearer token is valid, but the user role is not ADMIN.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: The requested admin resource does not exist.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: The requested mutation conflicts with current state.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }

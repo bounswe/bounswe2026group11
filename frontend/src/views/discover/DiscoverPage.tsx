@@ -161,8 +161,8 @@ function SortOptionIcon({ kind, className }: { kind: 'time' | 'distance'; classN
   );
 }
 
-/** Number of categories that fit comfortably in one row before showing expand */
-const CATEGORY_SINGLE_ROW_THRESHOLD = 7;
+/** Maximum number of category chips rendered before the expand control. */
+const CATEGORY_COLLAPSED_COUNT = 8;
 
 const PRIVACY_OPTIONS: { label: string; value: PrivacyFilter }[] = [
   { label: 'All', value: 'ALL' },
@@ -293,7 +293,7 @@ export default function DiscoverPage() {
   const isMapMode = viewMode === 'map';
 
   useLayoutEffect(() => {
-    const needsExpand = vm.categories.length > CATEGORY_SINGLE_ROW_THRESHOLD;
+    const needsExpand = vm.categories.length > CATEGORY_COLLAPSED_COUNT;
     setCategoryChipsNeedExpand(needsExpand);
     if (!needsExpand && categoriesExpanded) {
       setCategoriesExpanded(false);
@@ -533,6 +533,11 @@ export default function DiscoverPage() {
     </div>
   );
 
+  const visibleCategories =
+    categoryChipsNeedExpand && !categoriesExpanded
+      ? vm.categories.slice(0, CATEGORY_COLLAPSED_COUNT)
+      : vm.categories;
+
   const categoriesBlock = vm.categories.length > 0 && (
     <div className="dc-category-block">
       <div
@@ -542,7 +547,7 @@ export default function DiscoverPage() {
         role="group"
         aria-label="Event categories"
       >
-        {vm.categories.map((cat) => (
+        {visibleCategories.map((cat) => (
           <button
             key={cat.id}
             type="button"
@@ -564,6 +569,9 @@ export default function DiscoverPage() {
                 categoriesExpanded ? 'dc-category-expand-chevron--open' : ''
               }`}
             />
+            <span className="sr-only">
+              {categoriesExpanded ? 'Collapse categories' : 'Expand categories'}
+            </span>
           </button>
         )}
       </div>

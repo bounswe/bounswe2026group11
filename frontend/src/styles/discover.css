@@ -730,17 +730,15 @@
 .dc-category-chips {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   font-size: 12px;
+  overflow: visible;
 }
 
 .dc-category-chips--collapsed {
-  flex-wrap: nowrap;
-  overflow: hidden;
-}
-
-.dc-category-chips:not(.dc-category-chips--collapsed) {
   flex-wrap: wrap;
+  overflow: visible;
 }
 
 .dc-sort-row {
@@ -789,14 +787,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
+  min-width: 34px;
+  min-height: 28px;
+  padding: 5px 10px;
   border: 1px solid #d1d5db;
-  border-radius: 50%;
+  border-radius: 999px;
   background: #ffffff;
   color: #374151;
   font-size: 12px;
+  line-height: 1.25;
   cursor: pointer;
   transition: all 0.15s;
   box-sizing: border-box;
@@ -1237,13 +1236,11 @@
 
 /* Title card (top-left, above search) */
 .dc-title-card {
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  border-radius: 14px;
-  padding: 12px 16px;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
 .dc-title-card .dc-title {
@@ -1260,13 +1257,21 @@
 
 /* Map-mode search/filter toolbar inherits .dc-search-toolbar but sits in a card */
 .dc-page--map .dc-search-toolbar {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+}
+
+.dc-page--map .dc-title-card {
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(15, 23, 42, 0.06);
   border-radius: 14px;
-  padding: 8px;
-  margin: 0;
+  padding: 12px 16px;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
 }
 
@@ -2040,12 +2045,23 @@
 }
 
 :root[data-theme='dark'] .dc-title-card,
-:root[data-theme='dark'] .dc-page--map .dc-search-toolbar,
 :root[data-theme='dark'] .dc-page--map .dc-filter-panel,
 :root[data-theme='dark'] .dc-page--map .dc-location-prompt {
   background: rgba(8, 8, 8, 0.86);
   border-color: rgba(255, 255, 255, 0.06);
   color: #e5e7eb;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme='dark'] .dc-title-card {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+:root[data-theme='dark'] .dc-page--map .dc-title-card {
+  background: rgba(8, 8, 8, 0.86);
+  border-color: rgba(255, 255, 255, 0.06);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
 }
 

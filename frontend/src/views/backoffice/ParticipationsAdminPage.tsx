@@ -4,7 +4,7 @@ import type { AdminParticipationFilters } from '@/models/admin';
 import { listAdminParticipations } from '@/services/adminService';
 import { useAdminListViewModel } from '@/viewmodels/admin/useAdminListViewModel';
 import { useAdminParticipationActionsViewModel } from '@/viewmodels/admin/useAdminParticipationActionsViewModel';
-import { BackofficeIdCell, BackofficePageShell, BackofficePagination, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
+import { BackofficeIdCell, BackofficePageShell, BackofficePagination, BackofficeStatusPill, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
 
 const INITIAL_FILTERS: AdminParticipationFilters = {
   q: '',
@@ -126,7 +126,7 @@ export default function ParticipationsAdminPage() {
                   <td>{participation.event_title}</td>
                   <td>{participation.username}</td>
                   <td>{participation.user_email}</td>
-                  <td>{participation.status}</td>
+                  <td><BackofficeStatusPill status={participation.status} /></td>
                   <td>{formatAdminDate(participation.reconfirmed_at)}</td>
                   <td>{formatAdminDate(participation.created_at)}</td>
                   <td>{formatAdminDate(participation.updated_at)}</td>

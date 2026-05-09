@@ -44,7 +44,7 @@
 .shell-nav {
   display: flex;
   gap: 4px;
-  margin-left: 32px;
+  margin-left: 20px;
   flex: 1;
 }
 
@@ -78,7 +78,7 @@
 .shell-header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .shell-theme-btn {
@@ -89,17 +89,16 @@
   justify-content: center;
   flex-shrink: 0;
   color: #374151;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: transparent;
+  border: 0;
   border-radius: 8px;
   cursor: pointer;
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+  transition: color 0.15s, background-color 0.15s, transform 0.15s;
 }
 
 .shell-theme-btn:hover {
   color: #111827;
-  background-color: #f9fafb;
-  border-color: #d1d5db;
+  background-color: #f3f4f6;
 }
 
 .shell-theme-icon {
@@ -122,23 +121,21 @@
   justify-content: center;
   flex-shrink: 0;
   color: #374151;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: transparent;
+  border: 0;
   border-radius: 8px;
   text-decoration: none;
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+  transition: color 0.15s, background-color 0.15s, transform 0.15s;
 }
 
 .shell-bell-btn:hover {
   color: #111827;
-  background-color: #f9fafb;
-  border-color: #d1d5db;
+  background-color: #f3f4f6;
 }
 
 .shell-bell-btn.active {
-  color: #111827;
-  background-color: #f1f5f9;
-  border-color: #d1d5db;
+  color: #ffffff;
+  background-color: #111827;
 }
 
 .shell-bell-icon {
@@ -174,16 +171,22 @@
   padding: 0 16px;
   font-size: 14px;
   font-weight: 600;
-  color: #ffffff;
-  background-color: #111827;
+  color: #111827;
+  background-color: #f3f4f6;
+  border: 0;
   text-decoration: none;
   border-radius: 8px;
   white-space: nowrap;
-  transition: background-color 0.15s;
+  transition: color 0.15s, background-color 0.15s, transform 0.15s;
 }
 
 .shell-create-btn:hover {
-  background-color: #0F172A;
+  background-color: #e5e7eb;
+}
+
+.shell-create-btn.active {
+  color: #ffffff;
+  background-color: #111827;
 }
 
 .shell-admin-btn {
@@ -196,12 +199,12 @@
   font-size: 14px;
   font-weight: 600;
   color: #111827;
-  background-color: #ffffff;
-  border: 1px solid #d1d5db;
+  background-color: transparent;
+  border: 0;
   text-decoration: none;
   border-radius: 8px;
   white-space: nowrap;
-  transition: all 0.15s;
+  transition: color 0.15s, background-color 0.15s, transform 0.15s;
 }
 
 .shell-admin-icon {
@@ -217,9 +220,8 @@
 
 .shell-admin-btn:hover,
 .shell-admin-btn.active {
-  color: #ffffff;
-  background-color: #111827;
-  border-color: #111827;
+  color: #111827;
+  background-color: #f3f4f6;
 }
 
 /* User menu */
@@ -233,17 +235,16 @@
   gap: 8px;
   height: 40px;
   box-sizing: border-box;
-  background: none;
-  border: 1px solid #e5e7eb;
+  background: transparent;
+  border: 0;
   border-radius: 8px;
   padding: 0 12px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, transform 0.15s;
 }
 
 .shell-user-btn:hover {
-  border-color: #d1d5db;
-  background-color: #f9fafb;
+  background-color: #f3f4f6;
 }
 
 .shell-avatar {
@@ -419,8 +420,8 @@
   align-items: stretch;
   height: 40px;
   box-sizing: border-box;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #f3f4f6;
+  border: 0;
   border-radius: 8px;
   padding: 3px;
   gap: 2px;
@@ -451,13 +452,13 @@
 
 .shell-view-toggle-btn:hover:not(.active) {
   color: #111827;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .shell-view-toggle-btn.active {
   background: #ffffff;
   color: #111827;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.08);
 }
 
 /* Responsive */
@@ -642,8 +643,8 @@
 :root[data-theme='dark'] .shell-admin-btn,
 :root[data-theme='dark'] .shell-signin-btn {
   color: #e5e7eb;
-  background: #050505;
-  border-color: #2a2a2a;
+  background: transparent;
+  border: 0;
 }
 
 :root[data-theme='dark'] .shell-theme-btn:hover,
@@ -652,19 +653,18 @@
 :root[data-theme='dark'] .shell-admin-btn.active,
 :root[data-theme='dark'] .shell-signin-btn:hover {
   color: #ffffff;
-  background-color: #111111;
-  border-color: #4b5563;
+  background-color: #2a2a2a;
 }
 
 :root[data-theme='dark'] .shell-create-btn,
 :root[data-theme='dark'] .shell-signup-btn {
-  color: #111827;
-  background-color: #f9fafb;
+  color: #eeeeee;
+  background-color: #2a2a2a;
 }
 
 :root[data-theme='dark'] .shell-create-btn:hover,
 :root[data-theme='dark'] .shell-signup-btn:hover {
-  background-color: #e5e7eb;
+  background-color: #363636;
 }
 
 :root[data-theme='dark'] .shell-username {
@@ -698,8 +698,8 @@
 }
 
 :root[data-theme='dark'] .shell-view-toggle {
-  background: #111111;
-  border-color: #2a2a2a;
+  background: #242424;
+  border: 0;
 }
 
 :root[data-theme='dark'] .shell-view-toggle-btn {
@@ -712,9 +712,9 @@
 }
 
 :root[data-theme='dark'] .shell-view-toggle-btn.active {
-  background: #202020;
+  background: #3a3a3a;
   color: #f9fafb;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.24);
 }
 
 @media (max-width: 600px) {
@@ -764,8 +764,13 @@
 :root[data-theme='dark'] .shell-signin-btn,
 :root[data-theme='dark'] .shell-dropdown {
   color: #e7e7e7;
+  background: transparent;
+  border: 0;
+}
+
+:root[data-theme='dark'] .shell-dropdown {
   background: #202020;
-  border-color: #555555;
+  border: 1px solid #333333;
 }
 
 :root[data-theme='dark'] .shell-theme-btn:hover,
@@ -776,7 +781,6 @@
 :root[data-theme='dark'] .shell-dropdown-item:hover {
   color: #f3f3f3;
   background-color: #303030;
-  border-color: #777777;
 }
 
 :root[data-theme='dark'] .shell-create-btn,
@@ -784,7 +788,7 @@
 :root[data-theme='dark'] .shell-fab {
   color: #eeeeee;
   background: #2a2a2a;
-  border: 1px solid #777777;
+  border: 0;
 }
 
 :root[data-theme='dark'] .shell-create-btn:hover,
@@ -806,4 +810,21 @@
   :root[data-theme='dark'] .shell-overlay.visible {
     background: rgba(0, 0, 0, 0.42);
   }
+}
+
+/* Final header button states. */
+:root[data-theme='dark'] .shell-bell-btn {
+  color: #e7e7e7;
+  background: transparent;
+  border: 0;
+}
+
+:root[data-theme='dark'] .shell-bell-btn:hover {
+  color: #f3f3f3;
+  background: #303030;
+}
+
+:root[data-theme='dark'] .shell-bell-btn.active {
+  color: #f3f3f3;
+  background: #303030;
 }

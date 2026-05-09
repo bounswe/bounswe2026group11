@@ -44,6 +44,86 @@ func (r *fakeRepository) ListNotifications(context.Context, ListNotificationsInp
 	return nil, nil
 }
 
+func (r *fakeRepository) ListEventReports(context.Context, ListEventReportsInput) (*ListEventReportsResult, error) {
+	return nil, nil
+}
+
+func (r *fakeRepository) ListCategories(context.Context) (*ListCategoriesResult, error) {
+	return nil, nil
+}
+func (r *fakeRepository) CreateCategory(context.Context, string) (*AdminCategoryItem, error) {
+	return nil, nil
+}
+func (r *fakeRepository) DeleteCategory(context.Context, int) error { return nil }
+func (r *fakeRepository) UpdateEventReportStatus(context.Context, uuid.UUID, domain.EventReportStatus) (*AdminEventReportItem, error) {
+	return nil, nil
+}
+func (r *fakeRepository) UpdateEventStatus(context.Context, uuid.UUID, domain.EventStatus) (*AdminEventItem, error) {
+	return nil, nil
+}
+func (r *fakeRepository) CancelEvent(context.Context, uuid.UUID) (bool, error)       { return false, nil }
+func (r *fakeRepository) CancelEventParticipations(context.Context, uuid.UUID) error { return nil }
+func (r *fakeRepository) CancelPendingInvitationsForEvent(context.Context, uuid.UUID) error {
+	return nil
+}
+func (r *fakeRepository) CancelPendingJoinRequestsForEvent(context.Context, uuid.UUID) error {
+	return nil
+}
+func (r *fakeRepository) GetUserStatus(context.Context, uuid.UUID, bool) (*domain.UserStatus, error) {
+	return nil, nil
+}
+func (r *fakeRepository) DeactivateUser(context.Context, uuid.UUID) error             { return nil }
+func (r *fakeRepository) RevokeRefreshTokensForUser(context.Context, uuid.UUID) error { return nil }
+func (r *fakeRepository) RevokePushDevicesForUser(context.Context, uuid.UUID) error   { return nil }
+func (r *fakeRepository) ListHostedCancelableEventIDs(context.Context, uuid.UUID) ([]uuid.UUID, error) {
+	return nil, nil
+}
+func (r *fakeRepository) CancelUserParticipations(context.Context, uuid.UUID) error { return nil }
+func (r *fakeRepository) CancelUserTickets(context.Context, uuid.UUID) error        { return nil }
+func (r *fakeRepository) CancelPendingInvitationsForUser(context.Context, uuid.UUID) error {
+	return nil
+}
+func (r *fakeRepository) CancelPendingJoinRequestsForUser(context.Context, uuid.UUID) error {
+	return nil
+}
+func (r *fakeRepository) ListInvitations(context.Context, ListInvitationsInput) (*ListInvitationsResult, error) {
+	return nil, nil
+}
+func (r *fakeRepository) UpdateInvitationStatus(context.Context, uuid.UUID, domain.InvitationStatus) (*AdminInvitationItem, error) {
+	return nil, nil
+}
+func (r *fakeRepository) ListJoinRequests(context.Context, ListJoinRequestsInput) (*ListJoinRequestsResult, error) {
+	return nil, nil
+}
+func (r *fakeRepository) UpdateJoinRequestStatus(context.Context, uuid.UUID, domain.JoinRequestStatus) (*AdminJoinRequestItem, error) {
+	return nil, nil
+}
+func (r *fakeRepository) ListComments(context.Context, ListCommentsInput) (*ListCommentsResult, error) {
+	return nil, nil
+}
+func (r *fakeRepository) DeleteComment(context.Context, uuid.UUID) error { return nil }
+func (r *fakeRepository) ListEventRatings(context.Context, ListEventRatingsInput) (*ListEventRatingsResult, error) {
+	return nil, nil
+}
+func (r *fakeRepository) ListParticipantRatings(context.Context, ListParticipantRatingsInput) (*ListParticipantRatingsResult, error) {
+	return nil, nil
+}
+func (r *fakeRepository) DeleteEventRating(context.Context, uuid.UUID) error       { return nil }
+func (r *fakeRepository) DeleteParticipantRating(context.Context, uuid.UUID) error { return nil }
+func (r *fakeRepository) ListFavoriteEvents(context.Context, ListFavoriteEventsInput) (*ListFavoriteEventsResult, error) {
+	return nil, nil
+}
+func (r *fakeRepository) ListFavoriteLocations(context.Context, ListFavoriteLocationsInput) (*ListFavoriteLocationsResult, error) {
+	return nil, nil
+}
+func (r *fakeRepository) ListUserBadges(context.Context, ListUserBadgesInput) (*ListUserBadgesResult, error) {
+	return nil, nil
+}
+func (r *fakeRepository) ListPushDevices(context.Context, ListPushDevicesInput) (*ListPushDevicesResult, error) {
+	return nil, nil
+}
+func (r *fakeRepository) RevokePushDevice(context.Context, uuid.UUID) error { return nil }
+
 func (r *fakeRepository) CountExistingUsers(context.Context, []uuid.UUID) (int, error) {
 	return r.existingUsers, nil
 }

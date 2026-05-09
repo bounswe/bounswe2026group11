@@ -27,13 +27,36 @@ func NewHandler(service admin.UseCase) *Handler {
 func RegisterRoutes(router fiber.Router, handler *Handler, adminAuth fiber.Handler) {
 	group := router.Group("/admin", adminAuth)
 	group.Get("/users", handler.ListUsers)
+	group.Post("/users/:user_id/deactivate", handler.DeactivateUser)
 	group.Get("/events", handler.ListEvents)
+	group.Patch("/events/:event_id/status", handler.UpdateEventStatus)
+	group.Post("/events/:event_id/cancel", handler.CancelEvent)
+	group.Get("/event-reports", handler.ListEventReports)
+	group.Patch("/event-reports/:report_id/status", handler.UpdateEventReportStatus)
+	group.Get("/categories", handler.ListCategories)
+	group.Post("/categories", handler.CreateCategory)
+	group.Delete("/categories/:category_id", handler.DeleteCategory)
 	group.Get("/participations", handler.ListParticipations)
 	group.Post("/participations", handler.CreateParticipation)
 	group.Post("/participations/:participation_id/cancel", handler.CancelParticipation)
 	group.Get("/tickets", handler.ListTickets)
 	group.Get("/notifications", handler.ListNotifications)
 	group.Post("/notifications", handler.CreateNotification)
+	group.Get("/invitations", handler.ListInvitations)
+	group.Patch("/invitations/:invitation_id/status", handler.UpdateInvitationStatus)
+	group.Get("/join-requests", handler.ListJoinRequests)
+	group.Patch("/join-requests/:join_request_id/status", handler.UpdateJoinRequestStatus)
+	group.Get("/comments", handler.ListComments)
+	group.Delete("/comments/:comment_id", handler.DeleteComment)
+	group.Get("/ratings/events", handler.ListEventRatings)
+	group.Delete("/ratings/events/:rating_id", handler.DeleteEventRating)
+	group.Get("/ratings/participants", handler.ListParticipantRatings)
+	group.Delete("/ratings/participants/:rating_id", handler.DeleteParticipantRating)
+	group.Get("/favorites/events", handler.ListFavoriteEvents)
+	group.Get("/favorites/locations", handler.ListFavoriteLocations)
+	group.Get("/badges/users", handler.ListUserBadges)
+	group.Get("/push-devices", handler.ListPushDevices)
+	group.Post("/push-devices/:device_id/revoke", handler.RevokePushDevice)
 }
 
 func (h *Handler) ListUsers(c *fiber.Ctx) error {
@@ -101,6 +124,98 @@ func (h *Handler) ListNotifications(c *fiber.Ctx) error {
 	return c.JSON(result)
 }
 
+func (h *Handler) ListEventReports(c *fiber.Ctx) error {
+	input, errs := parseListEventReportsInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.ListEventReports(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	logAdminList(c, "admin.event_reports.list", len(result.Items), result.PageMeta, summarizeEventReports(input))
+	return c.JSON(result)
+}
+
+func (h *Handler) ListCategories(c *fiber.Ctx) error {
+	result, err := h.service.ListCategories(c.UserContext())
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) CreateCategory(c *fiber.Ctx) error {
+	input, errs := parseCreateCategoryInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.CreateCategory(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.Status(fiber.StatusCreated).JSON(result)
+}
+
+func (h *Handler) DeleteCategory(c *fiber.Ctx) error {
+	input, errs := parseDeleteCategoryInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	if err := h.service.DeleteCategory(c.UserContext(), input); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (h *Handler) UpdateEventReportStatus(c *fiber.Ctx) error {
+	input, errs := parseUpdateEventReportStatusInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.UpdateEventReportStatus(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) UpdateEventStatus(c *fiber.Ctx) error {
+	input, errs := parseUpdateEventStatusInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.UpdateEventStatus(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) CancelEvent(c *fiber.Ctx) error {
+	input, errs := parseCancelEventInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.CancelEvent(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) DeactivateUser(c *fiber.Ctx) error {
+	input, errs := parseDeactivateUserInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.DeactivateUser(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
 func (h *Handler) CreateNotification(c *fiber.Ctx) error {
 	input, errs := parseCreateNotificationInput(c)
 	if len(errs) > 0 {
@@ -137,6 +252,182 @@ func (h *Handler) CancelParticipation(c *fiber.Ctx) error {
 	return c.JSON(result)
 }
 
+func (h *Handler) ListInvitations(c *fiber.Ctx) error {
+	input, errs := parseListInvitationsInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.ListInvitations(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) UpdateInvitationStatus(c *fiber.Ctx) error {
+	input, errs := parseUpdateInvitationStatusInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.UpdateInvitationStatus(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) ListJoinRequests(c *fiber.Ctx) error {
+	input, errs := parseListJoinRequestsInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.ListJoinRequests(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) UpdateJoinRequestStatus(c *fiber.Ctx) error {
+	input, errs := parseUpdateJoinRequestStatusInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.UpdateJoinRequestStatus(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) ListComments(c *fiber.Ctx) error {
+	input, errs := parseListCommentsInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.ListComments(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) DeleteComment(c *fiber.Ctx) error {
+	input, errs := parseDeleteCommentInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	if err := h.service.DeleteComment(c.UserContext(), input); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (h *Handler) ListEventRatings(c *fiber.Ctx) error {
+	input, errs := parseListEventRatingsInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.ListEventRatings(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) DeleteEventRating(c *fiber.Ctx) error {
+	input, errs := parseDeleteRatingInput(c, "rating_id")
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	if err := h.service.DeleteEventRating(c.UserContext(), input); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (h *Handler) ListParticipantRatings(c *fiber.Ctx) error {
+	input, errs := parseListParticipantRatingsInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.ListParticipantRatings(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) DeleteParticipantRating(c *fiber.Ctx) error {
+	input, errs := parseDeleteRatingInput(c, "rating_id")
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	if err := h.service.DeleteParticipantRating(c.UserContext(), input); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (h *Handler) ListFavoriteEvents(c *fiber.Ctx) error {
+	input, errs := parseListFavoriteEventsInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.ListFavoriteEvents(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) ListFavoriteLocations(c *fiber.Ctx) error {
+	input, errs := parseListFavoriteLocationsInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.ListFavoriteLocations(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) ListUserBadges(c *fiber.Ctx) error {
+	input, errs := parseListUserBadgesInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.ListUserBadges(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) ListPushDevices(c *fiber.Ctx) error {
+	input, errs := parseListPushDevicesInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	result, err := h.service.ListPushDevices(c.UserContext(), input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.JSON(result)
+}
+
+func (h *Handler) RevokePushDevice(c *fiber.Ctx) error {
+	input, errs := parseRevokePushDeviceInput(c)
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+	if err := h.service.RevokePushDevice(c.UserContext(), input); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 type createNotificationRequest struct {
 	UserIDs        []string          `json:"user_ids"`
 	DeliveryMode   string            `json:"delivery_mode"`
@@ -158,6 +449,19 @@ type createParticipationRequest struct {
 
 type cancelParticipationRequest struct {
 	Reason *string `json:"reason"`
+}
+
+type reasonRequest struct {
+	Reason *string `json:"reason"`
+}
+
+type statusRequest struct {
+	Status *string `json:"status"`
+	Reason *string `json:"reason"`
+}
+
+type createCategoryRequest struct {
+	Name string `json:"name"`
 }
 
 func parseCreateNotificationInput(c *fiber.Ctx) (admin.SendCustomNotificationInput, map[string]string) {
@@ -273,6 +577,68 @@ func parseCancelParticipationInput(c *fiber.Ctx) (admin.CancelParticipationInput
 	}, errs
 }
 
+func parseCreateCategoryInput(c *fiber.Ctx) (admin.CreateCategoryInput, map[string]string) {
+	var body createCategoryRequest
+	errs := map[string]string{}
+	if err := c.BodyParser(&body); err != nil {
+		errs["body"] = "must be a valid JSON object"
+	}
+	return admin.CreateCategoryInput{AdminUserID: httpapi.UserClaims(c).UserID, Name: body.Name}, errs
+}
+
+func parseDeleteCategoryInput(c *fiber.Ctx) (admin.DeleteCategoryInput, map[string]string) {
+	errs := map[string]string{}
+	id, err := strconv.Atoi(strings.TrimSpace(c.Params("category_id")))
+	if err != nil || id <= 0 {
+		errs["category_id"] = "must be a positive integer"
+	}
+	return admin.DeleteCategoryInput{AdminUserID: httpapi.UserClaims(c).UserID, CategoryID: id}, errs
+}
+
+func parseUpdateEventReportStatusInput(c *fiber.Ctx) (admin.UpdateEventReportStatusInput, map[string]string) {
+	errs := map[string]string{}
+	reportID := parsePathUUID(c, "report_id", errs)
+	body := parseStatusBody(c, errs)
+	var status domain.EventReportStatus
+	if body.Status == nil {
+		errs["status"] = "is required"
+	} else if parsed, ok := domain.ParseEventReportStatus(strings.TrimSpace(*body.Status)); !ok {
+		errs["status"] = "must be one of: PENDING, REVIEWED, DISMISSED"
+	} else {
+		status = parsed
+	}
+	return admin.UpdateEventReportStatusInput{AdminUserID: httpapi.UserClaims(c).UserID, ReportID: reportID, Status: status, Reason: optionalTrimmedPtr(body.Reason)}, errs
+}
+
+func parseUpdateEventStatusInput(c *fiber.Ctx) (admin.UpdateEventStatusInput, map[string]string) {
+	errs := map[string]string{}
+	eventID := parsePathUUID(c, "event_id", errs)
+	body := parseStatusBody(c, errs)
+	var status domain.EventStatus
+	if body.Status == nil {
+		errs["status"] = "is required"
+	} else if parsed, ok := domain.ParseEventStatus(strings.TrimSpace(*body.Status)); !ok {
+		errs["status"] = "must be one of: ACTIVE, IN_PROGRESS, CANCELED, COMPLETED"
+	} else {
+		status = parsed
+	}
+	return admin.UpdateEventStatusInput{AdminUserID: httpapi.UserClaims(c).UserID, EventID: eventID, Status: status, Reason: optionalTrimmedPtr(body.Reason)}, errs
+}
+
+func parseCancelEventInput(c *fiber.Ctx) (admin.CancelEventInput, map[string]string) {
+	errs := map[string]string{}
+	eventID := parsePathUUID(c, "event_id", errs)
+	body := parseReasonBody(c, errs)
+	return admin.CancelEventInput{AdminUserID: httpapi.UserClaims(c).UserID, EventID: eventID, Reason: optionalTrimmedPtr(body.Reason)}, errs
+}
+
+func parseDeactivateUserInput(c *fiber.Ctx) (admin.DeactivateUserInput, map[string]string) {
+	errs := map[string]string{}
+	userID := parsePathUUID(c, "user_id", errs)
+	body := parseReasonBody(c, errs)
+	return admin.DeactivateUserInput{AdminUserID: httpapi.UserClaims(c).UserID, UserID: userID, Reason: optionalTrimmedPtr(body.Reason)}, errs
+}
+
 func parseListUsersInput(c *fiber.Ctx) (admin.ListUsersInput, map[string]string) {
 	page, errs := parsePage(c)
 	input := admin.ListUsersInput{PageInput: page}
@@ -384,6 +750,192 @@ func parseListNotificationsInput(c *fiber.Ctx) (admin.ListNotificationsInput, ma
 	return input, errs
 }
 
+func parseListEventReportsInput(c *fiber.Ctx) (admin.ListEventReportsInput, map[string]string) {
+	page, errs := parsePage(c)
+	input := admin.ListEventReportsInput{PageInput: page}
+	input.Query = optionalTrimmed(c.Query("q"))
+	input.EventID = parseOptionalUUID(c, "event_id", errs)
+	input.ReporterUserID = parseOptionalUUID(c, "reporter_user_id", errs)
+	input.CreatedFrom = parseOptionalTime(c, "created_from", errs)
+	input.CreatedTo = parseOptionalTime(c, "created_to", errs)
+	if raw := strings.TrimSpace(c.Query("status")); raw != "" {
+		status, ok := domain.ParseEventReportStatus(raw)
+		if !ok {
+			errs["status"] = "must be one of: PENDING, REVIEWED, DISMISSED"
+		} else {
+			input.Status = &status
+		}
+	}
+	if raw := strings.TrimSpace(c.Query("report_category")); raw != "" {
+		category, ok := domain.ParseEventReportCategory(raw)
+		if !ok {
+			errs["report_category"] = "must be a valid report category"
+		} else {
+			input.ReportCategory = &category
+		}
+	}
+	return input, errs
+}
+
+func parseListInvitationsInput(c *fiber.Ctx) (admin.ListInvitationsInput, map[string]string) {
+	page, errs := parsePage(c)
+	input := admin.ListInvitationsInput{PageInput: page, Query: optionalTrimmed(c.Query("q"))}
+	input.EventID = parseOptionalUUID(c, "event_id", errs)
+	input.HostID = parseOptionalUUID(c, "host_id", errs)
+	input.InvitedUserID = parseOptionalUUID(c, "invited_user_id", errs)
+	input.CreatedFrom = parseOptionalTime(c, "created_from", errs)
+	input.CreatedTo = parseOptionalTime(c, "created_to", errs)
+	if raw := strings.TrimSpace(c.Query("status")); raw != "" {
+		status, ok := domain.ParseInvitationStatus(raw)
+		if !ok {
+			errs["status"] = "must be a valid invitation status"
+		} else {
+			input.Status = &status
+		}
+	}
+	return input, errs
+}
+
+func parseListJoinRequestsInput(c *fiber.Ctx) (admin.ListJoinRequestsInput, map[string]string) {
+	page, errs := parsePage(c)
+	input := admin.ListJoinRequestsInput{PageInput: page, Query: optionalTrimmed(c.Query("q"))}
+	input.EventID = parseOptionalUUID(c, "event_id", errs)
+	input.UserID = parseOptionalUUID(c, "user_id", errs)
+	input.HostUserID = parseOptionalUUID(c, "host_user_id", errs)
+	input.CreatedFrom = parseOptionalTime(c, "created_from", errs)
+	input.CreatedTo = parseOptionalTime(c, "created_to", errs)
+	if raw := strings.TrimSpace(c.Query("status")); raw != "" {
+		status, ok := domain.ParseJoinRequestStatus(raw)
+		if !ok {
+			errs["status"] = "must be a valid join request status"
+		} else {
+			input.Status = &status
+		}
+	}
+	return input, errs
+}
+
+func parseListCommentsInput(c *fiber.Ctx) (admin.ListCommentsInput, map[string]string) {
+	page, errs := parsePage(c)
+	input := admin.ListCommentsInput{PageInput: page, Query: optionalTrimmed(c.Query("q")), Type: optionalTrimmed(c.Query("type"))}
+	input.EventID = parseOptionalUUID(c, "event_id", errs)
+	input.UserID = parseOptionalUUID(c, "user_id", errs)
+	input.CreatedFrom = parseOptionalTime(c, "created_from", errs)
+	input.CreatedTo = parseOptionalTime(c, "created_to", errs)
+	return input, errs
+}
+
+func parseListEventRatingsInput(c *fiber.Ctx) (admin.ListEventRatingsInput, map[string]string) {
+	page, errs := parsePage(c)
+	input := admin.ListEventRatingsInput{PageInput: page}
+	input.EventID = parseOptionalUUID(c, "event_id", errs)
+	input.UserID = parseOptionalUUID(c, "user_id", errs)
+	input.CreatedFrom = parseOptionalTime(c, "created_from", errs)
+	input.CreatedTo = parseOptionalTime(c, "created_to", errs)
+	return input, errs
+}
+
+func parseListParticipantRatingsInput(c *fiber.Ctx) (admin.ListParticipantRatingsInput, map[string]string) {
+	page, errs := parsePage(c)
+	input := admin.ListParticipantRatingsInput{PageInput: page}
+	input.EventID = parseOptionalUUID(c, "event_id", errs)
+	input.HostID = parseOptionalUUID(c, "host_id", errs)
+	input.UserID = parseOptionalUUID(c, "user_id", errs)
+	input.CreatedFrom = parseOptionalTime(c, "created_from", errs)
+	input.CreatedTo = parseOptionalTime(c, "created_to", errs)
+	return input, errs
+}
+
+func parseListFavoriteEventsInput(c *fiber.Ctx) (admin.ListFavoriteEventsInput, map[string]string) {
+	page, errs := parsePage(c)
+	input := admin.ListFavoriteEventsInput{PageInput: page}
+	input.UserID = parseOptionalUUID(c, "user_id", errs)
+	input.EventID = parseOptionalUUID(c, "event_id", errs)
+	input.CreatedFrom = parseOptionalTime(c, "created_from", errs)
+	input.CreatedTo = parseOptionalTime(c, "created_to", errs)
+	return input, errs
+}
+
+func parseListFavoriteLocationsInput(c *fiber.Ctx) (admin.ListFavoriteLocationsInput, map[string]string) {
+	page, errs := parsePage(c)
+	input := admin.ListFavoriteLocationsInput{PageInput: page, Query: optionalTrimmed(c.Query("q"))}
+	input.UserID = parseOptionalUUID(c, "user_id", errs)
+	input.CreatedFrom = parseOptionalTime(c, "created_from", errs)
+	input.CreatedTo = parseOptionalTime(c, "created_to", errs)
+	return input, errs
+}
+
+func parseListUserBadgesInput(c *fiber.Ctx) (admin.ListUserBadgesInput, map[string]string) {
+	page, errs := parsePage(c)
+	input := admin.ListUserBadgesInput{PageInput: page, Query: optionalTrimmed(c.Query("q"))}
+	input.UserID = parseOptionalUUID(c, "user_id", errs)
+	return input, errs
+}
+
+func parseListPushDevicesInput(c *fiber.Ctx) (admin.ListPushDevicesInput, map[string]string) {
+	page, errs := parsePage(c)
+	input := admin.ListPushDevicesInput{PageInput: page, Platform: optionalTrimmed(c.Query("platform"))}
+	input.UserID = parseOptionalUUID(c, "user_id", errs)
+	input.CreatedFrom = parseOptionalTime(c, "created_from", errs)
+	input.CreatedTo = parseOptionalTime(c, "created_to", errs)
+	if raw := strings.TrimSpace(c.Query("active")); raw != "" {
+		value, err := strconv.ParseBool(raw)
+		if err != nil {
+			errs["active"] = "must be true or false"
+		} else {
+			input.Active = &value
+		}
+	}
+	return input, errs
+}
+
+func parseUpdateInvitationStatusInput(c *fiber.Ctx) (admin.UpdateInvitationStatusInput, map[string]string) {
+	errs := map[string]string{}
+	invitationID := parsePathUUID(c, "invitation_id", errs)
+	body := parseStatusBody(c, errs)
+	var status domain.InvitationStatus
+	if body.Status == nil {
+		errs["status"] = "is required"
+	} else if parsed, ok := domain.ParseInvitationStatus(strings.TrimSpace(*body.Status)); !ok {
+		errs["status"] = "must be a valid invitation status"
+	} else {
+		status = parsed
+	}
+	return admin.UpdateInvitationStatusInput{AdminUserID: httpapi.UserClaims(c).UserID, InvitationID: invitationID, Status: status, Reason: optionalTrimmedPtr(body.Reason)}, errs
+}
+
+func parseUpdateJoinRequestStatusInput(c *fiber.Ctx) (admin.UpdateJoinRequestStatusInput, map[string]string) {
+	errs := map[string]string{}
+	joinRequestID := parsePathUUID(c, "join_request_id", errs)
+	body := parseStatusBody(c, errs)
+	var status domain.JoinRequestStatus
+	if body.Status == nil {
+		errs["status"] = "is required"
+	} else if parsed, ok := domain.ParseJoinRequestStatus(strings.TrimSpace(*body.Status)); !ok {
+		errs["status"] = "must be a valid join request status"
+	} else {
+		status = parsed
+	}
+	return admin.UpdateJoinRequestStatusInput{AdminUserID: httpapi.UserClaims(c).UserID, JoinRequestID: joinRequestID, Status: status, Reason: optionalTrimmedPtr(body.Reason)}, errs
+}
+
+func parseDeleteCommentInput(c *fiber.Ctx) (admin.DeleteCommentInput, map[string]string) {
+	errs := map[string]string{}
+	return admin.DeleteCommentInput{AdminUserID: httpapi.UserClaims(c).UserID, CommentID: parsePathUUID(c, "comment_id", errs)}, errs
+}
+
+func parseDeleteRatingInput(c *fiber.Ctx, key string) (admin.DeleteRatingInput, map[string]string) {
+	errs := map[string]string{}
+	body := parseReasonBody(c, errs)
+	return admin.DeleteRatingInput{AdminUserID: httpapi.UserClaims(c).UserID, RatingID: parsePathUUID(c, key, errs), Reason: optionalTrimmedPtr(body.Reason)}, errs
+}
+
+func parseRevokePushDeviceInput(c *fiber.Ctx) (admin.RevokePushDeviceInput, map[string]string) {
+	errs := map[string]string{}
+	body := parseReasonBody(c, errs)
+	return admin.RevokePushDeviceInput{AdminUserID: httpapi.UserClaims(c).UserID, DeviceID: parsePathUUID(c, "device_id", errs), Reason: optionalTrimmedPtr(body.Reason)}, errs
+}
+
 func parsePage(c *fiber.Ctx) (admin.PageInput, map[string]string) {
 	errs := map[string]string{}
 	page := admin.PageInput{Limit: admin.DefaultLimit}
@@ -432,6 +984,33 @@ func parseOptionalUUID(c *fiber.Ctx, key string, errs map[string]string) *uuid.U
 		return nil
 	}
 	return &value
+}
+
+func parsePathUUID(c *fiber.Ctx, key string, errs map[string]string) uuid.UUID {
+	value, err := uuid.Parse(strings.TrimSpace(c.Params(key)))
+	if err != nil || value == uuid.Nil {
+		errs[key] = "must be a valid UUID"
+		return uuid.Nil
+	}
+	return value
+}
+
+func parseReasonBody(c *fiber.Ctx, errs map[string]string) reasonRequest {
+	var body reasonRequest
+	if len(c.Body()) > 0 {
+		if err := c.BodyParser(&body); err != nil {
+			errs["body"] = "must be a valid JSON object"
+		}
+	}
+	return body
+}
+
+func parseStatusBody(c *fiber.Ctx, errs map[string]string) statusRequest {
+	var body statusRequest
+	if err := c.BodyParser(&body); err != nil {
+		errs["body"] = "must be a valid JSON object"
+	}
+	return body
 }
 
 func parseOptionalInt(c *fiber.Ctx, key string, errs map[string]string) *int {
@@ -537,6 +1116,20 @@ func summarizeNotifications(input admin.ListNotificationsInput) string {
 		uuidPointerSummary("event_id", input.EventID),
 		httpapi.StringPtrSummary("type", input.Type),
 		boolPointerSummary("is_read", input.IsRead),
+		timePointerSummary("created_from", input.CreatedFrom),
+		timePointerSummary("created_to", input.CreatedTo),
+	)
+}
+
+func summarizeEventReports(input admin.ListEventReportsInput) string {
+	return httpapi.JoinSummary(
+		httpapi.CountSummary("limit", input.Limit),
+		httpapi.CountSummary("offset", input.Offset),
+		httpapi.StringPtrSummary("q", input.Query),
+		pointerSummary("status", input.Status),
+		pointerSummary("report_category", input.ReportCategory),
+		uuidPointerSummary("event_id", input.EventID),
+		uuidPointerSummary("reporter_user_id", input.ReporterUserID),
 		timePointerSummary("created_from", input.CreatedFrom),
 		timePointerSummary("created_to", input.CreatedTo),
 	)

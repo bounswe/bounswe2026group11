@@ -334,6 +334,9 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*Session, error)
 	if user.PasswordHash == "" || s.passwordHasher.Compare(user.PasswordHash, password) != nil {
 		return nil, domain.AuthError(domain.ErrorCodeInvalidCreds, "Invalid username or password.")
 	}
+	if user.Status != domain.UserStatusActive {
+		return nil, domain.AuthError(domain.ErrorCodeInvalidCreds, "Invalid username or password.")
+	}
 
 	var session *Session
 	err = s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
@@ -396,6 +399,12 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, deviceInfo *
 				return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
 			}
 			return fmt.Errorf("lookup user by id: %w", err)
+		}
+		if user.Status != domain.UserStatusActive {
+			if err := s.repo.RevokeRefreshTokenFamily(ctx, current.FamilyID, now); err != nil {
+				return fmt.Errorf("revoke inactive user refresh token family: %w", err)
+			}
+			return domain.AuthError(domain.ErrorCodeInvalidRefresh, "The refresh token is invalid or expired.")
 		}
 		familyStartedAt, err := s.repo.GetRefreshTokenFamilyCreatedAt(ctx, current.FamilyID)
 		if err != nil {
