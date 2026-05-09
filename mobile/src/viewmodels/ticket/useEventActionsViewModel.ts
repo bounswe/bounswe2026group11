@@ -14,6 +14,7 @@ export interface EventActionsViewModel {
   primaryActionLabel: string | null;
   canOpenTicket: boolean;
   canScanTicket: boolean;
+  canEditEvent: boolean;
   reload: () => Promise<void>;
 }
 
@@ -71,6 +72,11 @@ export function useEventActionsViewModel(eventId: string): EventActionsViewModel
 
   const canScanTicket = Boolean(event?.viewer_context.is_host);
   const canOpenTicket = !canScanTicket && ticket != null;
+  const canEditEvent = Boolean(
+    event?.viewer_context.is_host &&
+      event.status === 'ACTIVE' &&
+      new Date(event.start_time).getTime() > Date.now(),
+  );
 
   const primaryActionLabel = useMemo(() => {
     if (canScanTicket) return 'Scan Ticket';
@@ -86,6 +92,7 @@ export function useEventActionsViewModel(eventId: string): EventActionsViewModel
     primaryActionLabel,
     canOpenTicket,
     canScanTicket,
+    canEditEvent,
     reload,
   };
 }

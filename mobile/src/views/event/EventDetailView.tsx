@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import { fetchRoutedGeometry } from '@/services/eventService';
@@ -160,6 +160,204 @@ function formatLongDateTime(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
+
+const ATTENDANCE_CRITICAL_FIELDS = new Set([
+  'start_time',
+  'end_time',
+  'location',
+  'privacy_level',
+  'capacity',
+  'minimum_age',
+  'preferred_gender',
+  'constraints',
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function humanizeFieldName(field: string): string {
+  return field
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function getChangeFieldLabel(field: string): string {
+  const labels: Record<string, string> = {
+    title: 'Title',
+    description: 'Description',
+    image_url: 'Cover image',
+    category: 'Category',
+    category_id: 'Category',
+    location: 'Location or route',
+    start_time: 'Start time',
+    end_time: 'End time',
+    privacy_level: 'Privacy',
+    capacity: 'Capacity',
+    minimum_age: 'Minimum age',
+    preferred_gender: 'Preferred gender',
+    constraints: 'Participation requirements',
+    tags: 'Tags',
+    child_friendly: 'Child friendly',
+    family_oriented: 'Family oriented',
+    status: 'Status',
+  };
+  return labels[field] ?? humanizeFieldName(field);
+}
+
+function getChangeFieldIcon(field: string): FeatherIconName {
+  const icons: Record<string, FeatherIconName> = {
+    start_time: 'clock',
+    end_time: 'clock',
+    location: 'map-pin',
+    privacy_level: 'lock',
+    constraints: 'check-square',
+    capacity: 'users',
+    minimum_age: 'user-check',
+    preferred_gender: 'users',
+    category: 'grid',
+    category_id: 'grid',
+    tags: 'tag',
+    description: 'align-left',
+    title: 'type',
+  };
+  return icons[field] ?? 'edit-3';
+}
+
+function formatTitleCaseValue(value: string): string {
+  return value
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function formatCoordinates(value: unknown): string | null {
+  if (!isRecord(value)) return null;
+  const lat = value.lat;
+  const lon = value.lon;
+  if (typeof lat !== 'number' || typeof lon !== 'number') return null;
+  return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+}
+
+function formatHistoryLocation(value: unknown): string {
+  if (!isRecord(value)) return value == null ? 'Not set' : String(value);
+
+  const type = typeof value.type === 'string' ? value.type : 'POINT';
+  const address =
+    typeof value.address === 'string' && value.address.trim()
+      ? value.address.trim()
+      : null;
+  const routePoints = Array.isArray(value.route_points) ? value.route_points : [];
+  const point = formatCoordinates(value.point);
+
+  if (type === 'ROUTE') {
+    const waypointLabel =
+      routePoints.length > 0
+        ? `${routePoints.length} waypoint${routePoints.length === 1 ? '' : 's'}`
+        : 'route';
+    return address ? `${address} (${waypointLabel})` : `Route (${waypointLabel})`;
+  }
+
+  return address ?? point ?? 'Point location';
+}
+
+function formatConstraintList(value: unknown): string {
+  if (!Array.isArray(value) || value.length === 0) return 'None';
+
+  return value
+    .map((item) => {
+      if (!isRecord(item)) return String(item);
+      const type = typeof item.type === 'string' ? item.type : 'Requirement';
+      const info = typeof item.info === 'string' ? item.info : '';
+      return info.trim() ? `${formatTitleCaseValue(type)}: ${info.trim()}` : formatTitleCaseValue(type);
+    })
+    .join('\n');
+}
+
+function formatDiffValue(field: string, value: unknown): string {
+  if (value == null) {
+    if (field === 'capacity') return 'Unlimited';
+    return 'Not set';
+  }
+
+  if (field === 'start_time' || field === 'end_time') {
+    return typeof value === 'string' ? formatLongDateTime(value) : String(value);
+  }
+
+  if (field === 'location') return formatHistoryLocation(value);
+  if (field === 'constraints') return formatConstraintList(value);
+  if (field === 'privacy_level' || field === 'preferred_gender' || field === 'status') {
+    return typeof value === 'string' ? formatTitleCaseValue(value) : String(value);
+  }
+  if (field === 'capacity') return typeof value === 'number' ? `${value} participants` : String(value);
+  if (field === 'minimum_age') return typeof value === 'number' ? `${value}+` : String(value);
+  if (field === 'category' || field === 'category_id') {
+    if (isRecord(value) && typeof value.name === 'string') return value.name;
+    return String(value);
+  }
+  if (field === 'tags' && Array.isArray(value)) {
+    return value.length > 0 ? value.map((tag) => `#${String(tag)}`).join(', ') : 'None';
+  }
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'string') return value.trim() || 'Not set';
+  if (typeof value === 'number') return String(value);
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function getVersionNumber(event: EventDetail): number | null {
+  return (
+    event.version_no ??
+    event.viewer_context.latest_event_version ??
+    event.viewer_context.event_diff?.to_version_no ??
+    null
+  );
+}
+
+function canEditEvent(event: EventDetail): boolean {
+  return event.status === 'ACTIVE' && new Date(event.start_time).getTime() > Date.now();
+}
+
+function canViewEventHistory(event: EventDetail): boolean {
+  const status = event.viewer_context.participation_status;
+  return status === 'JOINED' || status === 'PENDING';
+}
+
+function summarizeChangedFields(changedFields: string[]): string[] {
+  const summaries: string[] = [];
+  const add = (summary: string) => {
+    if (!summaries.includes(summary)) summaries.push(summary);
+  };
+
+  if (changedFields.includes('start_time') || changedFields.includes('end_time')) {
+    add('Time changed');
+  }
+  if (changedFields.includes('location')) add('Location or route changed');
+  if (changedFields.includes('privacy_level')) add('Privacy changed');
+  if (
+    changedFields.includes('capacity') ||
+    changedFields.includes('minimum_age') ||
+    changedFields.includes('preferred_gender') ||
+    changedFields.includes('constraints')
+  ) {
+    add('Participation rules changed');
+  }
+
+  changedFields.forEach((field) => {
+    if (!ATTENDANCE_CRITICAL_FIELDS.has(field)) add(`${getChangeFieldLabel(field)} changed`);
+  });
+
+  return summaries.length > 0 ? summaries : ['Event details changed'];
 }
 
 function getFeedbackValidationMessage(message: string): string | null {
@@ -407,6 +605,127 @@ function ParticipantRatingSection({
   );
 }
 
+function EventVersionHistorySection({
+  event,
+  styles,
+}: {
+  event: EventDetail;
+  styles: ReturnType<typeof makeStyles>;
+}) {
+  const { theme } = useTheme();
+  const diff = event.viewer_context.event_diff ?? null;
+  const changes = diff?.changes ?? [];
+  const versionNo = getVersionNumber(event);
+
+  if (!canViewEventHistory(event)) return null;
+  if (!diff && versionNo == null) return null;
+
+  const summaries = summarizeChangedFields(
+    diff?.changed_fields ?? changes.map((change) => change.field),
+  );
+  const needsReconfirmation = Boolean(event.viewer_context.needs_reconfirmation);
+
+  return (
+    <>
+      <View style={styles.divider} />
+      <View style={styles.section} testID="event-version-history">
+        <View style={styles.versionHeaderRow}>
+          <Text style={styles.sectionTitle}>Version History</Text>
+          {versionNo != null ? (
+            <Text style={styles.versionCurrentLabel}>v{versionNo}</Text>
+          ) : null}
+        </View>
+
+        <View style={styles.versionHistoryCard}>
+          {needsReconfirmation ? (
+            <View style={styles.versionAttentionBanner}>
+              <Feather name="alert-triangle" size={16} color={theme.warningText} />
+              <Text style={styles.versionAttentionText}>
+                Review these changes before confirming that you can still attend.
+              </Text>
+            </View>
+          ) : null}
+
+          {diff ? (
+            <Text style={styles.versionRangeText}>
+              Changes from version {diff.from_version_no} to {diff.to_version_no}
+            </Text>
+          ) : (
+            <Text style={styles.versionRangeText}>
+              Current event version{versionNo != null ? ` ${versionNo}` : ''}
+            </Text>
+          )}
+
+          {changes.length > 0 ? (
+            <>
+              <View style={styles.versionSummaryRow}>
+                {summaries.map((summary) => (
+                  <View key={summary} style={styles.versionSummaryPill}>
+                    <Text style={styles.versionSummaryPillText}>{summary}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.versionChangeList}>
+                {changes.map((change, index) => {
+                  const isCritical = ATTENDANCE_CRITICAL_FIELDS.has(change.field);
+                  return (
+                    <View
+                      key={`${change.field}-${index}`}
+                      style={styles.versionChangeRow}
+                    >
+                      <View style={styles.versionChangeIcon}>
+                        <Feather
+                          name={getChangeFieldIcon(change.field)}
+                          size={16}
+                          color={theme.primary}
+                        />
+                      </View>
+                      <View style={styles.versionChangeBody}>
+                        <View style={styles.versionChangeTitleRow}>
+                          <Text style={styles.versionChangeTitle}>
+                            {getChangeFieldLabel(change.field)}
+                          </Text>
+                          {isCritical ? (
+                            <Text style={styles.versionImpactLabel}>Attendance impact</Text>
+                          ) : null}
+                        </View>
+
+                        <View style={styles.versionValueBlock}>
+                          <Text style={styles.versionValueLabel}>Before</Text>
+                          <Text style={styles.versionValueText}>
+                            {formatDiffValue(change.field, change.old_value)}
+                          </Text>
+                        </View>
+                        <View style={styles.versionValueBlock}>
+                          <Text style={styles.versionValueLabel}>Now</Text>
+                          <Text style={styles.versionValueText}>
+                            {formatDiffValue(change.field, change.new_value)}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </>
+          ) : (
+            <View style={styles.versionEmptyState}>
+              <Feather name="check-circle" size={18} color={theme.successText} />
+              <Text style={styles.versionEmptyTitle}>
+                No changes need your review right now.
+              </Text>
+              <Text style={styles.versionEmptyText}>
+                If future edits affect time, location, privacy, or participation rules, they will appear here.
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </>
+  );
+}
+
 /** Radius (metres) of the circle drawn around a fuzzed PROTECTED event location. */
 const APPROX_LOCATION_RADIUS_METERS = 500;
 
@@ -481,6 +800,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     const { status, privacy_level } = vm.event;
     const status_ = vm.participationStatus;
     const isActive = status === 'ACTIVE';
+    const needsReconfirmation = Boolean(vm.event.viewer_context.needs_reconfirmation);
 
     if (vm.event.viewer_context.is_host) {
       return (
@@ -503,9 +823,78 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       }
     }
 
-    if (status_ === 'JOINED' || vm.actionState === 'success_joined') {
+    if (needsReconfirmation && vm.actionState !== 'success_reconfirmed') {
+      const isReconfirmationBusy =
+        vm.actionState === 'reconfirming' || vm.actionState === 'leaving';
+      return (
+        <View>
+          <View style={[styles.statusChip, styles.reconfirmStatusChip]}>
+            <Feather name="alert-triangle" size={16} color={theme.warningText} />
+            <Text style={styles.statusChipTextAmber}>Attendance needs reconfirmation</Text>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              styles.reconfirmActionButton,
+              vm.actionState === 'reconfirming' && styles.actionButtonLoading,
+            ]}
+            onPress={vm.handleReconfirmParticipation}
+            disabled={isReconfirmationBusy}
+            activeOpacity={0.8}
+          >
+            {vm.actionState === 'reconfirming' ? (
+              <ActivityIndicator color={theme.textOnPrimary} size="small" />
+            ) : (
+              <>
+                <Feather name="refresh-cw" size={18} color={theme.textOnPrimary} />
+                <Text style={styles.actionButtonText}>Reconfirm Attendance</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.reconfirmRejectButton,
+              vm.actionState === 'leaving' && styles.actionButtonLoading,
+            ]}
+            onPress={() => {
+              Alert.alert(
+                'Reject Reconfirmation',
+                'Rejecting this update will remove you from the event.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Reject & Leave',
+                    style: 'destructive',
+                    onPress: vm.handleLeaveEvent,
+                  },
+                ],
+              );
+            }}
+            disabled={isReconfirmationBusy}
+            activeOpacity={0.8}
+          >
+            {vm.actionState === 'leaving' ? (
+              <ActivityIndicator color="#DC2626" size="small" />
+            ) : (
+              <>
+                <Feather name="x-circle" size={18} color="#DC2626" />
+                <Text style={styles.leaveButtonText}>Reject Reconfirmation</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (
+      status_ === 'JOINED' ||
+      vm.actionState === 'success_joined' ||
+      vm.actionState === 'success_reconfirmed'
+    ) {
       const attendedLabel =
-        vm.event.status === 'COMPLETED' ? 'You attended this event' : "You're attending";
+        vm.actionState === 'success_reconfirmed'
+          ? "You're attending with latest details"
+          : vm.event.status === 'COMPLETED' ? 'You attended this event' : "You're attending";
 
       return (
         <View>
@@ -828,6 +1217,15 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           );
         })()}
 
+        {event.viewer_context.needs_reconfirmation ? (
+          <View style={[styles.warningBanner, styles.reconfirmationBanner]} testID="reconfirmation-banner">
+            <Feather name="alert-triangle" size={16} color={theme.warningText} />
+            <Text style={styles.warningBannerText}>
+              Event details changed since you last confirmed. Review the version history and reconfirm if you can still attend, or reject to leave the event.
+            </Text>
+          </View>
+        ) : null}
+
         {/* Core info */}
         <View style={styles.section}>
           {event.category && (
@@ -1002,6 +1400,8 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           })()}
         </View>
 
+        <EventVersionHistorySection event={event} styles={styles} />
+
         <View style={styles.divider} />
 
         {/* Host */}
@@ -1033,6 +1433,17 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Host Management</Text>
               <View style={styles.hostActions}>
+                {canEditEvent(vm.event) ? (
+                  <TouchableOpacity
+                    style={[styles.hostActionBtn, styles.hostActionBtnPrimary]}
+                    onPress={() => router.push(`/event/${event.id}/edit` as Href)}
+                    accessibilityLabel="Edit event"
+                  >
+                    <Feather name="edit-3" size={18} color={theme.textOnPrimary} />
+                    <Text style={styles.hostActionTextWhite}>Edit Event</Text>
+                  </TouchableOpacity>
+                ) : null}
+
                 <TouchableOpacity
                   style={[styles.hostActionBtn, styles.hostActionBtnSecondary]}
                   onPress={() => vm.setShowAttendeesModal(true)}
@@ -1693,6 +2104,159 @@ function makeStyles(t: Theme, isDark: boolean) {
       backgroundColor: t.surfaceVariant,
     },
 
+    /* Version history */
+    versionHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    versionCurrentLabel: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      backgroundColor: t.surfaceVariant,
+      borderWidth: 1,
+      borderColor: t.border,
+      color: t.textSecondary,
+      fontSize: 12,
+      fontWeight: '700',
+      overflow: 'hidden',
+    },
+    versionHistoryCard: {
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.surfaceAlt,
+      padding: 14,
+      gap: 12,
+    },
+    versionAttentionBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      padding: 10,
+      borderRadius: 8,
+      backgroundColor: t.warningBg,
+      borderWidth: 1,
+      borderColor: t.warningBorder,
+    },
+    versionAttentionText: {
+      flex: 1,
+      fontSize: 13,
+      lineHeight: 18,
+      color: t.warningText,
+      fontWeight: '600',
+    },
+    versionRangeText: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: t.textSecondary,
+      fontWeight: '600',
+    },
+    versionSummaryRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    versionSummaryPill: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: t.infoBg,
+      borderWidth: 1,
+      borderColor: t.infoBorder,
+    },
+    versionSummaryPillText: {
+      fontSize: 12,
+      lineHeight: 16,
+      color: t.infoText,
+      fontWeight: '700',
+    },
+    versionChangeList: {
+      gap: 10,
+    },
+    versionChangeRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: t.border,
+    },
+    versionChangeIcon: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    versionChangeBody: {
+      flex: 1,
+      gap: 8,
+    },
+    versionChangeTitleRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 8,
+    },
+    versionChangeTitle: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: t.text,
+      fontWeight: '800',
+    },
+    versionImpactLabel: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 999,
+      backgroundColor: t.warningBg,
+      borderWidth: 1,
+      borderColor: t.warningBorder,
+      color: t.warningText,
+      fontSize: 11,
+      fontWeight: '700',
+      overflow: 'hidden',
+    },
+    versionValueBlock: {
+      gap: 3,
+    },
+    versionValueLabel: {
+      fontSize: 11,
+      lineHeight: 14,
+      color: t.textMuted,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0,
+    },
+    versionValueText: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: t.textSecondary,
+      fontWeight: '500',
+    },
+    versionEmptyState: {
+      alignItems: 'flex-start',
+      gap: 6,
+      paddingTop: 2,
+    },
+    versionEmptyTitle: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: t.text,
+      fontWeight: '800',
+    },
+    versionEmptyText: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: t.textSecondary,
+      fontWeight: '500',
+    },
+
     /* Category chip */
     categoryChipWrap: {
       marginBottom: 12,
@@ -1850,6 +2414,21 @@ function makeStyles(t: Theme, isDark: boolean) {
     actionButtonProtected: {
       backgroundColor: '#7C3AED',
     },
+    reconfirmActionButton: {
+      marginTop: 10,
+    },
+    reconfirmRejectButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 10,
+      borderRadius: 14,
+      paddingVertical: 14,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: '#FCA5A5',
+    },
     actionButtonLoading: {
       opacity: 0.7,
     },
@@ -1885,6 +2464,10 @@ function makeStyles(t: Theme, isDark: boolean) {
       backgroundColor: t.surfaceVariant,
       borderWidth: 1,
       borderColor: t.border,
+    },
+    reconfirmStatusChip: {
+      backgroundColor: t.warningBg,
+      borderColor: t.warningBorder,
     },
     statusChipTextGreen: {
       fontSize: 15,
@@ -2252,6 +2835,9 @@ function makeStyles(t: Theme, isDark: boolean) {
       padding: 12,
       marginHorizontal: 20,
       marginTop: 12,
+    },
+    reconfirmationBanner: {
+      alignItems: 'flex-start',
     },
     warningBannerText: {
       flex: 1,

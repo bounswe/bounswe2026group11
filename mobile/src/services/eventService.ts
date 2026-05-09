@@ -4,6 +4,8 @@ import {
   PrivacyLevel,
   CreateEventRequest,
   CreateEventResponse,
+  UpdateEventRequest,
+  UpdateEventResponse,
   EventDetail,
   EventHostContextSummary,
   JoinEventResponse,
@@ -18,6 +20,7 @@ import {
   PaginatedEventsResponse,
   RequestJoinRequest,
   RequestJoinResponse,
+  ReconfirmParticipationResponse,
   ImageUploadInitResponse,
   EventApprovedParticipantsResponse,
   EventPendingJoinRequestsResponse,
@@ -94,6 +97,14 @@ export async function createEvent(
   token: string,
 ): Promise<CreateEventResponse> {
   return apiPostAuth<CreateEventResponse>('/events', request, token);
+}
+
+export async function updateEvent(
+  id: string,
+  request: UpdateEventRequest,
+  token: string,
+): Promise<UpdateEventResponse> {
+  return apiPatchAuth<UpdateEventResponse>(`/events/${id}`, request, token);
 }
 
 export async function getEventDetail(
@@ -211,6 +222,17 @@ export async function leaveEvent(
   token: string,
 ): Promise<LeaveEventResponse> {
   return apiPatchAuth<LeaveEventResponse>(`/events/${eventId}/leave`, {}, token);
+}
+
+export async function reconfirmEventParticipation(
+  eventId: string,
+  token: string,
+): Promise<ReconfirmParticipationResponse> {
+  return apiPostAuth<ReconfirmParticipationResponse>(
+    `/events/${eventId}/participation/reconfirm`,
+    {},
+    token,
+  );
 }
 
 export async function cancelEvent(

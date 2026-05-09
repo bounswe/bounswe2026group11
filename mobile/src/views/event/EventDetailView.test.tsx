@@ -3,10 +3,12 @@
  */
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { Alert } from 'react-native';
 import type { EventDetail } from '@/models/event';
 import type { EventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import EventDetailView from './EventDetailView';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
+import { router } from 'expo-router';
 
 jest.mock('expo-status-bar', () => ({
   StatusBar: () => null,
@@ -88,6 +90,7 @@ jest.mock('@/viewmodels/event/useEventDiscussionViewModel', () => ({
 }));
 
 const mockUseEventDetailViewModel = jest.mocked(useEventDetailViewModel);
+const mockRouterPush = jest.mocked(router.push);
 
 function makeEvent(overrides: Partial<EventDetail> = {}): EventDetail {
   return {
@@ -180,6 +183,7 @@ function buildViewModel(
     handleJoin: jest.fn().mockResolvedValue(undefined),
     handleLeaveEvent: jest.fn().mockResolvedValue(undefined),
     handleRequestJoin: jest.fn().mockResolvedValue(undefined),
+    handleReconfirmParticipation: jest.fn().mockResolvedValue(undefined),
     handleAcceptInvitation: jest.fn().mockResolvedValue(undefined),
     handleDeclineInvitation: jest.fn().mockResolvedValue(undefined),
     handleToggleFavorite: jest.fn().mockResolvedValue(undefined),
@@ -240,6 +244,186 @@ describe('EventDetailView', () => {
 
     expect(screen.getByText('Request sent — awaiting approval')).toBeTruthy();
     expect(screen.queryByText('Request to Join')).toBeNull();
+  });
+
+  it('shows version history and reconfirm action when attendance needs reconfirmation', () => {
+    const handleReconfirmParticipation = jest.fn().mockResolvedValue(undefined);
+    const reconfirmationEvent = makeEvent({
+      version_no: 5,
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'PENDING',
+        needs_reconfirmation: true,
+        last_confirmed_event_version: 2,
+        latest_event_version: 5,
+        event_diff: {
+          from_version_no: 2,
+          to_version_no: 5,
+          changed_fields: ['start_time', 'location', 'constraints'],
+          changes: [
+            {
+              field: 'start_time',
+              old_value: '2026-05-02T19:00:00+03:00',
+              new_value: '2026-05-02T20:00:00+03:00',
+            },
+            {
+              field: 'location',
+              old_value: {
+                type: 'POINT',
+                address: 'Kadikoy, Istanbul',
+                point: { lat: 40.99, lon: 29.03 },
+              },
+              new_value: {
+                type: 'ROUTE',
+                address: 'Moda Coast Route',
+                route_points: [
+                  { lat: 40.99, lon: 29.03 },
+                  { lat: 41.0, lon: 29.04 },
+                ],
+              },
+            },
+            {
+              field: 'constraints',
+              old_value: [],
+              new_value: [{ type: 'equipment', info: 'Helmet required' }],
+            },
+          ],
+        },
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({
+        event: reconfirmationEvent,
+        participationStatus: 'PENDING',
+        handleReconfirmParticipation,
+      }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByTestId('reconfirmation-banner')).toBeTruthy();
+    expect(screen.getByTestId('event-version-history')).toBeTruthy();
+    expect(screen.getByText('Changes from version 2 to 5')).toBeTruthy();
+    expect(screen.getByText('Time changed')).toBeTruthy();
+    expect(screen.getByText('Location or route changed')).toBeTruthy();
+    expect(screen.getByText('Participation rules changed')).toBeTruthy();
+    expect(screen.getByText('Start time')).toBeTruthy();
+    expect(screen.getByText('Location or route')).toBeTruthy();
+    expect(screen.getByText('Participation requirements')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Reconfirm Attendance'));
+    expect(handleReconfirmParticipation).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets viewers reject attendance reconfirmation by leaving the event', () => {
+    const handleLeaveEvent = jest.fn().mockResolvedValue(undefined);
+    const reconfirmationEvent = makeEvent({
+      version_no: 5,
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'PENDING',
+        needs_reconfirmation: true,
+        last_confirmed_event_version: 2,
+        latest_event_version: 5,
+        event_diff: null,
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({
+        event: reconfirmationEvent,
+        participationStatus: 'PENDING',
+        handleLeaveEvent,
+      }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    fireEvent.click(screen.getByText('Reject Reconfirmation'));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Reject Reconfirmation',
+      'Rejecting this update will remove you from the event.',
+      expect.any(Array),
+    );
+
+    const buttons = jest.mocked(Alert.alert).mock.calls[0][2] as Array<{
+      onPress?: () => void;
+    }>;
+    buttons[1].onPress?.();
+
+    expect(handleLeaveEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders an empty version-history state when no changes need review', () => {
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({
+        event: makeEvent({
+          version_no: 1,
+          viewer_context: {
+            is_host: false,
+            is_favorited: false,
+            participation_status: 'JOINED',
+            needs_reconfirmation: false,
+            latest_event_version: 1,
+            event_diff: null,
+          },
+        }),
+        participationStatus: 'JOINED',
+      }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByTestId('event-version-history')).toBeTruthy();
+    expect(screen.getByText('No changes need your review right now.')).toBeTruthy();
+  });
+
+  it('hides version history from viewers who are not attending or pending', () => {
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({
+        event: makeEvent({
+          version_no: 3,
+          viewer_context: {
+            is_host: false,
+            is_favorited: false,
+            participation_status: 'NONE',
+            needs_reconfirmation: false,
+            latest_event_version: 3,
+            event_diff: null,
+          },
+        }),
+        participationStatus: 'NONE',
+      }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.queryByTestId('event-version-history')).toBeNull();
+    expect(screen.queryByText('Version History')).toBeNull();
+  });
+
+  it('lets hosts open the edit event flow from event detail', () => {
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({
+        event: makeEvent({
+          start_time: '2035-05-02T19:00:00+03:00',
+          end_time: '2035-05-02T21:00:00+03:00',
+          viewer_context: {
+            is_host: true,
+            is_favorited: false,
+            participation_status: 'NONE',
+          },
+        }),
+      }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    fireEvent.click(screen.getByLabelText('Edit event'));
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/event/event-1/edit');
   });
 
   it('shows the inaccessible state when apiError mentions private or missing events', () => {

@@ -405,7 +405,7 @@ export function validateLiveTimeInput(time: string): string | null {
   return null;
 }
 
-function parseDateTime(date: string, time: string): string | null {
+export function parseDateTime(date: string, time: string): string | null {
   if (!date || !time) return null;
   const [dayStr, monthStr, yearStr] = date.split('.');
   if (!dayStr || !monthStr || !yearStr) return null;
