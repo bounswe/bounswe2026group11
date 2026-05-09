@@ -4,6 +4,7 @@ package tests_integration
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -171,6 +172,127 @@ func TestListReceivedInvitationsPastPagination(t *testing.T) {
 	}
 	if page2.Past.PageInfo.NextCursor != nil {
 		t.Errorf("page2 next_cursor non-nil, want nil")
+	}
+}
+
+// TestGetReceivedInvitationReturnsAllStatuses asserts that the detail
+// endpoint surfaces the latest invitation state regardless of status —
+// including CANCELED and ACCEPTED, which the list endpoint deliberately
+// hides. The modal flow that opens from a stale notification depends on
+// this, so all five InvitationStatus values are exercised.
+func TestGetReceivedInvitationReturnsAllStatuses(t *testing.T) {
+	// given
+	h := common.NewEventHarness(t)
+	host := common.GivenUser(t, h.AuthRepo)
+	invitee := common.GivenUser(t, h.AuthRepo)
+	ctx := context.Background()
+
+	// One event per status — invitation rows are unique per (event, user).
+	pendingEvent := givenPrivateEvent(t, h.Service, host.ID)
+	acceptedEvent := givenPrivateEvent(t, h.Service, host.ID)
+	declinedEvent := givenPrivateEvent(t, h.Service, host.ID)
+	expiredEvent := givenPrivateEvent(t, h.Service, host.ID)
+	canceledEvent := givenPrivateEvent(t, h.Service, host.ID)
+
+	pendingID := givenInvitation(t, h.InvitationService, host.ID, pendingEvent, invitee.Username)
+	acceptedID := givenInvitation(t, h.InvitationService, host.ID, acceptedEvent, invitee.Username)
+	declinedID := givenInvitation(t, h.InvitationService, host.ID, declinedEvent, invitee.Username)
+	expiredID := givenInvitation(t, h.InvitationService, host.ID, expiredEvent, invitee.Username)
+	canceledID := givenInvitation(t, h.InvitationService, host.ID, canceledEvent, invitee.Username)
+
+	if _, err := h.InvitationService.AcceptInvitation(ctx, invitee.ID, acceptedID); err != nil {
+		t.Fatalf("AcceptInvitation: %v", err)
+	}
+	if _, err := h.InvitationService.DeclineInvitation(ctx, invitee.ID, declinedID); err != nil {
+		t.Fatalf("DeclineInvitation: %v", err)
+	}
+	if err := h.InvitationService.RevokeInvitation(ctx, host.ID, canceledEvent, canceledID); err != nil {
+		t.Fatalf("RevokeInvitation: %v", err)
+	}
+	expireInvitation(t, expiredID)
+
+	// when / then — fetch each by id and assert the round-tripped status
+	cases := []struct {
+		name         string
+		invitationID uuid.UUID
+		wantStatus   string
+	}{
+		{"PENDING", pendingID, string(domain.InvitationStatusPending)},
+		{"ACCEPTED", acceptedID, string(domain.InvitationStatusAccepted)},
+		{"DECLINED", declinedID, string(domain.InvitationStatusDeclined)},
+		{"EXPIRED", expiredID, string(domain.InvitationStatusExpired)},
+		{"CANCELED", canceledID, string(domain.InvitationStatusCanceled)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := h.InvitationService.GetReceivedInvitation(ctx, invitee.ID, tc.invitationID)
+			if err != nil {
+				t.Fatalf("GetReceivedInvitation: %v", err)
+			}
+			if got.InvitationID != tc.invitationID.String() {
+				t.Errorf("invitation_id = %s, want %s", got.InvitationID, tc.invitationID)
+			}
+			if got.Status != tc.wantStatus {
+				t.Errorf("status = %s, want %s", got.Status, tc.wantStatus)
+			}
+		})
+	}
+}
+
+// TestGetReceivedInvitationDoesNotLeakOtherUsersRows asserts that asking
+// for someone else's invitation returns 404 — never 403 — so the server
+// does not signal that the row exists at all.
+func TestGetReceivedInvitationDoesNotLeakOtherUsersRows(t *testing.T) {
+	// given
+	h := common.NewEventHarness(t)
+	host := common.GivenUser(t, h.AuthRepo)
+	invitee := common.GivenUser(t, h.AuthRepo)
+	stranger := common.GivenUser(t, h.AuthRepo)
+	ctx := context.Background()
+
+	event := givenPrivateEvent(t, h.Service, host.ID)
+	invitationID := givenInvitation(t, h.InvitationService, host.ID, event, invitee.Username)
+
+	// when — stranger asks for invitee's invitation
+	_, err := h.InvitationService.GetReceivedInvitation(ctx, stranger.ID, invitationID)
+
+	// then — must be a 404 invitation_not_found, indistinguishable from a
+	// genuinely missing row.
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("expected *domain.AppError, got %T", err)
+	}
+	if appErr.Code != domain.ErrorCodeInvitationNotFound {
+		t.Errorf("Code = %s, want %s", appErr.Code, domain.ErrorCodeInvitationNotFound)
+	}
+	if appErr.Status != domain.StatusNotFound {
+		t.Errorf("Status = %d, want %d", appErr.Status, domain.StatusNotFound)
+	}
+}
+
+// TestGetReceivedInvitationReturns404ForMissingID covers the genuine
+// missing-row case.
+func TestGetReceivedInvitationReturns404ForMissingID(t *testing.T) {
+	// given
+	h := common.NewEventHarness(t)
+	user := common.GivenUser(t, h.AuthRepo)
+
+	// when
+	_, err := h.InvitationService.GetReceivedInvitation(context.Background(), user.ID, uuid.New())
+
+	// then
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("expected *domain.AppError, got %T", err)
+	}
+	if appErr.Code != domain.ErrorCodeInvitationNotFound {
+		t.Errorf("Code = %s, want %s", appErr.Code, domain.ErrorCodeInvitationNotFound)
 	}
 }
 

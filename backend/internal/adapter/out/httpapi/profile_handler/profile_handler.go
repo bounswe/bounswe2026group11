@@ -42,6 +42,7 @@ func RegisterProfileRoutes(router fiber.Router, handler *ProfileHandler, auth fi
 	me.Get("/events/canceled", handler.GetMyCanceledEvents)
 	me.Get("/favorites", handler.ListFavoriteEvents)
 	me.Get("/invitations", handler.ListReceivedInvitations)
+	me.Get("/invitations/:invitationId", handler.GetReceivedInvitation)
 	me.Post("/invitations/:invitationId/accept", handler.AcceptInvitation)
 	me.Post("/invitations/:invitationId/decline", handler.DeclineInvitation)
 }
@@ -243,6 +244,36 @@ func (h *ProfileHandler) ListReceivedInvitations(c *fiber.Ctx) error {
 		slog.Int("pending_count", len(result.Pending)),
 		slog.Int("past_count", len(result.Past.Items)),
 		slog.Bool("past_has_next", result.Past.PageInfo.HasNext),
+	)
+	return c.JSON(result)
+}
+
+// GetReceivedInvitation handles GET /me/invitations/:invitationId. It
+// returns the latest state of an invitation addressed to the authenticated
+// user, regardless of status. Clients use this to refresh modal content
+// opened from a (possibly stale) notification — e.g. to render a "host
+// canceled" banner when the underlying invitation is no longer actionable.
+func (h *ProfileHandler) GetReceivedInvitation(c *fiber.Ctx) error {
+	if h.invitationService == nil {
+		return httpapi.WriteError(c, domain.ConflictError(domain.ErrorCodeInvitationNotAllowed, "Invitations are not available."))
+	}
+	invitationID, err := parseInvitationIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+	claims := httpapi.UserClaims(c)
+	result, err := h.invitationService.GetReceivedInvitation(c.UserContext(), claims.UserID, invitationID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"my invitation fetched",
+		httpapi.OperationAttr("profile.invitations.get"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.String("invitation_id", invitationID.String()),
+		slog.String("status", result.Status),
 	)
 	return c.JSON(result)
 }

@@ -1345,6 +1345,10 @@ func (f *fakeInvitationService) ListReceivedInvitations(_ context.Context, _ inv
 	return nil, nil
 }
 
+func (f *fakeInvitationService) GetReceivedInvitation(_ context.Context, _ uuid.UUID, _ uuid.UUID) (*invitation.ReceivedInvitation, error) {
+	return nil, nil
+}
+
 func (f *fakeInvitationService) AcceptInvitation(_ context.Context, _, _ uuid.UUID) (*invitation.AcceptInvitationResult, error) {
 	return nil, nil
 }

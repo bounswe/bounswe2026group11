@@ -2,6 +2,7 @@ package invitation
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -118,6 +119,25 @@ func (s *Service) ListReceivedInvitations(ctx context.Context, input ListReceive
 			},
 		},
 	}, nil
+}
+
+// GetReceivedInvitation fetches the latest state of one invitation owned
+// by the caller. It deliberately returns no event-status or invitation-
+// status filter so the modal flow can render warnings for CANCELED,
+// EXPIRED, or already-actioned invitations. domain.ErrNotFound from the
+// repo (missing row, wrong recipient, non-PRIVATE event) maps to a 404
+// with the standard invitation_not_found code; the caller's identity is
+// never leaked via a 403.
+func (s *Service) GetReceivedInvitation(ctx context.Context, userID, invitationID uuid.UUID) (*ReceivedInvitation, error) {
+	record, err := s.repo.GetReceivedInvitation(ctx, userID, invitationID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.NotFoundError(domain.ErrorCodeInvitationNotFound, "The requested invitation does not exist.")
+		}
+		return nil, fmt.Errorf("get received invitation: %w", err)
+	}
+	dto := toReceivedInvitation(*record)
+	return &dto, nil
 }
 
 // normalizeListReceivedInvitationsInput resolves the past-bucket page size

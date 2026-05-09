@@ -35,6 +35,8 @@ type fakeRepo struct {
 	lastPastParams      ListPastInvitationsParams
 	pastErr             error
 	pendingErr          error
+	getReceivedResult   *ReceivedInvitationRecord
+	getReceivedErr      error
 }
 
 func (r *fakeRepo) CreateInvitations(_ context.Context, params CreateInvitationsParams) (*CreateInvitationsRecord, error) {
@@ -82,6 +84,13 @@ func (r *fakeRepo) AcceptInvitation(context.Context, uuid.UUID, uuid.UUID) (*Acc
 
 func (r *fakeRepo) DeclineInvitation(context.Context, uuid.UUID, uuid.UUID) (*domain.Invitation, error) {
 	return r.declineResult, nil
+}
+
+func (r *fakeRepo) GetReceivedInvitation(_ context.Context, _ uuid.UUID, _ uuid.UUID) (*ReceivedInvitationRecord, error) {
+	if r.getReceivedErr != nil {
+		return nil, r.getReceivedErr
+	}
+	return r.getReceivedResult, nil
 }
 
 func (r *fakeRepo) GetInvitationNotificationContext(_ context.Context, invitationID uuid.UUID) (*InvitationNotificationContext, error) {
@@ -323,6 +332,95 @@ func TestListReceivedInvitationsBucketsAndPagination(t *testing.T) {
 		// then
 		if !errors.Is(err, expected) {
 			t.Errorf("expected wrapped %v, got %v", expected, err)
+		}
+	})
+}
+
+func TestGetReceivedInvitation(t *testing.T) {
+	t.Run("happy path returns translated DTO", func(t *testing.T) {
+		// given
+		invID := uuid.New()
+		eventID := uuid.New()
+		hostID := uuid.New()
+		repo := &fakeRepo{
+			getReceivedResult: &ReceivedInvitationRecord{
+				InvitationID: invID,
+				Status:       domain.InvitationStatusCanceled,
+				CreatedAt:    time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC),
+				UpdatedAt:    time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
+				Event: ReceivedInvitationEventRecord{
+					ID:           eventID,
+					Title:        "Yoga",
+					StartTime:    time.Date(2026, 5, 10, 9, 0, 0, 0, time.UTC),
+					Status:       domain.EventStatusActive,
+					PrivacyLevel: domain.PrivacyPrivate,
+				},
+				Host: ReceivedInvitationUserRecord{ID: hostID, Username: "ada"},
+			},
+		}
+		service := NewService(repo, fakeUnitOfWork{})
+
+		// when
+		result, err := service.GetReceivedInvitation(context.Background(), uuid.New(), invID)
+
+		// then
+		if err != nil {
+			t.Fatalf("GetReceivedInvitation: %v", err)
+		}
+		if result.InvitationID != invID.String() {
+			t.Errorf("invitation_id = %s, want %s", result.InvitationID, invID)
+		}
+		// Detail endpoint must surface CANCELED so the client modal can warn.
+		if result.Status != string(domain.InvitationStatusCanceled) {
+			t.Errorf("status = %s, want CANCELED", result.Status)
+		}
+		if result.Host.Username != "ada" {
+			t.Errorf("host.username = %s, want ada", result.Host.Username)
+		}
+	})
+
+	t.Run("ErrNotFound from repo maps to invitation_not_found 404", func(t *testing.T) {
+		// given
+		repo := &fakeRepo{getReceivedErr: domain.ErrNotFound}
+		service := NewService(repo, fakeUnitOfWork{})
+
+		// when
+		_, err := service.GetReceivedInvitation(context.Background(), uuid.New(), uuid.New())
+
+		// then
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		var appErr *domain.AppError
+		if !errors.As(err, &appErr) {
+			t.Fatalf("expected *domain.AppError, got %T", err)
+		}
+		if appErr.Code != domain.ErrorCodeInvitationNotFound {
+			t.Errorf("Code = %s, want %s", appErr.Code, domain.ErrorCodeInvitationNotFound)
+		}
+		if appErr.Status != domain.StatusNotFound {
+			t.Errorf("Status = %d, want %d", appErr.Status, domain.StatusNotFound)
+		}
+	})
+
+	t.Run("unexpected repo error propagates wrapped", func(t *testing.T) {
+		// given
+		expected := errors.New("db down")
+		repo := &fakeRepo{getReceivedErr: expected}
+		service := NewService(repo, fakeUnitOfWork{})
+
+		// when
+		_, err := service.GetReceivedInvitation(context.Background(), uuid.New(), uuid.New())
+
+		// then
+		if !errors.Is(err, expected) {
+			t.Errorf("expected wrapped %v, got %v", expected, err)
+		}
+		// Must NOT be an *AppError — that would silently downgrade to 404/500
+		// and lose the wrap chain for upstream observability.
+		var appErr *domain.AppError
+		if errors.As(err, &appErr) {
+			t.Errorf("expected raw error, got *domain.AppError = %v", appErr)
 		}
 	})
 }

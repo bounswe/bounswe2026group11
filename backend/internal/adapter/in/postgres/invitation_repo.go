@@ -251,6 +251,62 @@ func (r *InvitationRepository) ListReceivedPastInvitations(
 	return records, nil
 }
 
+// GetReceivedInvitation returns a single invitation owned by the recipient
+// regardless of status, used by the modal-fetch flow that opens from a
+// notification. Filters: invitation id, invited_user_id, PRIVATE event.
+// Returns domain.ErrNotFound when no row matches all three filters so the
+// API can respond with a 404 that does not leak the row's existence.
+func (r *InvitationRepository) GetReceivedInvitation(
+	ctx context.Context,
+	userID, invitationID uuid.UUID,
+) (*invitationapp.ReceivedInvitationRecord, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			inv.id,
+			inv.status,
+			inv.message,
+			inv.expires_at,
+			inv.created_at,
+			inv.updated_at,
+			e.id,
+			e.title,
+			e.image_url,
+			e.start_time,
+			e.end_time,
+			e.status,
+			e.privacy_level,
+			e.approved_participant_count,
+			host.id,
+			host.username,
+			hp.display_name,
+			hp.avatar_url
+		FROM invitation inv
+		JOIN event e ON e.id = inv.event_id
+		JOIN app_user host ON host.id = inv.host_id
+		LEFT JOIN profile hp ON hp.user_id = host.id
+		WHERE inv.id = $1
+		  AND inv.invited_user_id = $2
+		  AND e.privacy_level = $3
+		LIMIT 1
+	`, invitationID, userID, domain.PrivacyPrivate)
+	if err != nil {
+		return nil, fmt.Errorf("get received invitation: %w", err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("get received invitation: %w", err)
+		}
+		return nil, domain.ErrNotFound
+	}
+	record, err := scanReceivedInvitation(rows)
+	if err != nil {
+		return nil, fmt.Errorf("scan received invitation: %w", err)
+	}
+	return record, nil
+}
+
 func (r *InvitationRepository) AcceptInvitation(
 	ctx context.Context,
 	userID, invitationID uuid.UUID,
