@@ -17,6 +17,39 @@ type Profile struct {
 	UpdatedAt   time.Time
 }
 
+// PublicUserProfile is the public-safe profile projection returned when one
+// user views another user's profile.
+type PublicUserProfile struct {
+	UserID                 uuid.UUID
+	Username               string
+	DisplayName            *string
+	AvatarURL              *string
+	Bio                    *string
+	FinalScore             *float64
+	HostRatingCount        int
+	ParticipantRatingCount int
+}
+
+// ProfileEquipment is one user-owned equipment entry shown on public profiles.
+type ProfileEquipment struct {
+	ID          uuid.UUID
+	UserID      uuid.UUID
+	Name        string
+	Description *string
+	ImageURL    *string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+// ProfileShowcaseImage is one user-owned showcase image entry.
+type ProfileShowcaseImage struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	ImageURL  string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 // EventSummary is a lightweight event projection used in profile responses.
 type EventSummary struct {
 	ID                       uuid.UUID

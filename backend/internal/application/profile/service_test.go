@@ -19,15 +19,25 @@ func (u *fakeUnitOfWork) RunInTx(ctx context.Context, fn func(ctx context.Contex
 }
 
 type fakeProfileRepo struct {
-	profile         *domain.UserProfile
-	profileErr      error
-	passwordHash    string
-	hostedEvents    []domain.EventSummary
-	upcomingEvents  []domain.EventSummary
-	completedEvents []domain.EventSummary
-	canceledEvents  []domain.EventSummary
-	searchUsers     []UserSearchRecord
-	eventsErr       error
+	profile                    *domain.UserProfile
+	publicProfile              *domain.PublicUserProfile
+	profileErr                 error
+	passwordHash               string
+	hostedEvents               []domain.EventSummary
+	upcomingEvents             []domain.EventSummary
+	completedEvents            []domain.EventSummary
+	canceledEvents             []domain.EventSummary
+	searchUsers                []UserSearchRecord
+	equipment                  []domain.ProfileEquipment
+	equipmentRecord            *domain.ProfileEquipment
+	showcaseImages             []domain.ProfileShowcaseImage
+	showcaseRecord             *domain.ProfileShowcaseImage
+	eventsErr                  error
+	equipmentErr               error
+	lastCreateEquipmentParams  CreateEquipmentParams
+	lastUpdateEquipmentParams  UpdateEquipmentParams
+	lastDeletedEquipmentID     uuid.UUID
+	lastDeletedShowcaseImageID uuid.UUID
 }
 
 func (r *fakeProfileRepo) GetProfile(_ context.Context, _ uuid.UUID) (*domain.UserProfile, error) {
@@ -36,6 +46,10 @@ func (r *fakeProfileRepo) GetProfile(_ context.Context, _ uuid.UUID) (*domain.Us
 
 func (r *fakeProfileRepo) UpdateProfile(_ context.Context, _ UpdateProfileParams) error {
 	return nil
+}
+
+func (r *fakeProfileRepo) GetPublicProfile(_ context.Context, _ uuid.UUID) (*domain.PublicUserProfile, error) {
+	return r.publicProfile, r.profileErr
 }
 
 func (r *fakeProfileRepo) GetHostedEvents(_ context.Context, _ uuid.UUID) ([]domain.EventSummary, error) {
@@ -56,6 +70,93 @@ func (r *fakeProfileRepo) GetCanceledEvents(_ context.Context, _ uuid.UUID) ([]d
 
 func (r *fakeProfileRepo) SearchUsers(_ context.Context, _ string, _ int) ([]UserSearchRecord, error) {
 	return r.searchUsers, r.eventsErr
+}
+
+func (r *fakeProfileRepo) ListEquipment(_ context.Context, _ uuid.UUID) ([]domain.ProfileEquipment, error) {
+	return r.equipment, r.equipmentErr
+}
+
+func (r *fakeProfileRepo) GetEquipmentByID(_ context.Context, _ uuid.UUID) (*domain.ProfileEquipment, error) {
+	if r.equipmentErr != nil {
+		return nil, r.equipmentErr
+	}
+	if r.equipmentRecord == nil {
+		return nil, domain.ErrNotFound
+	}
+	return r.equipmentRecord, nil
+}
+
+func (r *fakeProfileRepo) CreateEquipment(_ context.Context, params CreateEquipmentParams) (*domain.ProfileEquipment, error) {
+	r.lastCreateEquipmentParams = params
+	if r.equipmentErr != nil {
+		return nil, r.equipmentErr
+	}
+	item := &domain.ProfileEquipment{
+		ID:          uuid.New(),
+		UserID:      params.UserID,
+		Name:        params.Name,
+		Description: params.Description,
+		ImageURL:    params.ImageURL,
+	}
+	r.equipmentRecord = item
+	return item, nil
+}
+
+func (r *fakeProfileRepo) UpdateEquipment(_ context.Context, params UpdateEquipmentParams) (*domain.ProfileEquipment, error) {
+	r.lastUpdateEquipmentParams = params
+	if r.equipmentErr != nil {
+		return nil, r.equipmentErr
+	}
+	if r.equipmentRecord == nil {
+		return nil, domain.ErrNotFound
+	}
+	if params.Name != nil {
+		r.equipmentRecord.Name = *params.Name
+	}
+	if params.Description != nil {
+		r.equipmentRecord.Description = params.Description
+	}
+	if params.ImageURL != nil {
+		r.equipmentRecord.ImageURL = params.ImageURL
+	}
+	return r.equipmentRecord, nil
+}
+
+func (r *fakeProfileRepo) DeleteEquipment(_ context.Context, equipmentID uuid.UUID) error {
+	r.lastDeletedEquipmentID = equipmentID
+	return r.equipmentErr
+}
+
+func (r *fakeProfileRepo) ListShowcaseImages(_ context.Context, _ uuid.UUID) ([]domain.ProfileShowcaseImage, error) {
+	return r.showcaseImages, r.equipmentErr
+}
+
+func (r *fakeProfileRepo) GetShowcaseImageByID(_ context.Context, _ uuid.UUID) (*domain.ProfileShowcaseImage, error) {
+	if r.equipmentErr != nil {
+		return nil, r.equipmentErr
+	}
+	if r.showcaseRecord == nil {
+		return nil, domain.ErrNotFound
+	}
+	return r.showcaseRecord, nil
+}
+
+func (r *fakeProfileRepo) CreateShowcaseImage(_ context.Context, userID uuid.UUID, imageURL string) (*domain.ProfileShowcaseImage, error) {
+	if r.equipmentErr != nil {
+		return nil, r.equipmentErr
+	}
+	item := &domain.ProfileShowcaseImage{
+		ID:       uuid.New(),
+		UserID:   userID,
+		ImageURL: imageURL,
+	}
+	r.showcaseRecord = item
+	return item, nil
+}
+
+func (r *fakeProfileRepo) DeleteShowcaseImage(_ context.Context, showcaseImageID uuid.UUID) error {
+	r.lastDeletedShowcaseImageID = showcaseImageID
+	return r.equipmentErr
 }
 
 func (r *fakeProfileRepo) GetPasswordHash(_ context.Context, _ uuid.UUID) (string, error) {
@@ -191,6 +292,51 @@ func TestGetMyProfilePropagatesRepoError(t *testing.T) {
 	}
 }
 
+func TestGetPublicProfileIncludesEquipmentAndShowcase(t *testing.T) {
+	repo := &fakeProfileRepo{
+		publicProfile: &domain.PublicUserProfile{
+			UserID:                 uuid.New(),
+			Username:               "runner",
+			HostRatingCount:        3,
+			ParticipantRatingCount: 5,
+		},
+		equipment: []domain.ProfileEquipment{
+			{ID: uuid.New(), UserID: uuid.New(), Name: "Shoes"},
+		},
+		showcaseImages: []domain.ProfileShowcaseImage{
+			{ID: uuid.New(), UserID: uuid.New(), ImageURL: "https://cdn.example/showcase.jpg"},
+		},
+	}
+
+	result, err := newService(repo).GetPublicProfile(context.Background(), uuid.New())
+	if err != nil {
+		t.Fatalf("GetPublicProfile() error = %v", err)
+	}
+	if len(result.Equipment) != 1 {
+		t.Fatalf("expected 1 equipment item, got %d", len(result.Equipment))
+	}
+	if len(result.ShowcaseImages) != 1 {
+		t.Fatalf("expected 1 showcase image, got %d", len(result.ShowcaseImages))
+	}
+	if result.HostRatingCount != 3 || result.ParticipantRatingCount != 5 {
+		t.Fatalf("unexpected rating counts: %+v", result)
+	}
+}
+
+func TestGetPublicProfileMapsUserNotFound(t *testing.T) {
+	repo := &fakeProfileRepo{profileErr: domain.ErrNotFound}
+
+	_, err := newService(repo).GetPublicProfile(context.Background(), uuid.New())
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	appErr, ok := err.(*domain.AppError)
+	if !ok || appErr.Code != domain.ErrorCodeUserNotFound {
+		t.Fatalf("expected user_not_found AppError, got %v", err)
+	}
+}
+
 // --- event summary privacy_level tests ---
 
 func TestGetMyHostedEventsIncludesPrivacyLevel(t *testing.T) {
@@ -248,6 +394,79 @@ func TestGetMyCanceledEventsIncludesPrivacyLevel(t *testing.T) {
 
 	if events[0].PrivacyLevel != "PRIVATE" {
 		t.Fatalf("expected PRIVATE, got %q", events[0].PrivacyLevel)
+	}
+}
+
+func TestCreateMyEquipmentNormalizesOptionalFields(t *testing.T) {
+	repo := &fakeProfileRepo{}
+	svc := newService(repo)
+
+	description := "  lightweight  "
+	imageURL := "   "
+	item, err := svc.CreateMyEquipment(context.Background(), CreateEquipmentInput{
+		UserID:      uuid.New(),
+		Name:        "  Trail Shoes ",
+		Description: &description,
+		ImageURL:    &imageURL,
+	})
+	if err != nil {
+		t.Fatalf("CreateMyEquipment() error = %v", err)
+	}
+	if item.Name != "Trail Shoes" {
+		t.Fatalf("expected trimmed name, got %q", item.Name)
+	}
+	if repo.lastCreateEquipmentParams.Description == nil || *repo.lastCreateEquipmentParams.Description != "lightweight" {
+		t.Fatalf("expected trimmed description, got %+v", repo.lastCreateEquipmentParams.Description)
+	}
+	if repo.lastCreateEquipmentParams.ImageURL != nil {
+		t.Fatalf("expected blank image_url to clear, got %+v", repo.lastCreateEquipmentParams.ImageURL)
+	}
+}
+
+func TestUpdateMyEquipmentRejectsForeignOwner(t *testing.T) {
+	ownerID := uuid.New()
+	callerID := uuid.New()
+	repo := &fakeProfileRepo{
+		equipmentRecord: &domain.ProfileEquipment{
+			ID:     uuid.New(),
+			UserID: ownerID,
+			Name:   "Tent",
+		},
+	}
+	svc := newService(repo)
+
+	name := "New Tent"
+	_, err := svc.UpdateMyEquipment(context.Background(), UpdateEquipmentInput{
+		UserID:      callerID,
+		EquipmentID: repo.equipmentRecord.ID,
+		Name:        &name,
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	appErr, ok := err.(*domain.AppError)
+	if !ok || appErr.Code != domain.ErrorCodeProfileMutationNotAllowed {
+		t.Fatalf("expected profile_mutation_not_allowed, got %v", err)
+	}
+}
+
+func TestDeleteMyShowcaseImageRejectsForeignOwner(t *testing.T) {
+	repo := &fakeProfileRepo{
+		showcaseRecord: &domain.ProfileShowcaseImage{
+			ID:       uuid.New(),
+			UserID:   uuid.New(),
+			ImageURL: "https://cdn.example/showcase.jpg",
+		},
+	}
+	svc := newService(repo)
+
+	err := svc.DeleteMyShowcaseImage(context.Background(), uuid.New(), repo.showcaseRecord.ID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	appErr, ok := err.(*domain.AppError)
+	if !ok || appErr.Code != domain.ErrorCodeProfileMutationNotAllowed {
+		t.Fatalf("expected profile_mutation_not_allowed, got %v", err)
 	}
 }
 

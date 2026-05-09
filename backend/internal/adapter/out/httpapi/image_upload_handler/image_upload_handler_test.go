@@ -15,26 +15,29 @@ import (
 )
 
 type stubImageUploadService struct {
-	createProfileResult *imageupload.CreateUploadResult
-	createEventResult   *imageupload.CreateUploadResult
-	createReviewResult  *imageupload.CreateUploadResult
-	createJoinResult    *imageupload.CreateUploadResult
-	createReportResult  *imageupload.CreateUploadResult
-	createProfileErr    error
-	createEventErr      error
-	createReviewErr     error
-	createJoinErr       error
-	createReportErr     error
-	confirmProfileErr   error
-	confirmEventErr     error
-	confirmReviewErr    error
-	confirmReportErr    error
-	lastEventID         uuid.UUID
-	lastReviewEventID   uuid.UUID
-	lastJoinEventID     uuid.UUID
-	lastReportEventID   uuid.UUID
-	lastConfirmInput    imageupload.ConfirmUploadInput
-	lastConfirmEventID  uuid.UUID
+	createProfileResult  *imageupload.CreateUploadResult
+	createShowcaseResult *imageupload.CreateUploadResult
+	createEventResult    *imageupload.CreateUploadResult
+	createReviewResult   *imageupload.CreateUploadResult
+	createJoinResult     *imageupload.CreateUploadResult
+	createReportResult   *imageupload.CreateUploadResult
+	createProfileErr     error
+	createShowcaseErr    error
+	createEventErr       error
+	createReviewErr      error
+	createJoinErr        error
+	createReportErr      error
+	confirmProfileErr    error
+	confirmShowcaseErr   error
+	confirmEventErr      error
+	confirmReviewErr     error
+	confirmReportErr     error
+	lastEventID          uuid.UUID
+	lastReviewEventID    uuid.UUID
+	lastJoinEventID      uuid.UUID
+	lastReportEventID    uuid.UUID
+	lastConfirmInput     imageupload.ConfirmUploadInput
+	lastConfirmEventID   uuid.UUID
 }
 
 func (s *stubImageUploadService) CreateProfileAvatarUpload(_ context.Context, _ uuid.UUID) (*imageupload.CreateUploadResult, error) {
@@ -50,6 +53,27 @@ func (s *stubImageUploadService) CreateProfileAvatarUpload(_ context.Context, _ 
 func (s *stubImageUploadService) ConfirmProfileAvatarUpload(_ context.Context, _ uuid.UUID, input imageupload.ConfirmUploadInput) error {
 	s.lastConfirmInput = input
 	return s.confirmProfileErr
+}
+
+func (s *stubImageUploadService) CreateProfileShowcaseImageUpload(_ context.Context, _ uuid.UUID) (*imageupload.CreateUploadResult, error) {
+	if s.createShowcaseErr != nil {
+		return nil, s.createShowcaseErr
+	}
+	if s.createShowcaseResult != nil {
+		return s.createShowcaseResult, nil
+	}
+	return defaultUploadResult(), nil
+}
+
+func (s *stubImageUploadService) ConfirmProfileShowcaseImageUpload(_ context.Context, _ uuid.UUID, input imageupload.ConfirmUploadInput) (*imageupload.ConfirmShowcaseImageResult, error) {
+	s.lastConfirmInput = input
+	if s.confirmShowcaseErr != nil {
+		return nil, s.confirmShowcaseErr
+	}
+	return &imageupload.ConfirmShowcaseImageResult{
+		ID:       uuid.NewString(),
+		ImageURL: "https://cdn.example/showcase.jpg",
+	}, nil
 }
 
 func (s *stubImageUploadService) CreateEventImageUpload(_ context.Context, _ uuid.UUID, eventID uuid.UUID) (*imageupload.CreateUploadResult, error) {
@@ -253,6 +277,66 @@ func TestConfirmProfileAvatarUploadInvalidTokenReturns400(t *testing.T) {
 
 	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+}
+
+func TestCreateProfileShowcaseImageUploadReturnsSignedInstructions(t *testing.T) {
+	svc := &stubImageUploadService{}
+	app := newTestApp(svc, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodPost, "/me/showcase-images/upload-url", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+
+	var body imageupload.CreateUploadResult
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	if body.BaseURL == "" || body.ConfirmToken == "" || len(body.Uploads) != 2 {
+		t.Fatalf("unexpected response body: %+v", body)
+	}
+}
+
+func TestConfirmProfileShowcaseImageUploadReturnsCreatedItem(t *testing.T) {
+	svc := &stubImageUploadService{}
+	app := newTestApp(svc, authedVerifier())
+
+	req := httptest.NewRequest(
+		fiber.MethodPost,
+		"/me/showcase-images/confirm",
+		bytes.NewBufferString(`{"confirm_token":"showcase-token"}`),
+	)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("expected status %d, got %d", fiber.StatusCreated, resp.StatusCode)
+	}
+
+	var body imageupload.ConfirmShowcaseImageResult
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Decode() error = %v", err)
+	}
+	if body.ID == "" || body.ImageURL == "" {
+		t.Fatalf("unexpected response body: %+v", body)
+	}
+	if svc.lastConfirmInput.ConfirmToken != "showcase-token" {
+		t.Fatalf("expected confirm token to be forwarded, got %q", svc.lastConfirmInput.ConfirmToken)
 	}
 }
 

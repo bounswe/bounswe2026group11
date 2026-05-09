@@ -21,6 +21,9 @@ type fakeProfileRepo struct {
 	lastUpdatedAt         time.Time
 	setResult             bool
 	getAvatarVersionCalls int
+	createdShowcaseImage  *domain.ProfileShowcaseImage
+	lastShowcaseUserID    uuid.UUID
+	lastShowcaseImageURL  string
 }
 
 func (r *fakeProfileRepo) GetAvatarVersion(_ context.Context, _ uuid.UUID) (int, error) {
@@ -47,6 +50,22 @@ func (r *fakeProfileRepo) SetAvatarIfVersion(
 		return false, r.setErr
 	}
 	return r.setResult, nil
+}
+
+func (r *fakeProfileRepo) CreateShowcaseImage(_ context.Context, userID uuid.UUID, imageURL string) (*domain.ProfileShowcaseImage, error) {
+	r.lastShowcaseUserID = userID
+	r.lastShowcaseImageURL = imageURL
+	if r.err != nil {
+		return nil, r.err
+	}
+	if r.createdShowcaseImage != nil {
+		return r.createdShowcaseImage, nil
+	}
+	return &domain.ProfileShowcaseImage{
+		ID:       uuid.New(),
+		UserID:   userID,
+		ImageURL: imageURL,
+	}, nil
 }
 
 type fakeEventRepo struct {
@@ -323,6 +342,32 @@ func TestConfirmProfileAvatarUploadRejectsStaleVersion(t *testing.T) {
 	}
 	if appErr.Code != domain.ErrorCodeImageUploadVersionConflict {
 		t.Fatalf("expected error code %q, got %q", domain.ErrorCodeImageUploadVersionConflict, appErr.Code)
+	}
+}
+
+func TestConfirmProfileShowcaseImageUploadPersistsShowcaseImage(t *testing.T) {
+	svc, profileRepo, _, storage, tokens := newServiceForTests()
+	userID := uuid.New()
+
+	_, err := svc.CreateProfileShowcaseImageUpload(context.Background(), userID)
+	if err != nil {
+		t.Fatalf("CreateProfileShowcaseImageUpload() error = %v", err)
+	}
+	storage.existingKeys[tokens.payload.OriginalKey] = true
+	storage.existingKeys[tokens.payload.SmallKey] = true
+
+	result, err := svc.ConfirmProfileShowcaseImageUpload(context.Background(), userID, ConfirmUploadInput{ConfirmToken: "confirm-token"})
+	if err != nil {
+		t.Fatalf("ConfirmProfileShowcaseImageUpload() error = %v", err)
+	}
+	if profileRepo.lastShowcaseUserID != userID {
+		t.Fatalf("expected showcase image user %s, got %s", userID, profileRepo.lastShowcaseUserID)
+	}
+	if profileRepo.lastShowcaseImageURL != tokens.payload.BaseURL {
+		t.Fatalf("expected showcase image URL %q, got %q", tokens.payload.BaseURL, profileRepo.lastShowcaseImageURL)
+	}
+	if result.ImageURL != tokens.payload.BaseURL {
+		t.Fatalf("expected result image URL %q, got %q", tokens.payload.BaseURL, result.ImageURL)
 	}
 }
 

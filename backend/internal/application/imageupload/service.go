@@ -109,6 +109,46 @@ func (s *Service) ConfirmProfileAvatarUpload(ctx context.Context, userID uuid.UU
 	return nil
 }
 
+// CreateProfileShowcaseImageUpload prepares a direct-upload flow for one
+// showcase image owned by the authenticated user.
+func (s *Service) CreateProfileShowcaseImageUpload(ctx context.Context, userID uuid.UUID) (*CreateUploadResult, error) {
+	uploadID := uuid.NewString()
+
+	return s.createUpload(ctx, uploadDescriptor{
+		Resource:     ResourceProfileShowcase,
+		OwnerUserID:  userID,
+		NextVersion:  1,
+		OriginalKey:  fmt.Sprintf("profiles/%s/showcase/%s", userID, uploadID),
+		UploadID:     uploadID,
+		CurrentEvent: nil,
+	})
+}
+
+// ConfirmProfileShowcaseImageUpload verifies the uploaded objects and persists
+// a new showcase image row for the authenticated user.
+func (s *Service) ConfirmProfileShowcaseImageUpload(ctx context.Context, userID uuid.UUID, input ConfirmUploadInput) (*ConfirmShowcaseImageResult, error) {
+	payload, err := s.verifyConfirmToken(input, ResourceProfileShowcase)
+	if err != nil {
+		return nil, err
+	}
+	if payload.OwnerUserID != userID || payload.EventID != nil {
+		return nil, invalidConfirmTokenError()
+	}
+	if err := s.ensureUploadedObjectsExist(ctx, payload); err != nil {
+		return nil, err
+	}
+
+	imageRecord, err := s.profileRepo.CreateShowcaseImage(ctx, userID, payload.BaseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ConfirmShowcaseImageResult{
+		ID:       imageRecord.ID.String(),
+		ImageURL: imageRecord.ImageURL,
+	}, nil
+}
+
 // CreateEventImageUpload prepares a versioned direct-upload flow for an event cover image.
 func (s *Service) CreateEventImageUpload(ctx context.Context, userID, eventID uuid.UUID) (*CreateUploadResult, error) {
 	state, err := s.eventRepo.GetEventImageState(ctx, eventID)

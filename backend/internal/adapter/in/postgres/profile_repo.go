@@ -139,6 +139,62 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 	return &up, nil
 }
 
+// GetPublicProfile returns the public-safe projection for another user's profile.
+func (r *ProfileRepository) GetPublicProfile(ctx context.Context, userID uuid.UUID) (*domain.PublicUserProfile, error) {
+	row := r.db.QueryRow(ctx, `
+		SELECT
+			u.id,
+			u.username,
+			p.display_name,
+			p.avatar_url,
+			p.bio,
+			us.final_score,
+			COALESCE(us.hosted_event_rating_count, 0),
+			COALESCE(us.participant_rating_count, 0)
+		FROM app_user u
+		LEFT JOIN profile p ON p.user_id = u.id
+		LEFT JOIN user_score us ON us.user_id = u.id
+		WHERE u.id = $1
+	`, userID)
+
+	var (
+		profileRecord          domain.PublicUserProfile
+		displayName            pgtype.Text
+		avatarURL              pgtype.Text
+		bio                    pgtype.Text
+		finalScore             pgtype.Float8
+		hostRatingCount        int
+		participantRatingCount int
+	)
+
+	if err := row.Scan(
+		&profileRecord.UserID,
+		&profileRecord.Username,
+		&displayName,
+		&avatarURL,
+		&bio,
+		&finalScore,
+		&hostRatingCount,
+		&participantRatingCount,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("get public profile: %w", err)
+	}
+
+	profileRecord.DisplayName = textPtr(displayName)
+	profileRecord.AvatarURL = textPtr(avatarURL)
+	profileRecord.Bio = textPtr(bio)
+	if finalScore.Valid {
+		profileRecord.FinalScore = &finalScore.Float64
+	}
+	profileRecord.HostRatingCount = hostRatingCount
+	profileRecord.ParticipantRatingCount = participantRatingCount
+
+	return &profileRecord, nil
+}
+
 // GetHostedEvents returns a summary of all events created by the given user.
 func (r *ProfileRepository) GetHostedEvents(ctx context.Context, userID uuid.UUID) ([]domain.EventSummary, error) {
 	rows, err := r.pool.Query(ctx, `
@@ -262,6 +318,180 @@ func (r *ProfileRepository) GetCanceledEvents(ctx context.Context, userID uuid.U
 	return scanEventSummaries(rows)
 }
 
+// ListEquipment returns the user's equipment entries ordered newest-first.
+func (r *ProfileRepository) ListEquipment(ctx context.Context, userID uuid.UUID) ([]domain.ProfileEquipment, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT id, user_id, name, description, image_url, created_at, updated_at
+		FROM profile_equipment
+		WHERE user_id = $1
+		ORDER BY created_at DESC, id DESC
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list profile equipment: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]domain.ProfileEquipment, 0)
+	for rows.Next() {
+		item, err := scanProfileEquipment(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate profile equipment: %w", err)
+	}
+	return items, nil
+}
+
+// GetEquipmentByID returns one equipment item by its identifier.
+func (r *ProfileRepository) GetEquipmentByID(ctx context.Context, equipmentID uuid.UUID) (*domain.ProfileEquipment, error) {
+	row := r.db.QueryRow(ctx, `
+		SELECT id, user_id, name, description, image_url, created_at, updated_at
+		FROM profile_equipment
+		WHERE id = $1
+	`, equipmentID)
+	item, err := scanProfileEquipment(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("get profile equipment: %w", err)
+	}
+	return item, nil
+}
+
+// CreateEquipment inserts one equipment item for the given user.
+func (r *ProfileRepository) CreateEquipment(ctx context.Context, params profileapp.CreateEquipmentParams) (*domain.ProfileEquipment, error) {
+	row := r.db.QueryRow(ctx, `
+		INSERT INTO profile_equipment (user_id, name, description, image_url)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, user_id, name, description, image_url, created_at, updated_at
+	`, params.UserID, params.Name, params.Description, params.ImageURL)
+	item, err := scanProfileEquipment(row)
+	if err != nil {
+		return nil, fmt.Errorf("create profile equipment: %w", err)
+	}
+	return item, nil
+}
+
+// UpdateEquipment updates one equipment item identified by id.
+func (r *ProfileRepository) UpdateEquipment(ctx context.Context, params profileapp.UpdateEquipmentParams) (*domain.ProfileEquipment, error) {
+	setClauses := "updated_at = now()"
+	args := []any{params.EquipmentID}
+
+	if params.Name != nil {
+		setClauses += fmt.Sprintf(", name = $%d", len(args)+1)
+		args = append(args, *params.Name)
+	}
+	if params.Description != nil {
+		setClauses += fmt.Sprintf(", description = $%d", len(args)+1)
+		args = append(args, *params.Description)
+	}
+	if params.ImageURL != nil {
+		setClauses += fmt.Sprintf(", image_url = $%d", len(args)+1)
+		args = append(args, *params.ImageURL)
+	}
+
+	row := r.db.QueryRow(ctx, fmt.Sprintf(`
+		UPDATE profile_equipment
+		SET %s
+		WHERE id = $1
+		RETURNING id, user_id, name, description, image_url, created_at, updated_at
+	`, setClauses), args...)
+	item, err := scanProfileEquipment(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("update profile equipment: %w", err)
+	}
+	return item, nil
+}
+
+// DeleteEquipment deletes one equipment item by id.
+func (r *ProfileRepository) DeleteEquipment(ctx context.Context, equipmentID uuid.UUID) error {
+	tag, err := r.db.Exec(ctx, `DELETE FROM profile_equipment WHERE id = $1`, equipmentID)
+	if err != nil {
+		return fmt.Errorf("delete profile equipment: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+// ListShowcaseImages returns the user's showcase images ordered newest-first.
+func (r *ProfileRepository) ListShowcaseImages(ctx context.Context, userID uuid.UUID) ([]domain.ProfileShowcaseImage, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT id, user_id, image_url, created_at, updated_at
+		FROM profile_showcase_image
+		WHERE user_id = $1
+		ORDER BY created_at DESC, id DESC
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list showcase images: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]domain.ProfileShowcaseImage, 0)
+	for rows.Next() {
+		item, err := scanProfileShowcaseImage(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate showcase images: %w", err)
+	}
+	return items, nil
+}
+
+// GetShowcaseImageByID returns one showcase image by its identifier.
+func (r *ProfileRepository) GetShowcaseImageByID(ctx context.Context, showcaseImageID uuid.UUID) (*domain.ProfileShowcaseImage, error) {
+	row := r.db.QueryRow(ctx, `
+		SELECT id, user_id, image_url, created_at, updated_at
+		FROM profile_showcase_image
+		WHERE id = $1
+	`, showcaseImageID)
+	item, err := scanProfileShowcaseImage(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("get showcase image: %w", err)
+	}
+	return item, nil
+}
+
+// CreateShowcaseImage inserts a new showcase image row for the given user.
+func (r *ProfileRepository) CreateShowcaseImage(ctx context.Context, userID uuid.UUID, imageURL string) (*domain.ProfileShowcaseImage, error) {
+	row := r.db.QueryRow(ctx, `
+		INSERT INTO profile_showcase_image (user_id, image_url)
+		VALUES ($1, $2)
+		RETURNING id, user_id, image_url, created_at, updated_at
+	`, userID, imageURL)
+	item, err := scanProfileShowcaseImage(row)
+	if err != nil {
+		return nil, fmt.Errorf("create showcase image: %w", err)
+	}
+	return item, nil
+}
+
+// DeleteShowcaseImage deletes one showcase image by id.
+func (r *ProfileRepository) DeleteShowcaseImage(ctx context.Context, showcaseImageID uuid.UUID) error {
+	tag, err := r.db.Exec(ctx, `DELETE FROM profile_showcase_image WHERE id = $1`, showcaseImageID)
+	if err != nil {
+		return fmt.Errorf("delete showcase image: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 // SearchUsers returns lightweight user summaries ordered for username picker relevance.
 func (r *ProfileRepository) SearchUsers(ctx context.Context, query string, limit int) ([]profileapp.UserSearchRecord, error) {
 	rows, err := r.pool.Query(ctx, `
@@ -297,6 +527,42 @@ func (r *ProfileRepository) SearchUsers(ctx context.Context, query string, limit
 		return nil, fmt.Errorf("iterate user search results: %w", err)
 	}
 	return records, nil
+}
+
+func scanProfileEquipment(row interface{ Scan(...any) error }) (*domain.ProfileEquipment, error) {
+	var (
+		item        domain.ProfileEquipment
+		description pgtype.Text
+		imageURL    pgtype.Text
+	)
+	if err := row.Scan(
+		&item.ID,
+		&item.UserID,
+		&item.Name,
+		&description,
+		&imageURL,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	); err != nil {
+		return nil, err
+	}
+	item.Description = textPtr(description)
+	item.ImageURL = textPtr(imageURL)
+	return &item, nil
+}
+
+func scanProfileShowcaseImage(row interface{ Scan(...any) error }) (*domain.ProfileShowcaseImage, error) {
+	var item domain.ProfileShowcaseImage
+	if err := row.Scan(
+		&item.ID,
+		&item.UserID,
+		&item.ImageURL,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	); err != nil {
+		return nil, err
+	}
+	return &item, nil
 }
 
 func scanEventSummaries(rows interface {

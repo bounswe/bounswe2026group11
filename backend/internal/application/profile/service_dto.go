@@ -63,6 +63,40 @@ type GetProfileResult struct {
 	ParticipantScore       *ParticipantScore `json:"participant_score"`
 }
 
+// PublicProfileResult is the public-safe profile payload returned when one
+// user views another user's profile.
+type PublicProfileResult struct {
+	UserID                 string              `json:"user_id"`
+	Username               string              `json:"username"`
+	DisplayName            *string             `json:"display_name"`
+	AvatarURL              *string             `json:"avatar_url"`
+	Bio                    *string             `json:"bio"`
+	FinalScore             *float64            `json:"final_score"`
+	HostRatingCount        int                 `json:"host_rating_count"`
+	ParticipantRatingCount int                 `json:"participant_rating_count"`
+	Equipment              []EquipmentItem     `json:"equipment"`
+	ShowcaseImages         []ShowcaseImageItem `json:"showcase_images"`
+}
+
+// EquipmentItem is one user-owned equipment entry.
+type EquipmentItem struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	ImageURL    *string `json:"image_url"`
+}
+
+// ShowcaseImageItem is one user-owned showcase image entry.
+type ShowcaseImageItem struct {
+	ID       string `json:"id"`
+	ImageURL string `json:"image_url"`
+}
+
+// ListEquipmentResult wraps the authenticated user's equipment list.
+type ListEquipmentResult struct {
+	Items []EquipmentItem `json:"items"`
+}
+
 // UpdateProfileInput is the input to the UpdateMyProfile use case.
 // All fields are optional (pointer = omitted means no change).
 type UpdateProfileInput struct {
@@ -77,6 +111,39 @@ type UpdateProfileInput struct {
 	DisplayName            *string
 	Bio                    *string
 	AvatarURL              *string
+}
+
+// CreateEquipmentInput is the input for creating one equipment item.
+type CreateEquipmentInput struct {
+	UserID      uuid.UUID
+	Name        string
+	Description *string
+	ImageURL    *string
+}
+
+// CreateEquipmentParams is passed to the repository layer.
+type CreateEquipmentParams struct {
+	UserID      uuid.UUID
+	Name        string
+	Description *string
+	ImageURL    *string
+}
+
+// UpdateEquipmentInput is the input for updating one equipment item.
+type UpdateEquipmentInput struct {
+	UserID      uuid.UUID
+	EquipmentID uuid.UUID
+	Name        *string
+	Description *string
+	ImageURL    *string
+}
+
+// UpdateEquipmentParams is passed to the repository layer.
+type UpdateEquipmentParams struct {
+	EquipmentID uuid.UUID
+	Name        *string
+	Description *string
+	ImageURL    *string
 }
 
 // UpdateProfileParams is passed to the repository layer.

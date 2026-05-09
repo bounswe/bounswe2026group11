@@ -66,6 +66,9 @@ const (
 	ErrorCodeAgeRequirementNotMet             = "age_requirement_not_met"
 	ErrorCodeGenderRequirementNotMet          = "gender_requirement_not_met"
 	ErrorCodeProfileIncomplete                = "profile_incomplete"
+	ErrorCodeProfileMutationNotAllowed        = "profile_mutation_not_allowed"
+	ErrorCodeProfileEquipmentNotFound         = "profile_equipment_not_found"
+	ErrorCodeProfileShowcaseImageNotFound     = "profile_showcase_image_not_found"
 
 	ErrorCodeImageUploadTokenInvalid    = "image_upload_token_invalid"
 	ErrorCodeImageUploadNotAllowed      = "image_upload_not_allowed"

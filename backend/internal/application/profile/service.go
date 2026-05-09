@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
@@ -71,6 +72,40 @@ func (s *Service) GetMyProfile(ctx context.Context, userID uuid.UUID) (*GetProfi
 	return result, nil
 }
 
+// GetPublicProfile returns the public-safe projection of another user's
+// profile, enriched with equipment and showcase images.
+func (s *Service) GetPublicProfile(ctx context.Context, userID uuid.UUID) (*PublicProfileResult, error) {
+	profileRecord, err := s.repo.GetPublicProfile(ctx, userID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.NotFoundError(domain.ErrorCodeUserNotFound, "The requested user does not exist.")
+		}
+		return nil, err
+	}
+
+	equipment, err := s.repo.ListEquipment(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	showcaseImages, err := s.repo.ListShowcaseImages(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PublicProfileResult{
+		UserID:                 profileRecord.UserID.String(),
+		Username:               profileRecord.Username,
+		DisplayName:            profileRecord.DisplayName,
+		AvatarURL:              profileRecord.AvatarURL,
+		Bio:                    profileRecord.Bio,
+		FinalScore:             profileRecord.FinalScore,
+		HostRatingCount:        profileRecord.HostRatingCount,
+		ParticipantRatingCount: profileRecord.ParticipantRatingCount,
+		Equipment:              toEquipmentItems(equipment),
+		ShowcaseImages:         toShowcaseImageItems(showcaseImages),
+	}, nil
+}
+
 // GetMyHostedEvents returns events created by the user.
 func (s *Service) GetMyHostedEvents(ctx context.Context, userID uuid.UUID) ([]EventSummary, error) {
 	events, err := s.repo.GetHostedEvents(ctx, userID)
@@ -110,6 +145,112 @@ func (s *Service) GetMyCanceledEvents(ctx context.Context, userID uuid.UUID) ([]
 	return toEventSummaries(events), nil
 }
 
+// ListMyEquipment returns the authenticated user's equipment entries.
+func (s *Service) ListMyEquipment(ctx context.Context, userID uuid.UUID) (*ListEquipmentResult, error) {
+	items, err := s.repo.ListEquipment(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return &ListEquipmentResult{Items: toEquipmentItems(items)}, nil
+}
+
+// CreateMyEquipment validates and persists one equipment item for the
+// authenticated user.
+func (s *Service) CreateMyEquipment(ctx context.Context, input CreateEquipmentInput) (*EquipmentItem, error) {
+	validated, appErr := validateCreateEquipmentInput(input)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	var created *domain.ProfileEquipment
+	if err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		var err error
+		created, err = s.repo.CreateEquipment(ctx, CreateEquipmentParams{
+			UserID:      validated.UserID,
+			Name:        validated.Name,
+			Description: validated.Description,
+			ImageURL:    validated.ImageURL,
+		})
+		return err
+	}); err != nil {
+		return nil, err
+	}
+
+	return toEquipmentItem(*created), nil
+}
+
+// UpdateMyEquipment updates one of the authenticated user's equipment entries.
+func (s *Service) UpdateMyEquipment(ctx context.Context, input UpdateEquipmentInput) (*EquipmentItem, error) {
+	validated, appErr := validateUpdateEquipmentInput(input)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	var updated *domain.ProfileEquipment
+	if err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		existing, err := s.repo.GetEquipmentByID(ctx, validated.EquipmentID)
+		if err != nil {
+			if errors.Is(err, domain.ErrNotFound) {
+				return domain.NotFoundError(domain.ErrorCodeProfileEquipmentNotFound, "The requested equipment item does not exist.")
+			}
+			return err
+		}
+		if existing.UserID != validated.UserID {
+			return domain.ForbiddenError(domain.ErrorCodeProfileMutationNotAllowed, "You can only modify your own profile resources.")
+		}
+
+		updated, err = s.repo.UpdateEquipment(ctx, UpdateEquipmentParams{
+			EquipmentID: validated.EquipmentID,
+			Name:        validated.Name,
+			Description: validated.Description,
+			ImageURL:    validated.ImageURL,
+		})
+		if err != nil && errors.Is(err, domain.ErrNotFound) {
+			return domain.NotFoundError(domain.ErrorCodeProfileEquipmentNotFound, "The requested equipment item does not exist.")
+		}
+		return err
+	}); err != nil {
+		return nil, err
+	}
+
+	return toEquipmentItem(*updated), nil
+}
+
+// DeleteMyEquipment deletes one of the authenticated user's equipment entries.
+func (s *Service) DeleteMyEquipment(ctx context.Context, userID, equipmentID uuid.UUID) error {
+	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		existing, err := s.repo.GetEquipmentByID(ctx, equipmentID)
+		if err != nil {
+			if errors.Is(err, domain.ErrNotFound) {
+				return domain.NotFoundError(domain.ErrorCodeProfileEquipmentNotFound, "The requested equipment item does not exist.")
+			}
+			return err
+		}
+		if existing.UserID != userID {
+			return domain.ForbiddenError(domain.ErrorCodeProfileMutationNotAllowed, "You can only modify your own profile resources.")
+		}
+		return s.repo.DeleteEquipment(ctx, equipmentID)
+	})
+}
+
+// DeleteMyShowcaseImage deletes one of the authenticated user's showcase
+// images.
+func (s *Service) DeleteMyShowcaseImage(ctx context.Context, userID, showcaseImageID uuid.UUID) error {
+	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		existing, err := s.repo.GetShowcaseImageByID(ctx, showcaseImageID)
+		if err != nil {
+			if errors.Is(err, domain.ErrNotFound) {
+				return domain.NotFoundError(domain.ErrorCodeProfileShowcaseImageNotFound, "The requested showcase image does not exist.")
+			}
+			return err
+		}
+		if existing.UserID != userID {
+			return domain.ForbiddenError(domain.ErrorCodeProfileMutationNotAllowed, "You can only modify your own profile resources.")
+		}
+		return s.repo.DeleteShowcaseImage(ctx, showcaseImageID)
+	})
+}
+
 // SearchUsers returns lightweight user summaries for username picker UIs.
 func (s *Service) SearchUsers(ctx context.Context, input UserSearchInput) (*UserSearchResult, error) {
 	query := strings.TrimSpace(input.Query)
@@ -146,6 +287,39 @@ func toEventSummaries(events []domain.EventSummary) []EventSummary {
 			ImageURL:          e.ImageURL,
 			ParticipantsCount: e.ApprovedParticipantCount,
 			LocationAddress:   e.LocationAddress,
+		}
+	}
+	return result
+}
+
+func toEquipmentItems(items []domain.ProfileEquipment) []EquipmentItem {
+	result := make([]EquipmentItem, len(items))
+	for i, item := range items {
+		result[i] = EquipmentItem{
+			ID:          item.ID.String(),
+			Name:        item.Name,
+			Description: item.Description,
+			ImageURL:    item.ImageURL,
+		}
+	}
+	return result
+}
+
+func toEquipmentItem(item domain.ProfileEquipment) *EquipmentItem {
+	return &EquipmentItem{
+		ID:          item.ID.String(),
+		Name:        item.Name,
+		Description: item.Description,
+		ImageURL:    item.ImageURL,
+	}
+}
+
+func toShowcaseImageItems(items []domain.ProfileShowcaseImage) []ShowcaseImageItem {
+	result := make([]ShowcaseImageItem, len(items))
+	for i, item := range items {
+		result[i] = ShowcaseImageItem{
+			ID:       item.ID.String(),
+			ImageURL: item.ImageURL,
 		}
 	}
 	return result
