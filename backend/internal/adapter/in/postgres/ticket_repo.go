@@ -39,7 +39,18 @@ func (r *TicketRepository) CreateTicketForParticipation(ctx context.Context, par
 			FROM participation p
 			JOIN event e ON e.id = p.event_id
 			WHERE p.id = $1
-			  AND e.privacy_level IN ($3, $7)
+			  AND e.privacy_level IN ($3, $6)
+		),
+		existing AS (
+			SELECT t.id
+			FROM ticket t
+			JOIN participation_event pe ON pe.participation_id = t.participation_id
+			ORDER BY
+				CASE WHEN t.status IN ($4, $5) THEN 0 ELSE 1 END,
+				t.updated_at DESC,
+				t.created_at DESC
+			LIMIT 1
+			FOR UPDATE OF t
 		),
 		reactivated AS (
 			UPDATE ticket t
@@ -52,7 +63,7 @@ func (r *TicketRepository) CreateTicketForParticipation(ctx context.Context, par
 			    updated_at = NOW()
 			FROM participation_event pe
 			WHERE t.participation_id = pe.participation_id
-			  AND t.status IN ($4, $5, $6)
+			  AND t.id IN (SELECT id FROM existing)
 			RETURNING t.id, t.participation_id, t.status, t.qr_token_version, t.last_issued_qr_token_hash,
 			          t.expires_at, t.used_at, t.canceled_at, t.created_at, t.updated_at
 		),
@@ -73,7 +84,7 @@ func (r *TicketRepository) CreateTicketForParticipation(ctx context.Context, par
 		       expires_at, used_at, canceled_at, created_at, updated_at
 		FROM inserted
 		LIMIT 1
-	`, participationID, status, domain.PrivacyProtected, domain.TicketStatusExpired, domain.TicketStatusCanceled, domain.TicketStatusUsed, domain.PrivacyPrivate)
+	`, participationID, status, domain.PrivacyProtected, domain.TicketStatusActive, domain.TicketStatusPending, domain.PrivacyPrivate)
 
 	ticket, err := scanTicket(row)
 	if err != nil {

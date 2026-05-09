@@ -15,6 +15,36 @@ interface ErrorResponse {
   };
 }
 
+function parseTicketQrEventBlock(block: string): TicketQrToken | Error | null {
+  const lines = block
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const eventName = lines.find((line) => line.startsWith('event:'))?.replace(/^event:\s*/, '');
+  const dataLines = lines
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.replace(/^data:\s*/, ''));
+
+  if (dataLines.length === 0) {
+    return null;
+  }
+
+  try {
+    const data = JSON.parse(dataLines.join('\n'));
+    if (eventName === 'error') {
+      return new Error(data.message ?? 'Failed to load the live QR token.');
+    }
+
+    if (data.token) {
+      return data as TicketQrToken;
+    }
+  } catch {
+    // Wait for more chunks if the payload is incomplete.
+  }
+
+  return null;
+}
+
 async function parseErrorResponse(response: Response): Promise<ErrorResponse> {
   try {
     return await response.json();
@@ -125,7 +155,7 @@ export async function* getTicketQrTokenStream(
   coords: { lat: number; lon: number },
   token: string,
   signal?: AbortSignal,
-  streamId?: string,
+  _streamId?: string,
 ): AsyncGenerator<TicketQrToken> {
   const url = `${BASE_URL}/me/tickets/${ticketId}/qr-stream?lat=${encodeURIComponent(String(coords.lat))}&lon=${encodeURIComponent(String(coords.lon))}`;
 
@@ -137,6 +167,7 @@ export async function* getTicketQrTokenStream(
   xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
   let lastIndex = 0;
+  let buffer = '';
 
   // Since we need to return values from an event listener in an async generator, 
   // we'll use a queue.
@@ -155,21 +186,14 @@ export async function* getTicketQrTokenStream(
   xhr.onprogress = () => {
     const newText = xhr.responseText.substring(lastIndex);
     lastIndex = xhr.responseText.length;
+    buffer += newText;
 
-    const lines = newText.split('\n');
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.startsWith('data:')) {
-        const payload = trimmed.replace(/^data:\s*/, '');
-        try {
-          const data = JSON.parse(payload);
-          if (data.token) {
-            pushToQueue(data as TicketQrToken);
-          }
-        } catch {
-          // Chunk might be incomplete
-        }
-      }
+    const eventBlocks = buffer.split(/\r?\n\r?\n/);
+    buffer = eventBlocks.pop() ?? '';
+
+    for (const block of eventBlocks) {
+      const item = parseTicketQrEventBlock(block);
+      if (item) pushToQueue(item);
     }
   };
 
@@ -278,34 +302,19 @@ export async function getTicketQrTokenOnce(
       lastIndex = xhr.responseText.length;
       buffer += newText;
 
-      const eventBlocks = buffer.split('\n\n');
+      const eventBlocks = buffer.split(/\r?\n\r?\n/);
       buffer = eventBlocks.pop() ?? '';
 
       for (const block of eventBlocks) {
-        const lines = block
-          .split('\n')
-          .map((line) => line.trim())
-          .filter(Boolean);
-        const eventName = lines.find((line) => line.startsWith('event:'))?.replace(/^event:\s*/, '');
-        const dataLine = lines.find((line) => line.startsWith('data:'));
-
-        if (!dataLine) {
-          continue;
+        const item = parseTicketQrEventBlock(block);
+        if (item instanceof Error) {
+          settle(() => reject(item));
+          return;
         }
 
-        try {
-          const data = JSON.parse(dataLine.replace(/^data:\s*/, ''));
-          if (eventName === 'error') {
-            settle(() => reject(new Error(data.message ?? 'Failed to load the live QR token.')));
-            return;
-          }
-
-          if (data.token) {
-            settle(() => resolve(data as TicketQrToken));
-            return;
-          }
-        } catch {
-          // Wait for more chunks if the payload is incomplete.
+        if (item) {
+          settle(() => resolve(item));
+          return;
         }
       }
     };

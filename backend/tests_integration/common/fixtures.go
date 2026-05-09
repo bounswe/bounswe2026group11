@@ -199,6 +199,12 @@ func GivenProtectedEvent(t *testing.T, svc eventapp.UseCase, hostID uuid.UUID) *
 	return givenEvent(t, svc, hostID, domain.PrivacyProtected)
 }
 
+// GivenPrivateEvent creates a PRIVATE point event owned by hostID and returns a reference to it.
+func GivenPrivateEvent(t *testing.T, svc eventapp.UseCase, hostID uuid.UUID) *EventRef {
+	t.Helper()
+	return givenEvent(t, svc, hostID, domain.PrivacyPrivate)
+}
+
 func givenEvent(t *testing.T, svc eventapp.UseCase, hostID uuid.UUID, privacyLevel domain.EventPrivacyLevel) *EventRef {
 	t.Helper()
 

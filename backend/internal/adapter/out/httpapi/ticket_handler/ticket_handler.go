@@ -94,10 +94,12 @@ func (h *Handler) StreamQRToken(c *fiber.Ctx) error {
 		slog.String("ticket_id", ticketID.String()),
 	)
 
-	done := c.Context().Done()
+	requestCtx := c.UserContext()
+	done := requestCtx.Done()
 	c.Set(fiber.HeaderContentType, "text/event-stream")
 	c.Set(fiber.HeaderCacheControl, "no-cache, no-store")
 	c.Set(fiber.HeaderConnection, "keep-alive")
+	c.Set("X-Accel-Buffering", "no")
 	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		if !writeSSE(w, "qr_token", firstToken) {
 			return
@@ -110,7 +112,7 @@ func (h *Handler) StreamQRToken(c *fiber.Ctx) error {
 			case <-done:
 				return
 			case <-ticker.C:
-				refreshCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				refreshCtx, cancel := context.WithTimeout(requestCtx, 5*time.Second)
 				nextToken, err := h.service.IssueQRToken(refreshCtx, claims.UserID, ticketID, input)
 				cancel()
 				select {

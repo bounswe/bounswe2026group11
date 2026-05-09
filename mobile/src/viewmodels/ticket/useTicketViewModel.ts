@@ -227,13 +227,6 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
 
         const coords = await getCurrentCoordinates();
 
-        const initialToken = await getTicketQrTokenOnce(currentTicketId, coords, token);
-
-        if (!active || abortController.signal.aborted) return;
-        setQrToken(initialToken);
-        setQrMessage(null);
-
-        // Final check before opening the connection
         if (!active || abortController.signal.aborted) return;
 
         const stream = getTicketQrTokenStream(
