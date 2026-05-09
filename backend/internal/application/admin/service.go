@@ -141,7 +141,7 @@ func (s *Service) CreateManualParticipation(ctx context.Context, input CreateMan
 			Status:          participation.Status,
 		}
 
-		if eventState.PrivacyLevel == domain.PrivacyProtected && participation.Status == domain.ParticipationStatusApproved {
+		if participation.Status == domain.ParticipationStatusApproved {
 			createdTicket, err := s.tickets.CreateTicketForParticipation(ctx, participation, domain.TicketStatusActive)
 			if err != nil {
 				return err

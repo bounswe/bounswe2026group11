@@ -173,6 +173,7 @@ func TestLeaveParticipationDelegatesToRepo(t *testing.T) {
 	}
 	if result == nil {
 		t.Fatal("expected participation result, got nil")
+		return
 	}
 	if repo.leaveCallCount != 1 {
 		t.Fatalf("expected leave repo to be called once, got %d", repo.leaveCallCount)

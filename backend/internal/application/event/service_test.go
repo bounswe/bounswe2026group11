@@ -433,6 +433,8 @@ type fakeTicketLifecycle struct {
 	cancelParticipationCallCount int
 	cancelEventCallCount         int
 	expireEventCallCount         int
+	lastCreatedParticipation     *domain.Participation
+	lastCreatedStatus            domain.TicketStatus
 	lastParticipationID          uuid.UUID
 	lastCancelEventID            uuid.UUID
 	lastExpireEventID            uuid.UUID
@@ -443,6 +445,8 @@ type fakeTicketLifecycle struct {
 
 func (s *fakeTicketLifecycle) CreateTicketForParticipation(_ context.Context, participation *domain.Participation, status domain.TicketStatus) (*domain.Ticket, error) {
 	s.createCallCount++
+	s.lastCreatedParticipation = participation
+	s.lastCreatedStatus = status
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -1765,10 +1769,10 @@ func TestUpdateEventRejectsCapacityBelowApprovedAndPendingCount(t *testing.T) {
 	}
 }
 
-func TestReconfirmParticipationCreatesActiveTicketForProtectedEvent(t *testing.T) {
+func TestReconfirmParticipationCreatesActiveTicketForPublicEvent(t *testing.T) {
 	// given
 	hostID := uuid.New()
-	ev := editableEvent(hostID)
+	ev := publicEvent(hostID)
 	svc, _, participationService, _, ticketService := newTestEventServiceWithEventAndTickets(ev)
 	userID := uuid.New()
 
@@ -2080,6 +2084,55 @@ func TestJoinEventSuccessReturnsApproved(t *testing.T) {
 	}
 	if participationService.lastEventID != ev.ID || participationService.lastUserID != joinerID {
 		t.Fatalf("expected participation service to receive event %s and user %s", ev.ID, joinerID)
+	}
+}
+
+func TestJoinEventCreatesActiveTicketForPublicEvent(t *testing.T) {
+	hostID := uuid.New()
+	joinerID := uuid.New()
+	ev := publicEvent(hostID)
+	svc, _, participationService, _, ticketService := newTestEventServiceWithEventAndTickets(ev)
+
+	result, err := svc.JoinEvent(context.Background(), joinerID, ev.ID)
+
+	if err != nil {
+		t.Fatalf("JoinEvent() error = %v", err)
+	}
+	if ticketService.createCallCount != 1 {
+		t.Fatalf("expected ticket creation once, got %d", ticketService.createCallCount)
+	}
+	if ticketService.lastCreatedStatus != domain.TicketStatusActive {
+		t.Fatalf("expected ACTIVE ticket status, got %q", ticketService.lastCreatedStatus)
+	}
+	if ticketService.lastCreatedParticipation == nil {
+		t.Fatal("expected participation to be forwarded to ticket service")
+	}
+	if ticketService.lastCreatedParticipation.ID != uuid.MustParse(result.ParticipationID) {
+		t.Fatalf("expected ticket participation %s, got %s", result.ParticipationID, ticketService.lastCreatedParticipation.ID)
+	}
+	if participationService.callCount != 1 {
+		t.Fatalf("expected participation service to be called once")
+	}
+}
+
+func TestJoinEventRollsBackUnitOfWorkWhenTicketCreationFails(t *testing.T) {
+	hostID := uuid.New()
+	joinerID := uuid.New()
+	ev := publicEvent(hostID)
+	svc, _, participationService, _, ticketService := newTestEventServiceWithEventAndTickets(ev)
+	ticketService.err = errors.New("ticket create failed")
+
+	_, err := svc.JoinEvent(context.Background(), joinerID, ev.ID)
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	uow := svc.unitOfWork.(*fakeUnitOfWork)
+	if uow.rollbackCount != 1 || uow.commitCount != 0 {
+		t.Fatalf("expected rollback without commit, got rollbacks=%d commits=%d", uow.rollbackCount, uow.commitCount)
+	}
+	if participationService.callCount != 1 {
+		t.Fatalf("expected participation service to be called once before ticket creation failure")
 	}
 }
 

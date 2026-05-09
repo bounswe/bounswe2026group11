@@ -85,6 +85,7 @@ func TestBuildNextPastInvitationCursor(t *testing.T) {
 	}
 	if got == nil {
 		t.Fatal("expected non-nil cursor when hasNext=true")
+		return
 	}
 	decoded, err := decodePastInvitationCursor(*got)
 	if err != nil {

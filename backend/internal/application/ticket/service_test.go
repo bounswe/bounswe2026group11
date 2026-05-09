@@ -148,6 +148,27 @@ func TestIssueQRTokenStoresNextVersionAndHash(t *testing.T) {
 	}
 }
 
+func TestIssueQRTokenAllowsPublicEvent(t *testing.T) {
+	// given
+	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+	record := activeTicketAccessRecord(now)
+	record.PrivacyLevel = domain.PrivacyPublic
+	repo := &fakeTicketRepo{accessRecord: record}
+	service := NewService(repo, &fakeUnitOfWork{}, &fakeTokenManager{}, Settings{QRTokenTTL: 10 * time.Second, ProximityMeters: 200})
+	service.now = func() time.Time { return now }
+
+	// when
+	result, err := service.IssueQRToken(context.Background(), record.UserID, record.Ticket.ID, QRTokenInput{Lat: 41, Lon: 29})
+
+	// then
+	if err != nil {
+		t.Fatalf("IssueQRToken() error = %v", err)
+	}
+	if result.Token == "" {
+		t.Fatal("expected QR token to be issued for PUBLIC event ticket")
+	}
+}
+
 func TestIssueQRTokenRejectsFarLocation(t *testing.T) {
 	// given
 	now := time.Now().UTC()
@@ -221,6 +242,35 @@ func TestScanTicketRejectsOldVersion(t *testing.T) {
 	}
 	if result.Result != ScanResultRejected || result.Reason == nil || *result.Reason != RejectReasonTokenOldVersion {
 		t.Fatalf("expected old-version rejection, got %+v", result)
+	}
+}
+
+func TestScanTicketAcceptsPrivateEventTicket(t *testing.T) {
+	// given
+	now := time.Now().UTC()
+	record := activeTicketScanRecord(now)
+	record.PrivacyLevel = domain.PrivacyPrivate
+	claims := &QRTokenClaims{
+		TicketID:        record.Ticket.ID,
+		ParticipationID: record.Participation.ID,
+		EventID:         record.EventID,
+		UserID:          record.UserID,
+		Version:         record.Ticket.QRTokenVersion,
+		IssuedAt:        now,
+		ExpiresAt:       now.Add(10 * time.Second),
+	}
+	repo := &fakeTicketRepo{scanRecord: record}
+	service := NewService(repo, &fakeUnitOfWork{}, &fakeTokenManager{verifyClaims: claims}, Settings{})
+
+	// when
+	result, err := service.ScanTicket(context.Background(), record.HostID, record.EventID, ScanTicketInput{QRToken: "signed-token"})
+
+	// then
+	if err != nil {
+		t.Fatalf("ScanTicket() error = %v", err)
+	}
+	if result.Result != ScanResultAccepted || result.TicketStatus == nil || *result.TicketStatus != domain.TicketStatusUsed {
+		t.Fatalf("expected accepted USED result, got %+v", result)
 	}
 }
 
