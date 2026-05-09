@@ -578,6 +578,10 @@ function JoinActionSection({
   onDismissError,
   onDismissLeaveError,
   isAuthenticated,
+  cancelJoinRequestLoading,
+  cancelJoinRequestError,
+  onCancelJoinRequest,
+  onDismissCancelJoinRequestError,
 }: {
   event: EventDetailResponse;
   joinLoading: boolean;
@@ -590,6 +594,10 @@ function JoinActionSection({
   onDismissError: () => void;
   onDismissLeaveError: () => void;
   isAuthenticated: boolean;
+  cancelJoinRequestLoading: boolean;
+  cancelJoinRequestError: string | null;
+  onCancelJoinRequest: () => void | Promise<void>;
+  onDismissCancelJoinRequestError: () => void;
 }) {
   const [requestMessage, setRequestMessage] = useState('');
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -598,6 +606,7 @@ function JoinActionSection({
   const [requestImagePreview, setRequestImagePreview] = useState<string | null>(null);
   const [requestImageError, setRequestImageError] = useState<string | null>(null);
   const requestImageInputRef = useRef<HTMLInputElement>(null);
+  const [showCancelRequestModal, setShowCancelRequestModal] = useState(false);
   const ctx = event.viewer_context;
 
   // Host doesn't see join actions
@@ -618,6 +627,20 @@ function JoinActionSection({
         <div className={`ed-participation-banner ${joinedBannerClass}`}>
           {joinedBannerText}
         </div>
+        {!isCompletedOrCanceled && (
+          <Link
+            to="/tickets"
+            className="ed-ticket-cta"
+            data-testid="ed-view-ticket-cta"
+          >
+            <span className="ed-ticket-cta-icon" aria-hidden>&#127903;</span>
+            <span className="ed-ticket-cta-text">
+              <strong>View your ticket</strong>
+              <span>Open it on mobile to scan in at the event.</span>
+            </span>
+            <span className="ed-ticket-cta-arrow" aria-hidden>&rarr;</span>
+          </Link>
+        )}
         {!isCompletedOrCanceled && (
           <div className="ed-leave-action">
             {leaveError && (
@@ -658,6 +681,42 @@ function JoinActionSection({
         <div className="ed-participation-banner ed-participation-pending">
           Your join request is pending approval
         </div>
+        {cancelJoinRequestError && (
+          <div className="ed-join-error">
+            <span>{cancelJoinRequestError}</span>
+            <button
+              type="button"
+              className="ed-join-error-dismiss"
+              onClick={onDismissCancelJoinRequestError}
+              aria-label="Dismiss error"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+        <div className="ed-leave-action">
+          <button
+            type="button"
+            className="ed-leave-btn"
+            onClick={() => setShowCancelRequestModal(true)}
+            disabled={cancelJoinRequestLoading}
+            data-testid="ed-cancel-request-btn"
+          >
+            {cancelJoinRequestLoading ? <span className="spinner" /> : 'Cancel Request'}
+          </button>
+        </div>
+        {showCancelRequestModal && (
+          <CancelRequestConfirmModal
+            loading={cancelJoinRequestLoading}
+            onClose={() => {
+              if (!cancelJoinRequestLoading) setShowCancelRequestModal(false);
+            }}
+            onConfirm={async () => {
+              await onCancelJoinRequest();
+              setShowCancelRequestModal(false);
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -1428,6 +1487,55 @@ function LeaveConfirmModal({
   );
 }
 
+function CancelRequestConfirmModal({
+  onConfirm,
+  onClose,
+  loading,
+}: {
+  onConfirm: () => void;
+  onClose: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="ed-modal-overlay" onClick={onClose}>
+      <div
+        className="ed-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ed-cancel-request-title"
+      >
+        <h3 className="ed-modal-title" id="ed-cancel-request-title">
+          Cancel Join Request
+        </h3>
+        <p className="ed-modal-text">
+          Are you sure you want to withdraw your join request? You can request to join again later
+          if you change your mind.
+        </p>
+        <div className="ed-modal-actions">
+          <button
+            type="button"
+            className="ed-modal-cancel-btn"
+            onClick={onClose}
+            disabled={loading}
+          >
+            Keep Request
+          </button>
+          <button
+            type="button"
+            className="ed-modal-confirm-btn"
+            onClick={onConfirm}
+            disabled={loading}
+            data-testid="ed-cancel-request-confirm"
+          >
+            {loading ? <span className="spinner" /> : 'Yes, Cancel Request'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EventContent({
   event,
   joinLoading,
@@ -1491,6 +1599,10 @@ function EventContent({
   onCoverImageFileSelected,
   onDismissCoverImageError,
   onDismissCoverImageSuccess,
+  cancelJoinRequestLoading,
+  cancelJoinRequestError,
+  onCancelJoinRequest,
+  onDismissCancelJoinRequestError,
 }: {
   event: EventDetailResponse;
   joinLoading: boolean;
@@ -1554,6 +1666,10 @@ function EventContent({
   onCoverImageFileSelected: (file: File) => void;
   onDismissCoverImageError: () => void;
   onDismissCoverImageSuccess: () => void;
+  cancelJoinRequestLoading: boolean;
+  cancelJoinRequestError: string | null;
+  onCancelJoinRequest: () => void | Promise<void>;
+  onDismissCancelJoinRequestError: () => void;
 }) {
   const navigate = useNavigate();
   const coverFileInputRef = useRef<HTMLInputElement>(null);
@@ -1723,6 +1839,10 @@ function EventContent({
         onDismissError={onDismissError}
         onDismissLeaveError={onDismissLeaveError}
         isAuthenticated={isAuthenticated}
+        cancelJoinRequestLoading={cancelJoinRequestLoading}
+        cancelJoinRequestError={cancelJoinRequestError}
+        onCancelJoinRequest={onCancelJoinRequest}
+        onDismissCancelJoinRequestError={onDismissCancelJoinRequestError}
       />
 
       <ParticipantRatingSection
@@ -2104,6 +2224,10 @@ export default function EventDetailPage() {
       onCoverImageFileSelected={vm.handleCoverImageUpload}
       onDismissCoverImageError={vm.dismissCoverImageError}
       onDismissCoverImageSuccess={vm.dismissCoverImageSuccess}
+      cancelJoinRequestLoading={vm.cancelJoinRequestLoading}
+      cancelJoinRequestError={vm.cancelJoinRequestError}
+      onCancelJoinRequest={vm.handleCancelJoinRequest}
+      onDismissCancelJoinRequestError={vm.dismissCancelJoinRequestError}
       joinLoading={vm.joinLoading}
       joinError={vm.joinError}
       leaveLoading={vm.leaveLoading}

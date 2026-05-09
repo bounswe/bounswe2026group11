@@ -2016,6 +2016,65 @@
   }
 }
 
+/* View Ticket CTA */
+.ed-ticket-cta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #ede9fe 0%, #f5f3ff 100%);
+  border: 1px solid #ddd6fe;
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ed-ticket-cta:hover {
+  border-color: #c4b5fd;
+  box-shadow: 0 2px 8px rgba(91, 33, 182, 0.1);
+}
+
+.ed-ticket-cta-icon {
+  flex-shrink: 0;
+  font-size: 1.4rem;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid #ddd6fe;
+  border-radius: 10px;
+}
+
+.ed-ticket-cta-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ed-ticket-cta-text strong {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.ed-ticket-cta-text span {
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+.ed-ticket-cta-arrow {
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  color: #5b21b6;
+  font-weight: 700;
+}
+
 /* ──────────────────────────────────────────────
    Event interaction panel (Discussion + Review)
    ────────────────────────────────────────────── */

@@ -235,6 +235,10 @@ export function getJoinRequestImageUploadUrl(
   );
 }
 
+export function cancelMyJoinRequest(eventId: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/events/${eventId}/join-requests/me`, token);
+}
+
 export function approveJoinRequest(
   eventId: string,
   joinRequestId: string,

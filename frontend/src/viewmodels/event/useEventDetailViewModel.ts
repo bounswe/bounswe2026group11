@@ -7,6 +7,7 @@ import {
   joinEvent,
   requestJoinEvent,
   getJoinRequestImageUploadUrl,
+  cancelMyJoinRequest,
   listEventApprovedParticipants,
   listEventPendingJoinRequests,
   listEventInvitations,
@@ -336,6 +337,59 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     },
     [eventId, token, markViewerPendingJoinRequest, refreshEventDetail],
   );
+
+  const [cancelJoinRequestLoading, setCancelJoinRequestLoading] = useState(false);
+  const [cancelJoinRequestError, setCancelJoinRequestError] = useState<string | null>(null);
+
+  const dismissCancelJoinRequestError = useCallback(() => setCancelJoinRequestError(null), []);
+
+  const handleCancelJoinRequest = useCallback(async () => {
+    if (!eventId || !token) return;
+    setCancelJoinRequestLoading(true);
+    setCancelJoinRequestError(null);
+
+    try {
+      await cancelMyJoinRequest(eventId, token);
+      // Optimistically flip viewer state back to NONE so the join CTA reappears.
+      setEvent((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          viewer_context: {
+            ...prev.viewer_context,
+            participation_status: 'NONE',
+          },
+        };
+      });
+      // Best-effort refresh — server is authoritative for any drift.
+      try {
+        await refreshEventDetail();
+      } catch {
+        // Keep optimistic NONE state if the follow-up fetch fails.
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        // 409 typically means the request was already handled (approved/rejected) — refetch
+        // so the UI shows the current state instead of the stale PENDING banner.
+        if (err.status === 409) {
+          try {
+            await refreshEventDetail();
+          } catch {
+            // ignore — we'll still surface the message
+          }
+          setCancelJoinRequestError(
+            'Your request status changed. Please review the latest state of this event.',
+          );
+        } else {
+          setCancelJoinRequestError(err.message || 'Failed to cancel request. Please try again.');
+        }
+      } else {
+        setCancelJoinRequestError('Failed to cancel request. Please try again.');
+      }
+    } finally {
+      setCancelJoinRequestLoading(false);
+    }
+  }, [eventId, token, refreshEventDetail]);
 
   const [moderatingId, setModeratingId] = useState<string | null>(null);
   const [moderateError, setModerateError] = useState<string | null>(null);
@@ -734,6 +788,10 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     handleJoin,
     handleLeave,
     handleRequestJoin,
+    cancelJoinRequestLoading,
+    cancelJoinRequestError,
+    handleCancelJoinRequest,
+    dismissCancelJoinRequestError,
     handleViewerRatingSubmit,
     handleParticipantRatingSubmit,
     handleApprove,
