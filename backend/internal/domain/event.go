@@ -181,6 +181,7 @@ type Event struct {
 	Status                   EventStatus
 	Capacity                 *int
 	ApprovedParticipantCount int
+	PendingParticipantCount  int
 	MinimumAge               *int
 	PreferredGender          *EventParticipantGender
 	ChildFriendly            bool

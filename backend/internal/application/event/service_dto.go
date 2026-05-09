@@ -37,6 +37,40 @@ type CreateEventInput struct {
 	FamilyOriented  bool
 }
 
+// OptionalString carries PATCH semantics for nullable string fields.
+type OptionalString struct {
+	Set   bool
+	Value *string
+}
+
+// OptionalInt carries PATCH semantics for nullable integer fields.
+type OptionalInt struct {
+	Set   bool
+	Value *int
+}
+
+// OptionalTime carries PATCH semantics for nullable time fields.
+type OptionalTime struct {
+	Set   bool
+	Value *time.Time
+}
+
+// UpdateEventInput is the validated application input for editing an event.
+type UpdateEventInput struct {
+	Title        *string
+	Description  OptionalString
+	CategoryID   OptionalInt
+	Address      OptionalString
+	LocationType *domain.EventLocationType
+	Lat          *float64
+	Lon          *float64
+	RoutePoints  *[]RoutePointInput
+	StartTime    *time.Time
+	EndTime      OptionalTime
+	Capacity     OptionalInt
+	Constraints  *[]ConstraintInput
+}
+
 // ConstraintInput is a single constraint attached to an event.
 type ConstraintInput struct {
 	Type string
@@ -58,6 +92,21 @@ type CreateEventResult struct {
 	StartTime    time.Time  `json:"start_time"`
 	EndTime      *time.Time `json:"end_time,omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`
+}
+
+// UpdateEventResult is returned after a successful event edit.
+type UpdateEventResult struct {
+	ID                            string     `json:"id"`
+	Title                         string     `json:"title"`
+	PrivacyLevel                  string     `json:"privacy_level"`
+	Status                        string     `json:"status"`
+	StartTime                     time.Time  `json:"start_time"`
+	EndTime                       *time.Time `json:"end_time,omitempty"`
+	VersionNo                     int        `json:"version_no"`
+	ReconfirmationRequired        bool       `json:"reconfirmation_required"`
+	ReconfirmationTriggeredFields []string   `json:"reconfirmation_triggered_fields"`
+	ParticipantsMarkedPending     int        `json:"participants_marked_pending"`
+	UpdatedAt                     time.Time  `json:"updated_at"`
 }
 
 // DiscoverEventsInput is the validated input for event discovery and search.
@@ -244,6 +293,7 @@ type EventDetailHostContext struct {
 type ListEventCollectionInput struct {
 	Limit  *int
 	Cursor *string
+	Status *domain.ParticipationStatus
 }
 
 // EventDetailApprovedParticipant is returned only to the host.
@@ -329,6 +379,17 @@ type LeaveEventResult struct {
 	EventID         string                     `json:"event_id"`
 	Status          domain.ParticipationStatus `json:"status"`
 	UpdatedAt       time.Time                  `json:"updated_at"`
+}
+
+// ReconfirmParticipationResult is returned after a pending participant accepts
+// the latest event details.
+type ReconfirmParticipationResult struct {
+	ParticipationID string                     `json:"participation_id"`
+	EventID         string                     `json:"event_id"`
+	Status          domain.ParticipationStatus `json:"status"`
+	ReconfirmedAt   time.Time                  `json:"reconfirmed_at"`
+	UpdatedAt       time.Time                  `json:"updated_at"`
+	TicketStatus    *domain.TicketStatus       `json:"ticket_status,omitempty"`
 }
 
 // RequestJoinInput is the validated input for creating a protected-event join request.

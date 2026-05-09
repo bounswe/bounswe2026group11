@@ -21,6 +21,22 @@ func toCreateEventResult(e *domain.Event) *CreateEventResult {
 	}
 }
 
+func toUpdateEventResult(e *domain.Event, versionNo int, triggeredFields []string, markedPending int) *UpdateEventResult {
+	return &UpdateEventResult{
+		ID:                            e.ID.String(),
+		Title:                         e.Title,
+		PrivacyLevel:                  string(e.PrivacyLevel),
+		Status:                        string(e.Status),
+		StartTime:                     e.StartTime,
+		EndTime:                       e.EndTime,
+		VersionNo:                     versionNo,
+		ReconfirmationRequired:        len(triggeredFields) > 0,
+		ReconfirmationTriggeredFields: append([]string{}, triggeredFields...),
+		ParticipantsMarkedPending:     markedPending,
+		UpdatedAt:                     e.UpdatedAt,
+	}
+}
+
 // toCreateEventParams maps a validated CreateEventInput to the repository params
 // expected by the repository.
 func toCreateEventParams(hostID uuid.UUID, input CreateEventInput) CreateEventParams {

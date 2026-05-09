@@ -194,6 +194,18 @@ func (s *Service) ExpireTicketsForEvent(ctx context.Context, eventID uuid.UUID) 
 	return nil
 }
 
+// MarkTicketsPendingForEvent blocks QR access for tickets whose participants
+// must reconfirm event changes.
+func (s *Service) MarkTicketsPendingForEvent(ctx context.Context, eventID uuid.UUID) error {
+	return s.repo.MarkTicketsPendingForEvent(ctx, eventID)
+}
+
+// ActivatePendingTicketsForEvent restores QR access after reconfirmation or
+// automatic event-start approval.
+func (s *Service) ActivatePendingTicketsForEvent(ctx context.Context, eventID uuid.UUID) error {
+	return s.repo.ActivatePendingTicketsForEvent(ctx, eventID)
+}
+
 // ListMyTickets returns tickets owned by the authenticated user.
 func (s *Service) ListMyTickets(ctx context.Context, userID uuid.UUID) (*ListTicketsResult, error) {
 	records, err := s.repo.ListTicketsByUser(ctx, userID)

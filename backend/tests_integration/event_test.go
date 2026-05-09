@@ -3196,7 +3196,7 @@ func TestTransitionEventStatuses_ExpiredToCompleted(t *testing.T) {
 	expiredEventID := common.GivenExpiredEvent(t, host.ID)
 
 	// when
-	err := harness.EventRepo.TransitionEventStatuses(context.Background())
+	_, err := harness.EventRepo.TransitionEventStatuses(context.Background())
 
 	// then
 	if err != nil {
@@ -3221,7 +3221,7 @@ func TestTransitionEventStatuses_StartedToInProgress(t *testing.T) {
 	startedEventID := common.GivenStartedEvent(t, host.ID)
 
 	// when
-	err := harness.EventRepo.TransitionEventStatuses(context.Background())
+	_, err := harness.EventRepo.TransitionEventStatuses(context.Background())
 
 	// then
 	if err != nil {
@@ -3246,7 +3246,7 @@ func TestTransitionEventStatuses_StaleEventAutoCompletes(t *testing.T) {
 	eventID := common.GivenStaleEvent(t, host.ID)
 
 	// when
-	if err := harness.EventRepo.TransitionEventStatuses(context.Background()); err != nil {
+	if _, err := harness.EventRepo.TransitionEventStatuses(context.Background()); err != nil {
 		t.Fatalf("TransitionEventStatuses() error = %v", err)
 	}
 
@@ -3269,7 +3269,7 @@ func TestTransitionEventStatuses_VeryOldEventAutoCompletes(t *testing.T) {
 	eventID := common.GivenVeryOldEvent(t, host.ID)
 
 	// when
-	if err := harness.EventRepo.TransitionEventStatuses(context.Background()); err != nil {
+	if _, err := harness.EventRepo.TransitionEventStatuses(context.Background()); err != nil {
 		t.Fatalf("TransitionEventStatuses() error = %v", err)
 	}
 
@@ -3292,7 +3292,7 @@ func TestTransitionEventStatuses_RecentlyUpdatedOldEventStaysActive(t *testing.T
 	eventID := common.GivenRecentlyUpdatedOldEvent(t, host.ID)
 
 	// when
-	if err := harness.EventRepo.TransitionEventStatuses(context.Background()); err != nil {
+	if _, err := harness.EventRepo.TransitionEventStatuses(context.Background()); err != nil {
 		t.Fatalf("TransitionEventStatuses() error = %v", err)
 	}
 

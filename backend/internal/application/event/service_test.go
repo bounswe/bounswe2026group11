@@ -55,6 +55,9 @@ type fakeEventRepo struct {
 	lastCancelCount        int
 	requesters             map[uuid.UUID]*domain.User
 	getRequesterForJoinErr error
+	editSnapshot           *EventEditSnapshot
+	updateParams           UpdateEventParams
+	transitionRecords      []EventStatusTransitionRecord
 }
 
 func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams) (*domain.Event, error) {
@@ -74,6 +77,48 @@ func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams)
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}, nil
+}
+
+func (r *fakeEventRepo) GetEventEditSnapshot(_ context.Context, eventID uuid.UUID) (*EventEditSnapshot, error) {
+	if r.editSnapshot != nil {
+		return r.editSnapshot, nil
+	}
+	if e, ok := r.events[eventID]; ok {
+		locType := domain.LocationPoint
+		if e.LocationType != nil {
+			locType = *e.LocationType
+		}
+		return &EventEditSnapshot{
+			Event:     *e,
+			VersionNo: 1,
+			Location: EventDetailLocationRecord{
+				Type:  locType,
+				Point: &domain.GeoPoint{Lat: 41, Lon: 29},
+			},
+			Constraints: []EventDetailConstraintRecord{},
+		}, nil
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (r *fakeEventRepo) UpdateEvent(_ context.Context, params UpdateEventParams) (*domain.Event, error) {
+	r.updateParams = params
+	if r.err != nil {
+		return nil, r.err
+	}
+	e, ok := r.events[params.EventID]
+	if !ok {
+		return nil, domain.ErrNotFound
+	}
+	e.Title = params.Title
+	e.Description = params.Description
+	e.CategoryID = params.CategoryID
+	e.StartTime = params.StartTime
+	e.EndTime = params.EndTime
+	e.Capacity = params.Capacity
+	e.LocationType = &params.LocationType
+	e.UpdatedAt = time.Now().UTC()
+	return e, nil
 }
 
 func (r *fakeEventRepo) GetEventByID(_ context.Context, id uuid.UUID) (*domain.Event, error) {
@@ -142,8 +187,8 @@ func (r *fakeEventRepo) ListEventInvitations(
 	return r.invitationRecords, nil
 }
 
-func (r *fakeEventRepo) TransitionEventStatuses(_ context.Context) error {
-	return r.err
+func (r *fakeEventRepo) TransitionEventStatuses(_ context.Context) ([]EventStatusTransitionRecord, error) {
+	return r.transitionRecords, r.err
 }
 
 func (r *fakeEventRepo) CancelEvent(ctx context.Context, eventID uuid.UUID, canceledApprovedParticipantCount int) error {
@@ -221,6 +266,7 @@ type fakeParticipationService struct {
 	lastLeaveUserID   uuid.UUID
 	lastCancelEventID uuid.UUID
 	lastCancelCtx     context.Context
+	pendingUserIDs    []uuid.UUID
 }
 
 func (s *fakeParticipationService) CreateApprovedParticipation(_ context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
@@ -268,6 +314,26 @@ func (s *fakeParticipationService) CancelEventParticipations(ctx context.Context
 	return nil, s.err
 }
 
+func (s *fakeParticipationService) MarkApprovedParticipationsPending(_ context.Context, eventID, _ uuid.UUID) ([]uuid.UUID, error) {
+	s.lastEventID = eventID
+	return s.pendingUserIDs, s.err
+}
+
+func (s *fakeParticipationService) ReconfirmParticipation(_ context.Context, eventID, userID uuid.UUID, _ int) (*domain.Participation, error) {
+	s.lastEventID = eventID
+	s.lastUserID = userID
+	if s.err != nil {
+		return nil, s.err
+	}
+	now := time.Now().UTC()
+	return &domain.Participation{ID: uuid.New(), EventID: eventID, UserID: userID, Status: domain.ParticipationStatusApproved, CreatedAt: now, UpdatedAt: now}, nil
+}
+
+func (s *fakeParticipationService) ApprovePendingParticipationsForEvent(_ context.Context, eventID uuid.UUID) error {
+	s.lastEventID = eventID
+	return s.err
+}
+
 // fakeJoinRequestService is an in-memory implementation of JoinRequestService.
 type fakeJoinRequestService struct {
 	err               error
@@ -302,16 +368,20 @@ func (f *fakeJoinRequestImageConfirmer) ConfirmEventJoinRequestImageUpload(_ con
 }
 
 type fakeTicketLifecycle struct {
+	createCallCount              int
 	cancelParticipationCallCount int
 	cancelEventCallCount         int
 	expireEventCallCount         int
 	lastParticipationID          uuid.UUID
 	lastCancelEventID            uuid.UUID
 	lastExpireEventID            uuid.UUID
+	pendingEventID               uuid.UUID
+	activateEventID              uuid.UUID
 	err                          error
 }
 
 func (s *fakeTicketLifecycle) CreateTicketForParticipation(_ context.Context, participation *domain.Participation, status domain.TicketStatus) (*domain.Ticket, error) {
+	s.createCallCount++
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -333,6 +403,16 @@ func (s *fakeTicketLifecycle) CancelTicketsForEvent(_ context.Context, eventID u
 func (s *fakeTicketLifecycle) ExpireTicketsForEvent(_ context.Context, eventID uuid.UUID) error {
 	s.expireEventCallCount++
 	s.lastExpireEventID = eventID
+	return s.err
+}
+
+func (s *fakeTicketLifecycle) MarkTicketsPendingForEvent(_ context.Context, eventID uuid.UUID) error {
+	s.pendingEventID = eventID
+	return s.err
+}
+
+func (s *fakeTicketLifecycle) ActivatePendingTicketsForEvent(_ context.Context, eventID uuid.UUID) error {
+	s.activateEventID = eventID
 	return s.err
 }
 
@@ -1435,6 +1515,158 @@ func publicEventWithCapacity(hostID uuid.UUID, capacity, approvedCount int) *dom
 	}
 }
 
+func editableEvent(hostID uuid.UUID) *domain.Event {
+	categoryID := 1
+	capacity := 10
+	description := "Original description"
+	locationType := domain.LocationPoint
+	now := time.Now().UTC()
+	return &domain.Event{
+		ID:                       uuid.New(),
+		HostID:                   hostID,
+		Title:                    "Original title",
+		Description:              &description,
+		CategoryID:               &categoryID,
+		PrivacyLevel:             domain.PrivacyProtected,
+		Status:                   domain.EventStatusActive,
+		StartTime:                now.Add(2 * time.Hour),
+		EndTime:                  timePtr(now.Add(3 * time.Hour)),
+		Capacity:                 &capacity,
+		ApprovedParticipantCount: 2,
+		PendingParticipantCount:  1,
+		LocationType:             &locationType,
+		CreatedAt:                now.Add(-time.Hour),
+		UpdatedAt:                now.Add(-time.Hour),
+	}
+}
+
+func TestUpdateEventTriggeringChangeMarksApprovedParticipantsPendingAndTickets(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	ev := editableEvent(hostID)
+	svc, _, participationService, _, ticketService := newTestEventServiceWithEventAndTickets(ev)
+	participantID := uuid.New()
+	participationService.pendingUserIDs = []uuid.UUID{participantID}
+	newTitle := "Updated title"
+
+	// when
+	result, err := svc.UpdateEvent(context.Background(), hostID, ev.ID, UpdateEventInput{Title: &newTitle})
+
+	// then
+	if err != nil {
+		t.Fatalf("UpdateEvent() error = %v", err)
+	}
+	if result.VersionNo != 2 {
+		t.Fatalf("expected version 2, got %d", result.VersionNo)
+	}
+	if !result.ReconfirmationRequired || len(result.ReconfirmationTriggeredFields) != 1 || result.ReconfirmationTriggeredFields[0] != "title" {
+		t.Fatalf("unexpected triggered fields: %+v", result.ReconfirmationTriggeredFields)
+	}
+	if result.ParticipantsMarkedPending != 1 {
+		t.Fatalf("expected one marked pending, got %d", result.ParticipantsMarkedPending)
+	}
+	if participationService.lastEventID != ev.ID {
+		t.Fatalf("expected participation transition for event %s, got %s", ev.ID, participationService.lastEventID)
+	}
+	if ticketService.pendingEventID != ev.ID {
+		t.Fatalf("expected tickets pending for event %s, got %s", ev.ID, ticketService.pendingEventID)
+	}
+}
+
+func TestUpdateEventRemovingConstraintDoesNotRequireReconfirmation(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	ev := editableEvent(hostID)
+	svc, repo, participationService, _ := newTestEventServiceWithEvent(ev)
+	repo.editSnapshot = &EventEditSnapshot{
+		Event:     *ev,
+		VersionNo: 4,
+		Location: EventDetailLocationRecord{
+			Type:  domain.LocationPoint,
+			Point: &domain.GeoPoint{Lat: 41, Lon: 29},
+		},
+		Constraints: []EventDetailConstraintRecord{{Type: "equipment", Info: "Shoes"}},
+	}
+	constraints := []ConstraintInput{}
+
+	// when
+	result, err := svc.UpdateEvent(context.Background(), hostID, ev.ID, UpdateEventInput{Constraints: &constraints})
+
+	// then
+	if err != nil {
+		t.Fatalf("UpdateEvent() error = %v", err)
+	}
+	if result.ReconfirmationRequired {
+		t.Fatalf("expected no reconfirmation for constraint removal, got %+v", result.ReconfirmationTriggeredFields)
+	}
+	if participationService.lastEventID != uuid.Nil {
+		t.Fatalf("expected no participation transition, got %s", participationService.lastEventID)
+	}
+}
+
+func TestUpdateEventRejectsCapacityBelowApprovedAndPendingCount(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	ev := editableEvent(hostID)
+	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+	capacity := 2
+
+	// when
+	_, err := svc.UpdateEvent(context.Background(), hostID, ev.ID, UpdateEventInput{Capacity: OptionalInt{Set: true, Value: &capacity}})
+
+	// then
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeCapacityBelowParticipantCount {
+		t.Fatalf("expected capacity_below_participant_count, got %v", err)
+	}
+}
+
+func TestReconfirmParticipationCreatesActiveTicketForProtectedEvent(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	ev := editableEvent(hostID)
+	svc, _, participationService, _, ticketService := newTestEventServiceWithEventAndTickets(ev)
+	userID := uuid.New()
+
+	// when
+	result, err := svc.ReconfirmParticipation(context.Background(), userID, ev.ID)
+
+	// then
+	if err != nil {
+		t.Fatalf("ReconfirmParticipation() error = %v", err)
+	}
+	if result.Status != domain.ParticipationStatusApproved {
+		t.Fatalf("expected APPROVED, got %q", result.Status)
+	}
+	if participationService.lastEventID != ev.ID || participationService.lastUserID != userID {
+		t.Fatalf("expected reconfirm for event %s user %s, got event %s user %s", ev.ID, userID, participationService.lastEventID, participationService.lastUserID)
+	}
+	if ticketService.createCallCount == 0 || result.TicketStatus == nil || *result.TicketStatus != domain.TicketStatusActive {
+		t.Fatalf("expected active ticket creation, got count=%d status=%v", ticketService.createCallCount, result.TicketStatus)
+	}
+}
+
+func TestTransitionEventStatusesAutoApprovesPendingWhenEventStarts(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	ev := editableEvent(hostID)
+	svc, repo, participationService, _, ticketService := newTestEventServiceWithEventAndTickets(ev)
+	repo.transitionRecords = []EventStatusTransitionRecord{{EventID: ev.ID, Status: domain.EventStatusInProgress}}
+
+	// when
+	err := svc.TransitionEventStatuses(context.Background())
+
+	// then
+	if err != nil {
+		t.Fatalf("TransitionEventStatuses() error = %v", err)
+	}
+	if participationService.lastEventID != ev.ID {
+		t.Fatalf("expected pending approvals for event %s, got %s", ev.ID, participationService.lastEventID)
+	}
+	if ticketService.activateEventID != ev.ID {
+		t.Fatalf("expected pending ticket activation for event %s, got %s", ev.ID, ticketService.activateEventID)
+	}
+}
+
 func protectedEvent(hostID uuid.UUID) *domain.Event {
 	return &domain.Event{
 		ID:           uuid.New(),
@@ -2050,6 +2282,8 @@ func TestRejectJoinRequestDelegatesToJoinRequestService(t *testing.T) {
 }
 
 func stringPtr(v string) *string { return &v }
+
+func timePtr(v time.Time) *time.Time { return &v }
 
 func intPtr(v int) *int { return &v }
 
