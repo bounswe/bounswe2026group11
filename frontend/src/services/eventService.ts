@@ -24,6 +24,13 @@ import {
   EventInvitationsResponse,
   RatingWriteRequest,
   RatingResponse,
+  EventCommentsResponse,
+  EventCommentCollection,
+  EventComment,
+  ListEventCommentsParams,
+  ListEventCommentRepliesParams,
+  CreateDiscussionCommentRequest,
+  UpsertReviewCommentRequest,
 } from '@/models/event';
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
@@ -253,6 +260,72 @@ export function removeFavorite(eventId: string, token: string): Promise<void> {
 export async function getFavoriteEvents(token: string): Promise<FavoriteEventItem[]> {
   const res = await apiGetAuth<FavoriteEventsResponse>('/me/favorites', token);
   return res.items ?? [];
+}
+
+export function listEventComments(
+  eventId: string,
+  token: string | null,
+  params: ListEventCommentsParams = {},
+): Promise<EventCommentsResponse> {
+  const qs = new URLSearchParams();
+  if (params.discussion_limit != null) qs.set('discussion_limit', String(params.discussion_limit));
+  if (params.discussion_cursor) qs.set('discussion_cursor', params.discussion_cursor);
+  if (params.review_limit != null) qs.set('review_limit', String(params.review_limit));
+  if (params.review_cursor) qs.set('review_cursor', params.review_cursor);
+  const query = qs.toString();
+  const path = query === ''
+    ? `/events/${eventId}/comments`
+    : `/events/${eventId}/comments?${query}`;
+  if (token) {
+    return apiGetAuth<EventCommentsResponse>(path, token);
+  }
+  return apiGet<EventCommentsResponse>(path);
+}
+
+export function listEventCommentReplies(
+  eventId: string,
+  commentId: string,
+  token: string | null,
+  params: ListEventCommentRepliesParams = {},
+): Promise<EventCommentCollection> {
+  const qs = new URLSearchParams();
+  if (params.limit != null) qs.set('limit', String(params.limit));
+  if (params.cursor) qs.set('cursor', params.cursor);
+  const query = qs.toString();
+  const path = query === ''
+    ? `/events/${eventId}/comments/${commentId}/replies`
+    : `/events/${eventId}/comments/${commentId}/replies?${query}`;
+  if (token) {
+    return apiGetAuth<EventCommentCollection>(path, token);
+  }
+  return apiGet<EventCommentCollection>(path);
+}
+
+export function createDiscussionComment(
+  eventId: string,
+  body: CreateDiscussionCommentRequest,
+  token: string,
+): Promise<EventComment> {
+  return apiPostAuth<EventComment>(`/events/${eventId}/comments`, body, token);
+}
+
+export function upsertReviewComment(
+  eventId: string,
+  body: UpsertReviewCommentRequest,
+  token: string,
+): Promise<EventComment> {
+  return apiPostAuth<EventComment>(`/events/${eventId}/review-comments`, body, token);
+}
+
+export function getReviewCommentImageUploadUrl(
+  eventId: string,
+  token: string,
+): Promise<ImageUploadInitResponse> {
+  return apiPostAuth<ImageUploadInitResponse>(
+    `/events/${eventId}/review-comments/image/upload-url`,
+    {},
+    token,
+  );
 }
 
 export async function searchLocation(

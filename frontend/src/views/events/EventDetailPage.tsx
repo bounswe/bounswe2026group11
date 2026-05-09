@@ -20,6 +20,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/utils/eventStatus';
 import NotFoundView from '../fallback/NotFoundView';
 import AccessDeniedView from '../fallback/AccessDeniedView';
+import EventInteractionPanel from './EventInteractionPanel';
 import '@/styles/event-detail.css';
 
 const EventDetailMiniMap = lazy(() => import('./EventDetailMiniMap'));
@@ -1227,6 +1228,7 @@ function EventContent({
   favoriteLoading,
   onFavoriteToggle,
   isAuthenticated,
+  token,
   hostContextSummary,
   approvedParticipants,
   approvedParticipantsLoading,
@@ -1283,6 +1285,7 @@ function EventContent({
   favoriteLoading: boolean;
   onFavoriteToggle: () => void;
   isAuthenticated: boolean;
+  token: string | null;
   hostContextSummary: EventHostContextSummary | null;
   approvedParticipants: EventDetailApprovedParticipant[];
   approvedParticipantsLoading: boolean;
@@ -1721,6 +1724,12 @@ function EventContent({
             )}
           </div>
         )}
+
+        <EventInteractionPanel
+          event={event}
+          token={token}
+          isAuthenticated={isAuthenticated}
+        />
       </div>
 
       {/* Cancel confirmation modal */}
@@ -1787,6 +1796,7 @@ export default function EventDetailPage() {
     <EventContent
       event={vm.event}
       isAuthenticated={Boolean(token)}
+      token={token}
       coverImageUploading={vm.coverImageUploading}
       coverImageError={vm.coverImageError}
       coverImageSuccessMessage={vm.coverImageSuccessMessage}
