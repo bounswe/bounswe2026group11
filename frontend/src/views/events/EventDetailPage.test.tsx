@@ -152,6 +152,10 @@ function makeReadyViewModel(event: EventDetailResponse) {
     handleCreateInvitations: vi.fn(),
     dismissInviteError: vi.fn(),
     clearInviteResult: vi.fn(),
+    cancelJoinRequestLoading: false,
+    cancelJoinRequestError: null,
+    handleCancelJoinRequest: vi.fn(),
+    dismissCancelJoinRequestError: vi.fn(),
   };
 }
 
