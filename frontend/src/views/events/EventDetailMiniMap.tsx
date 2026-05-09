@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
-import { MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet';
+import { Circle, MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { EventDetailLocation } from '@/models/event';
+import { APPROXIMATE_LOCATION_RADIUS_METERS } from '@/utils/locationApproximation';
 
 interface EventDetailMiniMapProps {
   location: EventDetailLocation;
@@ -50,8 +51,21 @@ export default function EventDetailMiniMap({ location }: EventDetailMiniMapProps
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <Marker position={[anchor.lat, anchor.lon]} icon={markerIcon} />
-      {polylinePositions.length > 1 && (
+      {location.is_location_approximate ? (
+        <Circle
+          center={[anchor.lat, anchor.lon]}
+          radius={APPROXIMATE_LOCATION_RADIUS_METERS}
+          pathOptions={{
+            color: '#2563eb',
+            fillColor: '#60a5fa',
+            fillOpacity: 0.22,
+            weight: 2,
+          }}
+        />
+      ) : (
+        <Marker position={[anchor.lat, anchor.lon]} icon={markerIcon} />
+      )}
+      {!location.is_location_approximate && polylinePositions.length > 1 && (
         <Polyline positions={polylinePositions} pathOptions={{ color: '#7c3aed', weight: 4 }} />
       )}
     </MapContainer>

@@ -18,6 +18,7 @@ import type {
 import { EventCoverImage } from '@/components/EventCoverImage';
 import { UserAvatar } from '@/components/UserAvatar';
 import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/utils/eventStatus';
+import { getApproximateLocationText } from '@/utils/locationApproximation';
 import NotFoundView from '../fallback/NotFoundView';
 import AccessDeniedView from '../fallback/AccessDeniedView';
 import EventInteractionPanel from './EventInteractionPanel';
@@ -185,21 +186,36 @@ function LocationSection({ location }: { location: EventDetailResponse['location
   }, [location]);
 
   const hasMap = anchor !== null;
+  const isApproximate = location.is_location_approximate;
 
   return (
     <div className="ed-section">
       <h2 className="ed-section-title">Location</h2>
+      {isApproximate && (
+        <div className="ed-approx-location-warning" role="status">
+          <strong>Approximate location shown</strong>
+          <span>
+            This protected event hides its exact address until your participation is approved.
+          </span>
+        </div>
+      )}
       <div className="ed-info-row">
         <span className="ed-info-icon">&#128205;</span>
         <div>
-          {location.address ? (
+          {location.address && !isApproximate ? (
             <p className="ed-info-primary">{location.address}</p>
+          ) : isApproximate ? (
+            <p className="ed-info-primary">Approximate area</p>
           ) : (
             <p className="ed-info-secondary">No address provided</p>
           )}
           <p className="ed-info-secondary">
-            {location.type === 'ROUTE' ? 'Route-based event' : 'Point location'}
-            {location.point && (
+            {isApproximate
+              ? getApproximateLocationText(Boolean(location.address))
+              : location.type === 'ROUTE'
+                ? 'Route-based event'
+                : 'Point location'}
+            {!isApproximate && location.point && (
               <> &middot; {location.point.lat.toFixed(4)}, {location.point.lon.toFixed(4)}</>
             )}
           </p>
@@ -218,28 +234,34 @@ function LocationSection({ location }: { location: EventDetailResponse['location
           >
             <EventDetailMiniMap location={location} />
           </Suspense>
-          <a
-            className="ed-directions-btn"
-            href={buildDirectionsUrl(anchor.lat, anchor.lon)}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="ed-directions-link"
-          >
-            <svg
-              width={16}
-              height={16}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
+          {isApproximate ? (
+            <div className="ed-approx-location-note" role="note">
+              Exact directions become available after your participation is approved.
+            </div>
+          ) : (
+            <a
+              className="ed-directions-btn"
+              href={buildDirectionsUrl(anchor.lat, anchor.lon)}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="ed-directions-link"
             >
-              <polygon points="3 11 22 2 13 21 11 13 3 11" />
-            </svg>
-            Get directions
-          </a>
+              <svg
+                width={16}
+                height={16}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <polygon points="3 11 22 2 13 21 11 13 3 11" />
+              </svg>
+              Get directions
+            </a>
+          )}
         </div>
       ) : (
         <p className="ed-map-fallback">Map unavailable for this event.</p>

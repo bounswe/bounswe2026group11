@@ -5,6 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { EventCoverImage } from '@/components/EventCoverImage';
 import type { DiscoverEventItem } from '@/models/event';
+import { getApproximateLocationText } from '@/utils/locationApproximation';
 
 interface DiscoverMapViewProps {
   events: DiscoverEventItem[];
@@ -140,6 +141,11 @@ function EventOverlayCard({
 
         {event.location_address && (
           <p className="dc-map-card-address">{event.location_address}</p>
+        )}
+        {event.is_location_approximate && (
+          <span className="dc-approx-location-badge dc-map-approx-location-badge">
+            {getApproximateLocationText(Boolean(event.location_address))}
+          </span>
         )}
 
         <div className="dc-map-card-footer">

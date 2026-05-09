@@ -10,6 +10,7 @@ import type { DiscoverEventItem, DiscoverSortBy } from '@/models/event';
 import { EventCoverImage } from '@/components/EventCoverImage';
 import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
+import { getApproximateLocationText } from '@/utils/locationApproximation';
 import DiscoverMapView from './DiscoverMapView';
 import '@/styles/discover.css';
 
@@ -247,6 +248,11 @@ function EventCard({ event }: { event: DiscoverEventItem }) {
 
         {event.location_address && (
           <p className="dc-card-location">{event.location_address}</p>
+        )}
+        {event.is_location_approximate && (
+          <span className="dc-approx-location-badge">
+            {getApproximateLocationText(Boolean(event.location_address))}
+          </span>
         )}
 
         <div className="dc-card-footer">

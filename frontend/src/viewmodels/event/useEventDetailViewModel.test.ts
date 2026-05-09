@@ -68,6 +68,7 @@ function makeEvent(overrides: Partial<EventDetailResponse> = {}): EventDetailRes
       address: 'Moda Coast',
       point: { lat: 40.98, lon: 29.03 },
       route_points: [],
+      is_location_approximate: false,
     },
     tags: ['walk'],
     constraints: [],

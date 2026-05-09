@@ -1415,6 +1415,25 @@
   font-size: 0.9rem;
 }
 
+.ed-approx-location-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.ed-approx-location-warning strong {
+  color: #1e40af;
+  font-size: 0.92rem;
+}
+
 .ed-directions-btn {
   position: absolute;
   bottom: 12px;
@@ -1442,6 +1461,22 @@
 
 .ed-directions-btn:active {
   transform: scale(0.97);
+}
+
+.ed-approx-location-note {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 500;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(239, 246, 255, 0.95);
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: 0.84rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.14);
 }
 
 .ed-map-fallback {
