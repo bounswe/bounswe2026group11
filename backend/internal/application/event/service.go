@@ -94,6 +94,78 @@ func (s *Service) CreateEvent(ctx context.Context, hostID uuid.UUID, input Creat
 	return toCreateEventResult(created), nil
 }
 
+// UpdateEvent edits an ACTIVE event before it starts. Material changes move
+// approved participants into PENDING so they can reconfirm against the new
+// event details.
+func (s *Service) UpdateEvent(ctx context.Context, hostID, eventID uuid.UUID, input UpdateEventInput) (*UpdateEventResult, error) {
+	var (
+		updated              *domain.Event
+		versionNo            int
+		triggeredFields      []string
+		markedPendingUserIDs []uuid.UUID
+	)
+
+	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		snapshot, err := s.eventRepo.GetEventEditSnapshot(ctx, eventID)
+		if err != nil {
+			if errors.Is(err, domain.ErrNotFound) {
+				return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+			}
+			return err
+		}
+		if snapshot.Event.HostID != hostID {
+			return domain.ForbiddenError(domain.ErrorCodeEventHostManagementNotAllowed, "Only the event host can edit this event.")
+		}
+		if snapshot.Event.Status != domain.EventStatusActive || !s.now().UTC().Before(snapshot.Event.StartTime) {
+			return domain.ConflictError(domain.ErrorCodeEventNotEditable, "Only ACTIVE events that have not started can be edited.")
+		}
+
+		params, changedFields, triggers, validationErrs := buildUpdateEventParams(snapshot, input, s.now().UTC())
+		if len(validationErrs) > 0 {
+			return domain.ValidationError(validationErrs)
+		}
+		if params.Capacity != nil && !intPtrEqual(params.Capacity, snapshot.Event.Capacity) &&
+			*params.Capacity < snapshot.Event.ApprovedParticipantCount+snapshot.Event.PendingParticipantCount {
+			return domain.ConflictError(domain.ErrorCodeCapacityBelowParticipantCount, "Capacity cannot be lower than the approved plus pending participant count.")
+		}
+		triggeredFields = triggers
+		versionNo = snapshot.VersionNo
+		updated = &snapshot.Event
+		if len(changedFields) == 0 {
+			return nil
+		}
+
+		updated, err = s.eventRepo.UpdateEvent(ctx, params)
+		if err != nil {
+			if errors.Is(err, ErrEventNotEditable) {
+				return domain.ConflictError(domain.ErrorCodeEventNotEditable, "Only ACTIVE events that have not started can be edited.")
+			}
+			return err
+		}
+		versionNo = snapshot.VersionNo + 1
+
+		if len(triggeredFields) == 0 {
+			return nil
+		}
+		markedPendingUserIDs, err = s.participationService.MarkApprovedParticipationsPending(ctx, eventID, hostID)
+		if err != nil {
+			return err
+		}
+		if len(markedPendingUserIDs) > 0 && s.ticketService != nil {
+			if err := s.ticketService.MarkTicketsPendingForEvent(ctx, eventID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	s.notifyEventReconfirmationRequired(ctx, updated, versionNo, triggeredFields, markedPendingUserIDs)
+	return toUpdateEventResult(updated, versionNo, triggeredFields, len(markedPendingUserIDs)), nil
+}
+
 // DiscoverEvents returns nearby discoverable events using combined full-text,
 // structured filters, and keyset pagination.
 func (s *Service) DiscoverEvents(ctx context.Context, userID uuid.UUID, input DiscoverEventsInput) (*DiscoverEventsResult, error) {
@@ -203,6 +275,9 @@ func (s *Service) ListEventApprovedParticipants(
 	params, err := normalizeEventCollectionInput(input)
 	if err != nil {
 		return nil, err
+	}
+	if params.Status == "" {
+		params.Status = domain.ParticipationStatusApproved
 	}
 
 	records, nextCursor, hasNext, err := s.loadEventApprovedParticipantsPage(ctx, eventID, params)
@@ -362,6 +437,59 @@ func (s *Service) LeaveEvent(ctx context.Context, userID, eventID uuid.UUID) (*L
 		EventID:         p.EventID.String(),
 		Status:          p.Status,
 		UpdatedAt:       p.UpdatedAt,
+	}, nil
+}
+
+// ReconfirmParticipation moves the caller from PENDING back to APPROVED for
+// the latest event version.
+func (s *Service) ReconfirmParticipation(ctx context.Context, userID, eventID uuid.UUID) (*ReconfirmParticipationResult, error) {
+	var (
+		participation *domain.Participation
+		ticketStatus  *domain.TicketStatus
+		reconfirmedAt time.Time
+	)
+
+	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		snapshot, err := s.eventRepo.GetEventEditSnapshot(ctx, eventID)
+		if err != nil {
+			if errors.Is(err, domain.ErrNotFound) {
+				return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
+			}
+			return err
+		}
+		if snapshot.Event.HostID == userID {
+			return domain.ForbiddenError(domain.ErrorCodeHostCannotJoin, "The event host cannot reconfirm as a participant.")
+		}
+		if snapshot.Event.Status == domain.EventStatusCanceled || snapshot.Event.Status == domain.EventStatusCompleted {
+			return domain.ConflictError(domain.ErrorCodeEventNotJoinable, "This event is no longer accepting participant reconfirmations.")
+		}
+
+		participation, err = s.participationService.ReconfirmParticipation(ctx, eventID, userID, snapshot.VersionNo)
+		if err != nil {
+			return err
+		}
+		reconfirmedAt = participation.UpdatedAt
+
+		if s.ticketService != nil && (snapshot.Event.PrivacyLevel == domain.PrivacyProtected || snapshot.Event.PrivacyLevel == domain.PrivacyPrivate) {
+			t, err := s.ticketService.CreateTicketForParticipation(ctx, participation, domain.TicketStatusActive)
+			if err != nil {
+				return err
+			}
+			ticketStatus = &t.Status
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &ReconfirmParticipationResult{
+		ParticipationID: participation.ID.String(),
+		EventID:         participation.EventID.String(),
+		Status:          participation.Status,
+		ReconfirmedAt:   reconfirmedAt,
+		UpdatedAt:       participation.UpdatedAt,
+		TicketStatus:    ticketStatus,
 	}, nil
 }
 
@@ -592,6 +720,43 @@ func (s *Service) notifyEventCanceled(ctx context.Context, event *domain.Event, 
 	}
 }
 
+func (s *Service) notifyEventReconfirmationRequired(ctx context.Context, event *domain.Event, versionNo int, changedFields []string, userIDs []uuid.UUID) {
+	if s.notifications == nil || event == nil || len(changedFields) == 0 || len(userIDs) == 0 {
+		return
+	}
+
+	notificationType := "EVENT_RECONFIRMATION_REQUIRED"
+	deepLink := fmt.Sprintf("/events/%s", event.ID.String())
+	body := fmt.Sprintf("The event \"%s\" has changed. Please reconfirm your attendance.", event.Title)
+	data := map[string]string{
+		"event_id":         event.ID.String(),
+		"event_title":      event.Title,
+		"event_start_time": event.StartTime.UTC().Format(time.RFC3339),
+		"event_version":    fmt.Sprintf("%d", versionNo),
+		"changed_fields":   strings.Join(changedFields, ","),
+	}
+
+	_, err := s.notifications.SendNotificationToUsers(ctx, notificationapp.SendNotificationInput{
+		UserIDs:        userIDs,
+		Title:          "Event details changed",
+		Body:           body,
+		Type:           &notificationType,
+		DeepLink:       &deepLink,
+		EventID:        &event.ID,
+		ImageURL:       event.ImageURL,
+		Data:           data,
+		IdempotencyKey: fmt.Sprintf("EVENT_RECONFIRMATION_REQUIRED:%s:v%d", event.ID.String(), versionNo),
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "event reconfirmation notification failed",
+			"operation", "event.update.reconfirmation_notification",
+			"event_id", event.ID.String(),
+			"recipient_count", len(userIDs),
+			"error", err,
+		)
+	}
+}
+
 // CompleteEvent transitions an ACTIVE or IN_PROGRESS event to COMPLETED. Only the host may call this.
 func (s *Service) CompleteEvent(ctx context.Context, userID, eventID uuid.UUID) error {
 	event, err := s.eventRepo.GetEventByID(ctx, eventID)
@@ -617,6 +782,37 @@ func (s *Service) CompleteEvent(ctx context.Context, userID, eventID uuid.UUID) 
 		if s.ticketService != nil {
 			if err := s.ticketService.ExpireTicketsForEvent(ctx, eventID); err != nil {
 				return err
+			}
+		}
+		return nil
+	})
+}
+
+// TransitionEventStatuses advances lifecycle states and applies dependent
+// participation/ticket transitions in one transaction.
+func (s *Service) TransitionEventStatuses(ctx context.Context) error {
+	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		records, err := s.eventRepo.TransitionEventStatuses(ctx)
+		if err != nil {
+			return err
+		}
+		for _, record := range records {
+			switch record.Status {
+			case domain.EventStatusInProgress:
+				if err := s.participationService.ApprovePendingParticipationsForEvent(ctx, record.EventID); err != nil {
+					return err
+				}
+				if s.ticketService != nil {
+					if err := s.ticketService.ActivatePendingTicketsForEvent(ctx, record.EventID); err != nil {
+						return err
+					}
+				}
+			case domain.EventStatusCompleted:
+				if s.ticketService != nil {
+					if err := s.ticketService.ExpireTicketsForEvent(ctx, record.EventID); err != nil {
+						return err
+					}
+				}
 			}
 		}
 		return nil
@@ -685,6 +881,9 @@ func normalizeEventCollectionInput(input ListEventCollectionInput) (EventCollect
 
 	if input.Cursor != nil {
 		params.CursorToken = *input.Cursor
+	}
+	if input.Status != nil {
+		params.Status = *input.Status
 	}
 	params.RepositoryFetchLimit = params.Limit + 1
 

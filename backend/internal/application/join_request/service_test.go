@@ -46,6 +46,14 @@ func (f *fakeTicketLifecycle) ExpireTicketsForEvent(context.Context, uuid.UUID) 
 	return nil
 }
 
+func (f *fakeTicketLifecycle) MarkTicketsPendingForEvent(context.Context, uuid.UUID) error {
+	return nil
+}
+
+func (f *fakeTicketLifecycle) ActivatePendingTicketsForEvent(context.Context, uuid.UUID) error {
+	return nil
+}
+
 type fakeJoinRequestRepo struct {
 	err               error
 	callCount         int

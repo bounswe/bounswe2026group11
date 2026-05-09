@@ -153,7 +153,7 @@ func TestEventStatusTransitionExpiresUnusedTickets(t *testing.T) {
 		t.Fatalf("update event into expiry window error = %v", err)
 	}
 
-	if err := harness.EventRepo.TransitionEventStatuses(context.Background()); err != nil {
+	if err := harness.Service.TransitionEventStatuses(context.Background()); err != nil {
 		t.Fatalf("TransitionEventStatuses() error = %v", err)
 	}
 

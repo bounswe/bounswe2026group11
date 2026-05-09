@@ -200,7 +200,7 @@ func (r *InvitationRepository) AcceptInvitation(
 	if event.Status == domain.EventStatusCanceled || event.Status == domain.EventStatusCompleted {
 		return nil, domain.ConflictError(domain.ErrorCodeEventNotJoinable, "This event is no longer accepting participants.")
 	}
-	if event.Capacity != nil && event.ApprovedParticipantCount >= *event.Capacity {
+	if event.Capacity != nil && event.ApprovedParticipantCount+event.PendingParticipantCount >= *event.Capacity {
 		return nil, domain.ConflictError(domain.ErrorCodeCapacityExceeded, "This event has reached its maximum capacity.")
 	}
 
@@ -339,7 +339,7 @@ func invitationFailureForUser(
 	if userID == event.HostID {
 		return invitationapp.FailureHostUser
 	}
-	if event.Capacity != nil && event.ApprovedParticipantCount >= *event.Capacity {
+	if event.Capacity != nil && event.ApprovedParticipantCount+event.PendingParticipantCount >= *event.Capacity {
 		return invitationapp.FailureCapacityExceeded
 	}
 	if participation != nil && !canReactivateLeavedParticipation(participation, event.StartTime) {
@@ -371,7 +371,7 @@ func (r *InvitationRepository) loadInvitationEventState(
 	forUpdate bool,
 ) (*domain.Event, error) {
 	query := `
-		SELECT host_id, privacy_level, status, capacity, approved_participant_count,
+		SELECT host_id, privacy_level, status, capacity, approved_participant_count, pending_participant_count,
 		       start_time, minimum_age, preferred_gender
 		FROM event
 		WHERE id = $1
@@ -386,6 +386,7 @@ func (r *InvitationRepository) loadInvitationEventState(
 		status          string
 		capacity        pgtype.Int4
 		approvedCount   int
+		pendingCount    int
 		startTime       time.Time
 		minimumAge      pgtype.Int4
 		preferredGender pgtype.Text
@@ -396,6 +397,7 @@ func (r *InvitationRepository) loadInvitationEventState(
 		&status,
 		&capacity,
 		&approvedCount,
+		&pendingCount,
 		&startTime,
 		&minimumAge,
 		&preferredGender,
@@ -413,6 +415,7 @@ func (r *InvitationRepository) loadInvitationEventState(
 		PrivacyLevel:             domain.EventPrivacyLevel(privacyLevel),
 		Status:                   domain.EventStatus(status),
 		ApprovedParticipantCount: approvedCount,
+		PendingParticipantCount:  pendingCount,
 		StartTime:                startTime,
 	}
 	if capacity.Valid {

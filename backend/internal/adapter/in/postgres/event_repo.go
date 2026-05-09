@@ -59,6 +59,142 @@ func (r *EventRepository) CreateEvent(ctx context.Context, params eventapp.Creat
 	return event, nil
 }
 
+// GetEventEditSnapshot loads and locks the event state needed to evaluate an edit.
+func (r *EventRepository) GetEventEditSnapshot(ctx context.Context, eventID uuid.UUID) (*eventapp.EventEditSnapshot, error) {
+	var (
+		event           domain.Event
+		description     pgtype.Text
+		imageURL        pgtype.Text
+		categoryID      pgtype.Int4
+		endTime         pgtype.Timestamptz
+		privacyLevel    string
+		status          string
+		capacity        pgtype.Int4
+		minimumAge      pgtype.Int4
+		preferredGender pgtype.Text
+		locationType    pgtype.Text
+		versionNo       int
+	)
+
+	err := r.db.QueryRow(ctx, `
+		SELECT id, host_id, title, description, image_url, category_id,
+		       start_time, end_time, privacy_level, status, capacity,
+		       approved_participant_count, pending_participant_count,
+		       minimum_age, preferred_gender, location_type,
+		       version_no, created_at, updated_at
+		FROM event
+		WHERE id = $1
+		FOR UPDATE
+	`, eventID).Scan(
+		&event.ID,
+		&event.HostID,
+		&event.Title,
+		&description,
+		&imageURL,
+		&categoryID,
+		&event.StartTime,
+		&endTime,
+		&privacyLevel,
+		&status,
+		&capacity,
+		&event.ApprovedParticipantCount,
+		&event.PendingParticipantCount,
+		&minimumAge,
+		&preferredGender,
+		&locationType,
+		&versionNo,
+		&event.CreatedAt,
+		&event.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("get event edit snapshot: %w", err)
+	}
+
+	if description.Valid {
+		event.Description = &description.String
+	}
+	event.PrivacyLevel = domain.EventPrivacyLevel(privacyLevel)
+	event.Status = domain.EventStatus(status)
+	if imageURL.Valid {
+		event.ImageURL = &imageURL.String
+	}
+	if categoryID.Valid {
+		event.CategoryID = new(int)
+		*event.CategoryID = int(categoryID.Int32)
+	}
+	if endTime.Valid {
+		event.EndTime = &endTime.Time
+	}
+	if capacity.Valid {
+		event.Capacity = new(int)
+		*event.Capacity = int(capacity.Int32)
+	}
+	if minimumAge.Valid {
+		event.MinimumAge = new(int)
+		*event.MinimumAge = int(minimumAge.Int32)
+	}
+	if preferredGender.Valid {
+		gender := domain.EventParticipantGender(preferredGender.String)
+		event.PreferredGender = &gender
+	}
+	if locationType.Valid {
+		locType := domain.EventLocationType(locationType.String)
+		event.LocationType = &locType
+	} else {
+		locType := domain.LocationPoint
+		event.LocationType = &locType
+	}
+
+	location, err := r.loadEventEditLocation(ctx, eventID, *event.LocationType)
+	if err != nil {
+		return nil, err
+	}
+	constraints, err := r.loadEventEditConstraints(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &eventapp.EventEditSnapshot{
+		Event:       event,
+		VersionNo:   versionNo,
+		Location:    location,
+		Constraints: constraints,
+	}, nil
+}
+
+// UpdateEvent persists a fully merged event edit. Related location and
+// constraint replacements are expected to run inside the caller's transaction.
+func (r *EventRepository) UpdateEvent(ctx context.Context, params eventapp.UpdateEventParams) (*domain.Event, error) {
+	updated, err := updateEventRow(ctx, r.db, params)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, eventapp.ErrEventNotEditable
+		}
+		return nil, mapEventUpdateError(err)
+	}
+
+	if params.LocationChanged {
+		if _, err := r.db.Exec(ctx, `DELETE FROM event_location WHERE event_id = $1`, params.EventID); err != nil {
+			return nil, fmt.Errorf("delete event location: %w", err)
+		}
+		if err := insertEventLocation(ctx, r.db, params.EventID, params.Address, params.LocationType, params.Point, params.RoutePoints); err != nil {
+			return nil, err
+		}
+	}
+	if params.ConstraintsChanged {
+		if _, err := r.db.Exec(ctx, `DELETE FROM event_constraint WHERE event_id = $1`, params.EventID); err != nil {
+			return nil, fmt.Errorf("delete event constraints: %w", err)
+		}
+		if err := insertEventConstraints(ctx, r.db, params.EventID, params.Constraints); err != nil {
+			return nil, err
+		}
+	}
+	return updated, nil
+}
+
 // insertEventRow inserts the core event record and returns the populated Event entity.
 func insertEventRow(ctx context.Context, db execer, params eventapp.CreateEventParams) (*domain.Event, error) {
 	var (
@@ -124,6 +260,92 @@ func insertEventRow(ctx context.Context, db execer, params eventapp.CreateEventP
 	return event, nil
 }
 
+func updateEventRow(ctx context.Context, db execer, params eventapp.UpdateEventParams) (*domain.Event, error) {
+	var (
+		event        domain.Event
+		description  pgtype.Text
+		imageURL     pgtype.Text
+		categoryID   pgtype.Int4
+		endTime      pgtype.Timestamptz
+		capacity     pgtype.Int4
+		privacyLevel string
+		status       string
+		locationType string
+	)
+
+	err := db.QueryRow(ctx, `
+		UPDATE event
+		SET title = $2,
+		    description = $3,
+		    category_id = $4,
+		    start_time = $5,
+		    end_time = $6,
+		    capacity = $7,
+		    location_type = $8,
+		    version_no = version_no + 1,
+		    updated_at = NOW()
+		WHERE id = $1
+		  AND status = $9
+		RETURNING id, host_id, title, description, image_url, category_id,
+		          start_time, end_time, privacy_level, status, capacity,
+		          approved_participant_count, pending_participant_count,
+		          location_type, created_at, updated_at
+	`,
+		params.EventID,
+		params.Title,
+		params.Description,
+		params.CategoryID,
+		params.StartTime,
+		params.EndTime,
+		params.Capacity,
+		string(params.LocationType),
+		string(domain.EventStatusActive),
+	).Scan(
+		&event.ID,
+		&event.HostID,
+		&event.Title,
+		&description,
+		&imageURL,
+		&categoryID,
+		&event.StartTime,
+		&endTime,
+		&privacyLevel,
+		&status,
+		&capacity,
+		&event.ApprovedParticipantCount,
+		&event.PendingParticipantCount,
+		&locationType,
+		&event.CreatedAt,
+		&event.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("update event: %w", err)
+	}
+
+	if description.Valid {
+		event.Description = &description.String
+	}
+	if imageURL.Valid {
+		event.ImageURL = &imageURL.String
+	}
+	if categoryID.Valid {
+		event.CategoryID = new(int)
+		*event.CategoryID = int(categoryID.Int32)
+	}
+	if endTime.Valid {
+		event.EndTime = &endTime.Time
+	}
+	if capacity.Valid {
+		event.Capacity = new(int)
+		*event.Capacity = int(capacity.Int32)
+	}
+	event.PrivacyLevel = domain.EventPrivacyLevel(privacyLevel)
+	event.Status = domain.EventStatus(status)
+	locType := domain.EventLocationType(locationType)
+	event.LocationType = &locType
+	return &event, nil
+}
+
 // insertHostParticipation creates the host's internal APPROVED participation
 // row so downstream authorization can treat the host as part of the event
 // membership set without exposing them as a normal participant.
@@ -141,6 +363,31 @@ func insertHostParticipation(ctx context.Context, db execer, event *domain.Event
 // mapEventInsertError maps Postgres insert constraint violations on events to
 // domain errors so clients get actionable 400/409 responses instead of 500.
 func mapEventInsertError(err error) error {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return err
+	}
+
+	switch pgErr.Code {
+	case "23503":
+		if pgErr.ConstraintName == "fk_event_category" {
+			return domain.ValidationError(map[string]string{
+				"category_id": "must reference an existing event category id",
+			})
+		}
+	case "23505":
+		if pgErr.ConstraintName == "uq_event_host_title" {
+			return domain.ConflictError(
+				domain.ErrorCodeEventTitleExists,
+				"The host already has an event with this title.",
+			)
+		}
+	}
+
+	return err
+}
+
+func mapEventUpdateError(err error) error {
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) {
 		return err
@@ -228,6 +475,107 @@ func insertEventConstraints(ctx context.Context, db execer, eventID uuid.UUID, c
 		}
 	}
 	return nil
+}
+
+func (r *EventRepository) loadEventEditLocation(
+	ctx context.Context,
+	eventID uuid.UUID,
+	locationType domain.EventLocationType,
+) (eventapp.EventDetailLocationRecord, error) {
+	location := eventapp.EventDetailLocationRecord{
+		Type:        locationType,
+		RoutePoints: []domain.GeoPoint{},
+	}
+
+	var address pgtype.Text
+	switch locationType {
+	case domain.LocationPoint:
+		var point domain.GeoPoint
+		err := r.db.QueryRow(ctx, `
+			SELECT address, ST_Y(geom::geometry), ST_X(geom::geometry)
+			FROM event_location
+			WHERE event_id = $1
+		`, eventID).Scan(&address, &point.Lat, &point.Lon)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return location, domain.ErrNotFound
+			}
+			return location, fmt.Errorf("load event edit point: %w", err)
+		}
+		location.Point = &point
+	case domain.LocationRoute:
+		err := r.db.QueryRow(ctx, `
+			SELECT address
+			FROM event_location
+			WHERE event_id = $1
+		`, eventID).Scan(&address)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return location, domain.ErrNotFound
+			}
+			return location, fmt.Errorf("load event edit route: %w", err)
+		}
+		rows, err := r.db.Query(ctx, `
+			SELECT ST_Y(dp.geom), ST_X(dp.geom)
+			FROM event_location el
+			CROSS JOIN LATERAL ST_DumpPoints(el.geom::geometry) AS dp
+			WHERE el.event_id = $1
+			ORDER BY dp.path
+		`, eventID)
+		if err != nil {
+			return location, fmt.Errorf("load event edit route points: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var point domain.GeoPoint
+			if err := rows.Scan(&point.Lat, &point.Lon); err != nil {
+				return location, fmt.Errorf("scan event edit route point: %w", err)
+			}
+			location.RoutePoints = append(location.RoutePoints, point)
+		}
+		if err := rows.Err(); err != nil {
+			return location, fmt.Errorf("iterate event edit route points: %w", err)
+		}
+	default:
+		return location, nil
+	}
+	if address.Valid {
+		location.Address = &address.String
+	}
+	return location, nil
+}
+
+func (r *EventRepository) loadEventEditConstraints(ctx context.Context, eventID uuid.UUID) ([]eventapp.EventDetailConstraintRecord, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT constraint_type, constraint_info
+		FROM event_constraint
+		WHERE event_id = $1
+		ORDER BY created_at ASC, id ASC
+	`, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("load event edit constraints: %w", err)
+	}
+	defer rows.Close()
+
+	constraints := []eventapp.EventDetailConstraintRecord{}
+	for rows.Next() {
+		var (
+			constraintType string
+			constraintInfo pgtype.Text
+		)
+		if err := rows.Scan(&constraintType, &constraintInfo); err != nil {
+			return nil, fmt.Errorf("scan event edit constraint: %w", err)
+		}
+		constraint := eventapp.EventDetailConstraintRecord{Type: constraintType}
+		if constraintInfo.Valid {
+			constraint.Info = constraintInfo.String
+		}
+		constraints = append(constraints, constraint)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate event edit constraints: %w", err)
+	}
+	return constraints, nil
 }
 
 func buildRouteWKT(points []domain.GeoPoint) string {
@@ -832,6 +1180,13 @@ func (r *EventRepository) loadEventDetailCore(
 					FROM participation p
 					WHERE p.event_id = e.id
 					  AND p.user_id = $2
+					  AND p.status = $17
+				) THEN $9
+				WHEN EXISTS (
+					SELECT 1
+					FROM participation p
+					WHERE p.event_id = e.id
+					  AND p.user_id = $2
 					  AND p.status = $6
 				) THEN $7
 				WHEN EXISTS (
@@ -871,7 +1226,7 @@ func (r *EventRepository) loadEventDetailCore(
 				FROM participation p
 				WHERE p.event_id = e.id
 				  AND p.user_id = $2
-				  AND p.status IN ($4, $6, $14)
+				  AND p.status IN ($4, $6, $14, $17)
 			)
 			OR EXISTS (
 				SELECT 1
@@ -898,6 +1253,7 @@ func (r *EventRepository) loadEventDetailCore(
 		domain.ParticipationStatusCanceled,
 		string(domain.EventDetailParticipationStatusCanceled),
 		string(domain.InvitationStatusPending),
+		domain.ParticipationStatusPending,
 	).Scan(
 		&id,
 		&title,
@@ -1176,7 +1532,11 @@ func (r *EventRepository) loadApprovedParticipants(
 	eventID uuid.UUID,
 	params eventapp.EventCollectionPageParams,
 ) ([]eventapp.EventDetailApprovedParticipantRecord, error) {
-	args := []any{eventID, domain.ParticipationStatusApproved}
+	status := params.Status
+	if status == "" {
+		status = domain.ParticipationStatusApproved
+	}
+	args := []any{eventID, status}
 	cursorClause := buildEventCollectionCursorClause(params, &args, "p.created_at", "p.id")
 	args = append(args, params.RepositoryFetchLimit)
 
@@ -1530,6 +1890,7 @@ func (r *EventRepository) GetEventByID(ctx context.Context, eventID uuid.UUID) (
 		status          string
 		capacity        pgtype.Int4
 		approvedCount   int
+		pendingCount    int
 		minimumAge      pgtype.Int4
 		preferredGender pgtype.Text
 		locationType    pgtype.Text
@@ -1540,14 +1901,14 @@ func (r *EventRepository) GetEventByID(ctx context.Context, eventID uuid.UUID) (
 	err := r.pool.QueryRow(ctx, `
 		SELECT id, host_id, title, description, image_url, category_id,
 		       start_time, end_time, privacy_level, status, capacity,
-		       approved_participant_count, minimum_age, preferred_gender,
+		       approved_participant_count, pending_participant_count, minimum_age, preferred_gender,
 		       location_type, created_at, updated_at
 		FROM event
 		WHERE id = $1
 	`, eventID).Scan(
 		&id, &hostID, &title, &description, &imageURL, &categoryID,
 		&startTime, &endTime, &privacyLevel, &status, &capacity,
-		&approvedCount, &minimumAge, &preferredGender,
+		&approvedCount, &pendingCount, &minimumAge, &preferredGender,
 		&locationType, &createdAt, &updatedAt,
 	)
 	if err != nil {
@@ -1565,6 +1926,7 @@ func (r *EventRepository) GetEventByID(ctx context.Context, eventID uuid.UUID) (
 		Status:                   domain.EventStatus(status),
 		StartTime:                startTime,
 		ApprovedParticipantCount: approvedCount,
+		PendingParticipantCount:  pendingCount,
 		CreatedAt:                createdAt,
 		UpdatedAt:                updatedAt,
 	}
@@ -1830,8 +2192,8 @@ func (r *EventRepository) CompleteEvent(ctx context.Context, eventID uuid.UUID) 
 //
 // updated_at reflects event-level mutations (title, description, cancel, etc.).
 // Participation activity does not advance updated_at.
-func (r *EventRepository) TransitionEventStatuses(ctx context.Context) error {
-	_, err := r.pool.Exec(ctx, `
+func (r *EventRepository) TransitionEventStatuses(ctx context.Context) ([]eventapp.EventStatusTransitionRecord, error) {
+	rows, err := r.db.Query(ctx, `
 		WITH transitioned AS (
 			UPDATE event
 			SET status = CASE
@@ -1847,16 +2209,31 @@ func (r *EventRepository) TransitionEventStatuses(ctx context.Context) error {
 			  )
 			RETURNING id, status
 		)
-		UPDATE ticket t
-		SET status = 'EXPIRED',
-		    updated_at = NOW()
-		FROM participation p
-		JOIN transitioned e ON e.id = p.event_id
-		WHERE t.participation_id = p.id
-		  AND e.status = 'COMPLETED'
-		  AND t.status IN ('ACTIVE', 'PENDING')
+		SELECT id, status FROM transitioned
 	`)
-	return err
+	if err != nil {
+		return nil, fmt.Errorf("transition event statuses: %w", err)
+	}
+	defer rows.Close()
+
+	records := []eventapp.EventStatusTransitionRecord{}
+	for rows.Next() {
+		var (
+			eventID uuid.UUID
+			status  string
+		)
+		if err := rows.Scan(&eventID, &status); err != nil {
+			return nil, fmt.Errorf("scan transitioned event status: %w", err)
+		}
+		records = append(records, eventapp.EventStatusTransitionRecord{
+			EventID: eventID,
+			Status:  domain.EventStatus(status),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate transitioned event statuses: %w", err)
+	}
+	return records, nil
 }
 
 // AddFavorite inserts a row into favorite_event. If the row already exists the

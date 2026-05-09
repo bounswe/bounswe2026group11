@@ -13,6 +13,8 @@ type Repository interface {
 	CancelTicketForParticipation(ctx context.Context, participationID uuid.UUID) error
 	CancelTicketsForEvent(ctx context.Context, eventID uuid.UUID) error
 	ExpireTicketsForEvent(ctx context.Context, eventID uuid.UUID) error
+	MarkTicketsPendingForEvent(ctx context.Context, eventID uuid.UUID) error
+	ActivatePendingTicketsForEvent(ctx context.Context, eventID uuid.UUID) error
 	ListTicketsByUser(ctx context.Context, userID uuid.UUID) ([]TicketRecord, error)
 	GetTicketDetail(ctx context.Context, userID, ticketID uuid.UUID) (*TicketRecord, error)
 	GetTicketAccessForUser(ctx context.Context, userID, ticketID uuid.UUID, lat, lon float64, forUpdate bool) (*TicketAccessRecord, error)

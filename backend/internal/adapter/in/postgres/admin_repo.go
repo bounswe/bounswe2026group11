@@ -492,7 +492,7 @@ func (r *AdminRepository) CountExistingUsers(ctx context.Context, userIDs []uuid
 
 func (r *AdminRepository) GetEventState(ctx context.Context, eventID uuid.UUID, forUpdate bool) (*adminapp.AdminEventState, error) {
 	query := `
-		SELECT id, privacy_level
+		SELECT id, privacy_level, capacity, approved_participant_count, pending_participant_count
 		FROM event
 		WHERE id = $1
 	`
@@ -503,8 +503,9 @@ func (r *AdminRepository) GetEventState(ctx context.Context, eventID uuid.UUID, 
 	var (
 		state        adminapp.AdminEventState
 		privacyLevel string
+		capacity     pgtype.Int4
 	)
-	err := r.db.QueryRow(ctx, query, eventID).Scan(&state.ID, &privacyLevel)
+	err := r.db.QueryRow(ctx, query, eventID).Scan(&state.ID, &privacyLevel, &capacity, &state.ApprovedParticipantCount, &state.PendingParticipantCount)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -516,6 +517,10 @@ func (r *AdminRepository) GetEventState(ctx context.Context, eventID uuid.UUID, 
 		return nil, fmt.Errorf("admin get event state: unknown privacy level %q", privacyLevel)
 	}
 	state.PrivacyLevel = parsed
+	if capacity.Valid {
+		state.Capacity = new(int)
+		*state.Capacity = int(capacity.Int32)
+	}
 	return &state, nil
 }
 

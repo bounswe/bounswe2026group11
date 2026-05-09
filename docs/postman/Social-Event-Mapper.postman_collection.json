@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "f4df0e2f-4bd8-4c5e-94a0-4629e5c25854",
+    "_postman_id": "35eb75ee-d1d6-4d66-8f3c-7e2563e98f3d",
     "name": "Social Event Mapper API",
     "description": "Generated from docs/openapi/*.yaml — run docs/postman/generate_from_openapi.py to refresh.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -768,6 +768,79 @@
       ]
     },
     {
+      "name": "Badge",
+      "description": "Authenticated endpoints for browsing the badge catalog and listing badges earned by the authenticated user or another public profile owner. Badge state is recomputed synchronously after participation, rating, and favorite-location writes; clients should refetch these endpoints when they expect the user's badge list to have changed.",
+      "item": [
+        {
+          "name": "List the authenticated user's earned badges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/badges",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "badges"
+              ]
+            },
+            "description": "List the authenticated user's earned badges\n\nReturns the badges earned by the authenticated user, ordered by `earned_at` descending. The response shape is identical to `GET /users/{id}/badges`."
+          }
+        },
+        {
+          "name": "List a public profile's earned badges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/users/{{id}}/badges",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{id}}",
+                "badges"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "Profile owner's user id."
+                }
+              ]
+            },
+            "description": "List a public profile's earned badges\n\nReturns the badges earned by the public profile owner identified by `id`. Unlike `/me/badges`, this endpoint never returns viewer-specific progress data and is safe to call with any user id."
+          }
+        },
+        {
+          "name": "List the full badge catalog",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/badges",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "badges"
+              ]
+            },
+            "description": "List the full badge catalog\n\nReturns every badge defined in the catalog (ordered by `sort_order` ascending) annotated with whether the authenticated viewer has earned each one. Unearned badges have `earned=false` and `earned_at=null`."
+          }
+        }
+      ]
+    },
+    {
       "name": "Categories",
       "description": "Public read-only endpoint for listing available event categories.\n\nNo authentication is required. Use the returned `id` values as `category_id`\nwhen creating events or as `category_ids` filter values when discovering events.",
       "item": [
@@ -797,6 +870,46 @@
       "description": "Authenticated event-management endpoints for creating and managing social events.\n\nObtain an access token from the Auth API (`POST /auth/login` or\n`POST /auth/register/email/verify`) and send it as `Authorization: Bearer <token>`\nwhen calling protected operations in this definition.\n\nBehavioral notes for create-event clients:\n- The authenticated user becomes the event host.\n- A host can create at most one event with a given `title`. Reusing the same trimmed title for the same host returns `409 Conflict`.\n- Tags and constraints are persisted in the same transaction as the event.\n- Enum-like fields are case-sensitive and must be sent in uppercase.\n- `start_time` and `end_time` must be RFC 3339 date-times with a timezone designator such as `Z` or `+03:00`.\n- Each event has **exactly one** category: send a single `category_id` (not a list). It must reference an existing row in `event_category`. The default database seed defines twenty categories (ids `1`–`20`); see `CreateEventRequestBase.category_id` for the id-to-name map.",
       "item": [
         {
+          "name": "Update an active event",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `updateEvent`\n\nUpdate an active event\n\nAllows the authenticated host to edit an `ACTIVE` event before it starts.\nThe request is partial: omitted fields are unchanged, while explicit `null`\nclears nullable fields such as `description`, `category_id`, `address`,\n`end_time`, and `capacity`.\n\nReconfirmation-triggering changes are `title`, `description`, `category_id`,\nlocation/address/geometry/route changes, `start_time`, `end_time`, and\nadding a new constraint. When any of those changes occur, all currently\n`APPROVED` non-host participations become `PENDING`, their active tickets\nbecome `PENDING`, and participants receive an `EVENT_RECONFIRMATION_REQUIRED`\nnotification with deep link `/events/{id}`. Users already in `PENDING` are\nnot notified.\n\n`constraints`, when present, replaces the full constraint list. Removing\nconstraints alone does not require reconfirmation. `capacity` cannot be set\nbelow `approved_participant_count + pending_participant_count`."
+          }
+        },
+        {
           "name": "Get event detail",
           "request": {
             "method": "GET",
@@ -820,7 +933,7 @@
                 }
               ]
             },
-            "description": "operationId: `getEventDetail`\n\nGet event detail\n\nReturns the full event-detail payload for the caller. Authentication is optional —\nboth unauthenticated and authenticated requests are accepted.\n\nVisibility rules:\n- `PUBLIC` and `PROTECTED` events are readable by any caller, authenticated or not.\n- `PRIVATE` events are readable only by the host, users with an `APPROVED`\n  participation, or users with an `ACCEPTED` invitation. Anonymous callers cannot\n  read `PRIVATE` events.\n- When a `PRIVATE` event is not readable by the caller, the API responds with\n  `404 event_not_found` to avoid leaking the event's existence.\n\nResponse notes:\n- `status` is returned exactly as stored on the event row; canceled and completed\n  events remain readable.\n- `host_score` returns the host's cached aggregate rating summary used by discovery cards.\n- `rating_window` describes the event-specific 7-day mutation window computed from `COALESCE(end_time, start_time)`.\n- `viewer_event_rating` returns the authenticated participant's current rating for the event, if one exists.\n- `viewer_context` is always present. For unauthenticated callers, `participation_status`\n  is `NONE` and `is_favorited` is `false`.\n- Responses are viewer-specific when a bearer token is supplied, so the endpoint returns\n  `Cache-Control: private, no-store` and `Vary: Authorization`.\n- Host management collections are no longer embedded in this response. Hosts should use\n  `GET /events/{id}/host-context`, `GET /events/{id}/participants`,\n  `GET /events/{id}/join-requests`, and `GET /events/{id}/invitations`."
+            "description": "operationId: `getEventDetail`\n\nGet event detail\n\nReturns the full event-detail payload for the caller. Authentication is optional —\nboth unauthenticated and authenticated requests are accepted.\n\nVisibility rules:\n- `PUBLIC` and `PROTECTED` events are readable by any caller, authenticated or not.\n- `PRIVATE` events are readable only by the host, users with an `APPROVED`\n  participation, users with an `ACCEPTED` invitation, or users with a `PENDING`\n  invitation (so invited users can review the event before responding). Anonymous\n  callers cannot read `PRIVATE` events.\n- When a `PRIVATE` event is not readable by the caller, the API responds with\n  `404 event_not_found` to avoid leaking the event's existence.\n\nResponse notes:\n- `status` is returned exactly as stored on the event row; canceled and completed\n  events remain readable.\n- `host_score` returns the host's cached aggregate rating summary used by discovery cards.\n- `rating_window` describes the event-specific 7-day mutation window computed from `COALESCE(end_time, start_time)`.\n- `viewer_event_rating` returns the authenticated participant's current rating for the event, if one exists.\n- `viewer_context` is always present. For unauthenticated callers, `participation_status`\n  is `NONE` and `is_favorited` is `false`.\n- Responses are viewer-specific when a bearer token is supplied, so the endpoint returns\n  `Cache-Control: private, no-store` and `Vary: Authorization`.\n- Host management collections are no longer embedded in this response. Hosts should use\n  `GET /events/{id}/host-context`, `GET /events/{id}/participants`,\n  `GET /events/{id}/join-requests`, and `GET /events/{id}/invitations`."
           }
         },
         {
@@ -848,6 +961,34 @@
               ]
             },
             "description": "operationId: `getEventHostContextSummary`\n\nGet host management summary\n\nReturns host-only management counters for the event without loading the underlying\nparticipant, join-request, or invitation collections."
+          }
+        },
+        {
+          "name": "Reconfirm participation after event details changed",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/participation/reconfirm",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "participation",
+                "reconfirm"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `reconfirmEventParticipation`\n\nReconfirm participation after event details changed\n\nAllows an authenticated participant with `PENDING` participation status to\nreconfirm attendance for the latest event details. On success the\nparticipation becomes `APPROVED`, `reconfirmed_at` and\n`last_confirmed_event_version` are updated, and protected/private event\ntickets are reactivated as `ACTIVE`."
           }
         },
         {
@@ -1045,6 +1186,317 @@
           }
         },
         {
+          "name": "List event discussion and review comments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/comments",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "comments"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "discussion_limit",
+                  "value": "25",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "discussion_cursor",
+                  "value": "",
+                  "description": "Opaque cursor for the next discussion page.",
+                  "disabled": true
+                },
+                {
+                  "key": "review_limit",
+                  "value": "25",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "review_cursor",
+                  "value": "",
+                  "description": "Opaque cursor for the next review page.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `listEventComments`\n\nList event discussion and review comments\n\nReturns top-level comments for a PUBLIC or PROTECTED event. Authentication is optional.\n\nThe response always contains two independently paginated collections:\n`discussion_comments` and `review_comments`, both ordered by latest comment first.\nChild comments are not embedded; use `GET /events/{id}/comments/{commentId}/replies`\nwhen the user chooses to see replies. Reply collections are ordered by oldest reply first\nso threaded conversations read chronologically.\n\nPRIVATE events do not expose comments. If the authenticated caller can otherwise see\nthe private event, the API returns `409 comments_not_allowed`; if not visible, it returns\n`404 event_not_found`."
+          }
+        },
+        {
+          "name": "Create a discussion comment or reply",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/comments",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "comments"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `createEventDiscussionComment`\n\nCreate a discussion comment or reply\n\nCreates a discussion comment on a PUBLIC or PROTECTED event.\n\nRules:\n- `ACTIVE`: any authenticated user may comment or reply.\n- `IN_PROGRESS`: only the host or a qualifying participant may comment or reply.\n- `COMPLETED`: discussion writes are rejected; participants should use review comments.\n- `CANCELED`: all comment writes are rejected.\n- Replies must target a top-level DISCUSSION comment from the same event."
+          }
+        },
+        {
+          "name": "List replies for a discussion comment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/comments/{{commentId}}/replies",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "comments",
+                "{{commentId}}",
+                "replies"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                },
+                {
+                  "key": "commentId",
+                  "value": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "25",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `listEventCommentReplies`\n\nList replies for a discussion comment\n\nReturns replies for a top-level DISCUSSION comment, ordered oldest first."
+          }
+        },
+        {
+          "name": "Create or update the caller's completed-event review comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/review-comments",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "review-comments"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `upsertEventReviewComment`\n\nCreate or update the caller's completed-event review comment\n\nCreates or updates the authenticated participant's review for a completed PUBLIC or\nPROTECTED event. Reviews are singular per `(event_id, user_id)` and are the canonical\nsource for participant-to-event ratings. The optional `image_confirm_token` is returned\nby `POST /events/{id}/review-comments/image/upload-url` after the client uploads both\nimage variants."
+          }
+        },
+        {
+          "name": "Create upload URLs for a review image",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/review-comments/image/upload-url",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "review-comments",
+                "image",
+                "upload-url"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `createEventReviewImageUpload`\n\nCreate upload URLs for a review image\n\nCreates presigned upload instructions for the authenticated participant's one review image.\nThe caller must upload both `ORIGINAL` and `SMALL` JPEG variants, then pass the returned\n`confirm_token` as `image_confirm_token` when upserting the review comment."
+          }
+        },
+        {
+          "name": "Create upload URLs for a join-request image",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/join-request/image/upload-url",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "join-request",
+                "image",
+                "upload-url"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "UUID of the protected event the caller wants to join."
+                }
+              ]
+            },
+            "description": "operationId: `createEventJoinRequestImageUpload`\n\nCreate upload URLs for a join-request image\n\nCreates presigned upload instructions for the authenticated user's optional one image on a protected-event join request.\nThe caller must upload both `ORIGINAL` and `SMALL` JPEG variants, then pass the returned\n`confirm_token` as `image_confirm_token` when calling `POST /events/{id}/join-request`.\n\nNaming convention:\n- original object key: `events/{event_id}/join-requests/{user_id}/{upload_id}`\n- small object key: `events/{event_id}/join-requests/{user_id}/{upload_id}-small`"
+          }
+        },
+        {
+          "name": "Report an event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/reports",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "reports"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"report_category\": \"SAFETY\",\n  \"message\": \"The event location felt unsafe and needs moderation review.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `createEventReport`\n\nReport an event\n\nCreates a moderation report for the event from the authenticated user.\n\nClient flow:\n- Always require the user to choose `report_category` and enter a non-blank `message`.\n- To attach an image, first call `POST /events/{id}/reports/image/upload-url`, upload both JPEG variants,\n  then send the returned `confirm_token` as `image_confirm_token`.\n- Report images are accepted only when the event's computed status is `IN_PROGRESS` or `COMPLETED`.\n- Reports are stored with status `PENDING` for future moderation workflows."
+          }
+        },
+        {
+          "name": "Create upload URLs for a report image",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/events/{{id}}/reports/image/upload-url",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{id}}",
+                "reports",
+                "image",
+                "upload-url"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `createEventReportImageUpload`\n\nCreate upload URLs for a report image\n\nCreates presigned upload instructions for an optional event-report image.\nThe authenticated caller must upload both `ORIGINAL` and `SMALL` JPEG variants,\nthen pass the returned `confirm_token` as `image_confirm_token` when creating the report.\n\nThis endpoint returns `409 event_report_image_not_allowed` unless the event's computed status\nis `IN_PROGRESS` or `COMPLETED`."
+          }
+        },
+        {
           "name": "Create or update the caller's event rating",
           "request": {
             "method": "PUT",
@@ -1082,7 +1534,7 @@
                 }
               }
             },
-            "description": "operationId: `upsertEventRating`\n\nCreate or update the caller's event rating\n\nCreates or updates the authenticated participant's rating for the event.\n\nRules:\n- The authenticated user must be an `APPROVED` participant of the event.\n- The event host cannot rate their own event, even though hosts have an internal approved participation row.\n- Ratings are allowed only within the 7-day window computed from `COALESCE(end_time, start_time)`.\n- `CANCELED` events cannot be rated.\n- The resource is singular per `(participant_user_id, event_id)`, so repeated `PUT` requests update the same record."
+            "description": "operationId: `upsertEventRating`\n\nCreate or update the caller's event rating\n\nDeprecated compatibility endpoint. Creates or updates the authenticated participant's\ncompleted-event REVIEW comment without an image. New clients should use\n`POST /events/{id}/review-comments`.\n\nRules:\n- The authenticated user must be a qualifying participant of the event.\n- The event host cannot rate their own event, even though hosts have an internal approved participation row.\n- Reviews are allowed only after the event status is `COMPLETED`.\n- `CANCELED` and `PRIVATE` events cannot be reviewed.\n- The resource is singular per `(user_id, event_id)`, so repeated `PUT` requests update the same review comment."
           }
         },
         {
@@ -1109,7 +1561,7 @@
                 }
               ]
             },
-            "description": "operationId: `deleteEventRating`\n\nDelete the caller's event rating\n\nHard deletes the authenticated participant's rating for the event.\nThe same authorization and rating-window rules used by `PUT /events/{id}/rating` also apply here."
+            "description": "operationId: `deleteEventRating`\n\nDelete the caller's event rating\n\nDeprecated compatibility endpoint. Hard deletes the authenticated participant's\nREVIEW comment/rating for the event. New clients should manage reviews through\nthe comments surface."
           }
         },
         {
@@ -1343,7 +1795,7 @@
                 }
               }
             },
-            "description": "operationId: `requestJoinEvent`\n\nRequest to join a protected event\n\nSubmits a join request for a **PROTECTED** event. Creates a `join_request`\nrow with `status: PENDING` awaiting host approval.\n\nRules:\n- The event must exist and have `privacy_level: PROTECTED`.\n- The authenticated user must not be the event host.\n- A user can only submit one pending request per event; a second attempt returns `409`.\n- After the host rejects a request, the same user must wait **3 days** before requesting again.\n- When the cooldown expires, the backend reactivates the same `join_request` row as `PENDING`.\n- If the user previously had an approved participation but left before `start_time`, the backend reactivates the same `join_request` row as `PENDING` so the host can approve them again.\n- If the user left at or after `start_time`, later request attempts return `409 already_participating`.\n- Calling this endpoint on a `PUBLIC` event returns `409 event_join_not_allowed`."
+            "description": "operationId: `requestJoinEvent`\n\nRequest to join a protected event\n\nSubmits a join request for a **PROTECTED** event. Creates a `join_request`\nrow with `status: PENDING` awaiting host approval.\n\nRules:\n- The event must exist and have `privacy_level: PROTECTED`.\n- The authenticated user must not be the event host.\n- A user can only submit one pending request per event; a second attempt returns `409`.\n- After the host rejects a request, the same user must wait **3 days** before requesting again.\n- When the cooldown expires, the backend reactivates the same `join_request` row as `PENDING`.\n- When a reactivated request omits `image_confirm_token`, any previous join-request image is cleared.\n- If the user previously had an approved participation but left before `start_time`, the backend reactivates the same `join_request` row as `PENDING` so the host can approve them again.\n- If the user left at or after `start_time`, later request attempts return `409 already_participating`.\n- Calling this endpoint on a `PUBLIC` event returns `409 event_join_not_allowed`."
           }
         },
         {
@@ -1508,6 +1960,18 @@
                   "key": "cursor",
                   "value": "",
                   "description": "Opaque cursor returned by a previous page of the same query.",
+                  "disabled": true
+                },
+                {
+                  "key": "child_friendly",
+                  "value": "true",
+                  "description": "If true, return only child-friendly events.",
+                  "disabled": true
+                },
+                {
+                  "key": "family_oriented",
+                  "value": "true",
+                  "description": "If true, return only family-oriented events.",
                   "disabled": true
                 }
               ]

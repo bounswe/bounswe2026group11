@@ -40,6 +40,14 @@ func (s *fakeTicketService) ExpireTicketsForEvent(context.Context, uuid.UUID) er
 	return nil
 }
 
+func (s *fakeTicketService) MarkTicketsPendingForEvent(context.Context, uuid.UUID) error {
+	return nil
+}
+
+func (s *fakeTicketService) ActivatePendingTicketsForEvent(context.Context, uuid.UUID) error {
+	return nil
+}
+
 func (s *fakeTicketService) ListMyTickets(context.Context, uuid.UUID) (*ticket.ListTicketsResult, error) {
 	return &ticket.ListTicketsResult{Items: []ticket.TicketListItem{}}, nil
 }

@@ -112,7 +112,7 @@ func (r *JoinRequestRepository) ApproveJoinRequest(
 		return nil, domain.ConflictError(domain.ErrorCodeJoinRequestStateInvalid, "Only PENDING join requests can be approved.")
 	}
 
-	if event.Capacity != nil && event.ApprovedParticipantCount >= *event.Capacity {
+	if event.Capacity != nil && event.ApprovedParticipantCount+event.PendingParticipantCount >= *event.Capacity {
 		return nil, domain.ConflictError(domain.ErrorCodeCapacityExceeded, "This event has reached its maximum capacity.")
 	}
 
@@ -273,7 +273,7 @@ func (r *JoinRequestRepository) handleExistingJoinRequestForCreate(
 
 func (r *JoinRequestRepository) loadEventState(ctx context.Context, eventID uuid.UUID, forUpdate bool) (*domain.Event, error) {
 	query := `
-		SELECT host_id, privacy_level, capacity, approved_participant_count, start_time
+		SELECT host_id, privacy_level, capacity, approved_participant_count, pending_participant_count, start_time
 		FROM event
 		WHERE id = $1
 	`
@@ -286,10 +286,11 @@ func (r *JoinRequestRepository) loadEventState(ctx context.Context, eventID uuid
 		privacyLevel  string
 		capacity      pgtype.Int4
 		approvedCount int
+		pendingCount  int
 		startTime     time.Time
 	)
 
-	err := r.db.QueryRow(ctx, query, eventID).Scan(&hostID, &privacyLevel, &capacity, &approvedCount, &startTime)
+	err := r.db.QueryRow(ctx, query, eventID).Scan(&hostID, &privacyLevel, &capacity, &approvedCount, &pendingCount, &startTime)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -302,6 +303,7 @@ func (r *JoinRequestRepository) loadEventState(ctx context.Context, eventID uuid
 		HostID:                   hostID,
 		PrivacyLevel:             domain.EventPrivacyLevel(privacyLevel),
 		ApprovedParticipantCount: approvedCount,
+		PendingParticipantCount:  pendingCount,
 		StartTime:                startTime,
 	}
 	if capacity.Valid {
