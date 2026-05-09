@@ -680,11 +680,12 @@ export default function DiscoverPage() {
             </div>
 
             <button type="button" className="dc-loc-modal-apply" onClick={vm.applyModalLocation}>
-              {vm.modalLocationQuery.trim() === ''
-                ? vm.defaultProfileLocation
-                  ? 'Use default location'
-                  : 'Apply'
-                : 'Apply location'}
+              {vm.pendingLocation &&
+              vm.defaultProfileLocation &&
+              vm.pendingLocation.lat === vm.defaultProfileLocation.lat &&
+              vm.pendingLocation.lon === vm.defaultProfileLocation.lon
+                ? 'Use default location'
+                : 'Apply'}
             </button>
           </div>
         </div>
