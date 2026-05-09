@@ -54,6 +54,7 @@ function makeBaseEvent(): EventDetailResponse {
       address: 'Moda Coast',
       point: { lat: 40.98, lon: 29.03 },
       route_points: [],
+      is_location_approximate: false,
     },
     tags: ['walk'],
     constraints: [],
@@ -235,6 +236,29 @@ describe('EventDetailPage ratings', () => {
     expect(link.rel).toContain('noopener');
   });
 
+  it('shows approximate area copy and hides directions for approximate protected locations', () => {
+    const event = makeBaseEvent();
+    event.privacy_level = 'PROTECTED';
+    event.viewer_context.participation_status = 'NONE';
+    event.location = {
+      type: 'POINT',
+      address: null,
+      point: { lat: 40.981, lon: 29.032 },
+      route_points: [],
+      is_location_approximate: true,
+    };
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.getByText(/approximate area/i)).toBeDefined();
+    expect(screen.getByText(/approximate location shown/i)).toBeDefined();
+    expect(screen.getByText(/hides its exact address until your participation is approved/i)).toBeDefined();
+    expect(screen.getByText(/exact address is visible after approval/i)).toBeDefined();
+    expect(screen.queryByTestId('ed-directions-link')).toBeNull();
+  });
+
   it('shows the map fallback and hides the directions link when coordinates are missing', () => {
     const event = makeBaseEvent();
     event.location = {
@@ -242,6 +266,7 @@ describe('EventDetailPage ratings', () => {
       address: 'No coordinates here',
       point: null,
       route_points: [],
+      is_location_approximate: false,
     };
 
     mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));

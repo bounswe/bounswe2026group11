@@ -93,6 +93,7 @@ export interface DiscoverEventItem {
   location_address: string | null;
   location_lat?: number;
   location_lon?: number;
+  is_location_approximate: boolean;
   privacy_level: 'PUBLIC' | 'PROTECTED';
   approved_participant_count: number;
   is_favorited: boolean;
@@ -126,6 +127,7 @@ export interface EventDetailLocation {
   address: string | null;
   point: EventDetailPoint | null;
   route_points: EventDetailPoint[];
+  is_location_approximate: boolean;
 }
 
 export interface EventDetailUserSummary {
