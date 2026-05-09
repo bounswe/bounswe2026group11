@@ -31,6 +31,8 @@ import JoinRequestsModal from '@/components/events/JoinRequestsModal';
 import ParticipantListModal from '@/components/events/ParticipantListModal';
 import InvitationsModal from '@/components/events/InvitationsModal';
 import ReportEventModal from '@/components/events/ReportEventModal';
+import EventDiscussionSection from '@/components/events/EventDiscussionSection';
+import { useEventDiscussionViewModel } from '@/viewmodels/event/useEventDiscussionViewModel';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -491,6 +493,7 @@ const darkMapStyle = [
 export default function EventDetailView({ eventId }: EventDetailViewProps) {
   const vm = useEventDetailViewModel(eventId);
   const { theme, isDark } = useTheme();
+  const discussionVm = useEventDiscussionViewModel(eventId, vm.token ?? undefined);
   const styles = useMemo(() => makeStyles(theme, isDark), [theme, isDark]);
   const [isMapModalVisible, setIsMapModalVisible] = useState(false);
   const [routedGeometry, setRoutedGeometry] = useState<Array<{ lat: number; lon: number }> | null>(
@@ -1266,6 +1269,52 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             </View>
           </>
         )}
+
+        {/* Discussion — available for public and protected events only */}
+        {event.privacy_level !== 'PRIVATE' && (() => {
+          const isHost = vm.event.viewer_context.is_host;
+          const participationStatus = vm.event.viewer_context.participation_status;
+          const isQualifiedParticipant =
+            participationStatus === 'JOINED' ||
+            (participationStatus === 'LEAVED' && new Date() >= new Date(event.start_time));
+
+          const canPostDiscussion =
+            Boolean(vm.token) &&
+            (event.status === 'ACTIVE' ||
+              (event.status === 'IN_PROGRESS' && (isHost || isQualifiedParticipant)));
+
+          const ratingWindowOpen =
+            event.status === 'COMPLETED' &&
+            new Date() <= new Date(event.rating_window.closes_at);
+
+          const canPostReview =
+            Boolean(vm.token) &&
+            ratingWindowOpen &&
+            !isHost &&
+            isQualifiedParticipant;
+
+          return (
+            <>
+              <View style={styles.divider} />
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Discussions</Text>
+              </View>
+              <EventDiscussionSection
+                vm={discussionVm}
+                eventStatus={event.status}
+                isAuthenticated={Boolean(vm.token)}
+                canPostDiscussion={canPostDiscussion}
+                canPostReview={canPostReview}
+                hasExistingReview={discussionVm.reviews.items.some(
+                  (r) => r.user.id === vm.user?.id,
+                )}
+                reviewWindowClosed={
+                  event.status === 'COMPLETED' && !ratingWindowOpen
+                }
+              />
+            </>
+          );
+        })()}
 
         {/* Action error */}
         {vm.actionError ? (
