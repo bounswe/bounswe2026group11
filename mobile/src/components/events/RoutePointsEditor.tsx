@@ -11,6 +11,7 @@ import MapView, { Marker, Polyline, type LatLng } from 'react-native-maps';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+import { DARK_MAP_STYLE } from '@/theme/mapStyle';
 import type { LocationSuggestion } from '@/models/event';
 import type { RouteWaypoint } from '@/viewmodels/event/useCreateEventViewModel';
 import { fetchRoutedGeometry, reverseGeocode } from '@/services/eventService';
@@ -54,7 +55,7 @@ export default function RoutePointsEditor({
   onMove,
   onUpdateLabel,
 }: Props) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const mapRef = useRef<MapView>(null);
   const lastRegionRef = useRef(DEFAULT_REGION);
@@ -187,8 +188,11 @@ export default function RoutePointsEditor({
 
       <View style={styles.mapContainer}>
         <MapView
+          key={`route-editor-map-${isDark ? 'dark' : 'light'}`}
           ref={mapRef}
           style={styles.map}
+          userInterfaceStyle={isDark ? 'dark' : 'light'}
+          customMapStyle={isDark ? DARK_MAP_STYLE : []}
           initialRegion={initialRegion}
           onRegionChangeComplete={(region) => {
             lastRegionRef.current = region;

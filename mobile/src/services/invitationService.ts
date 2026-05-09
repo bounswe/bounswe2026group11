@@ -6,7 +6,7 @@ import {
 } from '@/models/invitation';
 
 /**
- * Fetches the current user's pending private-event invitations.
+ * Fetches the current user's invitations grouped into pending and past buckets.
  */
 export async function listMyInvitations(token: string): Promise<ReceivedInvitationsResponse> {
   return apiGetAuth<ReceivedInvitationsResponse>('/me/invitations', token);

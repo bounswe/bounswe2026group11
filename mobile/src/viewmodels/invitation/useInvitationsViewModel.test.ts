@@ -44,7 +44,7 @@ describe('useInvitationsViewModel', () => {
 
   it('fetches invitations on mount', async () => {
     const mockInvitations = {
-      items: [
+      pending: [
         {
           invitation_id: 'inv-1',
           status: 'PENDING',
@@ -53,6 +53,7 @@ describe('useInvitationsViewModel', () => {
           created_at: '2026-05-01T10:00:00Z',
         },
       ],
+      past: { items: [], page_info: { next_cursor: null, has_next: false } },
     };
     mockInvitationService.listMyInvitations.mockResolvedValue(mockInvitations as any);
 
@@ -82,9 +83,10 @@ describe('useInvitationsViewModel', () => {
 
   it('removes invitation from list after successful accept', async () => {
     const mockInvitations = {
-      items: [
+      pending: [
         { invitation_id: 'inv-1', status: 'PENDING', event: { title: 'E1' }, host: { username: 'h1' } },
       ],
+      past: { items: [], page_info: { next_cursor: null, has_next: false } },
     };
     mockInvitationService.listMyInvitations.mockResolvedValue(mockInvitations as any);
     mockInvitationService.acceptInvitation.mockResolvedValue({} as any);
@@ -105,9 +107,10 @@ describe('useInvitationsViewModel', () => {
 
   it('removes invitation from list after successful decline', async () => {
     const mockInvitations = {
-      items: [
+      pending: [
         { invitation_id: 'inv-1', status: 'PENDING', event: { title: 'E1' }, host: { username: 'h1' } },
       ],
+      past: { items: [], page_info: { next_cursor: null, has_next: false } },
     };
     mockInvitationService.listMyInvitations.mockResolvedValue(mockInvitations as any);
     mockInvitationService.declineInvitation.mockResolvedValue({} as any);

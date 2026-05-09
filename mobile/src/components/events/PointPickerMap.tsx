@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+import { DARK_MAP_STYLE } from '@/theme/mapStyle';
 import { reverseGeocode } from '@/services/eventService';
 import MapZoomControls from './MapZoomControls';
 
@@ -21,7 +22,7 @@ const DEFAULT_REGION = {
 };
 
 export default function PointPickerMap({ lat, lon, disabled, onSelect }: Props) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const mapRef = useRef<MapView>(null);
   const lastRegionRef = useRef(DEFAULT_REGION);
@@ -71,8 +72,11 @@ export default function PointPickerMap({ lat, lon, disabled, onSelect }: Props) 
   return (
     <View style={styles.container}>
       <MapView
+        key={`point-picker-map-${isDark ? 'dark' : 'light'}`}
         ref={mapRef}
         style={styles.map}
+        userInterfaceStyle={isDark ? 'dark' : 'light'}
+        customMapStyle={isDark ? DARK_MAP_STYLE : []}
         initialRegion={region}
         onRegionChangeComplete={(r) => {
           lastRegionRef.current = r;
