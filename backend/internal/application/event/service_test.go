@@ -58,6 +58,8 @@ type fakeEventRepo struct {
 	editSnapshot           *EventEditSnapshot
 	updateParams           UpdateEventParams
 	transitionRecords      []EventStatusTransitionRecord
+	historySnapshots       map[int]*EventHistorySnapshotRecord
+	historyCreateCount     int
 }
 
 func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams) (*domain.Event, error) {
@@ -68,6 +70,7 @@ func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams)
 	return &domain.Event{
 		ID:           uuid.New(),
 		HostID:       params.HostID,
+		VersionNo:    1,
 		Title:        params.Title,
 		PrivacyLevel: params.PrivacyLevel,
 		Status:       domain.EventStatusActive,
@@ -117,8 +120,42 @@ func (r *fakeEventRepo) UpdateEvent(_ context.Context, params UpdateEventParams)
 	e.EndTime = params.EndTime
 	e.Capacity = params.Capacity
 	e.LocationType = &params.LocationType
+	e.VersionNo++
 	e.UpdatedAt = time.Now().UTC()
 	return e, nil
+}
+
+func (r *fakeEventRepo) CreateEventHistorySnapshot(_ context.Context, eventID uuid.UUID, versionNo int, changedFields []string, _ uuid.UUID) error {
+	r.historyCreateCount++
+	if r.historySnapshots == nil {
+		r.historySnapshots = map[int]*EventHistorySnapshotRecord{}
+	}
+	r.historySnapshots[versionNo] = &EventHistorySnapshotRecord{
+		EventID:       eventID,
+		VersionNo:     versionNo,
+		ChangedFields: append([]string{}, changedFields...),
+	}
+	return r.err
+}
+
+func (r *fakeEventRepo) GetEventHistorySnapshot(_ context.Context, eventID uuid.UUID, versionNo int) (*EventHistorySnapshotRecord, error) {
+	if snapshot, ok := r.historySnapshots[versionNo]; ok {
+		return snapshot, nil
+	}
+	return &EventHistorySnapshotRecord{EventID: eventID, VersionNo: versionNo}, nil
+}
+
+func (r *fakeEventRepo) GetLatestEventHistorySnapshot(_ context.Context, eventID uuid.UUID) (*EventHistorySnapshotRecord, error) {
+	var latest *EventHistorySnapshotRecord
+	for _, snapshot := range r.historySnapshots {
+		if latest == nil || snapshot.VersionNo > latest.VersionNo {
+			latest = snapshot
+		}
+	}
+	if latest != nil {
+		return latest, nil
+	}
+	return &EventHistorySnapshotRecord{EventID: eventID, VersionNo: 1}, nil
 }
 
 func (r *fakeEventRepo) GetEventByID(_ context.Context, id uuid.UUID) (*domain.Event, error) {
@@ -609,6 +646,7 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 
 	eventRepo.detailRecord = &EventDetailRecord{
 		ID:                       eventID,
+		VersionNo:                1,
 		Title:                    "Detail Event",
 		Description:              stringPtr("Full payload"),
 		ImageURL:                 stringPtr("https://example.com/event.png"),
@@ -652,7 +690,8 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 		ViewerContext: EventDetailViewerContextRecord{
 			IsHost:              false,
 			IsFavorited:         true,
-			ParticipationStatus: domain.EventDetailParticipationStatusJoined,
+			ParticipationStatus: ptrParticipationStatus(domain.ParticipationStatusApproved),
+			LatestEventVersion:  1,
 		},
 		ViewerEventRating: &EventDetailRatingRecord{
 			ID:        uuid.New(),
@@ -703,8 +742,8 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 	if result.ViewerEventRating == nil || result.ViewerEventRating.Rating != 5 {
 		t.Fatalf("expected viewer_event_rating to be mapped, got %+v", result.ViewerEventRating)
 	}
-	if result.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
-		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusJoined, result.ViewerContext.ParticipationStatus)
+	if result.ViewerContext.ParticipationStatus == nil || *result.ViewerContext.ParticipationStatus != domain.ParticipationStatusApproved {
+		t.Fatalf("expected participation_status %q, got %v", domain.ParticipationStatusApproved, result.ViewerContext.ParticipationStatus)
 	}
 	if result.RatingWindow.IsActive {
 		t.Fatal("expected canceled event rating window to be inactive")
@@ -1540,6 +1579,82 @@ func editableEvent(hostID uuid.UUID) *domain.Event {
 	}
 }
 
+func TestGetEventDetailReturnsDiffFromViewerLastConfirmedVersion(t *testing.T) {
+	// given
+	svc, eventRepo, _, _ := newTestEventService()
+	eventID := uuid.New()
+	userID := uuid.New()
+	lastConfirmed := 3
+	eventRepo.detailRecord = &EventDetailRecord{
+		ID:           eventID,
+		VersionNo:    5,
+		Title:        "New title",
+		PrivacyLevel: domain.PrivacyPublic,
+		Status:       domain.EventStatusActive,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		CreatedAt:    time.Now().UTC().Add(-time.Hour),
+		UpdatedAt:    time.Now().UTC(),
+		Host:         EventDetailPersonRecord{ID: uuid.New(), Username: "host"},
+		Location: EventDetailLocationRecord{
+			Type:  domain.LocationPoint,
+			Point: &domain.GeoPoint{Lat: 41, Lon: 29},
+		},
+		ViewerContext: EventDetailViewerContextRecord{
+			ParticipationStatus:       ptrParticipationStatus(domain.ParticipationStatusPending),
+			LastConfirmedEventVersion: &lastConfirmed,
+			LatestEventVersion:        5,
+		},
+	}
+	eventRepo.historySnapshots = map[int]*EventHistorySnapshotRecord{
+		3: {
+			EventID:   eventID,
+			VersionNo: 3,
+			Snapshot: EventHistorySnapshot{
+				Title:        "Old title",
+				PrivacyLevel: string(domain.PrivacyPublic),
+				Status:       string(domain.EventStatusActive),
+				StartTime:    eventRepo.detailRecord.StartTime,
+				Location:     EventHistoryLocationSnapshot{Type: string(domain.LocationPoint)},
+				Tags:         []string{"old"},
+				Constraints:  []EventDetailConstraintRecord{},
+			},
+		},
+		5: {
+			EventID:   eventID,
+			VersionNo: 5,
+			Snapshot: EventHistorySnapshot{
+				Title:        "New title",
+				PrivacyLevel: string(domain.PrivacyPublic),
+				Status:       string(domain.EventStatusActive),
+				StartTime:    eventRepo.detailRecord.StartTime,
+				Location:     EventHistoryLocationSnapshot{Type: string(domain.LocationPoint)},
+				Tags:         []string{"new"},
+				Constraints:  []EventDetailConstraintRecord{},
+			},
+		},
+	}
+
+	// when
+	result, err := svc.GetEventDetail(context.Background(), userID, eventID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if !result.ViewerContext.NeedsReconfirmation {
+		t.Fatal("expected needs_reconfirmation=true")
+	}
+	if result.ViewerContext.EventDiff == nil {
+		t.Fatal("expected event_diff")
+	}
+	if result.ViewerContext.EventDiff.FromVersionNo != 3 || result.ViewerContext.EventDiff.ToVersionNo != 5 {
+		t.Fatalf("unexpected diff versions: %+v", result.ViewerContext.EventDiff)
+	}
+	if len(result.ViewerContext.EventDiff.Changes) != 2 {
+		t.Fatalf("expected title and tags changes, got %+v", result.ViewerContext.EventDiff.Changes)
+	}
+}
+
 func TestUpdateEventTriggeringChangeMarksApprovedParticipantsPendingAndTickets(t *testing.T) {
 	// given
 	hostID := uuid.New()
@@ -2286,5 +2401,7 @@ func stringPtr(v string) *string { return &v }
 func timePtr(v time.Time) *time.Time { return &v }
 
 func intPtr(v int) *int { return &v }
+
+func ptrParticipationStatus(v domain.ParticipationStatus) *domain.ParticipationStatus { return &v }
 
 func floatPtr(v float64) *float64 { return &v }

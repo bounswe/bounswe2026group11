@@ -19,11 +19,11 @@ func TestToEventDetailLocationPublicEventNeverFuzzes(t *testing.T) {
 	cases := []struct {
 		name   string
 		isHost bool
-		status domain.EventDetailParticipationStatus
+		status *domain.ParticipationStatus
 	}{
-		{"host", true, domain.EventDetailParticipationStatusNone},
-		{"joined participant", false, domain.EventDetailParticipationStatusJoined},
-		{"non-participant", false, domain.EventDetailParticipationStatusNone},
+		{"host", true, nil},
+		{"joined participant", false, testParticipationStatus(domain.ParticipationStatusApproved)},
+		{"non-participant", false, nil},
 	}
 
 	for _, tc := range cases {
@@ -46,15 +46,14 @@ func TestToEventDetailLocationProtectedEventFuzzesNonParticipants(t *testing.T) 
 	cases := []struct {
 		name      string
 		isHost    bool
-		status    domain.EventDetailParticipationStatus
+		status    *domain.ParticipationStatus
 		wantExact bool
 	}{
-		{"host gets exact", true, domain.EventDetailParticipationStatusNone, true},
-		{"joined gets exact", false, domain.EventDetailParticipationStatusJoined, true},
-		{"pending gets approximate", false, domain.EventDetailParticipationStatusPending, false},
-		{"invited gets approximate", false, domain.EventDetailParticipationStatusInvited, false},
-		{"none gets approximate", false, domain.EventDetailParticipationStatusNone, false},
-		{"leaved gets approximate", false, domain.EventDetailParticipationStatusLeaved, false},
+		{"host gets exact", true, nil, true},
+		{"approved gets exact", false, testParticipationStatus(domain.ParticipationStatusApproved), true},
+		{"pending reconfirmation gets exact", false, testParticipationStatus(domain.ParticipationStatusPending), true},
+		{"none gets approximate", false, nil, false},
+		{"leaved gets approximate", false, testParticipationStatus(domain.ParticipationStatusLeaved), false},
 	}
 
 	for _, tc := range cases {
@@ -89,7 +88,7 @@ func TestToEventDetailLocationRoutePointsAreFuzzed(t *testing.T) {
 		},
 	}
 
-	loc := toEventDetailLocation(record, domain.PrivacyProtected, false, domain.EventDetailParticipationStatusNone)
+	loc := toEventDetailLocation(record, domain.PrivacyProtected, false, nil)
 
 	if !loc.IsLocationApproximate {
 		t.Error("expected IsLocationApproximate for protected non-participant")
@@ -100,4 +99,8 @@ func TestToEventDetailLocationRoutePointsAreFuzzed(t *testing.T) {
 			t.Errorf("route point %d not fuzzed", i)
 		}
 	}
+}
+
+func testParticipationStatus(status domain.ParticipationStatus) *domain.ParticipationStatus {
+	return &status
 }

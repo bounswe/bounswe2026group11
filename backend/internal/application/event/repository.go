@@ -22,6 +22,9 @@ type Repository interface {
 	CreateEvent(ctx context.Context, params CreateEventParams) (*domain.Event, error)
 	GetEventEditSnapshot(ctx context.Context, eventID uuid.UUID) (*EventEditSnapshot, error)
 	UpdateEvent(ctx context.Context, params UpdateEventParams) (*domain.Event, error)
+	CreateEventHistorySnapshot(ctx context.Context, eventID uuid.UUID, versionNo int, changedFields []string, createdByUserID uuid.UUID) error
+	GetEventHistorySnapshot(ctx context.Context, eventID uuid.UUID, versionNo int) (*EventHistorySnapshotRecord, error)
+	GetLatestEventHistorySnapshot(ctx context.Context, eventID uuid.UUID) (*EventHistorySnapshotRecord, error)
 	ListDiscoverableEvents(ctx context.Context, userID uuid.UUID, params DiscoverEventsParams) ([]DiscoverableEventRecord, error)
 	GetEventDetail(ctx context.Context, userID, eventID uuid.UUID) (*EventDetailRecord, error)
 	GetEventHostContextSummary(ctx context.Context, eventID uuid.UUID) (*EventHostContextSummaryRecord, error)

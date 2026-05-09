@@ -92,11 +92,25 @@ func (s *Service) AcceptInvitation(ctx context.Context, userID, invitationID uui
 		var err error
 		record, err = s.repo.AcceptInvitation(ctx, userID, invitationID)
 		if err != nil {
+			slog.ErrorContext(ctx, "invitation accept failed",
+				"operation", "invitation.accept",
+				"invitation_id", invitationID.String(),
+				"user_id", userID.String(),
+				"error", err,
+			)
 			return err
 		}
 		if s.tickets != nil {
 			_, err = s.tickets.CreateTicketForParticipation(ctx, record.Participation, domain.TicketStatusActive)
 			if err != nil {
+				slog.ErrorContext(ctx, "ticket creation after invitation accept failed",
+					"operation", "invitation.accept.ticket_create",
+					"invitation_id", invitationID.String(),
+					"event_id", record.Invitation.EventID.String(),
+					"user_id", userID.String(),
+					"participation_id", record.Participation.ID.String(),
+					"error", err,
+				)
 				return err
 			}
 		}
@@ -107,6 +121,20 @@ func (s *Service) AcceptInvitation(ctx context.Context, userID, invitationID uui
 	}
 
 	s.notifyInvitationResponse(ctx, record.Invitation.ID, domain.InvitationStatusAccepted)
+	acceptedVersion := 0
+	if record.Participation.LastConfirmedEventVersion != nil {
+		acceptedVersion = *record.Participation.LastConfirmedEventVersion
+	}
+	slog.InfoContext(ctx, "invitation accepted",
+		"operation", "invitation.accept",
+		"invitation_id", record.Invitation.ID.String(),
+		"event_id", record.Invitation.EventID.String(),
+		"user_id", userID.String(),
+		"participation_id", record.Participation.ID.String(),
+		"participation_status", record.Participation.Status.String(),
+		"accepted_event_version", acceptedVersion,
+		"ticket_created", s.tickets != nil,
+	)
 
 	return &AcceptInvitationResult{
 		InvitationID:        record.Invitation.ID.String(),

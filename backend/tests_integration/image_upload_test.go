@@ -163,7 +163,7 @@ func TestConfirmEventImageUploadPersistsURLAndVersionWithoutChangingEventVersion
 	if imageVersion != 1 {
 		t.Fatalf("expected image_version 1, got %d", imageVersion)
 	}
-	if versionNo != 0 {
-		t.Fatalf("expected version_no to remain 0, got %d", versionNo)
+	if versionNo != 1 {
+		t.Fatalf("expected version_no to remain 1, got %d", versionNo)
 	}
 }
