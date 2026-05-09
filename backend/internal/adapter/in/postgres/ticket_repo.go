@@ -30,7 +30,7 @@ func NewTicketRepository(pool *pgxpool.Pool) *TicketRepository {
 	}
 }
 
-// CreateTicketForParticipation creates or reactivates a non-terminal ticket for an approved participation.
+// CreateTicketForParticipation creates or reactivates the ticket for an approved participation.
 func (r *TicketRepository) CreateTicketForParticipation(ctx context.Context, participationID uuid.UUID, status domain.TicketStatus) (*domain.Ticket, error) {
 	row := r.db.QueryRow(ctx, `
 		WITH participation_event AS (
