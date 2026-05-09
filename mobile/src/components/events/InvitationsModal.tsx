@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { EventDetailInvitation } from '@/models/event';
@@ -26,6 +27,7 @@ interface InvitationsModalProps {
   onLoadMore: () => void;
   onClose: () => void;
   onInvite: (usernames: string[], message?: string) => Promise<void>;
+  onRevoke?: (invitationId: string) => Promise<void>;
   isInviting: boolean;
   userSearchQuery: string;
   setUserSearchQuery: (query: string) => void;
@@ -41,6 +43,7 @@ export default function InvitationsModal({
   onLoadMore,
   onClose,
   onInvite,
+  onRevoke,
   isInviting,
   userSearchQuery,
   setUserSearchQuery,
@@ -131,6 +134,8 @@ export default function InvitationsModal({
         return { bg: '#DCFCE7', text: '#16A34A', label: 'Accepted' };
       case 'DECLINED':
         return { bg: '#FEE2E2', text: '#DC2626', label: 'Declined' };
+      case 'CANCELED':
+        return { bg: '#F3F4F6', text: '#6B7280', label: 'Revoked' };
       default:
         return { bg: '#FEF3C7', text: '#D97706', label: 'Pending' };
     }
@@ -144,7 +149,7 @@ export default function InvitationsModal({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         <TouchableOpacity
@@ -261,6 +266,8 @@ export default function InvitationsModal({
               data={invitations}
               keyExtractor={(item) => item.invitation_id}
               contentContainerStyle={styles.list}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
               renderItem={({ item }) => {
                 const status = getStatusStyle(item.status);
                 return (
@@ -288,6 +295,28 @@ export default function InvitationsModal({
                         {status.label}
                       </Text>
                     </View>
+
+                    {item.status === 'PENDING' && !!onRevoke && (
+                      <TouchableOpacity
+                        style={styles.revokeBtn}
+                        onPress={() => {
+                          Alert.alert(
+                            'Revoke Invitation',
+                            `Are you sure you want to revoke the invitation for @${item.user.username}?`,
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Revoke',
+                                style: 'destructive',
+                                onPress: () => void onRevoke(item.invitation_id),
+                              },
+                            ],
+                          );
+                        }}
+                      >
+                        <Feather name="trash-2" size={18} color="#DC2626" />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 );
               }}
@@ -566,5 +595,14 @@ const styles = StyleSheet.create({
   loadMoreText: {
     color: '#7C3AED',
     fontWeight: '600',
+  },
+  revokeBtn: {
+    marginLeft: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

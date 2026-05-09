@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -13,11 +13,12 @@ import {
   View,
   Alert,
 } from 'react-native';
-import MapView, { Circle, Marker } from 'react-native-maps';
+import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
+import { fetchRoutedGeometry } from '@/services/eventService';
 import { formatEventDateLabel, getAutoCompletionDaysLeft } from '@/utils/eventDate';
 import {
   formatEventStatusLabel,
@@ -34,6 +35,40 @@ import type { Theme } from '@/theme';
 
 interface EventDetailViewProps {
   eventId: string;
+}
+
+interface RegionLike {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+}
+
+function getPrimaryPoint(location: EventDetail['location']): { lat: number; lon: number } | null {
+  if (location.point) return { lat: location.point.lat, lon: location.point.lon };
+  if (location.type === 'ROUTE' && location.route_points && location.route_points.length > 0) {
+    return { lat: location.route_points[0].lat, lon: location.route_points[0].lon };
+  }
+  return null;
+}
+
+function getRouteRegion(
+  routePoints: Array<{ lat: number; lon: number }>,
+  paddingFactor: number,
+): RegionLike | null {
+  if (!routePoints || routePoints.length === 0) return null;
+  const lats = routePoints.map((p) => p.lat);
+  const lons = routePoints.map((p) => p.lon);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons);
+  const maxLon = Math.max(...lons);
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLon + maxLon) / 2,
+    latitudeDelta: Math.max(0.005, (maxLat - minLat) * paddingFactor),
+    longitudeDelta: Math.max(0.005, (maxLon - minLon) * paddingFactor),
+  };
 }
 
 function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
@@ -457,10 +492,45 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(theme, isDark), [theme, isDark]);
   const [isMapModalVisible, setIsMapModalVisible] = useState(false);
+  const [routedGeometry, setRoutedGeometry] = useState<Array<{ lat: number; lon: number }> | null>(
+    null,
+  );
+
+  const routeWaypoints = useMemo(() => {
+    if (vm.event?.location.type !== 'ROUTE') return null;
+    return vm.event.location.route_points ?? [];
+  }, [vm.event?.location.type, vm.event?.location.route_points]);
+
+  useEffect(() => {
+    if (!routeWaypoints || routeWaypoints.length < 2) {
+      setRoutedGeometry(null);
+      return;
+    }
+    let cancelled = false;
+    fetchRoutedGeometry(routeWaypoints)
+      .then((geom) => {
+        if (!cancelled) setRoutedGeometry(geom);
+      })
+      .catch(() => {
+        if (!cancelled) setRoutedGeometry(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [routeWaypoints]);
+
+  // Polyline coords: prefer the routed geometry (follows roads); fall back to
+  // straight-line waypoints if routing is unavailable or still loading.
+  const polylineCoords = useMemo(() => {
+    if (routedGeometry && routedGeometry.length >= 2) return routedGeometry;
+    return routeWaypoints && routeWaypoints.length >= 2 ? routeWaypoints : null;
+  }, [routedGeometry, routeWaypoints]);
 
   const handleGetDirections = () => {
-    if (!vm.event?.location.point) return;
-    const { lat, lon } = vm.event.location.point;
+    if (!vm.event) return;
+    const primary = getPrimaryPoint(vm.event.location);
+    if (!primary) return;
+    const { lat, lon } = primary;
     const label = vm.event.title;
 
     const url = Platform.select({
@@ -515,7 +585,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       return (
         <View>
           <View style={styles.statusChip}>
-            <Ionicons name="checkmark-circle" size={16} color="#059669" />
+            <Ionicons name="checkmark-circle" size={16} color={theme.successText} />
             <Text style={styles.statusChipTextGreen}>{attendedLabel}</Text>
           </View>
           {vm.canLeave && (
@@ -550,9 +620,42 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
     if (status_ === 'PENDING' || vm.actionState === 'success_requested') {
       return (
-        <View style={styles.statusChip}>
-          <Feather name="clock" size={16} color="#D97706" />
-          <Text style={styles.statusChipTextAmber}>Request sent — awaiting approval</Text>
+        <View>
+          <View style={styles.statusChip}>
+            <Feather name="clock" size={16} color={theme.warningText} />
+            <Text style={styles.statusChipTextAmber}>Request sent — awaiting approval</Text>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.leaveButton,
+              vm.actionState === 'canceling_request' && styles.actionButtonLoading,
+            ]}
+            onPress={() => {
+              Alert.alert(
+                'Cancel Request',
+                'Are you sure you want to withdraw your join request?',
+                [
+                  { text: 'No', style: 'cancel' },
+                  {
+                    text: 'Yes, Cancel',
+                    style: 'destructive',
+                    onPress: vm.handleCancelJoinRequest,
+                  },
+                ],
+              );
+            }}
+            disabled={vm.actionState === 'canceling_request'}
+            activeOpacity={0.8}
+          >
+            {vm.actionState === 'canceling_request' ? (
+              <ActivityIndicator color="#DC2626" size="small" />
+            ) : (
+              <>
+                <Feather name="x-circle" size={18} color="#DC2626" />
+                <Text style={styles.leaveButtonText}>Cancel Request</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       );
     }
@@ -561,7 +664,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       return (
         <View>
           <View style={styles.statusChip}>
-            <Feather name="mail" size={16} color="#111827" />
+            <Feather name="mail" size={16} color={theme.infoText} />
             <Text style={styles.statusChipTextBlue}>You&apos;re invited</Text>
           </View>
 
@@ -824,8 +927,18 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           </View>
 
           <View style={styles.metaRow}>
-            <Feather name="map-pin" size={16} color={theme.textTertiary} />
+            <Feather
+              name={event.location.type === 'ROUTE' ? 'navigation' : 'map-pin'}
+              size={16}
+              color={theme.textTertiary}
+            />
             <Text style={styles.metaText}>{formatEventLocation(event.location.address)}</Text>
+            {event.location.type === 'ROUTE' && (
+              <View style={styles.routeChip}>
+                <Feather name="navigation" size={10} color={theme.textOnPrimary} />
+                <Text style={styles.routeChipText}>Route</Text>
+              </View>
+            )}
           </View>
 
           {event.location.meeting_instructions && (
@@ -851,99 +964,118 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <Text style={styles.metaText}>{event.favorite_count} saved</Text>
           </View>
 
-          {event.location.point && (
-            <View style={styles.miniMapWrapper}>
-              <TouchableOpacity
-                style={styles.miniMapContainer}
-                onPress={() => setIsMapModalVisible(true)}
-                activeOpacity={0.9}
-                testID="mini-map-touchable"
-              >
-                <MapView
-                  style={styles.miniMap}
-                  customMapStyle={isDark ? darkMapStyle : []}
-                  region={{
-                    latitude: event.location.point.lat,
-                    longitude: event.location.point.lon,
-                    latitudeDelta:
-                      event.location.is_location_approximate &&
-                      !event.viewer_context.is_host &&
-                      event.viewer_context.participation_status !== 'JOINED'
-                        ? 0.04
-                        : 0.005,
-                    longitudeDelta:
-                      event.location.is_location_approximate &&
-                      !event.viewer_context.is_host &&
-                      event.viewer_context.participation_status !== 'JOINED'
-                        ? 0.04
-                        : 0.005,
-                  }}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
-                  pitchEnabled={false}
-                  rotateEnabled={false}
-                >
-                  {(() => {
-                    const showApprox =
-                      event.location.is_location_approximate &&
-                      !event.viewer_context.is_host &&
-                      event.viewer_context.participation_status !== 'JOINED';
-                    return (
-                      <>
-                        <Marker
-                          coordinate={{
-                            latitude: event.location.point!.lat,
-                            longitude: event.location.point!.lon,
-                          }}
-                          opacity={showApprox ? 0.5 : 1}
-                        />
-                        {showApprox ? (
-                          <Circle
-                            center={{
-                              latitude: event.location.point!.lat,
-                              longitude: event.location.point!.lon,
-                            }}
-                            radius={APPROX_LOCATION_RADIUS_METERS}
-                            fillColor="rgba(251,191,36,0.15)"
-                            strokeColor="rgba(217,119,6,0.6)"
-                            strokeWidth={2}
-                            testID="approx-location-circle"
-                          />
-                        ) : null}
-                      </>
-                    );
-                  })()}
-                </MapView>
-                <View style={styles.miniMapOverlay}>
-                  <Feather name="maximize-2" size={20} color="white" />
-                </View>
-              </TouchableOpacity>
-              {event.location.is_location_approximate &&
+          {(() => {
+            const isRoute = event.location.type === 'ROUTE';
+            const routePoints = event.location.route_points ?? [];
+            const showApprox =
+              !isRoute &&
+              event.location.is_location_approximate &&
               !event.viewer_context.is_host &&
-              event.viewer_context.participation_status !== 'JOINED' ? (
-                <View style={styles.approxMapCallout} testID="approx-map-callout">
-                  <Feather name="alert-triangle" size={16} color={theme.warningText} />
-                  <View style={styles.approxMapCalloutBody}>
-                    <Text style={styles.approxMapCalloutTitle}>
-                      You're seeing an approximate location
-                    </Text>
-                    <Text style={styles.approxMapCalloutDesc}>
-                      The exact location will be revealed once you're approved to join.
-                    </Text>
-                  </View>
-                </View>
-              ) : (
+              event.viewer_context.participation_status !== 'JOINED';
+            const pointRegion = event.location.point
+              ? {
+                  latitude: event.location.point.lat,
+                  longitude: event.location.point.lon,
+                  latitudeDelta: showApprox ? 0.04 : 0.005,
+                  longitudeDelta: showApprox ? 0.04 : 0.005,
+                }
+              : null;
+            const routeRegion =
+              isRoute && routePoints.length > 0 ? getRouteRegion(routePoints, 1.6) : null;
+            const region = pointRegion ?? routeRegion;
+            if (!region) return null;
+
+            return (
+              <View style={styles.miniMapWrapper}>
                 <TouchableOpacity
-                  style={styles.directionsButton}
-                  onPress={handleGetDirections}
-                  activeOpacity={0.8}
+                  style={styles.miniMapContainer}
+                  onPress={() => setIsMapModalVisible(true)}
+                  activeOpacity={0.9}
+                  testID="mini-map-touchable"
                 >
-                  <MaterialIcons name="directions" size={20} color={theme.primary} />
-                  <Text style={styles.directionsButtonText}>Get Directions</Text>
+                  <MapView
+                    style={styles.miniMap}
+                    customMapStyle={isDark ? darkMapStyle : []}
+                    region={region}
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                    pitchEnabled={false}
+                    rotateEnabled={false}
+                  >
+                    {isRoute && polylineCoords && polylineCoords.length >= 2 && (
+                      <Polyline
+                        coordinates={polylineCoords.map((p) => ({
+                          latitude: p.lat,
+                          longitude: p.lon,
+                        }))}
+                        strokeColor={theme.primary}
+                        strokeWidth={4}
+                      />
+                    )}
+                    {isRoute
+                      ? routePoints.map((p, i) => (
+                          <Marker
+                            key={`route-mini-${i}-${p.lat}-${p.lon}`}
+                            coordinate={{ latitude: p.lat, longitude: p.lon }}
+                            title={`${i + 1}`}
+                          />
+                        ))
+                      : event.location.point && (
+                          <>
+                            <Marker
+                              coordinate={{
+                                latitude: event.location.point.lat,
+                                longitude: event.location.point.lon,
+                              }}
+                              opacity={showApprox ? 0.5 : 1}
+                            />
+                            {showApprox && (
+                              <Circle
+                                center={{
+                                  latitude: event.location.point.lat,
+                                  longitude: event.location.point.lon,
+                                }}
+                                radius={APPROX_LOCATION_RADIUS_METERS}
+                                fillColor="rgba(251,191,36,0.15)"
+                                strokeColor="rgba(217,119,6,0.6)"
+                                strokeWidth={2}
+                                testID="approx-location-circle"
+                              />
+                            )}
+                          </>
+                        )}
+                  </MapView>
+                  <View style={styles.miniMapOverlay}>
+                    <Feather name="maximize-2" size={20} color="white" />
+                  </View>
                 </TouchableOpacity>
-              )}
-            </View>
-          )}
+                {showApprox ? (
+                  <View style={styles.approxMapCallout} testID="approx-map-callout">
+                    <Feather name="alert-triangle" size={16} color={theme.warningText} />
+                    <View style={styles.approxMapCalloutBody}>
+                      <Text style={styles.approxMapCalloutTitle}>
+                        You're seeing an approximate location
+                      </Text>
+                      <Text style={styles.approxMapCalloutDesc}>
+                        The exact location will be revealed once you're approved to join.
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.directionsButton}
+                    onPress={handleGetDirections}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialIcons name="directions" size={20} color={theme.primary} />
+                    <Text style={styles.directionsButtonText}>
+                      {isRoute ? 'Directions to Start' : 'Get Directions'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })()}
         </View>
 
         <View style={styles.divider} />
@@ -1167,6 +1299,39 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             />
             <Text style={styles.charCount}>{vm.joinRequestMessage.length}/500</Text>
 
+            <View style={styles.attachmentSection}>
+              <Text style={styles.label}>Attachment (Evidence)</Text>
+              {vm.selectedImageUri ? (
+                <View style={styles.attachmentPreviewContainer}>
+                  <Image source={{ uri: vm.selectedImageUri }} style={styles.attachmentPreview} />
+                  <TouchableOpacity
+                    style={styles.removeAttachmentBtn}
+                    onPress={vm.removeImage}
+                    disabled={vm.isUploadingImage}
+                  >
+                    <Feather name="x" size={16} color="white" />
+                  </TouchableOpacity>
+                  {vm.isUploadingImage && (
+                    <View style={styles.attachmentLoadingOverlay}>
+                      <ActivityIndicator color="white" size="small" />
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.addAttachmentBtn}
+                  onPress={vm.pickImage}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="image" size={20} color={theme.primary} />
+                  <Text style={styles.addAttachmentText}>Add Photo Evidence</Text>
+                </TouchableOpacity>
+              )}
+              {vm.imageError ? (
+                <Text style={styles.attachmentErrorText}>{vm.imageError}</Text>
+              ) : null}
+            </View>
+
             {vm.actionError ? (
               <View style={styles.errorBanner}>
                 <Text style={styles.errorBannerText}>{vm.actionError}</Text>
@@ -1225,6 +1390,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             onLoadMore={vm.loadMoreInvitations}
             onClose={() => vm.setShowInvitationsModal(false)}
             onInvite={vm.handleInviteUsers}
+            onRevoke={vm.handleRevokeInvitation}
             isInviting={vm.isInviting}
             userSearchQuery={vm.userSearchQuery}
             setUserSearchQuery={vm.setUserSearchQuery}
@@ -1257,61 +1423,81 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       )}
 
       {/* Full-screen Map Modal */}
-      {vm.event?.location.point && (
-        <Modal
-          visible={isMapModalVisible}
-          animationType="slide"
-          onRequestClose={() => setIsMapModalVisible(false)}
-        >
+      {vm.event && (() => {
+        const location = vm.event.location;
+        const isRoute = location.type === 'ROUTE';
+        const routePoints = location.route_points ?? [];
+        const showApprox =
+          !isRoute &&
+          location.is_location_approximate &&
+          !vm.event.viewer_context.is_host &&
+          vm.event.viewer_context.participation_status !== 'JOINED';
+        const pointInitial = location.point
+          ? {
+              latitude: location.point.lat,
+              longitude: location.point.lon,
+              latitudeDelta: showApprox ? 0.05 : 0.01,
+              longitudeDelta: showApprox ? 0.05 : 0.01,
+            }
+          : null;
+        const routeInitial =
+          isRoute && routePoints.length > 0 ? getRouteRegion(routePoints, 1.5) : null;
+        const initialRegion = pointInitial ?? routeInitial;
+        if (!initialRegion) return null;
+        const eventTitle = vm.event.title;
+        const address = location.address || '';
+        return (
+          <Modal
+            visible={isMapModalVisible}
+            animationType="slide"
+            onRequestClose={() => setIsMapModalVisible(false)}
+          >
           <View style={styles.fullMapContainer}>
             <MapView
               style={styles.fullMap}
               customMapStyle={isDark ? darkMapStyle : []}
-              initialRegion={{
-                latitude: vm.event.location.point.lat,
-                longitude: vm.event.location.point.lon,
-                latitudeDelta:
-                  vm.event.location.is_location_approximate &&
-                  !vm.event.viewer_context.is_host &&
-                  vm.event.viewer_context.participation_status !== 'JOINED'
-                    ? 0.05
-                    : 0.01,
-                longitudeDelta:
-                  vm.event.location.is_location_approximate &&
-                  !vm.event.viewer_context.is_host &&
-                  vm.event.viewer_context.participation_status !== 'JOINED'
-                    ? 0.05
-                    : 0.01,
-              }}
+              initialRegion={initialRegion}
             >
-              <Marker
-                coordinate={{
-                  latitude: vm.event.location.point.lat,
-                  longitude: vm.event.location.point.lon,
-                }}
-                title={vm.event.title}
-                description={vm.event.location.address || ''}
-                opacity={
-                  vm.event.location.is_location_approximate &&
-                  !vm.event.viewer_context.is_host &&
-                  vm.event.viewer_context.participation_status !== 'JOINED'
-                    ? 0.5
-                    : 1
-                }
-              />
-              {vm.event.location.is_location_approximate &&
-              !vm.event.viewer_context.is_host &&
-              vm.event.viewer_context.participation_status !== 'JOINED' ? (
-                <Circle
-                  center={{
-                    latitude: vm.event.location.point.lat,
-                    longitude: vm.event.location.point.lon,
-                  }}
-                  radius={APPROX_LOCATION_RADIUS_METERS}
-                  fillColor="rgba(251,191,36,0.15)"
-                  strokeColor="rgba(217,119,6,0.6)"
-                  strokeWidth={2}
+              {isRoute && polylineCoords && polylineCoords.length >= 2 && (
+                <Polyline
+                  coordinates={polylineCoords.map((p) => ({ latitude: p.lat, longitude: p.lon }))}
+                  strokeColor={theme.primary}
+                  strokeWidth={5}
                 />
+              )}
+              {isRoute ? (
+                routePoints.map((p, i) => (
+                  <Marker
+                    key={`route-full-${i}-${p.lat}-${p.lon}`}
+                    coordinate={{ latitude: p.lat, longitude: p.lon }}
+                    title={`Waypoint ${i + 1}`}
+                    description={i === 0 ? 'Start' : i === routePoints.length - 1 ? 'End' : ''}
+                  />
+                ))
+              ) : location.point ? (
+                <>
+                  <Marker
+                    coordinate={{
+                      latitude: location.point.lat,
+                      longitude: location.point.lon,
+                    }}
+                    title={eventTitle}
+                    description={address}
+                    opacity={showApprox ? 0.5 : 1}
+                  />
+                  {showApprox && (
+                    <Circle
+                      center={{
+                        latitude: location.point.lat,
+                        longitude: location.point.lon,
+                      }}
+                      radius={APPROX_LOCATION_RADIUS_METERS}
+                      fillColor="rgba(251,191,36,0.15)"
+                      strokeColor="rgba(217,119,6,0.6)"
+                      strokeWidth={2}
+                    />
+                  )}
+                </>
               ) : null}
             </MapView>
 
@@ -1351,7 +1537,8 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             )}
           </View>
         </Modal>
-      )}
+        );
+      })()}
     </SafeAreaView>
   );
 }
@@ -1429,6 +1616,65 @@ function makeStyles(t: Theme, isDark: boolean) {
       gap: 8,
     },
 
+    /* Join Request Modal Attachments */
+    attachmentSection: {
+      marginTop: 20,
+      marginBottom: 10,
+    },
+    addAttachmentBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: t.primary,
+      borderStyle: 'dashed',
+      borderRadius: 12,
+      backgroundColor: t.primary + '08',
+    },
+    addAttachmentText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.primary,
+    },
+    attachmentPreviewContainer: {
+      position: 'relative',
+      width: '100%',
+      height: 180,
+      borderRadius: 12,
+      overflow: 'hidden',
+      backgroundColor: t.surfaceVariant,
+    },
+    attachmentPreview: {
+      width: '100%',
+      height: '100%',
+      resizeMode: 'cover',
+    },
+    removeAttachmentBtn: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    attachmentLoadingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.3)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    attachmentErrorText: {
+      fontSize: 12,
+      color: '#DC2626',
+      marginTop: 6,
+      fontWeight: '500',
+    },
+
     /* Section */
     section: {
       paddingHorizontal: 20,
@@ -1484,6 +1730,21 @@ function makeStyles(t: Theme, isDark: boolean) {
       color: t.textSecondary,
       lineHeight: 20,
       fontWeight: '500',
+    },
+    routeChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 999,
+      backgroundColor: t.primary,
+    },
+    routeChipText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: t.textOnPrimary,
+      letterSpacing: 0.3,
     },
 
     /* Host */

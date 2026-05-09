@@ -9,6 +9,11 @@ export interface EventConstraint {
   info: string;
 }
 
+export interface RoutePointInput {
+  lat: number;
+  lon: number;
+}
+
 export interface CreateEventRequest {
   title: string;
   description: string;
@@ -18,6 +23,7 @@ export interface CreateEventRequest {
   lat?: number;
   lon?: number;
   location_type: LocationType;
+  route_points?: RoutePointInput[];
   start_time: string;
   end_time?: string;
   capacity?: number;
@@ -225,6 +231,7 @@ export interface EventDetailPendingJoinRequest {
   join_request_id: string;
   status: string;
   message?: string | null;
+  image_url?: string | null;
   created_at: string;
   updated_at: string;
   user: EventDetailHostContextUser;
@@ -310,12 +317,14 @@ export interface JoinEventResponse {
 
 export interface RequestJoinRequest {
   message?: string | null;
+  image_confirm_token?: string | null;
 }
 
 export interface RequestJoinResponse {
   join_request_id: string;
   event_id: string;
   status: string;
+  image_url?: string | null;
   created_at: string;
 }
 
