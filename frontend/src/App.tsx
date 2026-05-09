@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import { GoogleMapsProvider } from './components/GoogleMapsProvider';
+import { DiscoverViewModeProvider } from './contexts/DiscoverViewModeContext';
 import LandingPage from './views/auth/LandingPage';
 import LoginView from './views/auth/LoginView';
 import RegisterView from './views/auth/RegisterView';
@@ -34,47 +36,51 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      {/* Landing page */}
-      <Route path="/" element={token ? <Navigate to="/discover" replace /> : <LandingPage />} />
+    <GoogleMapsProvider>
+      <DiscoverViewModeProvider>
+        <Routes>
+          {/* Landing page */}
+          <Route path="/" element={token ? <Navigate to="/discover" replace /> : <LandingPage />} />
 
-      {/* App shell wraps all main pages (public + protected) */}
-      <Route element={<AppShell />}>
-        <Route path="/discover" element={<DiscoverPage />} />
+          {/* App shell wraps all main pages (public + protected) */}
+          <Route element={<AppShell />}>
+            <Route path="/discover" element={<DiscoverPage />} />
 
-        {/* Protected routes — require auth */}
-        <Route path="/events/create" element={<ProtectedRoute><CreateEventPage /></ProtectedRoute>} />
-        <Route path="/events/:id" element={<EventDetailPage />} />
-        <Route path="/my-events" element={<ProtectedRoute><MyEventsPage /></ProtectedRoute>} />
-        <Route path="/invitations" element={<ProtectedRoute><InvitationsPage /></ProtectedRoute>} />
-        <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-        <Route path="/tickets" element={<ProtectedRoute><TicketsPage /></ProtectedRoute>} />
-        <Route path="/tickets/:ticketId" element={<ProtectedRoute><TicketDetailPage /></ProtectedRoute>} />
-        <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-        <Route
-          path="/backoffice"
-          element={<AdminRoute><BackofficeLayout /></AdminRoute>}
-        >
-          <Route index element={<Navigate to="/backoffice/users" replace />} />
-          <Route path="users" element={<UsersAdminPage />} />
-          <Route path="events" element={<EventsAdminPage />} />
-          <Route path="event-reports" element={<EventReportsAdminPage />} />
-          <Route path="participations" element={<ParticipationsAdminPage />} />
-          <Route path="tickets" element={<TicketsAdminPage />} />
-          <Route path="notifications" element={<NotificationsAdminPage />} />
-        </Route>
-        <Route path="/admin-panel" element={<Navigate to="/backoffice" replace />} />
-        <Route path="/admin-panel/*" element={<Navigate to="/backoffice" replace />} />
-      </Route>
+            {/* Protected routes — require auth */}
+            <Route path="/events/create" element={<ProtectedRoute><CreateEventPage /></ProtectedRoute>} />
+            <Route path="/events/:id" element={<EventDetailPage />} />
+            <Route path="/my-events" element={<ProtectedRoute><MyEventsPage /></ProtectedRoute>} />
+            <Route path="/invitations" element={<ProtectedRoute><InvitationsPage /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+            <Route path="/tickets" element={<ProtectedRoute><TicketsPage /></ProtectedRoute>} />
+            <Route path="/tickets/:ticketId" element={<ProtectedRoute><TicketDetailPage /></ProtectedRoute>} />
+            <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route
+              path="/backoffice"
+              element={<AdminRoute><BackofficeLayout /></AdminRoute>}
+            >
+              <Route index element={<Navigate to="/backoffice/users" replace />} />
+              <Route path="users" element={<UsersAdminPage />} />
+              <Route path="events" element={<EventsAdminPage />} />
+              <Route path="event-reports" element={<EventReportsAdminPage />} />
+              <Route path="participations" element={<ParticipationsAdminPage />} />
+              <Route path="tickets" element={<TicketsAdminPage />} />
+              <Route path="notifications" element={<NotificationsAdminPage />} />
+            </Route>
+            <Route path="/admin-panel" element={<Navigate to="/backoffice" replace />} />
+            <Route path="/admin-panel/*" element={<Navigate to="/backoffice" replace />} />
+          </Route>
 
-      {/* Auth pages (no shell) */}
-      <Route path="/login" element={<LoginView />} />
-      <Route path="/register" element={<RegisterView />} />
-      <Route path="/forgot-password" element={<ForgotPasswordView />} />
+          {/* Auth pages (no shell) */}
+          <Route path="/login" element={<LoginView />} />
+          <Route path="/register" element={<RegisterView />} />
+          <Route path="/forgot-password" element={<ForgotPasswordView />} />
 
-      {/* Fallback */}
-      <Route path="*" element={<NotFoundView />} />
-    </Routes>
+          {/* Fallback */}
+          <Route path="*" element={<NotFoundView />} />
+        </Routes>
+      </DiscoverViewModeProvider>
+    </GoogleMapsProvider>
   );
 }

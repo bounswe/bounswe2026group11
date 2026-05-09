@@ -5,7 +5,10 @@ Read `/AGENTS.md` first, then use this file for frontend work.
 ## Stack
 
 - **UI:** React.
-- **Map:** [MapLibre GL JS](https://maplibre.org/) for the web map (vector tiles, camera, layers).
+- **Map:** Google Maps via [`@vis.gl/react-google-maps`](https://visgl.github.io/react-google-maps/) (Vector maps, AdvancedMarker, light/dark `colorScheme`).
+  - The API key is read from `VITE_GOOGLE_MAPS_API_KEY` (and an optional Map ID from `VITE_GOOGLE_MAPS_MAP_ID`). See `.env.example`. When the key is missing, map components render a graceful fallback so the rest of the UI still works in dev.
+  - The provider is mounted once near the route tree in `src/components/GoogleMapsProvider.tsx`; do not instantiate `<APIProvider>` again in feature code.
+  - Discover view-mode (list vs. map) is shared between the global header toggle and the Discover page through `src/contexts/DiscoverViewModeContext.tsx`.
 
 ## Development rules
 

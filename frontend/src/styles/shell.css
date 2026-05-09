@@ -49,7 +49,11 @@
 }
 
 .shell-nav-link {
-  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 14px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
@@ -163,7 +167,11 @@
 
 /* Create Event button */
 .shell-create-btn {
-  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 16px;
   font-size: 14px;
   font-weight: 600;
   color: #ffffff;
@@ -182,7 +190,9 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 7px 14px;
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 14px;
   font-size: 14px;
   font-weight: 600;
   color: #111827;
@@ -221,10 +231,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 40px;
+  box-sizing: border-box;
   background: none;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 6px 12px;
+  padding: 0 12px;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -244,8 +256,18 @@
 
 .shell-username {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 700;
   color: #374151;
+}
+
+/* Shrink the avatar inside the profile button so it doesn't touch the edges */
+.shell-user-btn .user-avatar--sm {
+  width: 28px;
+  height: 28px;
+}
+
+.shell-user-btn .user-avatar--sm .user-avatar-fallback {
+  font-size: 12px;
 }
 
 /* Dropdown */
@@ -381,6 +403,61 @@
   max-width: none;
   margin: 0;
   padding: 0;
+}
+
+/* Discover map mode: let the page take the full viewport below the header */
+.shell-main.discover-map-main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* List/Map view toggle in the global header */
+.shell-view-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  height: 40px;
+  box-sizing: border-box;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.shell-view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  line-height: 1;
+}
+
+.shell-view-toggle-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.shell-view-toggle-btn:hover:not(.active) {
+  color: #111827;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.shell-view-toggle-btn.active {
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.04);
 }
 
 /* Responsive */
@@ -618,6 +695,35 @@
 
 :root[data-theme='dark'] .hamburger-line {
   background-color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .shell-view-toggle {
+  background: #111111;
+  border-color: #2a2a2a;
+}
+
+:root[data-theme='dark'] .shell-view-toggle-btn {
+  color: #94a3b8;
+}
+
+:root[data-theme='dark'] .shell-view-toggle-btn:hover:not(.active) {
+  color: #f3f4f6;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+:root[data-theme='dark'] .shell-view-toggle-btn.active {
+  background: #202020;
+  color: #f9fafb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 600px) {
+  .shell-view-toggle-label {
+    display: none;
+  }
+  .shell-view-toggle-btn {
+    padding: 5px 8px;
+  }
 }
 
 :root[data-theme='dark'] .shell-fab {
