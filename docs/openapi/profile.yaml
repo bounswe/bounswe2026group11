@@ -64,6 +64,214 @@ paths:
         "401":
           description: Missing or invalid access token.
 
+  /users/{user_id}/profile:
+    get:
+      summary: Get another user's public profile
+      description: >
+        Returns a public-safe profile projection for the requested user. This
+        surface intentionally excludes private account fields such as email,
+        phone number, default location, verification state, and account status.
+      tags:
+        - Profile
+      parameters:
+        - $ref: "#/components/parameters/UserIdParam"
+      responses:
+        "200":
+          description: Public profile retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicProfile"
+        "400":
+          description: Invalid user id.
+        "404":
+          description: User not found.
+
+  /me/equipment:
+    get:
+      summary: List the authenticated user's equipment
+      description: Returns the caller's equipment items in reverse chronological order.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Equipment retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EquipmentListResponse"
+        "401":
+          description: Missing or invalid access token.
+
+    post:
+      summary: Create an equipment item
+      description: Creates one equipment item for the authenticated user.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEquipmentRequest"
+      responses:
+        "201":
+          description: Equipment item created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileEquipmentItem"
+        "400":
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Missing or invalid access token.
+
+  /me/equipment/{equipment_id}:
+    patch:
+      summary: Update an equipment item
+      description: Updates one equipment item owned by the authenticated user.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EquipmentIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEquipmentRequest"
+      responses:
+        "200":
+          description: Equipment item updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileEquipmentItem"
+        "400":
+          description: Invalid equipment id or validation error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Missing or invalid access token.
+        "403":
+          description: The equipment item belongs to a different user.
+        "404":
+          description: Equipment item not found.
+
+    delete:
+      summary: Delete an equipment item
+      description: Deletes one equipment item owned by the authenticated user.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EquipmentIdParam"
+      responses:
+        "204":
+          description: Equipment item deleted successfully.
+        "400":
+          description: Invalid equipment id.
+        "401":
+          description: Missing or invalid access token.
+        "403":
+          description: The equipment item belongs to a different user.
+        "404":
+          description: Equipment item not found.
+
+  /me/showcase-images/upload-url:
+    post:
+      summary: Create direct-upload URLs for a showcase image
+      description: >
+        Reuses the same two-step presigned upload flow as avatar uploads, but
+        persists the confirmed image as a standalone showcase entry instead of
+        replacing the profile avatar.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Presigned upload instructions created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageUploadInitResponse"
+        "401":
+          description: Missing or invalid access token.
+
+  /me/showcase-images/confirm:
+    post:
+      summary: Confirm an uploaded showcase image
+      description: >
+        Confirms a previously presigned showcase image upload and persists the
+        resulting image as a user-owned showcase entry.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageUploadConfirmRequest"
+      responses:
+        "201":
+          description: Showcase image persisted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShowcaseImageItem"
+        "400":
+          description: Invalid request body or expired/invalid confirm token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Missing or invalid access token.
+        "409":
+          description: Upload incomplete.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /me/showcase-images/{showcase_image_id}:
+    delete:
+      summary: Delete a showcase image
+      description: Deletes one showcase image owned by the authenticated user.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ShowcaseImageIdParam"
+      responses:
+        "204":
+          description: Showcase image deleted successfully.
+        "400":
+          description: Invalid showcase image id.
+        "401":
+          description: Missing or invalid access token.
+        "403":
+          description: The showcase image belongs to a different user.
+        "404":
+          description: Showcase image not found.
+
   /me/events/hosted:
     get:
       summary: Get the current user's hosted events
@@ -364,6 +572,27 @@ components:
       bearerFormat: JWT
 
   parameters:
+    UserIdParam:
+      name: user_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    EquipmentIdParam:
+      name: equipment_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ShowcaseImageIdParam:
+      name: showcase_image_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     InvitationIdParam:
       name: invitation_id
       in: path
@@ -489,6 +718,136 @@ components:
           minimum: 0
           description: Total number of ratings received in this role.
           example: 8
+
+    PublicProfile:
+      type: object
+      additionalProperties: false
+      required:
+        - user_id
+        - username
+        - host_rating_count
+        - participant_rating_count
+        - equipment
+        - showcase_images
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        display_name:
+          type:
+            - string
+            - "null"
+        avatar_url:
+          type:
+            - string
+            - "null"
+        bio:
+          type:
+            - string
+            - "null"
+        final_score:
+          type:
+            - number
+            - "null"
+          format: double
+        host_rating_count:
+          type: integer
+          minimum: 0
+        participant_rating_count:
+          type: integer
+          minimum: 0
+        equipment:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileEquipmentItem"
+        showcase_images:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShowcaseImageItem"
+
+    ProfileEquipmentItem:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 64
+        description:
+          type:
+            - string
+            - "null"
+        image_url:
+          type:
+            - string
+            - "null"
+
+    ShowcaseImageItem:
+      type: object
+      additionalProperties: false
+      required: [id, image_url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        image_url:
+          type: string
+
+    EquipmentListResponse:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileEquipmentItem"
+
+    CreateEquipmentRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        description:
+          type:
+            - string
+            - "null"
+          maxLength: 512
+        image_url:
+          type:
+            - string
+            - "null"
+          maxLength: 512
+
+    UpdateEquipmentRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type:
+            - string
+            - "null"
+          minLength: 1
+          maxLength: 64
+        description:
+          type:
+            - string
+            - "null"
+          maxLength: 512
+        image_url:
+          type:
+            - string
+            - "null"
+          maxLength: 512
 
     EventSummaryList:
       type: object

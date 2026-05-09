@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -153,4 +154,85 @@ func validateUpdateProfileInput(input UpdateProfileInput) (*UpdateProfileInput, 
 	}
 
 	return &out, nil
+}
+
+func validateCreateEquipmentInput(input CreateEquipmentInput) (*CreateEquipmentInput, *domain.AppError) {
+	details := make(map[string]string)
+
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		details["name"] = "must not be empty"
+	} else if len(name) > 64 {
+		details["name"] = "must be at most 64 characters"
+	}
+
+	description := normalizeOptionalEquipmentText(input.Description, 512, "description", details)
+	imageURL := normalizeOptionalEquipmentText(input.ImageURL, 512, "image_url", details)
+
+	if len(details) > 0 {
+		return nil, domain.ValidationError(details)
+	}
+
+	return &CreateEquipmentInput{
+		UserID:      input.UserID,
+		Name:        name,
+		Description: description,
+		ImageURL:    imageURL,
+	}, nil
+}
+
+func validateUpdateEquipmentInput(input UpdateEquipmentInput) (*UpdateEquipmentInput, *domain.AppError) {
+	details := make(map[string]string)
+
+	var (
+		name        *string
+		description *string
+		imageURL    *string
+	)
+
+	if input.Name != nil {
+		trimmed := strings.TrimSpace(*input.Name)
+		if trimmed == "" {
+			details["name"] = "must not be empty"
+		} else if len(trimmed) > 64 {
+			details["name"] = "must be at most 64 characters"
+		} else {
+			name = &trimmed
+		}
+	}
+
+	description = normalizeOptionalEquipmentText(input.Description, 512, "description", details)
+	imageURL = normalizeOptionalEquipmentText(input.ImageURL, 512, "image_url", details)
+
+	if input.Name == nil && input.Description == nil && input.ImageURL == nil {
+		details["body"] = "must include at least one updatable field"
+	}
+
+	if len(details) > 0 {
+		return nil, domain.ValidationError(details)
+	}
+
+	return &UpdateEquipmentInput{
+		UserID:      input.UserID,
+		EquipmentID: input.EquipmentID,
+		Name:        name,
+		Description: description,
+		ImageURL:    imageURL,
+	}, nil
+}
+
+func normalizeOptionalEquipmentText(value *string, maxLen int, field string, details map[string]string) *string {
+	if value == nil {
+		return nil
+	}
+
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+	if len(trimmed) > maxLen {
+		details[field] = "must be at most " + strconv.Itoa(maxLen) + " characters"
+		return nil
+	}
+	return &trimmed
 }

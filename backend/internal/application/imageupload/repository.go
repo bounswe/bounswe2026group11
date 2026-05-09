@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 )
 
@@ -11,6 +12,7 @@ import (
 type ProfileRepository interface {
 	GetAvatarVersion(ctx context.Context, userID uuid.UUID) (int, error)
 	SetAvatarIfVersion(ctx context.Context, userID uuid.UUID, expectedVersion, nextVersion int, baseURL string, updatedAt time.Time) (bool, error)
+	CreateShowcaseImage(ctx context.Context, userID uuid.UUID, imageURL string) (*domain.ProfileShowcaseImage, error)
 }
 
 // EventRepository exposes the persistence required for event image uploads.

@@ -26,6 +26,8 @@ func RegisterRoutes(router fiber.Router, handler *Handler, auth fiber.Handler) {
 	me := router.Group("/me", auth)
 	me.Post("/avatar/upload-url", handler.CreateProfileAvatarUpload)
 	me.Post("/avatar/confirm", handler.ConfirmProfileAvatarUpload)
+	me.Post("/showcase-images/upload-url", handler.CreateProfileShowcaseImageUpload)
+	me.Post("/showcase-images/confirm", handler.ConfirmProfileShowcaseImageUpload)
 
 	events := router.Group("/events", auth)
 	events.Post("/:id/image/upload-url", handler.CreateEventImageUpload)
@@ -78,6 +80,52 @@ func (h *Handler) ConfirmProfileAvatarUpload(c *fiber.Ctx) error {
 	)
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// CreateProfileShowcaseImageUpload handles POST /me/showcase-images/upload-url.
+func (h *Handler) CreateProfileShowcaseImageUpload(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+
+	result, err := h.service.CreateProfileShowcaseImageUpload(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"showcase image upload URL created",
+		httpapi.OperationAttr("image_upload.profile_showcase.create"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.String("base_url", result.BaseURL),
+		slog.Int("upload_count", len(result.Uploads)),
+	)
+
+	return c.JSON(result)
+}
+
+// ConfirmProfileShowcaseImageUpload handles POST /me/showcase-images/confirm.
+func (h *Handler) ConfirmProfileShowcaseImageUpload(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+
+	body, err := parseConfirmBody(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	result, err := h.service.ConfirmProfileShowcaseImageUpload(c.UserContext(), claims.UserID, body)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"showcase image upload confirmed",
+		httpapi.OperationAttr("image_upload.profile_showcase.confirm"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.String("showcase_image_id", result.ID),
+	)
+
+	return c.Status(fiber.StatusCreated).JSON(result)
 }
 
 // CreateEventImageUpload handles POST /events/:id/image/upload-url.

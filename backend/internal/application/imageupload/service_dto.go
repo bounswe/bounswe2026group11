@@ -9,6 +9,7 @@ import (
 // Supported upload resource types.
 const (
 	ResourceProfileAvatar    = "PROFILE_AVATAR"
+	ResourceProfileShowcase  = "PROFILE_SHOWCASE_IMAGE"
 	ResourceEventImage       = "EVENT_IMAGE"
 	ResourceEventReviewImage = "EVENT_REVIEW_IMAGE"
 	ResourceJoinRequestImage = "EVENT_JOIN_REQUEST_IMAGE"
@@ -51,6 +52,13 @@ type ConfirmReviewImageResult struct {
 // after token and object validation.
 type ConfirmJoinRequestImageResult struct {
 	BaseURL string `json:"base_url"`
+}
+
+// ConfirmShowcaseImageResult exposes the persisted showcase image after token
+// and object validation.
+type ConfirmShowcaseImageResult struct {
+	ID       string `json:"id"`
+	ImageURL string `json:"image_url"`
 }
 
 // ConfirmReportImageResult exposes the uploaded report image URL after token

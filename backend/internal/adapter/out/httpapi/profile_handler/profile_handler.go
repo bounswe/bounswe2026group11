@@ -36,6 +36,11 @@ func RegisterProfileRoutes(router fiber.Router, handler *ProfileHandler, auth fi
 	me.Get("", handler.GetMyProfile)
 	me.Patch("", handler.UpdateMyProfile)
 	me.Post("/change-password", handler.ChangePassword)
+	me.Get("/equipment", handler.ListMyEquipment)
+	me.Post("/equipment", handler.CreateMyEquipment)
+	me.Patch("/equipment/:equipment_id", handler.UpdateMyEquipment)
+	me.Delete("/equipment/:equipment_id", handler.DeleteMyEquipment)
+	me.Delete("/showcase-images/:showcase_image_id", handler.DeleteMyShowcaseImage)
 	me.Get("/events/hosted", handler.GetMyHostedEvents)
 	me.Get("/events/upcoming", handler.GetMyUpcomingEvents)
 	me.Get("/events/completed", handler.GetMyCompletedEvents)
@@ -45,6 +50,9 @@ func RegisterProfileRoutes(router fiber.Router, handler *ProfileHandler, auth fi
 	me.Get("/invitations/:invitationId", handler.GetReceivedInvitation)
 	me.Post("/invitations/:invitationId/accept", handler.AcceptInvitation)
 	me.Post("/invitations/:invitationId/decline", handler.DeclineInvitation)
+
+	users := router.Group("/users")
+	users.Get("/:user_id/profile", handler.GetPublicProfile)
 }
 
 // GetMyProfile handles GET /me.
@@ -61,6 +69,28 @@ func (h *ProfileHandler) GetMyProfile(c *fiber.Ctx) error {
 		"my profile fetched",
 		httpapi.OperationAttr("profile.get"),
 		httpapi.UserIDAttr(claims.UserID),
+	)
+
+	return c.JSON(result)
+}
+
+// GetPublicProfile handles GET /users/:user_id/profile.
+func (h *ProfileHandler) GetPublicProfile(c *fiber.Ctx) error {
+	userID, err := parseUserIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	result, err := h.service.GetPublicProfile(c.UserContext(), userID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"public profile fetched",
+		httpapi.OperationAttr("profile.public.get"),
+		slog.String("target_user_id", userID.String()),
 	)
 
 	return c.JSON(result)
@@ -136,6 +166,148 @@ func (h *ProfileHandler) GetMyCanceledEvents(c *fiber.Ctx) error {
 		slog.Int("result_count", len(events)),
 	)
 	return c.JSON(fiber.Map{"events": events})
+}
+
+type createEquipmentBody struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	ImageURL    *string `json:"image_url"`
+}
+
+type updateEquipmentBody struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	ImageURL    *string `json:"image_url"`
+}
+
+// ListMyEquipment handles GET /me/equipment.
+func (h *ProfileHandler) ListMyEquipment(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.ListMyEquipment(c.UserContext(), claims.UserID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"my equipment fetched",
+		httpapi.OperationAttr("profile.equipment.list"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.Int("result_count", len(result.Items)),
+	)
+
+	return c.JSON(result)
+}
+
+// CreateMyEquipment handles POST /me/equipment.
+func (h *ProfileHandler) CreateMyEquipment(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+
+	var body createEquipmentBody
+	if err := c.BodyParser(&body); err != nil {
+		return httpapi.WriteError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
+	}
+
+	result, err := h.service.CreateMyEquipment(c.UserContext(), profile.CreateEquipmentInput{
+		UserID:      claims.UserID,
+		Name:        body.Name,
+		Description: body.Description,
+		ImageURL:    body.ImageURL,
+	})
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"equipment created",
+		httpapi.OperationAttr("profile.equipment.create"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.String("equipment_id", result.ID),
+	)
+
+	return c.Status(fiber.StatusCreated).JSON(result)
+}
+
+// UpdateMyEquipment handles PATCH /me/equipment/:equipment_id.
+func (h *ProfileHandler) UpdateMyEquipment(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	equipmentID, err := parseEquipmentIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	var body updateEquipmentBody
+	if err := c.BodyParser(&body); err != nil {
+		return httpapi.WriteError(c, domain.ValidationError(map[string]string{"body": "must be valid JSON"}))
+	}
+
+	result, err := h.service.UpdateMyEquipment(c.UserContext(), profile.UpdateEquipmentInput{
+		UserID:      claims.UserID,
+		EquipmentID: equipmentID,
+		Name:        body.Name,
+		Description: body.Description,
+		ImageURL:    body.ImageURL,
+	})
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"equipment updated",
+		httpapi.OperationAttr("profile.equipment.update"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.String("equipment_id", equipmentID.String()),
+	)
+
+	return c.JSON(result)
+}
+
+// DeleteMyEquipment handles DELETE /me/equipment/:equipment_id.
+func (h *ProfileHandler) DeleteMyEquipment(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	equipmentID, err := parseEquipmentIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	if err := h.service.DeleteMyEquipment(c.UserContext(), claims.UserID, equipmentID); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"equipment deleted",
+		httpapi.OperationAttr("profile.equipment.delete"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.String("equipment_id", equipmentID.String()),
+	)
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// DeleteMyShowcaseImage handles DELETE /me/showcase-images/:showcase_image_id.
+func (h *ProfileHandler) DeleteMyShowcaseImage(c *fiber.Ctx) error {
+	claims := httpapi.UserClaims(c)
+	showcaseImageID, err := parseShowcaseImageIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	if err := h.service.DeleteMyShowcaseImage(c.UserContext(), claims.UserID, showcaseImageID); err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"showcase image deleted",
+		httpapi.OperationAttr("profile.showcase.delete"),
+		httpapi.UserIDAttr(claims.UserID),
+		slog.String("showcase_image_id", showcaseImageID.String()),
+	)
+
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 // updateProfileBody is the request body for PATCH /me.
@@ -366,6 +538,30 @@ func parseInvitationIDParam(c *fiber.Ctx) (uuid.UUID, error) {
 	id, err := uuid.Parse(c.Params("invitationId"))
 	if err != nil {
 		return uuid.Nil, domain.ValidationError(map[string]string{"invitation_id": "must be a valid UUID"})
+	}
+	return id, nil
+}
+
+func parseUserIDParam(c *fiber.Ctx) (uuid.UUID, error) {
+	id, err := uuid.Parse(c.Params("user_id"))
+	if err != nil {
+		return uuid.Nil, domain.ValidationError(map[string]string{"user_id": "must be a valid UUID"})
+	}
+	return id, nil
+}
+
+func parseEquipmentIDParam(c *fiber.Ctx) (uuid.UUID, error) {
+	id, err := uuid.Parse(c.Params("equipment_id"))
+	if err != nil {
+		return uuid.Nil, domain.ValidationError(map[string]string{"equipment_id": "must be a valid UUID"})
+	}
+	return id, nil
+}
+
+func parseShowcaseImageIDParam(c *fiber.Ctx) (uuid.UUID, error) {
+	id, err := uuid.Parse(c.Params("showcase_image_id"))
+	if err != nil {
+		return uuid.Nil, domain.ValidationError(map[string]string{"showcase_image_id": "must be a valid UUID"})
 	}
 	return id, nil
 }

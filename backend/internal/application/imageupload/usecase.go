@@ -10,6 +10,8 @@ import (
 type UseCase interface {
 	CreateProfileAvatarUpload(ctx context.Context, userID uuid.UUID) (*CreateUploadResult, error)
 	ConfirmProfileAvatarUpload(ctx context.Context, userID uuid.UUID, input ConfirmUploadInput) error
+	CreateProfileShowcaseImageUpload(ctx context.Context, userID uuid.UUID) (*CreateUploadResult, error)
+	ConfirmProfileShowcaseImageUpload(ctx context.Context, userID uuid.UUID, input ConfirmUploadInput) (*ConfirmShowcaseImageResult, error)
 	CreateEventImageUpload(ctx context.Context, userID, eventID uuid.UUID) (*CreateUploadResult, error)
 	ConfirmEventImageUpload(ctx context.Context, userID, eventID uuid.UUID, input ConfirmUploadInput) error
 	CreateEventReviewImageUpload(ctx context.Context, userID, eventID uuid.UUID) (*CreateUploadResult, error)
