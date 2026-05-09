@@ -57,6 +57,29 @@ func (s *Service) CancelEventParticipations(ctx context.Context, eventID uuid.UU
 	return s.repo.CancelEventParticipations(ctx, eventID)
 }
 
+// MarkApprovedParticipationsPending moves currently approved non-host
+// participations into the reconfirmation state and returns transitioned users.
+func (s *Service) MarkApprovedParticipationsPending(ctx context.Context, eventID, hostUserID uuid.UUID) ([]uuid.UUID, error) {
+	return s.repo.MarkApprovedParticipationsPending(ctx, eventID, hostUserID)
+}
+
+// ReconfirmParticipation marks one pending participation approved for the
+// current event version.
+func (s *Service) ReconfirmParticipation(ctx context.Context, eventID, userID uuid.UUID, eventVersion int) (*domain.Participation, error) {
+	participation, err := s.repo.ReconfirmParticipation(ctx, eventID, userID, eventVersion)
+	if err != nil {
+		return nil, err
+	}
+	s.evaluateParticipationBadges(ctx, userID)
+	return participation, nil
+}
+
+// ApprovePendingParticipationsForEvent auto-approves pending reconfirmations
+// when an event starts.
+func (s *Service) ApprovePendingParticipationsForEvent(ctx context.Context, eventID uuid.UUID) error {
+	return s.repo.ApprovePendingParticipationsForEvent(ctx, eventID)
+}
+
 // evaluateParticipationBadges runs badge evaluation as a best-effort hook so
 // transient badge-evaluation failures never fail the parent operation.
 func (s *Service) evaluateParticipationBadges(ctx context.Context, userID uuid.UUID) {

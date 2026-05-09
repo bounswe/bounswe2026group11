@@ -130,8 +130,13 @@ function buildViewModel(
     participantRatingError: null,
     showJoinRequestModal: false,
     joinRequestMessage: '',
+    selectedImageUri: null,
+    isUploadingImage: false,
+    imageError: null,
     openJoinRequestModal: jest.fn(),
     closeJoinRequestModal: jest.fn(),
+    pickImage: jest.fn().mockResolvedValue(undefined),
+    removeImage: jest.fn(),
     setJoinRequestMessage: jest.fn(),
     canLeave: false,
     handleJoin: jest.fn().mockResolvedValue(undefined),
@@ -166,6 +171,8 @@ function buildViewModel(
     setUserSearchQuery: jest.fn(),
     userSuggestions: [],
     isSearchingUsers: false,
+    handleCancelJoinRequest: jest.fn().mockResolvedValue(undefined),
+    handleRevokeInvitation: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -360,5 +367,47 @@ describe('EventDetailView', () => {
 
     expect(handleAcceptInvitation).toHaveBeenCalledTimes(1);
     expect(handleDeclineInvitation).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders a Directions to Start button and a Route chip for ROUTE events', () => {
+    const routeEvent = makeEvent({
+      location: {
+        type: 'ROUTE',
+        address: 'Galata Tower → Hagia Sophia',
+        point: null,
+        route_points: [
+          { lat: 41.04, lon: 29.0 },
+          { lat: 41.05, lon: 29.02 },
+          { lat: 41.06, lon: 29.04 },
+        ],
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(buildViewModel({ event: routeEvent }));
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByText('Directions to Start')).toBeTruthy();
+    expect(screen.queryByText('Get Directions')).toBeNull();
+    expect(screen.getByText('Galata Tower → Hagia Sophia')).toBeTruthy();
+    expect(screen.getByText('Route')).toBeTruthy();
+  });
+
+  it('does not render the map for a ROUTE event with no waypoints', () => {
+    const routeEventNoPoints = makeEvent({
+      location: {
+        type: 'ROUTE',
+        address: 'Empty route',
+        point: null,
+        route_points: [],
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: routeEventNoPoints }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.queryByText('Get Directions')).toBeNull();
+    expect(screen.queryByText('Directions to Start')).toBeNull();
   });
 });

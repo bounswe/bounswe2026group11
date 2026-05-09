@@ -26,6 +26,8 @@ type stubEventService struct {
 	participantsResult       *event.ListEventApprovedParticipantsResult
 	joinRequestsResult       *event.ListEventPendingJoinRequestsResult
 	invitationsResult        *event.ListEventInvitationsResult
+	updateResult             *event.UpdateEventResult
+	reconfirmResult          *event.ReconfirmParticipationResult
 	err                      error
 	callCount                int
 	discoverCallCount        int
@@ -39,6 +41,7 @@ type stubEventService struct {
 	approveJoinCallCount     int
 	rejectJoinCallCount      int
 	lastInput                event.CreateEventInput
+	lastUpdateInput          event.UpdateEventInput
 	lastDiscoverInput        event.DiscoverEventsInput
 	lastDetailUserID         uuid.UUID
 	lastDetailEventID        uuid.UUID
@@ -69,6 +72,27 @@ func (s *stubEventService) CreateEvent(_ context.Context, _ uuid.UUID, input eve
 		Status:       string(domain.EventStatusActive),
 		StartTime:    now.Add(time.Hour),
 		CreatedAt:    now,
+	}, nil
+}
+
+func (s *stubEventService) UpdateEvent(_ context.Context, _, eventID uuid.UUID, input event.UpdateEventInput) (*event.UpdateEventResult, error) {
+	s.lastUpdateInput = input
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.updateResult != nil {
+		return s.updateResult, nil
+	}
+	now := time.Now().UTC()
+	return &event.UpdateEventResult{
+		ID:                        eventID.String(),
+		Title:                     "Updated Event",
+		PrivacyLevel:              string(domain.PrivacyPublic),
+		Status:                    string(domain.EventStatusActive),
+		StartTime:                 now.Add(time.Hour),
+		VersionNo:                 2,
+		ParticipantsMarkedPending: 0,
+		UpdatedAt:                 now,
 	}, nil
 }
 
@@ -227,6 +251,23 @@ func (s *stubEventService) LeaveEvent(_ context.Context, _, eventID uuid.UUID) (
 	}, nil
 }
 
+func (s *stubEventService) ReconfirmParticipation(_ context.Context, _, eventID uuid.UUID) (*event.ReconfirmParticipationResult, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.reconfirmResult != nil {
+		return s.reconfirmResult, nil
+	}
+	now := time.Now().UTC()
+	return &event.ReconfirmParticipationResult{
+		ParticipationID: uuid.NewString(),
+		EventID:         eventID.String(),
+		Status:          domain.ParticipationStatusApproved,
+		ReconfirmedAt:   now,
+		UpdatedAt:       now,
+	}, nil
+}
+
 func (s *stubEventService) RequestJoin(_ context.Context, _, eventID uuid.UUID, input event.RequestJoinInput) (*event.RequestJoinResult, error) {
 	s.requestJoinCallCount++
 	s.lastRequestJoinInput = input
@@ -297,6 +338,10 @@ func (s *stubEventService) CancelJoinRequest(_ context.Context, _, _ uuid.UUID) 
 
 func (s *stubEventService) ListFavoriteEvents(_ context.Context, _ uuid.UUID) (*event.FavoriteEventsResult, error) {
 	return &event.FavoriteEventsResult{Items: []event.FavoriteEventItem{}}, s.err
+}
+
+func (s *stubEventService) TransitionEventStatuses(_ context.Context) error {
+	return s.err
 }
 
 // fakeVerifier implements domain.TokenVerifier for tests in this package.

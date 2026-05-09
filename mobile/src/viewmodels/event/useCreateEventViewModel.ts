@@ -19,11 +19,40 @@ import { debounce } from 'lodash';
 import {
   PrivacyLevel,
   LocationSuggestion,
+  LocationType,
+  RoutePointInput,
   CreateEventRequest,
   CreateEventResponse,
   EventConstraint,
   EventCategory,
 } from '@/models/event';
+
+export const ROUTE_MIN_POINTS = 2;
+export const ROUTE_MAX_POINTS = 50;
+
+export interface RouteWaypoint {
+  lat: number;
+  lon: number;
+  label?: string | null;
+}
+
+/**
+ * Build a short display address from route waypoints. Uses each label's first
+ * comma segment (e.g. "Galata Tower, Beyoglu, Istanbul" -> "Galata Tower"),
+ * falling back to coordinates when no label is resolved yet.
+ */
+export function deriveRouteAddress(waypoints: RouteWaypoint[]): string {
+  if (waypoints.length === 0) return '';
+  const shortLabel = (w: RouteWaypoint): string => {
+    const trimmed = (w.label ?? '').split(',')[0]?.trim();
+    if (trimmed) return trimmed;
+    return `${w.lat.toFixed(4)}, ${w.lon.toFixed(4)}`;
+  };
+  const first = shortLabel(waypoints[0]);
+  const last = shortLabel(waypoints[waypoints.length - 1]);
+  if (waypoints.length === 1 || first === last) return first;
+  return `${first} → ${last}`;
+}
 
 export const CATEGORIES: EventCategory[] = [
   { id: 1, name: 'Sports' },
@@ -73,10 +102,12 @@ export interface CreateEventFormData {
   description: string;
   imageUrl: string;
   categoryId: number | null;
+  locationType: LocationType;
   locationQuery: string;
   address: string;
   lat: number | null;
   lon: number | null;
+  routePoints: RouteWaypoint[];
   startDate: string;
   startTime: string;
   endDate: string;
@@ -129,6 +160,13 @@ export interface CreateEventViewModel {
   handleLocationSearch: (query: string) => void;
   selectLocation: (suggestion: LocationSuggestion) => void;
   clearLocation: () => void;
+  setLocationType: (type: LocationType) => void;
+  setPointFromCoordinate: (lat: number, lon: number, label?: string | null) => void;
+  addRoutePointFromCoordinate: (lat: number, lon: number, label?: string | null) => void;
+  addRoutePointFromSuggestion: (suggestion: LocationSuggestion) => void;
+  removeRoutePoint: (index: number) => void;
+  moveRoutePoint: (index: number, direction: -1 | 1) => void;
+  updateRoutePointLabel: (index: number, label: string) => void;
   toggleCategoriesExpanded: () => void;
   addTag: () => void;
   removeTag: (index: number) => void;
@@ -207,10 +245,12 @@ export const INITIAL_FORM_DATA: CreateEventFormData = {
   description: '',
   imageUrl: '',
   categoryId: null,
+  locationType: 'POINT',
   locationQuery: '',
   address: '',
   lat: null,
   lon: null,
+  routePoints: [],
   startDate: formatDateForForm(new Date()),
   startTime: '',
   endDate: '',
@@ -481,7 +521,13 @@ function validateForm(formData: CreateEventFormData): CreateEventFormErrors {
     errors.categoryId = 'Please select a category';
   }
 
-  if (formData.lat === null || formData.lon === null) {
+  if (formData.locationType === 'ROUTE') {
+    if (formData.routePoints.length < ROUTE_MIN_POINTS) {
+      errors.location = `Add at least ${ROUTE_MIN_POINTS} waypoints to create a route`;
+    } else if (formData.routePoints.length > ROUTE_MAX_POINTS) {
+      errors.location = `A route can have at most ${ROUTE_MAX_POINTS} waypoints`;
+    }
+  } else if (formData.lat === null || formData.lon === null) {
     errors.location = 'Please select a location';
   }
 
@@ -735,6 +781,105 @@ export function useCreateEventViewModel(): CreateEventViewModel {
       lon: null,
     }));
     setLocationSuggestions([]);
+  }, []);
+
+  const setLocationType = useCallback((type: LocationType) => {
+    setFormData((prev) => {
+      if (prev.locationType === type) return prev;
+      return {
+        ...prev,
+        locationType: type,
+        // Reset the inactive mode's data so we don't submit stale fields
+        ...(type === 'ROUTE'
+          ? { lat: null, lon: null, address: '', locationQuery: '' }
+          : { routePoints: [] }),
+      };
+    });
+    setLocationSuggestions([]);
+    setErrors((prev) => ({ ...prev, location: null }));
+  }, []);
+
+  const addRoutePointFromCoordinate = useCallback(
+    (lat: number, lon: number, label?: string | null) => {
+      setFormData((prev) => {
+        if (prev.routePoints.length >= ROUTE_MAX_POINTS) return prev;
+        return {
+          ...prev,
+          routePoints: [...prev.routePoints, { lat, lon, label: label ?? null }],
+        };
+      });
+      setErrors((prev) => ({ ...prev, location: null }));
+    },
+    [],
+  );
+
+  const addRoutePointFromSuggestion = useCallback((suggestion: LocationSuggestion) => {
+    const lat = parseFloat(suggestion.lat);
+    const lon = parseFloat(suggestion.lon);
+    if (Number.isNaN(lat) || Number.isNaN(lon)) return;
+    setFormData((prev) => {
+      if (prev.routePoints.length >= ROUTE_MAX_POINTS) return prev;
+      return {
+        ...prev,
+        locationQuery: '',
+        routePoints: [
+          ...prev.routePoints,
+          { lat, lon, label: suggestion.display_name },
+        ],
+      };
+    });
+    setLocationSuggestions([]);
+    setErrors((prev) => ({ ...prev, location: null }));
+  }, []);
+
+  const removeRoutePoint = useCallback((index: number) => {
+    setFormData((prev) => {
+      if (index < 0 || index >= prev.routePoints.length) return prev;
+      const next = [...prev.routePoints];
+      next.splice(index, 1);
+      return { ...prev, routePoints: next };
+    });
+  }, []);
+
+  const setPointFromCoordinate = useCallback(
+    (lat: number, lon: number, label?: string | null) => {
+      setFormData((prev) => ({
+        ...prev,
+        lat,
+        lon,
+        address: label ?? prev.address,
+        locationQuery: label ?? prev.locationQuery,
+      }));
+      setLocationSuggestions([]);
+      setErrors((prev) => ({ ...prev, location: null }));
+    },
+    [],
+  );
+
+  const updateRoutePointLabel = useCallback((index: number, label: string) => {
+    setFormData((prev) => {
+      if (index < 0 || index >= prev.routePoints.length) return prev;
+      const next = [...prev.routePoints];
+      next[index] = { ...next[index], label };
+      return { ...prev, routePoints: next };
+    });
+  }, []);
+
+  const moveRoutePoint = useCallback((index: number, direction: -1 | 1) => {
+    setFormData((prev) => {
+      const target = index + direction;
+      if (
+        index < 0 ||
+        index >= prev.routePoints.length ||
+        target < 0 ||
+        target >= prev.routePoints.length
+      ) {
+        return prev;
+      }
+      const next = [...prev.routePoints];
+      [next[index], next[target]] = [next[target], next[index]];
+      return { ...prev, routePoints: next };
+    });
   }, []);
 
   const addTag = useCallback(() => {
@@ -1100,7 +1245,11 @@ export function useCreateEventViewModel(): CreateEventViewModel {
           }
         }
 
-        const address = formData.address || undefined;
+        const isRoute = formData.locationType === 'ROUTE';
+        const explicitAddress = formData.address?.trim() || undefined;
+        const address = isRoute
+          ? explicitAddress ?? (deriveRouteAddress(formData.routePoints) || undefined)
+          : explicitAddress;
 
         const request: CreateEventRequest = {
           title: formData.title.trim(),
@@ -1108,9 +1257,18 @@ export function useCreateEventViewModel(): CreateEventViewModel {
           image_url: formData.imageUrl.trim() || undefined,
           category_id: formData.categoryId!,
           address,
-          lat: formData.lat ?? undefined,
-          lon: formData.lon ?? undefined,
-          location_type: 'POINT',
+          location_type: formData.locationType,
+          ...(isRoute
+            ? {
+                route_points: formData.routePoints.map<RoutePointInput>((p) => ({
+                  lat: p.lat,
+                  lon: p.lon,
+                })),
+              }
+            : {
+                lat: formData.lat ?? undefined,
+                lon: formData.lon ?? undefined,
+              }),
           start_time: startTimeISO,
           end_time: endTimeISO,
           privacy_level: formData.privacyLevel,
@@ -1156,7 +1314,13 @@ export function useCreateEventViewModel(): CreateEventViewModel {
               if (key === 'title') fieldErrors.title = msg;
               else if (key === 'description') fieldErrors.description = msg;
               else if (key === 'category_id') fieldErrors.categoryId = msg;
-              else if (key === 'lat' || key === 'lon' || key === 'address')
+              else if (
+                key === 'lat' ||
+                key === 'lon' ||
+                key === 'address' ||
+                key === 'route_points' ||
+                key.startsWith('route_points')
+              )
                 fieldErrors.location = msg;
               else if (key === 'start_time') fieldErrors.startDate = msg;
               else if (key === 'end_time') fieldErrors.endDate = msg;
@@ -1195,6 +1359,13 @@ export function useCreateEventViewModel(): CreateEventViewModel {
     handleLocationSearch,
     selectLocation,
     clearLocation,
+    setLocationType,
+    setPointFromCoordinate,
+    addRoutePointFromCoordinate,
+    addRoutePointFromSuggestion,
+    removeRoutePoint,
+    moveRoutePoint,
+    updateRoutePointLabel,
     toggleCategoriesExpanded,
     addTag,
     removeTag,

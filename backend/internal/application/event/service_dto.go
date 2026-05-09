@@ -33,6 +33,42 @@ type CreateEventInput struct {
 	Constraints     []ConstraintInput
 	MinimumAge      *int
 	PreferredGender *domain.EventParticipantGender
+	ChildFriendly   bool
+	FamilyOriented  bool
+}
+
+// OptionalString carries PATCH semantics for nullable string fields.
+type OptionalString struct {
+	Set   bool
+	Value *string
+}
+
+// OptionalInt carries PATCH semantics for nullable integer fields.
+type OptionalInt struct {
+	Set   bool
+	Value *int
+}
+
+// OptionalTime carries PATCH semantics for nullable time fields.
+type OptionalTime struct {
+	Set   bool
+	Value *time.Time
+}
+
+// UpdateEventInput is the validated application input for editing an event.
+type UpdateEventInput struct {
+	Title        *string
+	Description  OptionalString
+	CategoryID   OptionalInt
+	Address      OptionalString
+	LocationType *domain.EventLocationType
+	Lat          *float64
+	Lon          *float64
+	RoutePoints  *[]RoutePointInput
+	StartTime    *time.Time
+	EndTime      OptionalTime
+	Capacity     OptionalInt
+	Constraints  *[]ConstraintInput
 }
 
 // ConstraintInput is a single constraint attached to an event.
@@ -58,21 +94,38 @@ type CreateEventResult struct {
 	CreatedAt    time.Time  `json:"created_at"`
 }
 
+// UpdateEventResult is returned after a successful event edit.
+type UpdateEventResult struct {
+	ID                            string     `json:"id"`
+	Title                         string     `json:"title"`
+	PrivacyLevel                  string     `json:"privacy_level"`
+	Status                        string     `json:"status"`
+	StartTime                     time.Time  `json:"start_time"`
+	EndTime                       *time.Time `json:"end_time,omitempty"`
+	VersionNo                     int        `json:"version_no"`
+	ReconfirmationRequired        bool       `json:"reconfirmation_required"`
+	ReconfirmationTriggeredFields []string   `json:"reconfirmation_triggered_fields"`
+	ParticipantsMarkedPending     int        `json:"participants_marked_pending"`
+	UpdatedAt                     time.Time  `json:"updated_at"`
+}
+
 // DiscoverEventsInput is the validated input for event discovery and search.
 type DiscoverEventsInput struct {
-	Lat           *float64
-	Lon           *float64
-	RadiusMeters  *int
-	Query         *string
-	PrivacyLevels []domain.EventPrivacyLevel
-	CategoryIDs   []int
-	StartFrom     *time.Time
-	StartTo       *time.Time
-	TagNames      []string
-	OnlyFavorited bool
-	SortBy        *domain.EventDiscoverySort
-	Limit         *int
-	Cursor        *string
+	Lat                *float64
+	Lon                *float64
+	RadiusMeters       *int
+	Query              *string
+	PrivacyLevels      []domain.EventPrivacyLevel
+	CategoryIDs        []int
+	StartFrom          *time.Time
+	StartTo            *time.Time
+	TagNames           []string
+	OnlyFavorited      bool
+	OnlyChildFriendly  bool
+	OnlyFamilyOriented bool
+	SortBy             *domain.EventDiscoverySort
+	Limit              *int
+	Cursor             *string
 }
 
 // DiscoverEventsResult is returned after a successful event discovery query.
@@ -97,6 +150,8 @@ type DiscoverableEventItem struct {
 	ApprovedParticipantCount int                   `json:"approved_participant_count"`
 	FavoriteCount            int                   `json:"favorite_count"`
 	IsFavorited              bool                  `json:"is_favorited"`
+	ChildFriendly            bool                  `json:"child_friendly"`
+	FamilyOriented           bool                  `json:"family_oriented"`
 	HostScore                EventHostScoreSummary `json:"host_score"`
 }
 
@@ -119,6 +174,8 @@ type GetEventDetailResult struct {
 	Capacity                 *int                     `json:"capacity"`
 	MinimumAge               *int                     `json:"minimum_age"`
 	PreferredGender          *string                  `json:"preferred_gender"`
+	ChildFriendly            bool                     `json:"child_friendly"`
+	FamilyOriented           bool                     `json:"family_oriented"`
 	ApprovedParticipantCount int                      `json:"approved_participant_count"`
 	PendingParticipantCount  int                      `json:"pending_participant_count"`
 	FavoriteCount            int                      `json:"favorite_count"`
@@ -236,6 +293,7 @@ type EventDetailHostContext struct {
 type ListEventCollectionInput struct {
 	Limit  *int
 	Cursor *string
+	Status *domain.ParticipationStatus
 }
 
 // EventDetailApprovedParticipant is returned only to the host.
@@ -321,6 +379,17 @@ type LeaveEventResult struct {
 	EventID         string                     `json:"event_id"`
 	Status          domain.ParticipationStatus `json:"status"`
 	UpdatedAt       time.Time                  `json:"updated_at"`
+}
+
+// ReconfirmParticipationResult is returned after a pending participant accepts
+// the latest event details.
+type ReconfirmParticipationResult struct {
+	ParticipationID string                     `json:"participation_id"`
+	EventID         string                     `json:"event_id"`
+	Status          domain.ParticipationStatus `json:"status"`
+	ReconfirmedAt   time.Time                  `json:"reconfirmed_at"`
+	UpdatedAt       time.Time                  `json:"updated_at"`
+	TicketStatus    *domain.TicketStatus       `json:"ticket_status,omitempty"`
 }
 
 // RequestJoinInput is the validated input for creating a protected-event join request.

@@ -75,6 +75,22 @@ func (r *fakeParticipationRepo) CancelEventParticipations(_ context.Context, eve
 	return nil, r.err
 }
 
+func (r *fakeParticipationRepo) MarkApprovedParticipationsPending(_ context.Context, eventID, _ uuid.UUID) ([]uuid.UUID, error) {
+	r.lastEventID = eventID
+	return nil, r.err
+}
+
+func (r *fakeParticipationRepo) ReconfirmParticipation(_ context.Context, eventID, userID uuid.UUID, _ int) (*domain.Participation, error) {
+	r.lastEventID = eventID
+	r.lastUserID = userID
+	return r.CreateParticipation(context.Background(), eventID, userID)
+}
+
+func (r *fakeParticipationRepo) ApprovePendingParticipationsForEvent(_ context.Context, eventID uuid.UUID) error {
+	r.lastEventID = eventID
+	return r.err
+}
+
 func TestCreateApprovedParticipationDelegatesToRepo(t *testing.T) {
 	// given
 	repo := &fakeParticipationRepo{}

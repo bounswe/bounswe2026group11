@@ -177,7 +177,7 @@ func New(ctx context.Context) (*Container, error) {
 // is cancelled.
 func (c *Container) StartEventExpiryJob(ctx context.Context, interval time.Duration) {
 	expire := func() {
-		if err := c.eventRepo.TransitionEventStatuses(ctx); err != nil {
+		if err := c.EventService.TransitionEventStatuses(ctx); err != nil {
 			slog.ErrorContext(ctx, "event status transition job failed", "error", err)
 		}
 	}

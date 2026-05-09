@@ -168,6 +168,7 @@ components:
     TicketStatus:
       type: string
       enum: [ACTIVE, PENDING, EXPIRED, USED, CANCELED]
+      description: "`PENDING` means the linked participant must reconfirm event changes before QR access is available."
     ParticipationStatus:
       type: string
       enum: [APPROVED, PENDING, CANCELED, LEAVED]

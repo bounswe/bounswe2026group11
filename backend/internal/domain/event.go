@@ -181,8 +181,11 @@ type Event struct {
 	Status                   EventStatus
 	Capacity                 *int
 	ApprovedParticipantCount int
+	PendingParticipantCount  int
 	MinimumAge               *int
 	PreferredGender          *EventParticipantGender
+	ChildFriendly            bool
+	FamilyOriented           bool
 	LocationType             *EventLocationType
 	CreatedAt                time.Time
 	UpdatedAt                time.Time

@@ -136,6 +136,44 @@ func (r *TicketRepository) ExpireTicketsForEvent(ctx context.Context, eventID uu
 	return nil
 }
 
+// MarkTicketsPendingForEvent moves active tickets for pending participants to
+// PENDING so QR access is blocked until reconfirmation or event start.
+func (r *TicketRepository) MarkTicketsPendingForEvent(ctx context.Context, eventID uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE ticket t
+		SET status = $2,
+		    updated_at = NOW()
+		FROM participation p
+		WHERE p.id = t.participation_id
+		  AND p.event_id = $1
+		  AND p.status = $3
+		  AND t.status = $4
+	`, eventID, domain.TicketStatusPending, domain.ParticipationStatusPending, domain.TicketStatusActive)
+	if err != nil {
+		return fmt.Errorf("mark tickets pending for event: %w", err)
+	}
+	return nil
+}
+
+// ActivatePendingTicketsForEvent restores pending tickets for approved
+// participants.
+func (r *TicketRepository) ActivatePendingTicketsForEvent(ctx context.Context, eventID uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE ticket t
+		SET status = $2,
+		    updated_at = NOW()
+		FROM participation p
+		WHERE p.id = t.participation_id
+		  AND p.event_id = $1
+		  AND p.status = $3
+		  AND t.status = $4
+	`, eventID, domain.TicketStatusActive, domain.ParticipationStatusApproved, domain.TicketStatusPending)
+	if err != nil {
+		return fmt.Errorf("activate pending tickets for event: %w", err)
+	}
+	return nil
+}
+
 // ListTicketsByUser returns ticket summaries for the given user.
 func (r *TicketRepository) ListTicketsByUser(ctx context.Context, userID uuid.UUID) ([]ticketapp.TicketRecord, error) {
 	rows, err := r.db.Query(ctx, ticketRecordSelect(`

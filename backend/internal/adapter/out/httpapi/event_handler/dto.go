@@ -19,6 +19,8 @@ type createEventBody struct {
 	Constraints     []constraintBody `json:"constraints"`
 	MinimumAge      *int             `json:"minimum_age"`
 	PreferredGender *string          `json:"preferred_gender"`
+	ChildFriendly   bool             `json:"child_friendly"`
+	FamilyOriented  bool             `json:"family_oriented"`
 }
 
 // requestJoinBody is the JSON request body for POST /events/:id/join-request.

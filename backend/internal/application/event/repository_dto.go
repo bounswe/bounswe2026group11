@@ -21,6 +21,8 @@ type CreateEventParams struct {
 	Capacity        *int
 	MinimumAge      *int
 	PreferredGender *domain.EventParticipantGender
+	ChildFriendly   bool
+	FamilyOriented  bool
 	LocationType    domain.EventLocationType
 	Address         *string
 	Point           *domain.GeoPoint
@@ -29,10 +31,45 @@ type CreateEventParams struct {
 	Constraints     []EventConstraintParams
 }
 
+// UpdateEventParams carries the fully merged event state to persist.
+type UpdateEventParams struct {
+	EventID            uuid.UUID
+	Title              string
+	Description        *string
+	CategoryID         *int
+	StartTime          time.Time
+	EndTime            *time.Time
+	Capacity           *int
+	LocationType       domain.EventLocationType
+	Address            *string
+	Point              *domain.GeoPoint
+	RoutePoints        []domain.GeoPoint
+	Constraints        []EventConstraintParams
+	Changed            bool
+	LocationChanged    bool
+	ConstraintsChanged bool
+}
+
 // EventConstraintParams is a single constraint to attach to an event.
 type EventConstraintParams struct {
 	Type string
 	Info string
+}
+
+// EventEditSnapshot is the locked repository projection used to evaluate an
+// event edit against the current persisted state.
+type EventEditSnapshot struct {
+	Event       domain.Event
+	VersionNo   int
+	Location    EventDetailLocationRecord
+	Constraints []EventDetailConstraintRecord
+}
+
+// EventStatusTransitionRecord describes one lifecycle status transition made
+// by the scheduled event transition job.
+type EventStatusTransitionRecord struct {
+	EventID uuid.UUID
+	Status  domain.EventStatus
 }
 
 // DiscoverEventsParams carries the normalized discovery filters and pagination state.
@@ -47,6 +84,8 @@ type DiscoverEventsParams struct {
 	StartTo              *time.Time
 	TagNames             []string
 	OnlyFavorited        bool
+	OnlyChildFriendly    bool
+	OnlyFamilyOriented   bool
 	SortBy               domain.EventDiscoverySort
 	Limit                int
 	CursorToken          string
@@ -70,6 +109,8 @@ type DiscoverableEventRecord struct {
 	ApprovedParticipantCount int
 	FavoriteCount            int
 	IsFavorited              bool
+	ChildFriendly            bool
+	FamilyOriented           bool
 	HostScore                EventHostScoreSummaryRecord
 	DistanceMeters           float64
 	RelevanceScore           *float64
@@ -89,6 +130,7 @@ type DiscoverEventsCursor struct {
 type EventCollectionPageParams struct {
 	Limit                int
 	CursorToken          string
+	Status               domain.ParticipationStatus
 	RepositoryFetchLimit int
 	DecodedCursor        *EventCollectionCursor
 }
@@ -133,6 +175,8 @@ type EventDetailRecord struct {
 	Capacity                 *int
 	MinimumAge               *int
 	PreferredGender          *domain.EventParticipantGender
+	ChildFriendly            bool
+	FamilyOriented           bool
 	ApprovedParticipantCount int
 	PendingParticipantCount  int
 	FavoriteCount            int

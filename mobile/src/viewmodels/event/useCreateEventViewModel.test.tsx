@@ -13,6 +13,7 @@ import {
   normalizePickedImageUri,
   validateLiveDateInput,
   validateLiveTimeInput,
+  deriveRouteAddress,
   TITLE_MIN_LENGTH,
   TITLE_MAX_LENGTH,
   DESCRIPTION_MIN_LENGTH,
@@ -1058,6 +1059,338 @@ describe('validateLiveTimeInput', () => {
 
   it('uses full time validation when the time is complete', () => {
     expect(validateLiveTimeInput('09:30')).toBeNull();
+  });
+
+  describe('route mode', () => {
+    function fillValidRouteForm(vm: CreateEventViewModel) {
+      vm.updateField('title', 'A Valid Route Event');
+      vm.updateField(
+        'description',
+        'This is a valid description that is long enough for the minimum requirement',
+      );
+      vm.updateField('categoryId', 1);
+      vm.updateField('startDate', futureDate);
+      vm.updateField('startTime', '14:00');
+    }
+
+    it('starts with locationType POINT and an empty routePoints array', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      expect(result.current.formData.locationType).toBe('POINT');
+      expect(result.current.formData.routePoints).toEqual([]);
+    });
+
+    it('switches to ROUTE mode and clears the point fields', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        result.current.updateField('lat', 41.0);
+        result.current.updateField('lon', 29.0);
+        result.current.updateField('address', 'Istanbul');
+      });
+      act(() => {
+        result.current.setLocationType('ROUTE');
+      });
+      expect(result.current.formData.locationType).toBe('ROUTE');
+      expect(result.current.formData.lat).toBeNull();
+      expect(result.current.formData.lon).toBeNull();
+      expect(result.current.formData.address).toBe('');
+    });
+
+    it('switching back to POINT clears any added route points', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromCoordinate(41.0, 29.0);
+        result.current.addRoutePointFromCoordinate(41.1, 29.1);
+      });
+      expect(result.current.formData.routePoints).toHaveLength(2);
+      act(() => {
+        result.current.setLocationType('POINT');
+      });
+      expect(result.current.formData.routePoints).toEqual([]);
+    });
+
+    it('appends a waypoint via addRoutePointFromCoordinate', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromCoordinate(41.0, 29.0, 'Start');
+      });
+      expect(result.current.formData.routePoints).toEqual([
+        { lat: 41.0, lon: 29.0, label: 'Start' },
+      ]);
+    });
+
+    it('appends a waypoint via addRoutePointFromSuggestion', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromSuggestion({
+          display_name: 'Kadikoy, Istanbul',
+          lat: '40.9909',
+          lon: '29.0293',
+        });
+      });
+      expect(result.current.formData.routePoints).toEqual([
+        { lat: 40.9909, lon: 29.0293, label: 'Kadikoy, Istanbul' },
+      ]);
+      expect(result.current.formData.locationQuery).toBe('');
+    });
+
+    it('ignores suggestions with non-numeric coordinates', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromSuggestion({
+          display_name: 'Bad data',
+          lat: 'NaN',
+          lon: 'oops',
+        });
+      });
+      expect(result.current.formData.routePoints).toEqual([]);
+    });
+
+    it('removes a waypoint by index', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromCoordinate(41.0, 29.0, 'A');
+        result.current.addRoutePointFromCoordinate(41.1, 29.1, 'B');
+        result.current.addRoutePointFromCoordinate(41.2, 29.2, 'C');
+      });
+      act(() => {
+        result.current.removeRoutePoint(1);
+      });
+      expect(result.current.formData.routePoints.map((p) => p.label)).toEqual(['A', 'C']);
+    });
+
+    it('moves a waypoint up with moveRoutePoint(idx, -1)', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromCoordinate(41.0, 29.0, 'A');
+        result.current.addRoutePointFromCoordinate(41.1, 29.1, 'B');
+        result.current.addRoutePointFromCoordinate(41.2, 29.2, 'C');
+      });
+      act(() => {
+        result.current.moveRoutePoint(2, -1);
+      });
+      expect(result.current.formData.routePoints.map((p) => p.label)).toEqual([
+        'A',
+        'C',
+        'B',
+      ]);
+    });
+
+    it('moves a waypoint down with moveRoutePoint(idx, 1)', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromCoordinate(41.0, 29.0, 'A');
+        result.current.addRoutePointFromCoordinate(41.1, 29.1, 'B');
+      });
+      act(() => {
+        result.current.moveRoutePoint(0, 1);
+      });
+      expect(result.current.formData.routePoints.map((p) => p.label)).toEqual(['B', 'A']);
+    });
+
+    it('does not crash when moving a waypoint past the boundary', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromCoordinate(41.0, 29.0, 'A');
+        result.current.addRoutePointFromCoordinate(41.1, 29.1, 'B');
+      });
+      act(() => {
+        result.current.moveRoutePoint(0, -1); // already at top
+        result.current.moveRoutePoint(1, 1); // already at bottom
+      });
+      expect(result.current.formData.routePoints.map((p) => p.label)).toEqual(['A', 'B']);
+    });
+
+    it('shows a validation error when submitting a ROUTE event with fewer than 2 waypoints', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        fillValidRouteForm(result.current);
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromCoordinate(41.0, 29.0);
+      });
+      await act(async () => {
+        await result.current.handleSubmit('test-token');
+      });
+      expect(result.current.errors.location).toMatch(/at least 2 waypoints/i);
+      expect(mockCreateEvent).not.toHaveBeenCalled();
+    });
+
+    it('submits a ROUTE event with route_points and no lat/lon', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        fillValidRouteForm(result.current);
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromCoordinate(41.0, 29.0, 'A');
+        result.current.addRoutePointFromCoordinate(41.1, 29.1, 'B');
+      });
+      await act(async () => {
+        await result.current.handleSubmit('test-token');
+      });
+
+      expect(mockCreateEvent).toHaveBeenCalledTimes(1);
+      const [request] = mockCreateEvent.mock.calls[0];
+      expect(request.location_type).toBe('ROUTE');
+      expect(request.route_points).toEqual([
+        { lat: 41.0, lon: 29.0 },
+        { lat: 41.1, lon: 29.1 },
+      ]);
+      expect(request.lat).toBeUndefined();
+      expect(request.lon).toBeUndefined();
+    });
+
+    it('auto-derives address for a ROUTE event when none was typed', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        fillValidRouteForm(result.current);
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromCoordinate(
+          41.04,
+          29.0,
+          'Galata Tower, Beyoglu, Istanbul, Turkey',
+        );
+        result.current.addRoutePointFromCoordinate(
+          41.05,
+          29.02,
+          'Hagia Sophia, Sultanahmet, Istanbul, Turkey',
+        );
+      });
+      await act(async () => {
+        await result.current.handleSubmit('test-token');
+      });
+
+      const [request] = mockCreateEvent.mock.calls[0];
+      expect(request.address).toBe('Galata Tower → Hagia Sophia');
+    });
+
+    it('falls back to coordinates when route waypoint labels are not yet resolved', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        fillValidRouteForm(result.current);
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromCoordinate(41.04, 29.0);
+        result.current.addRoutePointFromCoordinate(41.05, 29.02);
+      });
+      await act(async () => {
+        await result.current.handleSubmit('test-token');
+      });
+
+      const [request] = mockCreateEvent.mock.calls[0];
+      expect(request.address).toBe('41.0400, 29.0000 → 41.0500, 29.0200');
+    });
+
+    it('updateRoutePointLabel updates the label of an existing waypoint', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromCoordinate(41.0, 29.0);
+        result.current.addRoutePointFromCoordinate(41.1, 29.1);
+      });
+      act(() => {
+        result.current.updateRoutePointLabel(1, 'Galata Tower, Istanbul');
+      });
+      expect(result.current.formData.routePoints[1].label).toBe('Galata Tower, Istanbul');
+      expect(result.current.formData.routePoints[0].label ?? null).toBeNull();
+    });
+
+    it('updateRoutePointLabel is a no-op for out-of-range indices', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        result.current.setLocationType('ROUTE');
+        result.current.addRoutePointFromCoordinate(41.0, 29.0, 'Original');
+      });
+      act(() => {
+        result.current.updateRoutePointLabel(5, 'Should-not-appear');
+        result.current.updateRoutePointLabel(-1, 'Should-not-appear');
+      });
+      expect(result.current.formData.routePoints[0].label).toBe('Original');
+    });
+
+    it('setPointFromCoordinate sets lat/lon and address synchronously', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        result.current.setPointFromCoordinate(41.0082, 28.9784, 'Hagia Sophia, Istanbul');
+      });
+      expect(result.current.formData.lat).toBe(41.0082);
+      expect(result.current.formData.lon).toBe(28.9784);
+      expect(result.current.formData.address).toBe('Hagia Sophia, Istanbul');
+      expect(result.current.formData.locationQuery).toBe('Hagia Sophia, Istanbul');
+    });
+
+    it('setPointFromCoordinate without a label keeps any previously typed query', () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        result.current.handleLocationSearch('Anit');
+      });
+      act(() => {
+        result.current.setPointFromCoordinate(41.0, 29.0);
+      });
+      expect(result.current.formData.lat).toBe(41.0);
+      // Query is preserved when label not yet known (reverse geocode in-flight)
+      expect(result.current.formData.locationQuery).toBe('Anit');
+    });
+
+    it('submits a POINT event without route_points', async () => {
+      const { result } = renderHook(() => useCreateEventViewModel());
+      act(() => {
+        fillValidForm(result.current);
+      });
+      await act(async () => {
+        await result.current.handleSubmit('test-token');
+      });
+      expect(mockCreateEvent).toHaveBeenCalledTimes(1);
+      const [request] = mockCreateEvent.mock.calls[0];
+      expect(request.location_type).toBe('POINT');
+      expect(request.route_points).toBeUndefined();
+      expect(request.lat).toBe(41);
+      expect(request.lon).toBe(29);
+    });
+  });
+});
+
+describe('deriveRouteAddress', () => {
+  it('returns empty string for an empty waypoint list', () => {
+    expect(deriveRouteAddress([])).toBe('');
+  });
+
+  it('uses the first comma-segment of single-waypoint label', () => {
+    expect(
+      deriveRouteAddress([{ lat: 41.0, lon: 29.0, label: 'Galata Tower, Beyoglu, Istanbul' }]),
+    ).toBe('Galata Tower');
+  });
+
+  it('joins first and last waypoint short labels with an arrow', () => {
+    expect(
+      deriveRouteAddress([
+        { lat: 41.0, lon: 29.0, label: 'Galata Tower, Beyoglu, Istanbul' },
+        { lat: 41.1, lon: 29.1, label: 'Bagdat Caddesi, Kadikoy, Istanbul' },
+        { lat: 41.2, lon: 29.2, label: 'Hagia Sophia, Sultanahmet, Istanbul' },
+      ]),
+    ).toBe('Galata Tower → Hagia Sophia');
+  });
+
+  it('falls back to lat/lon when no label is present', () => {
+    expect(
+      deriveRouteAddress([
+        { lat: 41.04, lon: 29.0 },
+        { lat: 41.05, lon: 29.02 },
+      ]),
+    ).toBe('41.0400, 29.0000 → 41.0500, 29.0200');
+  });
+
+  it('collapses to one segment when first and last short labels match', () => {
+    expect(
+      deriveRouteAddress([
+        { lat: 41.0, lon: 29.0, label: 'Bosphorus Park, Besiktas' },
+        { lat: 41.1, lon: 29.1, label: 'Bosphorus Park, Sariyer' },
+      ]),
+    ).toBe('Bosphorus Park');
   });
 });
 

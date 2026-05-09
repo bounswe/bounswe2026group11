@@ -1,4 +1,4 @@
-import { apiGet, apiGetAuth, apiPostAuth, apiPatchAuth, apiPutAuth } from '@/services/api';
+import { apiGet, apiGetAuth, apiPostAuth, apiPatchAuth, apiPutAuth, apiDeleteAuth } from '@/services/api';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
   PrivacyLevel,
@@ -30,6 +30,43 @@ import { shouldShowProfileEvent } from '@/utils/eventStatus';
 
 const PHOTON_BASE = 'https://photon.komoot.io';
 type SupportedUploadMethod = 'POST' | 'PUT' | 'PATCH';
+
+interface PhotonProperties {
+  name?: string;
+  street?: string;
+  housenumber?: string;
+  district?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+}
+
+interface PhotonFeature {
+  geometry?: { coordinates?: [number, number] };
+  properties?: PhotonProperties;
+}
+
+function buildPhotonDisplayName(props: PhotonProperties): string {
+  const parts = [
+    [props.name, props.street && props.housenumber ? `${props.street} ${props.housenumber}` : props.street].filter(Boolean).join(' '),
+    props.district,
+    props.city,
+    props.state,
+    props.country,
+  ];
+
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  for (const part of parts) {
+    const value = (part ?? '').trim();
+    if (!value) continue;
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(value);
+  }
+  return deduped.join(', ');
+}
 
 interface BackendEventSummary {
   id: string;
@@ -135,6 +172,13 @@ export async function requestJoinEvent(
   return apiPostAuth<RequestJoinResponse>(`/events/${id}/join-request`, body, token);
 }
 
+export async function withdrawJoinRequest(
+  eventId: string,
+  token: string,
+): Promise<void> {
+  return apiDeleteAuth<void>(`/events/${eventId}/join-requests/me`, token);
+}
+
 export async function approveJoinRequest(
   eventId: string,
   joinRequestId: string,
@@ -194,45 +238,6 @@ export async function upsertParticipantRating(
   );
 }
 
-interface PhotonProperties {
-  name?: string;
-  street?: string;
-  housenumber?: string;
-  postcode?: string;
-  district?: string;
-  city?: string;
-  county?: string;
-  state?: string;
-  country?: string;
-}
-
-interface PhotonFeature {
-  geometry?: { coordinates?: [number, number] };
-  properties?: PhotonProperties;
-}
-
-function buildPhotonDisplayName(props: PhotonProperties): string {
-  const parts = [
-    [props.name, props.street && props.housenumber ? `${props.street} ${props.housenumber}` : props.street].filter(Boolean).join(' '),
-    props.district,
-    props.city,
-    props.state,
-    props.country,
-  ];
-
-  const seen = new Set<string>();
-  const deduped: string[] = [];
-  for (const part of parts) {
-    const value = (part ?? '').trim();
-    if (!value) continue;
-    const key = value.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    deduped.push(value);
-  }
-  return deduped.join(', ');
-}
-
 export async function searchLocation(
   query: string,
 ): Promise<LocationSuggestion[]> {
@@ -275,6 +280,99 @@ export async function searchLocation(
     .filter((s): s is LocationSuggestion => s !== null);
 }
 
+export async function reverseGeocode(
+  lat: number,
+  lon: number,
+): Promise<LocationSuggestion | null> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lon),
+    lang: 'en',
+  });
+
+  let response: Response;
+  try {
+    response = await fetch(`${PHOTON_BASE}/reverse?${params}`);
+  } catch {
+    return null;
+  }
+
+  if (!response.ok) return null;
+
+  const data = await response.json().catch(() => null);
+  if (!data || !Array.isArray(data.features) || data.features.length === 0) return null;
+
+  const feature = data.features[0] as PhotonFeature;
+  const coords = feature.geometry?.coordinates;
+  // Prefer the original tap coordinates so the marker stays where the user tapped,
+  // even if Photon snaps the result to a nearby road or POI.
+  const resolvedLat = Array.isArray(coords) && typeof coords[1] === 'number' ? coords[1] : lat;
+  const resolvedLon = Array.isArray(coords) && typeof coords[0] === 'number' ? coords[0] : lon;
+  const displayName = buildPhotonDisplayName(feature.properties ?? {});
+  if (!displayName) return null;
+
+  return {
+    display_name: displayName,
+    lat: String(resolvedLat),
+    lon: String(resolvedLon),
+  };
+}
+
+const OSRM_BASE = 'https://router.project-osrm.org';
+
+interface OSRMRoute {
+  geometry?: { coordinates?: Array<[number, number]> };
+}
+
+interface OSRMResponse {
+  code?: string;
+  routes?: OSRMRoute[];
+}
+
+/**
+ * Fetches a routed geometry that follows the road network between the given
+ * waypoints (in order). Uses OSRM's public driving profile — keyless and free,
+ * but rate-limited and not for production-grade traffic. Returns null on any
+ * failure so callers can fall back to a straight polyline.
+ */
+export async function fetchRoutedGeometry(
+  waypoints: Array<{ lat: number; lon: number }>,
+): Promise<Array<{ lat: number; lon: number }> | null> {
+  if (waypoints.length < 2) return null;
+  if (waypoints.some((p) => !Number.isFinite(p.lat) || !Number.isFinite(p.lon))) {
+    return null;
+  }
+
+  const coords = waypoints.map((p) => `${p.lon},${p.lat}`).join(';');
+  const url =
+    `${OSRM_BASE}/route/v1/driving/${coords}` +
+    `?overview=full&geometries=geojson`;
+
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch {
+    return null;
+  }
+  if (!response.ok) return null;
+
+  const data = (await response.json().catch(() => null)) as OSRMResponse | null;
+  if (!data || data.code !== 'Ok') return null;
+  const geom = data.routes?.[0]?.geometry?.coordinates;
+  if (!Array.isArray(geom) || geom.length < 2) return null;
+
+  const points: Array<{ lat: number; lon: number }> = [];
+  for (const pair of geom) {
+    if (!Array.isArray(pair) || pair.length < 2) continue;
+    const [lon, lat] = pair;
+    if (typeof lat !== 'number' || typeof lon !== 'number') continue;
+    points.push({ lat, lon });
+  }
+  return points.length >= 2 ? points : null;
+}
+
 export async function listCategories(): Promise<ListCategoriesResponse> {
   return apiGet<ListCategoriesResponse>('/categories');
 }
@@ -286,6 +384,17 @@ function appendArrayParam(
 ) {
   if (!values || values.length === 0) return;
   params.set(key, values.join(','));
+}
+
+export async function getJoinRequestImageUploadUrl(
+  eventId: string,
+  token: string,
+): Promise<ImageUploadInitResponse> {
+  return apiPostAuth<ImageUploadInitResponse>(
+    `/events/${eventId}/join-request/image/upload-url`,
+    {},
+    token,
+  );
 }
 
 export async function getEventImageUploadUrl(

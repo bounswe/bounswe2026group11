@@ -1,6 +1,7 @@
 package event_handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -44,10 +45,12 @@ func RegisterEventRoutes(router fiber.Router, handler *EventHandler, auth fiber.
 	group.Get("/:id/join-requests", auth, handler.ListEventPendingJoinRequests)
 	group.Get("/:id/invitations", auth, handler.ListEventInvitations)
 	group.Post("/", auth, handler.CreateEvent)
+	group.Patch("/:id", auth, handler.UpdateEvent)
 	group.Post("/:id/invitations", auth, handler.CreateInvitations)
 	group.Delete("/:id/invitations/:invitationId", auth, handler.RevokeInvitation)
 	group.Post("/:id/join", auth, handler.JoinEvent)
 	group.Patch("/:id/leave", auth, handler.LeaveEvent)
+	group.Post("/:id/participation/reconfirm", auth, handler.ReconfirmParticipation)
 	group.Post("/:id/join-request", auth, handler.RequestJoin)
 	group.Post("/:id/join-requests/:joinRequestId/approve", auth, handler.ApproveJoinRequest)
 	group.Post("/:id/join-requests/:joinRequestId/reject", auth, handler.RejectJoinRequest)
@@ -346,6 +349,38 @@ func (h *EventHandler) CreateEvent(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(result)
 }
 
+// UpdateEvent handles PATCH /events/:id.
+func (h *EventHandler) UpdateEvent(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	input, errs := toUpdateEventInput(c.Body())
+	if len(errs) > 0 {
+		return httpapi.WriteError(c, domain.ValidationError(errs))
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.UpdateEvent(c.UserContext(), claims.UserID, eventID, input)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event updated",
+		httpapi.OperationAttr("event.update"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		httpapi.QuerySummaryAttr(summarizeUpdateEventInput(input)),
+		slog.Bool("reconfirmation_required", result.ReconfirmationRequired),
+		slog.Int("participants_marked_pending", result.ParticipantsMarkedPending),
+	)
+
+	return c.JSON(result)
+}
+
 // toCreateEventInput parses wire-format values and maps the request body to the
 // application-level create-event DTO.
 func toCreateEventInput(body createEventBody) (event.CreateEventInput, map[string]string) {
@@ -411,7 +446,173 @@ func toCreateEventInput(body createEventBody) (event.CreateEventInput, map[strin
 		}
 	}
 
+	input.ChildFriendly = body.ChildFriendly
+	input.FamilyOriented = body.FamilyOriented
+
 	return input, errs
+}
+
+// toUpdateEventInput parses a PATCH body while preserving omitted vs explicit
+// null fields.
+func toUpdateEventInput(body []byte) (event.UpdateEventInput, map[string]string) {
+	if len(body) == 0 {
+		return event.UpdateEventInput{}, map[string]string{"body": "must be valid JSON"}
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return event.UpdateEventInput{}, map[string]string{"body": "must be valid JSON"}
+	}
+
+	input := event.UpdateEventInput{}
+	errs := make(map[string]string)
+
+	if value, ok := raw["title"]; ok {
+		if string(value) == "null" {
+			errs["title"] = "title must be a string"
+		} else if parsed, err := parseRawString(value); err != nil {
+			errs["title"] = "title must be a string"
+		} else {
+			input.Title = &parsed
+		}
+	}
+	if value, ok := raw["description"]; ok {
+		input.Description.Set = true
+		if string(value) != "null" {
+			if parsed, err := parseRawString(value); err != nil {
+				errs["description"] = "description must be a string or null"
+			} else {
+				input.Description.Value = &parsed
+			}
+		}
+	}
+	if value, ok := raw["category_id"]; ok {
+		input.CategoryID.Set = true
+		if string(value) != "null" {
+			if parsed, err := parseRawInt(value); err != nil {
+				errs["category_id"] = "category_id must be an integer or null"
+			} else {
+				input.CategoryID.Value = &parsed
+			}
+		}
+	}
+	if value, ok := raw["address"]; ok {
+		input.Address.Set = true
+		if string(value) != "null" {
+			if parsed, err := parseRawString(value); err != nil {
+				errs["address"] = "address must be a string or null"
+			} else {
+				input.Address.Value = &parsed
+			}
+		}
+	}
+	if value, ok := raw["location_type"]; ok {
+		if string(value) == "null" {
+			errs["location_type"] = "location_type must be one of: POINT, ROUTE"
+		} else if parsed, err := parseRawString(value); err != nil {
+			errs["location_type"] = "location_type must be one of: POINT, ROUTE"
+		} else if locationType, ok := domain.ParseEventLocationType(parsed); !ok {
+			errs["location_type"] = "must be one of: POINT, ROUTE"
+		} else {
+			input.LocationType = &locationType
+		}
+	}
+	if value, ok := raw["lat"]; ok {
+		if string(value) == "null" {
+			errs["lat"] = "lat must be a number"
+		} else if parsed, err := parseRawFloat(value); err != nil {
+			errs["lat"] = "lat must be a number"
+		} else {
+			input.Lat = &parsed
+		}
+	}
+	if value, ok := raw["lon"]; ok {
+		if string(value) == "null" {
+			errs["lon"] = "lon must be a number"
+		} else if parsed, err := parseRawFloat(value); err != nil {
+			errs["lon"] = "lon must be a number"
+		} else {
+			input.Lon = &parsed
+		}
+	}
+	if value, ok := raw["route_points"]; ok {
+		if string(value) == "null" {
+			errs["route_points"] = "route_points must be an array"
+		} else {
+			var points []routePointBody
+			if err := json.Unmarshal(value, &points); err != nil {
+				errs["route_points"] = "route_points must be an array"
+			} else {
+				converted := toRoutePointInputs(points)
+				input.RoutePoints = &converted
+			}
+		}
+	}
+	if value, ok := raw["start_time"]; ok {
+		if string(value) == "null" {
+			errs["start_time"] = "start_time must be a valid RFC3339 date-time with timezone"
+		} else if parsed, err := parseRawString(value); err != nil {
+			errs["start_time"] = "start_time must be a valid RFC3339 date-time with timezone"
+		} else if startTime, err := time.Parse(time.RFC3339, parsed); err != nil {
+			errs["start_time"] = "start_time must be a valid RFC3339 date-time with timezone"
+		} else {
+			input.StartTime = &startTime
+		}
+	}
+	if value, ok := raw["end_time"]; ok {
+		input.EndTime.Set = true
+		if string(value) != "null" {
+			if parsed, err := parseRawString(value); err != nil {
+				errs["end_time"] = "end_time must be a valid RFC3339 date-time with timezone or null"
+			} else if endTime, err := time.Parse(time.RFC3339, parsed); err != nil {
+				errs["end_time"] = "end_time must be a valid RFC3339 date-time with timezone or null"
+			} else {
+				input.EndTime.Value = &endTime
+			}
+		}
+	}
+	if value, ok := raw["capacity"]; ok {
+		input.Capacity.Set = true
+		if string(value) != "null" {
+			if parsed, err := parseRawInt(value); err != nil {
+				errs["capacity"] = "capacity must be an integer or null"
+			} else {
+				input.Capacity.Value = &parsed
+			}
+		}
+	}
+	if value, ok := raw["constraints"]; ok {
+		if string(value) == "null" {
+			errs["constraints"] = "constraints must be an array"
+		} else {
+			var constraints []constraintBody
+			if err := json.Unmarshal(value, &constraints); err != nil {
+				errs["constraints"] = "constraints must be an array"
+			} else {
+				converted := toConstraintInputs(constraints)
+				input.Constraints = &converted
+			}
+		}
+	}
+
+	return input, errs
+}
+
+func parseRawString(value json.RawMessage) (string, error) {
+	var parsed string
+	err := json.Unmarshal(value, &parsed)
+	return parsed, err
+}
+
+func parseRawInt(value json.RawMessage) (int, error) {
+	var parsed int
+	err := json.Unmarshal(value, &parsed)
+	return parsed, err
+}
+
+func parseRawFloat(value json.RawMessage) (float64, error) {
+	var parsed float64
+	err := json.Unmarshal(value, &parsed)
+	return parsed, err
 }
 
 // toConstraintInputs converts the HTTP constraint bodies to service-level DTOs.
@@ -476,6 +677,31 @@ func (h *EventHandler) LeaveEvent(c *fiber.Ctx) error {
 		c.UserContext(),
 		"event left",
 		httpapi.OperationAttr("event.leave"),
+		httpapi.UserIDAttr(claims.UserID),
+		httpapi.EventIDAttr(eventID),
+		slog.String("participation_id", result.ParticipationID),
+	)
+
+	return c.JSON(result)
+}
+
+// ReconfirmParticipation handles POST /events/:id/participation/reconfirm.
+func (h *EventHandler) ReconfirmParticipation(c *fiber.Ctx) error {
+	eventID, err := parseEventIDParam(c)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	claims := httpapi.UserClaims(c)
+	result, err := h.service.ReconfirmParticipation(c.UserContext(), claims.UserID, eventID)
+	if err != nil {
+		return httpapi.WriteError(c, err)
+	}
+
+	httpapi.LogInfo(
+		c.UserContext(),
+		"event participation reconfirmed",
+		httpapi.OperationAttr("event.participation.reconfirm"),
 		httpapi.UserIDAttr(claims.UserID),
 		httpapi.EventIDAttr(eventID),
 		slog.String("participation_id", result.ParticipationID),
@@ -720,13 +946,24 @@ func summarizeDiscoverEventsInput(input event.DiscoverEventsInput) string {
 		fmt.Sprintf("sort_by=%s", optionalSortBySummaryValue(input.SortBy)),
 		fmt.Sprintf("cursor=%s", optionalStringSummaryValue(input.Cursor)),
 	}
+	if input.OnlyChildFriendly {
+		parts = append(parts, "child_friendly=true")
+	}
+	if input.OnlyFamilyOriented {
+		parts = append(parts, "family_oriented=true")
+	}
 	return strings.Join(parts, " ")
 }
 
 func summarizeEventCollectionInput(input event.ListEventCollectionInput) string {
+	status := "<nil>"
+	if input.Status != nil {
+		status = input.Status.String()
+	}
 	return httpapi.JoinSummary(
 		fmt.Sprintf("limit=%s", optionalIntSummaryValue(input.Limit)),
 		fmt.Sprintf("cursor=%s", optionalStringSummaryValue(input.Cursor)),
+		fmt.Sprintf("status=%s", status),
 	)
 }
 
@@ -744,6 +981,22 @@ func summarizeCreateEventInput(input event.CreateEventInput) string {
 		fmt.Sprintf("end_time_set=%t", input.EndTime != nil),
 		fmt.Sprintf("image_url_set=%t", input.ImageURL != nil && strings.TrimSpace(*input.ImageURL) != ""),
 		fmt.Sprintf("start_time=%s", input.StartTime.UTC().Format(time.RFC3339)),
+	)
+}
+
+func summarizeUpdateEventInput(input event.UpdateEventInput) string {
+	return httpapi.JoinSummary(
+		fmt.Sprintf("title_set=%t", input.Title != nil),
+		fmt.Sprintf("description_set=%t", input.Description.Set),
+		fmt.Sprintf("category_set=%t", input.CategoryID.Set),
+		fmt.Sprintf("location_type_set=%t", input.LocationType != nil),
+		fmt.Sprintf("address_set=%t", input.Address.Set),
+		fmt.Sprintf("point_set=%t", input.Lat != nil || input.Lon != nil),
+		fmt.Sprintf("route_points_set=%t", input.RoutePoints != nil),
+		fmt.Sprintf("start_time_set=%t", input.StartTime != nil),
+		fmt.Sprintf("end_time_set=%t", input.EndTime.Set),
+		fmt.Sprintf("capacity_set=%t", input.Capacity.Set),
+		fmt.Sprintf("constraints_set=%t", input.Constraints != nil),
 	)
 }
 
@@ -878,6 +1131,24 @@ func parseDiscoverEventsInput(c *fiber.Ctx) (event.DiscoverEventsInput, map[stri
 		}
 	}
 
+	if rawChildFriendly := strings.TrimSpace(c.Query("child_friendly")); rawChildFriendly != "" {
+		parsed, err := strconv.ParseBool(rawChildFriendly)
+		if err != nil {
+			errs["child_friendly"] = "child_friendly must be a boolean"
+		} else {
+			input.OnlyChildFriendly = parsed
+		}
+	}
+
+	if rawFamilyOriented := strings.TrimSpace(c.Query("family_oriented")); rawFamilyOriented != "" {
+		parsed, err := strconv.ParseBool(rawFamilyOriented)
+		if err != nil {
+			errs["family_oriented"] = "family_oriented must be a boolean"
+		} else {
+			input.OnlyFamilyOriented = parsed
+		}
+	}
+
 	if rawSortBy := strings.TrimSpace(c.Query("sort_by")); rawSortBy != "" {
 		sortBy, ok := domain.ParseEventDiscoverySort(rawSortBy)
 		if !ok {
@@ -906,6 +1177,14 @@ func parseEventCollectionInput(c *fiber.Ctx) (event.ListEventCollectionInput, ma
 
 	if rawCursor := strings.TrimSpace(c.Query("cursor")); rawCursor != "" {
 		input.Cursor = &rawCursor
+	}
+	if rawStatus := strings.TrimSpace(c.Query("status")); rawStatus != "" {
+		status, ok := domain.ParseParticipationStatus(rawStatus)
+		if !ok || (status != domain.ParticipationStatusApproved && status != domain.ParticipationStatusPending) {
+			errs["status"] = "must be one of: APPROVED, PENDING"
+		} else {
+			input.Status = &status
+		}
 	}
 
 	return input, errs

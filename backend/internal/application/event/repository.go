@@ -14,9 +14,14 @@ var ErrEventNotCancelable = errors.New("event is not cancelable")
 // ErrEventNotCompletable is returned by Repository.CompleteEvent when the event is not ACTIVE or IN_PROGRESS.
 var ErrEventNotCompletable = errors.New("event is not completable")
 
+// ErrEventNotEditable is returned when an event edit races with a lifecycle transition.
+var ErrEventNotEditable = errors.New("event is not editable")
+
 // Repository is the application-layer persistence port for event flows.
 type Repository interface {
 	CreateEvent(ctx context.Context, params CreateEventParams) (*domain.Event, error)
+	GetEventEditSnapshot(ctx context.Context, eventID uuid.UUID) (*EventEditSnapshot, error)
+	UpdateEvent(ctx context.Context, params UpdateEventParams) (*domain.Event, error)
 	ListDiscoverableEvents(ctx context.Context, userID uuid.UUID, params DiscoverEventsParams) ([]DiscoverableEventRecord, error)
 	GetEventDetail(ctx context.Context, userID, eventID uuid.UUID) (*EventDetailRecord, error)
 	GetEventHostContextSummary(ctx context.Context, eventID uuid.UUID) (*EventHostContextSummaryRecord, error)
@@ -25,7 +30,7 @@ type Repository interface {
 	ListEventInvitations(ctx context.Context, eventID uuid.UUID, params EventCollectionPageParams) ([]EventDetailInvitationRecord, error)
 	GetEventByID(ctx context.Context, eventID uuid.UUID) (*domain.Event, error)
 	GetRequesterForJoin(ctx context.Context, userID uuid.UUID) (*domain.User, error)
-	TransitionEventStatuses(ctx context.Context) error
+	TransitionEventStatuses(ctx context.Context) ([]EventStatusTransitionRecord, error)
 	CancelEvent(ctx context.Context, eventID uuid.UUID, canceledApprovedParticipantCount int) error
 	CompleteEvent(ctx context.Context, eventID uuid.UUID) error
 	AddFavorite(ctx context.Context, userID, eventID uuid.UUID) error

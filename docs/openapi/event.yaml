@@ -23,6 +23,74 @@ tags:
     description: Event creation and related request/response contracts.
 paths:
   /events/{id}:
+    patch:
+      tags: [Events]
+      summary: Update an active event
+      description: |
+        Allows the authenticated host to edit an `ACTIVE` event before it starts.
+        The request is partial: omitted fields are unchanged, while explicit `null`
+        clears nullable fields such as `description`, `category_id`, `address`,
+        `end_time`, and `capacity`.
+
+        Reconfirmation-triggering changes are `title`, `description`, `category_id`,
+        location/address/geometry/route changes, `start_time`, `end_time`, and
+        adding a new constraint. When any of those changes occur, all currently
+        `APPROVED` non-host participations become `PENDING`, their active tickets
+        become `PENDING`, and participants receive an `EVENT_RECONFIRMATION_REQUIRED`
+        notification with deep link `/events/{id}`. Users already in `PENDING` are
+        not notified.
+
+        `constraints`, when present, replaces the full constraint list. Removing
+        constraints alone does not require reconfirmation. `capacity` cannot be set
+        below `approved_participant_count + pending_participant_count`.
+      operationId: updateEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEventRequest'
+      responses:
+        '200':
+          description: Event updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateEventResponse'
+        '400':
+          description: Invalid event ID, JSON body, or update fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Event is not editable or capacity is below approved plus pending participants.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
     get:
       tags: [Events]
       summary: Get event detail
@@ -279,6 +347,59 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /events/{id}/participation/reconfirm:
+    post:
+      tags: [Events]
+      summary: Reconfirm participation after event details changed
+      description: |
+        Allows an authenticated participant with `PENDING` participation status to
+        reconfirm attendance for the latest event details. On success the
+        participation becomes `APPROVED`, `reconfirmed_at` and
+        `last_confirmed_event_version` are updated, and protected/private event
+        tickets are reactivated as `ACTIVE`.
+      operationId: reconfirmEventParticipation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventIdParam'
+      responses:
+        '200':
+          description: Participation reconfirmed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconfirmParticipationResponse'
+        '400':
+          description: Invalid event ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Host cannot reconfirm as a participant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Caller does not have a PENDING participation or event is no longer joinable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /events/{id}/participants:
     get:
       tags: [Events]
@@ -292,6 +413,7 @@ paths:
         - $ref: '#/components/parameters/EventIdParam'
         - $ref: '#/components/parameters/EventCollectionLimitParam'
         - $ref: '#/components/parameters/EventCollectionCursorParam'
+        - $ref: '#/components/parameters/ParticipationStatusParam'
       responses:
         '200':
           description: Approved participants returned successfully.
@@ -610,7 +732,8 @@ paths:
         The response always contains two independently paginated collections:
         `discussion_comments` and `review_comments`, both ordered by latest comment first.
         Child comments are not embedded; use `GET /events/{id}/comments/{commentId}/replies`
-        when the user chooses to see replies.
+        when the user chooses to see replies. Reply collections are ordered by oldest reply first
+        so threaded conversations read chronologically.
 
         PRIVATE events do not expose comments. If the authenticated caller can otherwise see
         the private event, the API returns `409 comments_not_allowed`; if not visible, it returns
@@ -751,7 +874,7 @@ paths:
     get:
       tags: [Events]
       summary: List replies for a discussion comment
-      description: Returns replies for a top-level DISCUSSION comment, ordered latest first.
+      description: Returns replies for a top-level DISCUSSION comment, ordered oldest first.
       operationId: listEventCommentReplies
       security:
         - bearerAuth: []
@@ -2271,6 +2394,18 @@ paths:
           schema:
             type: string
           description: Opaque cursor returned by a previous page of the same query.
+        - name: child_friendly
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: If true, return only child-friendly events.
+        - name: family_oriented
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: If true, return only family-oriented events.
       responses:
         '200':
           description: Discovery results returned successfully.
@@ -2603,11 +2738,74 @@ components:
       schema:
         type: string
       description: Opaque cursor returned by the previous page of the same collection.
+    ParticipationStatusParam:
+      name: status
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [APPROVED, PENDING]
+        default: APPROVED
+      description: Participant status collection to list. Defaults to `APPROVED`.
   schemas:
     CreateEventRequest:
       oneOf:
         - $ref: '#/components/schemas/CreatePointEventRequest'
         - $ref: '#/components/schemas/CreateRouteEventRequest'
+
+    UpdateEventRequest:
+      type: object
+      additionalProperties: false
+      description: Partial event update. Omitted fields remain unchanged.
+      properties:
+        title:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        category_id:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+        address:
+          type:
+            - string
+            - "null"
+        location_type:
+          type: string
+          enum: [POINT, ROUTE]
+        lat:
+          type: number
+          format: double
+        lon:
+          type: number
+          format: double
+        route_points:
+          type: array
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/RoutePointInput'
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type:
+            - string
+            - "null"
+          format: date-time
+        capacity:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+        constraints:
+          type: array
+          maxItems: 5
+          description: Full replacement list. Added constraints require reconfirmation; removals alone do not.
+          items:
+            $ref: '#/components/schemas/ConstraintInput'
 
     CreateEventRequestBase:
       type: object
@@ -2728,6 +2926,14 @@ components:
             $ref: '#/components/schemas/ConstraintInput'
           maxItems: 5
           description: Optional participation constraints. At most 5 items.
+        child_friendly:
+          type: boolean
+          default: false
+          description: Whether the event is suitable for children.
+        family_oriented:
+          type: boolean
+          default: false
+          description: Whether the event is family-oriented.
 
     CreatePointEventRequest:
       allOf:
@@ -2885,6 +3091,12 @@ components:
           example: true
         host_score:
           $ref: '#/components/schemas/EventHostScoreSummary'
+        child_friendly:
+          type: boolean
+          description: Whether the event is suitable for children.
+        family_oriented:
+          type: boolean
+          description: Whether the event is family-oriented.
 
     DiscoverEventsPageInfo:
       type: object
@@ -2977,6 +3189,12 @@ components:
             - type: string
               enum: [MALE, FEMALE, OTHER]
             - type: "null"
+        child_friendly:
+          type: boolean
+          description: Whether the event is suitable for children.
+        family_oriented:
+          type: boolean
+          description: Whether the event is family-oriented.
         approved_participant_count:
           type: integer
           minimum: 0
@@ -3767,6 +3985,81 @@ components:
           type: string
           format: date-time
           example: "2026-03-26T11:00:00+03:00"
+
+    UpdateEventResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - privacy_level
+        - status
+        - start_time
+        - version_no
+        - reconfirmation_required
+        - reconfirmation_triggered_fields
+        - participants_marked_pending
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        privacy_level:
+          type: string
+          enum: [PUBLIC, PROTECTED, PRIVATE]
+        status:
+          type: string
+          enum: [ACTIVE]
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type:
+            - string
+            - "null"
+          format: date-time
+        version_no:
+          type: integer
+          minimum: 0
+        reconfirmation_required:
+          type: boolean
+        reconfirmation_triggered_fields:
+          type: array
+          items:
+            type: string
+            enum: [title, description, category_id, location, start_time, end_time, constraints]
+        participants_marked_pending:
+          type: integer
+          minimum: 0
+        updated_at:
+          type: string
+          format: date-time
+
+    ReconfirmParticipationResponse:
+      type: object
+      additionalProperties: false
+      required: [participation_id, event_id, status, reconfirmed_at, updated_at]
+      properties:
+        participation_id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [APPROVED]
+        reconfirmed_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        ticket_status:
+          type: string
+          enum: [ACTIVE]
 
     ImageUploadInitResponse:
       type: object

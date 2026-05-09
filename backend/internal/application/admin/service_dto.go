@@ -247,8 +247,11 @@ type CancelParticipationResult struct {
 }
 
 type AdminEventState struct {
-	ID           uuid.UUID
-	PrivacyLevel domain.EventPrivacyLevel
+	ID                       uuid.UUID
+	PrivacyLevel             domain.EventPrivacyLevel
+	Capacity                 *int
+	ApprovedParticipantCount int
+	PendingParticipantCount  int
 }
 
 func (s *Service) ListUsers(ctx context.Context, input ListUsersInput) (*ListUsersResult, error) {
