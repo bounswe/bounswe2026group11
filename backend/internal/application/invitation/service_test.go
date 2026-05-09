@@ -30,13 +30,13 @@ type fakeRepo struct {
 	// past returns up to FetchLimit rows, optionally honoring the cursor's
 	// strict-less-than (updated_at, id) DESC predicate so tests can drive
 	// pagination behavior without spinning up Postgres.
-	pending             []ReceivedInvitationRecord
-	past                []ReceivedInvitationRecord
-	lastPastParams      ListPastInvitationsParams
-	pastErr             error
-	pendingErr          error
-	getReceivedResult   *ReceivedInvitationRecord
-	getReceivedErr      error
+	pending           []ReceivedInvitationRecord
+	past              []ReceivedInvitationRecord
+	lastPastParams    ListPastInvitationsParams
+	pastErr           error
+	pendingErr        error
+	getReceivedResult *ReceivedInvitationRecord
+	getReceivedErr    error
 }
 
 func (r *fakeRepo) CreateInvitations(_ context.Context, params CreateInvitationsParams) (*CreateInvitationsRecord, error) {
