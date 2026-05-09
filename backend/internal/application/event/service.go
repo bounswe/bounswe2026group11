@@ -25,15 +25,29 @@ type Service struct {
 	joinRequestService   join_request.UseCase
 	joinRequestImages    JoinRequestImageConfirmer
 	ticketService        ticket.LifecycleUseCase
+	badgeEvaluator       BadgeEvaluator
 	notifications        notificationapp.UseCase
 	unitOfWork           uow.UnitOfWork
 	now                  func() time.Time
+}
+
+// BadgeEvaluator is the local port for triggering hosting badge evaluation
+// after event-completion lifecycle changes. It stays intentionally narrow so
+// the event service does not depend on the full badge use case.
+type BadgeEvaluator interface {
+	EvaluateHostBadges(ctx context.Context, hostID uuid.UUID) error
 }
 
 // SetNotificationService wires in the notification use case so the event
 // service can fan out notifications for cancellations and other lifecycle events.
 func (s *Service) SetNotificationService(notifications notificationapp.UseCase) {
 	s.notifications = notifications
+}
+
+// SetBadgeEvaluator wires in the badge use case so the event service can
+// re-evaluate host badges after events complete.
+func (s *Service) SetBadgeEvaluator(evaluator BadgeEvaluator) {
+	s.badgeEvaluator = evaluator
 }
 
 // SetJoinRequestImageConfirmer wires in the image upload service for optional
@@ -925,7 +939,7 @@ func (s *Service) CompleteEvent(ctx context.Context, userID, eventID uuid.UUID) 
 		return domain.ForbiddenError(domain.ErrorCodeEventCompleteNotAllowed, "Only the event host can complete this event.")
 	}
 
-	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+	if err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
 		if err := s.eventRepo.CompleteEvent(ctx, eventID); err != nil {
 			if errors.Is(err, ErrEventNotCompletable) {
 				return domain.ConflictError(domain.ErrorCodeEventNotCompletable, "The event cannot be completed because it is already CANCELED or COMPLETED.")
@@ -939,16 +953,63 @@ func (s *Service) CompleteEvent(ctx context.Context, userID, eventID uuid.UUID) 
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+
+	s.evaluateParticipationBadgesForEvent(ctx, eventID)
+	s.evaluateHostBadges(ctx, event.HostID)
+	return nil
+}
+
+// TransitionExpiredEvents runs the periodic event-status transition (used by
+// the event expiry job) and evaluates participation badges for every approved
+// participant of every event that just transitioned to COMPLETED.
+func (s *Service) TransitionExpiredEvents(ctx context.Context) error {
+	return s.TransitionEventStatuses(ctx)
+}
+
+// evaluateParticipationBadgesForEvent runs participant-side badge evaluation
+// for every approved participant of the given event as a best-effort hook so
+// transient failures never fail the parent operation.
+func (s *Service) evaluateParticipationBadgesForEvent(ctx context.Context, eventID uuid.UUID) {
+	if s.participationService == nil {
+		return
+	}
+	if err := s.participationService.EvaluateBadgesForEventParticipants(ctx, eventID); err != nil {
+		slog.WarnContext(ctx, "event participation badge evaluation failed",
+			slog.String("operation", "event.evaluate_participation_badges"),
+			slog.String("event_id", eventID.String()),
+			slog.String("error", err.Error()),
+		)
+	}
+}
+
+// evaluateHostBadges runs host-side badge evaluation after completed-event
+// lifecycle changes as a best-effort hook so transient failures never fail the
+// parent operation.
+func (s *Service) evaluateHostBadges(ctx context.Context, hostID uuid.UUID) {
+	if s.badgeEvaluator == nil {
+		return
+	}
+	if err := s.badgeEvaluator.EvaluateHostBadges(ctx, hostID); err != nil {
+		slog.WarnContext(ctx, "event host badge evaluation failed",
+			slog.String("operation", "event.evaluate_host_badges"),
+			slog.String("host_id", hostID.String()),
+			slog.String("error", err.Error()),
+		)
+	}
 }
 
 // TransitionEventStatuses advances lifecycle states and applies dependent
 // participation/ticket transitions in one transaction.
 func (s *Service) TransitionEventStatuses(ctx context.Context) error {
-	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
-		records, err := s.eventRepo.TransitionEventStatuses(ctx)
-		if err != nil {
-			return err
+	var records []EventStatusTransitionRecord
+	if err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		var txErr error
+		records, txErr = s.eventRepo.TransitionEventStatuses(ctx)
+		if txErr != nil {
+			return txErr
 		}
 		for _, record := range records {
 			switch record.Status {
@@ -970,7 +1031,17 @@ func (s *Service) TransitionEventStatuses(ctx context.Context) error {
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+
+	for _, record := range records {
+		if record.Status == domain.EventStatusCompleted {
+			s.evaluateParticipationBadgesForEvent(ctx, record.EventID)
+			s.evaluateHostBadges(ctx, record.HostID)
+		}
+	}
+	return nil
 }
 
 // AddFavorite saves an event to the user's favorites list.
