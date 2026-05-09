@@ -31,3 +31,50 @@ describe('profileService.changePassword', () => {
     }));
   });
 });
+
+describe('profileService badges', () => {
+  it('fetches the authenticated user badges endpoint', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+
+    await profileService.getMyBadges('access-token');
+
+    expect(fetch).toHaveBeenCalledWith('http://api.test/me/badges', expect.objectContaining({
+      method: 'GET',
+      headers: expect.objectContaining({
+        Authorization: 'Bearer access-token',
+        'Content-Type': 'application/json',
+      }),
+      cache: 'no-store',
+    }));
+  });
+
+  it('fetches another user badges endpoint', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+
+    await profileService.getUserBadges('user-123', 'access-token');
+
+    expect(fetch).toHaveBeenCalledWith('http://api.test/users/user-123/badges', expect.objectContaining({
+      method: 'GET',
+      headers: expect.objectContaining({
+        Authorization: 'Bearer access-token',
+        'Content-Type': 'application/json',
+      }),
+      cache: 'no-store',
+    }));
+  });
+
+  it('fetches the badge catalog endpoint', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+
+    await profileService.getBadgeCatalog('access-token');
+
+    expect(fetch).toHaveBeenCalledWith('http://api.test/badges', expect.objectContaining({
+      method: 'GET',
+      headers: expect.objectContaining({
+        Authorization: 'Bearer access-token',
+        'Content-Type': 'application/json',
+      }),
+      cache: 'no-store',
+    }));
+  });
+});
