@@ -418,3 +418,82 @@
     white-space: normal;
   }
 }
+
+:root[data-theme='dark'] .tk-page-title,
+:root[data-theme='dark'] .tk-empty h2,
+:root[data-theme='dark'] .tk-card-title,
+:root[data-theme='dark'] .tk-detail-title,
+:root[data-theme='dark'] .tk-mobile-hint-title {
+  color: #e8e8e8;
+}
+
+:root[data-theme='dark'] .tk-page-subtitle,
+:root[data-theme='dark'] .tk-loading,
+:root[data-theme='dark'] .tk-empty p,
+:root[data-theme='dark'] .tk-card-event-time,
+:root[data-theme='dark'] .tk-card-address,
+:root[data-theme='dark'] .tk-card-meta,
+:root[data-theme='dark'] .tk-detail-status-desc,
+:root[data-theme='dark'] .tk-detail-section-title,
+:root[data-theme='dark'] .tk-detail-label,
+:root[data-theme='dark'] .tk-detail-secondary,
+:root[data-theme='dark'] .tk-mobile-hint-text,
+:root[data-theme='dark'] .tk-mobile-hint-notice {
+  color: #c6c6c6;
+}
+
+:root[data-theme='dark'] .tk-empty,
+:root[data-theme='dark'] .tk-card,
+:root[data-theme='dark'] .tk-detail,
+:root[data-theme='dark'] .tk-mobile-hint,
+:root[data-theme='dark'] .tk-mobile-hint-icon,
+:root[data-theme='dark'] .tk-mobile-hint-notice {
+  background: #222222;
+  border-color: #4f4f4f;
+  color: #dedede;
+}
+
+:root[data-theme='dark'] .tk-card:hover {
+  border-color: #777777;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.24);
+}
+
+:root[data-theme='dark'] .tk-card-footer,
+:root[data-theme='dark'] .tk-detail-header,
+:root[data-theme='dark'] .tk-detail-section {
+  border-color: #4f4f4f;
+}
+
+:root[data-theme='dark'] .tk-detail-value,
+:root[data-theme='dark'] .tk-detail-mono {
+  color: #e3e3e3;
+}
+
+:root[data-theme='dark'] .tk-back-link,
+:root[data-theme='dark'] .tk-retry-btn {
+  background: #2b2b2b;
+  border-color: #686868;
+  color: #e3e3e3;
+}
+
+:root[data-theme='dark'] .tk-back-link:hover,
+:root[data-theme='dark'] .tk-retry-btn:hover {
+  background: #333333;
+  border-color: #8a8a8a;
+  color: #f5f5f5;
+}
+
+:root[data-theme='dark'] .tk-error {
+  background: rgba(127, 29, 29, 0.34);
+  border-color: #7f1d1d;
+  color: #fecaca;
+}
+
+:root[data-theme='dark'] .tk-error-dismiss {
+  color: #fecaca;
+}
+
+:root[data-theme='dark'] .tk-mobile-hint-warn {
+  background: rgba(113, 63, 18, 0.28);
+  border-color: #92400e;
+}

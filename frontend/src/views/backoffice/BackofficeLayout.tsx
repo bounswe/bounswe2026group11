@@ -5,8 +5,16 @@ const SIDEBAR_ITEMS = [
   { to: '/backoffice/users', label: 'Users' },
   { to: '/backoffice/events', label: 'Events' },
   { to: '/backoffice/event-reports', label: 'Event Reports' },
+  { to: '/backoffice/categories', label: 'Categories' },
   { to: '/backoffice/participations', label: 'Participations' },
   { to: '/backoffice/tickets', label: 'Tickets' },
+  { to: '/backoffice/invitations', label: 'Invitations' },
+  { to: '/backoffice/join-requests', label: 'Join Requests' },
+  { to: '/backoffice/comments', label: 'Comments' },
+  { to: '/backoffice/ratings', label: 'Ratings' },
+  { to: '/backoffice/favorites', label: 'Favorites' },
+  { to: '/backoffice/badges', label: 'Badges' },
+  { to: '/backoffice/push-devices', label: 'Push Devices' },
   { to: '/backoffice/notifications', label: 'Notifications' },
 ];
 

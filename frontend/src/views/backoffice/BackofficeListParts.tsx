@@ -64,6 +64,73 @@ export function BackofficeIdCell({ id }: { id: string }) {
   );
 }
 
+export function BackofficeStatusPill({ status }: { status: string }) {
+  return <span className={`bo-status-pill bo-status-${status.toLowerCase().replace(/_/g, '-')}`}>{status}</span>;
+}
+
+export function BackofficeConfirmAction({
+  label,
+  confirmLabel = 'Confirm',
+  disabled,
+  busy,
+  onConfirm,
+}: {
+  label: string;
+  confirmLabel?: string;
+  disabled?: boolean;
+  busy?: boolean;
+  onConfirm: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  if (confirming) {
+    return (
+      <span className="bo-row-actions">
+        <button type="button" className="bo-row-action" disabled={busy} onClick={onConfirm}>
+          {busy ? 'Working...' : confirmLabel}
+        </button>
+        <button type="button" className="bo-secondary-button" onClick={() => setConfirming(false)} disabled={busy}>
+          Cancel
+        </button>
+      </span>
+    );
+  }
+  return (
+    <button type="button" className="bo-row-action" disabled={disabled || busy} onClick={() => setConfirming(true)}>
+      {busy ? 'Working...' : label}
+    </button>
+  );
+}
+
+export function BackofficeImageModal({
+  imageUrl,
+  title,
+  message,
+  onClose,
+}: {
+  imageUrl: string | null;
+  title: string;
+  message?: string;
+  onClose: () => void;
+}) {
+  if (!imageUrl) return null;
+  return (
+    <div className="bo-modal-backdrop" role="presentation" onClick={onClose}>
+      <div className="bo-image-modal" role="dialog" aria-modal="true" aria-label={title} onClick={(event) => event.stopPropagation()}>
+        <div className="bo-modal-header">
+          <h2>{title}</h2>
+          <button type="button" className="bo-secondary-button" onClick={onClose}>Close</button>
+        </div>
+        <img src={imageUrl} alt={title} />
+        {message && <p>{message}</p>}
+      </div>
+    </div>
+  );
+}
+
+export function BackofficeRowActions({ children }: { children: ReactNode }) {
+  return <div className="bo-row-actions">{children}</div>;
+}
+
 interface PaginationProps {
   offset: number;
   limit: number;

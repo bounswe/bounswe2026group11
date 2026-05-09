@@ -18,7 +18,7 @@ export interface AdminPageParams {
 
 export interface AdminUserFilters {
   q?: string;
-  status?: string;
+  status?: 'active' | 'deactivated' | '';
   role?: UserRole;
   created_from?: string;
   created_to?: string;
@@ -87,7 +87,7 @@ export interface AdminUser {
   phone_number: string | null;
   email_verified: boolean;
   last_login: string | null;
-  status: string;
+  status: 'active' | 'deactivated';
   role: UserRole;
   created_at: string;
   updated_at: string;
@@ -180,6 +180,207 @@ export interface AdminEventReport {
   message: string;
   image_url: string | null;
   status: 'PENDING' | 'REVIEWED' | 'DISMISSED';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminCategory {
+  id: number;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminCreateCategoryRequest {
+  name: string;
+}
+
+export interface AdminUpdateStatusRequest<T extends string = string> {
+  status: T;
+  reason?: string | null;
+}
+
+export interface AdminReasonRequest {
+  reason?: string | null;
+}
+
+export interface AdminCancelEventResponse {
+  event_id: string;
+  status: 'CANCELED';
+  already_canceled: boolean;
+}
+
+export interface AdminDeactivateUserResponse {
+  user_id: string;
+  status: 'deactivated';
+  already_deactivated: boolean;
+  canceled_event_count: number;
+}
+
+export type AdminInvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED' | 'CANCELED';
+export interface AdminInvitationFilters {
+  q?: string;
+  status?: AdminInvitationStatus;
+  event_id?: string;
+  host_id?: string;
+  invited_user_id?: string;
+  created_from?: string;
+  created_to?: string;
+}
+export interface AdminInvitation {
+  id: string;
+  event_id: string;
+  event_title: string;
+  host_id: string;
+  host_username: string;
+  invited_user_id: string;
+  invited_username: string;
+  invited_email: string;
+  status: AdminInvitationStatus;
+  message: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AdminJoinRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED';
+export interface AdminJoinRequestFilters {
+  q?: string;
+  status?: AdminJoinRequestStatus;
+  event_id?: string;
+  user_id?: string;
+  host_user_id?: string;
+  created_from?: string;
+  created_to?: string;
+}
+export interface AdminJoinRequest {
+  id: string;
+  event_id: string;
+  event_title: string;
+  user_id: string;
+  username: string;
+  user_email: string;
+  host_user_id: string;
+  host_username: string;
+  status: AdminJoinRequestStatus;
+  message: string | null;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminCommentFilters {
+  q?: string;
+  event_id?: string;
+  user_id?: string;
+  type?: 'DISCUSSION' | 'REVIEW';
+  created_from?: string;
+  created_to?: string;
+}
+export interface AdminComment {
+  id: string;
+  event_id: string;
+  event_title: string;
+  user_id: string;
+  username: string;
+  user_email: string;
+  type: 'DISCUSSION' | 'REVIEW';
+  parent_id: string | null;
+  message: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminRatingFilters {
+  event_id?: string;
+  user_id?: string;
+  host_id?: string;
+  created_from?: string;
+  created_to?: string;
+}
+export interface AdminEventRating {
+  id: string;
+  event_id: string;
+  event_title: string;
+  participant_user_id: string;
+  username: string;
+  user_email: string;
+  score: number;
+  created_at: string;
+  updated_at: string;
+}
+export interface AdminParticipantRating {
+  id: string;
+  event_id: string;
+  event_title: string;
+  host_user_id: string;
+  host_username: string;
+  participant_user_id: string;
+  participant_username: string;
+  score: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminFavoriteFilters {
+  q?: string;
+  user_id?: string;
+  event_id?: string;
+  created_from?: string;
+  created_to?: string;
+}
+export interface AdminFavoriteEvent {
+  id: string;
+  user_id: string;
+  username: string;
+  user_email: string;
+  event_id: string;
+  event_title: string;
+  created_at: string;
+  updated_at: string;
+}
+export interface AdminFavoriteLocation {
+  id: string;
+  user_id: string;
+  username: string;
+  user_email: string;
+  name: string | null;
+  address: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminUserBadgeFilters {
+  q?: string;
+  user_id?: string;
+}
+export interface AdminUserBadge {
+  user_id: string;
+  username: string;
+  user_email: string;
+  badge_id: number;
+  badge_slug: string;
+  badge_name: string;
+  badge_category: string;
+  earned_at: string;
+}
+
+export interface AdminPushDeviceFilters {
+  user_id?: string;
+  platform?: 'IOS' | 'ANDROID';
+  active?: string;
+  created_from?: string;
+  created_to?: string;
+}
+export interface AdminPushDevice {
+  id: string;
+  user_id: string;
+  username: string;
+  user_email: string;
+  installation_id: string;
+  platform: 'IOS' | 'ANDROID';
+  last_seen_at: string;
+  revoked_at: string | null;
   created_at: string;
   updated_at: string;
 }

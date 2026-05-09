@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AdminUserFilters } from '@/models/admin';
-import { listAdminUsers } from '@/services/adminService';
+import { deactivateAdminUser, listAdminUsers } from '@/services/adminService';
 import { useAdminListViewModel } from '@/viewmodels/admin/useAdminListViewModel';
-import { BackofficeIdCell, BackofficePageShell, BackofficePagination, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
+import { useAdminMutation } from '@/viewmodels/admin/useAdminMutation';
+import { BackofficeConfirmAction, BackofficeIdCell, BackofficePageShell, BackofficePagination, BackofficeStatusPill, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
 
 const INITIAL_FILTERS: AdminUserFilters = {
   q: '',
@@ -21,6 +22,7 @@ export default function UsersAdminPage() {
     initialFilters,
     fetchPage: listAdminUsers,
   });
+  const mutation = useAdminMutation(vm.retry);
 
   return (
     <BackofficePageShell
@@ -29,9 +31,10 @@ export default function UsersAdminPage() {
       filters={(
         <>
           <input aria-label="Search users" placeholder="Search username, email, phone" value={vm.filters.q ?? ''} onChange={(event) => vm.setFilter('q', event.target.value)} />
-          <select aria-label="User status" value={vm.filters.status ?? ''} onChange={(event) => vm.setFilter('status', event.target.value)}>
+          <select aria-label="User status" value={vm.filters.status ?? ''} onChange={(event) => vm.setFilter('status', event.target.value as AdminUserFilters['status'])}>
             <option value="">Any status</option>
             <option value="active">active</option>
+            <option value="deactivated">deactivated</option>
           </select>
           <select aria-label="User role" value={vm.filters.role ?? ''} onChange={(event) => vm.setFilter('role', event.target.value === '' ? undefined : event.target.value as AdminUserFilters['role'])}>
             <option value="">Any role</option>
@@ -59,6 +62,7 @@ export default function UsersAdminPage() {
               <th>Verified</th>
               <th>Created</th>
               <th>Updated</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -69,15 +73,26 @@ export default function UsersAdminPage() {
                 <td>{user.email}</td>
                 <td>{user.phone_number ?? '-'}</td>
                 <td>{user.role}</td>
-                <td>{user.status}</td>
+                <td><BackofficeStatusPill status={user.status} /></td>
                 <td>{user.email_verified ? 'Yes' : 'No'}</td>
                 <td>{formatAdminDate(user.created_at)}</td>
                 <td>{formatAdminDate(user.updated_at)}</td>
+                <td>
+                  <BackofficeConfirmAction
+                    label="Deactivate"
+                    confirmLabel="Deactivate"
+                    disabled={user.status === 'deactivated'}
+                    busy={mutation.busyId === user.id}
+                    onConfirm={() => void mutation.run(user.id, () => deactivateAdminUser(token!, user.id), 'User deactivated.')}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {mutation.error && <div className="bo-state bo-state-error">{mutation.error}</div>}
+      {mutation.message && <div className="bo-result" role="status"><span>{mutation.message}</span></div>}
       <BackofficePagination {...vm} onPrevious={vm.previousPage} onNext={vm.nextPage} onLimitChange={vm.changeLimit} />
     </BackofficePageShell>
   );

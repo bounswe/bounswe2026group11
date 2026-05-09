@@ -294,3 +294,249 @@ func (s *Service) requireUsersExist(ctx context.Context, userIDs []uuid.UUID) er
 	}
 	return nil
 }
+
+func (s *Service) CreateCategory(ctx context.Context, input CreateCategoryInput) (*AdminCategoryItem, error) {
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		return nil, domain.ValidationError(map[string]string{"name": "is required"})
+	}
+	if len(name) > 50 {
+		return nil, domain.ValidationError(map[string]string{"name": "must be at most 50 characters"})
+	}
+	item, err := s.repo.CreateCategory(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	slog.InfoContext(ctx, "admin category created",
+		"operation", "admin.categories.create",
+		"admin_user_id", input.AdminUserID.String(),
+		"category_id", item.ID,
+	)
+	return item, nil
+}
+
+func (s *Service) DeleteCategory(ctx context.Context, input DeleteCategoryInput) error {
+	if input.CategoryID <= 0 {
+		return domain.ValidationError(map[string]string{"category_id": "must be a positive integer"})
+	}
+	if err := s.repo.DeleteCategory(ctx, input.CategoryID); err != nil {
+		return err
+	}
+	slog.InfoContext(ctx, "admin category deleted",
+		"operation", "admin.categories.delete",
+		"admin_user_id", input.AdminUserID.String(),
+		"category_id", input.CategoryID,
+	)
+	return nil
+}
+
+func (s *Service) UpdateEventReportStatus(ctx context.Context, input UpdateEventReportStatusInput) (*AdminEventReportItem, error) {
+	if input.ReportID == uuid.Nil {
+		return nil, domain.ValidationError(map[string]string{"report_id": "is required"})
+	}
+	item, err := s.repo.UpdateEventReportStatus(ctx, input.ReportID, input.Status)
+	if err != nil {
+		return nil, err
+	}
+	slog.InfoContext(ctx, "admin event report status updated",
+		"operation", "admin.event_reports.status",
+		"admin_user_id", input.AdminUserID.String(),
+		"report_id", input.ReportID.String(),
+		"status", input.Status.String(),
+		"has_reason", input.Reason != nil && strings.TrimSpace(*input.Reason) != "",
+	)
+	return item, nil
+}
+
+func (s *Service) UpdateEventStatus(ctx context.Context, input UpdateEventStatusInput) (*AdminEventItem, error) {
+	if input.EventID == uuid.Nil {
+		return nil, domain.ValidationError(map[string]string{"event_id": "is required"})
+	}
+	if input.Status == domain.EventStatusCanceled {
+		if _, err := s.CancelEvent(ctx, CancelEventInput{AdminUserID: input.AdminUserID, EventID: input.EventID, Reason: input.Reason}); err != nil {
+			return nil, err
+		}
+		return s.repo.UpdateEventStatus(ctx, input.EventID, domain.EventStatusCanceled)
+	}
+	item, err := s.repo.UpdateEventStatus(ctx, input.EventID, input.Status)
+	if err != nil {
+		return nil, err
+	}
+	slog.InfoContext(ctx, "admin event status updated",
+		"operation", "admin.events.status",
+		"admin_user_id", input.AdminUserID.String(),
+		"event_id", input.EventID.String(),
+		"status", input.Status.String(),
+		"has_reason", input.Reason != nil && strings.TrimSpace(*input.Reason) != "",
+	)
+	return item, nil
+}
+
+func (s *Service) CancelEvent(ctx context.Context, input CancelEventInput) (*CancelEventResult, error) {
+	if s.unitOfWork == nil || s.tickets == nil {
+		return nil, domain.ConflictError(domain.ErrorCodeAdminDependencyUnavailable, "Admin event mutations are not configured.")
+	}
+	if input.EventID == uuid.Nil {
+		return nil, domain.ValidationError(map[string]string{"event_id": "is required"})
+	}
+	result := &CancelEventResult{EventID: input.EventID, Status: domain.EventStatusCanceled}
+	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		alreadyCanceled, err := s.repo.CancelEvent(ctx, input.EventID)
+		if err != nil {
+			return err
+		}
+		result.AlreadyCanceled = alreadyCanceled
+		if alreadyCanceled {
+			return nil
+		}
+		if err := s.repo.CancelEventParticipations(ctx, input.EventID); err != nil {
+			return err
+		}
+		if err := s.tickets.CancelTicketsForEvent(ctx, input.EventID); err != nil {
+			return err
+		}
+		if err := s.repo.CancelPendingInvitationsForEvent(ctx, input.EventID); err != nil {
+			return err
+		}
+		return s.repo.CancelPendingJoinRequestsForEvent(ctx, input.EventID)
+	})
+	if err != nil {
+		return nil, err
+	}
+	slog.InfoContext(ctx, "admin event canceled",
+		"operation", "admin.events.cancel",
+		"admin_user_id", input.AdminUserID.String(),
+		"event_id", input.EventID.String(),
+		"already_canceled", result.AlreadyCanceled,
+		"has_reason", input.Reason != nil && strings.TrimSpace(*input.Reason) != "",
+	)
+	return result, nil
+}
+
+func (s *Service) DeactivateUser(ctx context.Context, input DeactivateUserInput) (*DeactivateUserResult, error) {
+	if s.unitOfWork == nil || s.tickets == nil {
+		return nil, domain.ConflictError(domain.ErrorCodeAdminDependencyUnavailable, "Admin user mutations are not configured.")
+	}
+	if input.UserID == uuid.Nil {
+		return nil, domain.ValidationError(map[string]string{"user_id": "is required"})
+	}
+	result := &DeactivateUserResult{UserID: input.UserID, Status: domain.UserStatusDeactivated}
+	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		status, err := s.repo.GetUserStatus(ctx, input.UserID, true)
+		if err != nil {
+			return err
+		}
+		if status == nil {
+			return domain.NotFoundError(domain.ErrorCodeUserNotFound, "The requested user does not exist.")
+		}
+		if *status == domain.UserStatusDeactivated {
+			result.AlreadyDeactivated = true
+			return nil
+		}
+		if err := s.repo.DeactivateUser(ctx, input.UserID); err != nil {
+			return err
+		}
+		if err := s.repo.RevokeRefreshTokensForUser(ctx, input.UserID); err != nil {
+			return err
+		}
+		if err := s.repo.RevokePushDevicesForUser(ctx, input.UserID); err != nil {
+			return err
+		}
+		eventIDs, err := s.repo.ListHostedCancelableEventIDs(ctx, input.UserID)
+		if err != nil {
+			return err
+		}
+		result.CanceledEventCount = len(eventIDs)
+		for _, eventID := range eventIDs {
+			alreadyCanceled, err := s.repo.CancelEvent(ctx, eventID)
+			if err != nil {
+				return err
+			}
+			if alreadyCanceled {
+				continue
+			}
+			if err := s.repo.CancelEventParticipations(ctx, eventID); err != nil {
+				return err
+			}
+			if err := s.tickets.CancelTicketsForEvent(ctx, eventID); err != nil {
+				return err
+			}
+			if err := s.repo.CancelPendingInvitationsForEvent(ctx, eventID); err != nil {
+				return err
+			}
+			if err := s.repo.CancelPendingJoinRequestsForEvent(ctx, eventID); err != nil {
+				return err
+			}
+		}
+		if err := s.repo.CancelUserParticipations(ctx, input.UserID); err != nil {
+			return err
+		}
+		if err := s.repo.CancelUserTickets(ctx, input.UserID); err != nil {
+			return err
+		}
+		if err := s.repo.CancelPendingInvitationsForUser(ctx, input.UserID); err != nil {
+			return err
+		}
+		return s.repo.CancelPendingJoinRequestsForUser(ctx, input.UserID)
+	})
+	if err != nil {
+		return nil, err
+	}
+	slog.InfoContext(ctx, "admin user deactivated",
+		"operation", "admin.users.deactivate",
+		"admin_user_id", input.AdminUserID.String(),
+		"target_user_id", input.UserID.String(),
+		"already_deactivated", result.AlreadyDeactivated,
+		"canceled_event_count", result.CanceledEventCount,
+		"has_reason", input.Reason != nil && strings.TrimSpace(*input.Reason) != "",
+	)
+	return result, nil
+}
+
+func (s *Service) UpdateInvitationStatus(ctx context.Context, input UpdateInvitationStatusInput) (*AdminInvitationItem, error) {
+	if input.InvitationID == uuid.Nil {
+		return nil, domain.ValidationError(map[string]string{"invitation_id": "is required"})
+	}
+	if input.Status != domain.InvitationStatusCanceled {
+		return nil, domain.ValidationError(map[string]string{"status": "must be CANCELED"})
+	}
+	return s.repo.UpdateInvitationStatus(ctx, input.InvitationID, input.Status)
+}
+
+func (s *Service) UpdateJoinRequestStatus(ctx context.Context, input UpdateJoinRequestStatusInput) (*AdminJoinRequestItem, error) {
+	if input.JoinRequestID == uuid.Nil {
+		return nil, domain.ValidationError(map[string]string{"join_request_id": "is required"})
+	}
+	if input.Status != domain.JoinRequestStatusCanceled && input.Status != domain.JoinRequestStatusRejected {
+		return nil, domain.ValidationError(map[string]string{"status": "must be one of: CANCELED, REJECTED"})
+	}
+	return s.repo.UpdateJoinRequestStatus(ctx, input.JoinRequestID, input.Status)
+}
+
+func (s *Service) DeleteComment(ctx context.Context, input DeleteCommentInput) error {
+	if input.CommentID == uuid.Nil {
+		return domain.ValidationError(map[string]string{"comment_id": "is required"})
+	}
+	return s.repo.DeleteComment(ctx, input.CommentID)
+}
+
+func (s *Service) DeleteEventRating(ctx context.Context, input DeleteRatingInput) error {
+	if input.RatingID == uuid.Nil {
+		return domain.ValidationError(map[string]string{"rating_id": "is required"})
+	}
+	return s.repo.DeleteEventRating(ctx, input.RatingID)
+}
+
+func (s *Service) DeleteParticipantRating(ctx context.Context, input DeleteRatingInput) error {
+	if input.RatingID == uuid.Nil {
+		return domain.ValidationError(map[string]string{"rating_id": "is required"})
+	}
+	return s.repo.DeleteParticipantRating(ctx, input.RatingID)
+}
+
+func (s *Service) RevokePushDevice(ctx context.Context, input RevokePushDeviceInput) error {
+	if input.DeviceID == uuid.Nil {
+		return domain.ValidationError(map[string]string{"device_id": "is required"})
+	}
+	return s.repo.RevokePushDevice(ctx, input.DeviceID)
+}

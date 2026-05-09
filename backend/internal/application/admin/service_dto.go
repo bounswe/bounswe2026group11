@@ -191,6 +191,362 @@ type ListNotificationsResult struct {
 	PageMeta
 }
 
+type ListEventReportsInput struct {
+	PageInput
+	CreatedRange
+	Query          *string
+	Status         *domain.EventReportStatus
+	ReportCategory *domain.EventReportCategory
+	EventID        *uuid.UUID
+	ReporterUserID *uuid.UUID
+}
+
+type AdminEventReportItem struct {
+	ID               uuid.UUID `json:"id"`
+	EventID          uuid.UUID `json:"event_id"`
+	EventTitle       *string   `json:"event_title"`
+	ReporterUserID   uuid.UUID `json:"reporter_user_id"`
+	ReporterUsername *string   `json:"reporter_username"`
+	ReporterEmail    *string   `json:"reporter_email"`
+	ReportCategory   string    `json:"report_category"`
+	Message          string    `json:"message"`
+	ImageURL         *string   `json:"image_url"`
+	Status           string    `json:"status"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+type ListEventReportsResult struct {
+	Items []AdminEventReportItem `json:"items"`
+	PageMeta
+}
+
+type AdminCategoryItem struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type ListCategoriesResult struct {
+	Items []AdminCategoryItem `json:"items"`
+}
+
+type CreateCategoryInput struct {
+	AdminUserID uuid.UUID
+	Name        string
+}
+
+type DeleteCategoryInput struct {
+	AdminUserID uuid.UUID
+	CategoryID  int
+}
+
+type UpdateEventReportStatusInput struct {
+	AdminUserID uuid.UUID
+	ReportID    uuid.UUID
+	Status      domain.EventReportStatus
+	Reason      *string
+}
+
+type UpdateEventStatusInput struct {
+	AdminUserID uuid.UUID
+	EventID     uuid.UUID
+	Status      domain.EventStatus
+	Reason      *string
+}
+
+type CancelEventInput struct {
+	AdminUserID uuid.UUID
+	EventID     uuid.UUID
+	Reason      *string
+}
+
+type CancelEventResult struct {
+	EventID         uuid.UUID          `json:"event_id"`
+	Status          domain.EventStatus `json:"status"`
+	AlreadyCanceled bool               `json:"already_canceled"`
+}
+
+type DeactivateUserInput struct {
+	AdminUserID uuid.UUID
+	UserID      uuid.UUID
+	Reason      *string
+}
+
+type DeactivateUserResult struct {
+	UserID             uuid.UUID         `json:"user_id"`
+	Status             domain.UserStatus `json:"status"`
+	AlreadyDeactivated bool              `json:"already_deactivated"`
+	CanceledEventCount int               `json:"canceled_event_count"`
+}
+
+type ListInvitationsInput struct {
+	PageInput
+	CreatedRange
+	Query         *string
+	Status        *domain.InvitationStatus
+	EventID       *uuid.UUID
+	HostID        *uuid.UUID
+	InvitedUserID *uuid.UUID
+}
+
+type AdminInvitationItem struct {
+	ID              uuid.UUID  `json:"id"`
+	EventID         uuid.UUID  `json:"event_id"`
+	EventTitle      string     `json:"event_title"`
+	HostID          uuid.UUID  `json:"host_id"`
+	HostUsername    string     `json:"host_username"`
+	InvitedUserID   uuid.UUID  `json:"invited_user_id"`
+	InvitedUsername string     `json:"invited_username"`
+	InvitedEmail    string     `json:"invited_email"`
+	Status          string     `json:"status"`
+	Message         *string    `json:"message"`
+	ExpiresAt       *time.Time `json:"expires_at"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+type ListInvitationsResult struct {
+	Items []AdminInvitationItem `json:"items"`
+	PageMeta
+}
+
+type UpdateInvitationStatusInput struct {
+	AdminUserID  uuid.UUID
+	InvitationID uuid.UUID
+	Status       domain.InvitationStatus
+	Reason       *string
+}
+
+type ListJoinRequestsInput struct {
+	PageInput
+	CreatedRange
+	Query      *string
+	Status     *domain.JoinRequestStatus
+	EventID    *uuid.UUID
+	UserID     *uuid.UUID
+	HostUserID *uuid.UUID
+}
+
+type AdminJoinRequestItem struct {
+	ID           uuid.UUID `json:"id"`
+	EventID      uuid.UUID `json:"event_id"`
+	EventTitle   string    `json:"event_title"`
+	UserID       uuid.UUID `json:"user_id"`
+	Username     string    `json:"username"`
+	UserEmail    string    `json:"user_email"`
+	HostUserID   uuid.UUID `json:"host_user_id"`
+	HostUsername string    `json:"host_username"`
+	Status       string    `json:"status"`
+	Message      *string   `json:"message"`
+	ImageURL     *string   `json:"image_url"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type ListJoinRequestsResult struct {
+	Items []AdminJoinRequestItem `json:"items"`
+	PageMeta
+}
+
+type UpdateJoinRequestStatusInput struct {
+	AdminUserID   uuid.UUID
+	JoinRequestID uuid.UUID
+	Status        domain.JoinRequestStatus
+	Reason        *string
+}
+
+type ListCommentsInput struct {
+	PageInput
+	CreatedRange
+	Query   *string
+	EventID *uuid.UUID
+	UserID  *uuid.UUID
+	Type    *string
+}
+
+type AdminCommentItem struct {
+	ID         uuid.UUID  `json:"id"`
+	EventID    uuid.UUID  `json:"event_id"`
+	EventTitle string     `json:"event_title"`
+	UserID     uuid.UUID  `json:"user_id"`
+	Username   string     `json:"username"`
+	UserEmail  string     `json:"user_email"`
+	Type       string     `json:"type"`
+	ParentID   *uuid.UUID `json:"parent_id"`
+	Message    string     `json:"message"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+}
+
+type ListCommentsResult struct {
+	Items []AdminCommentItem `json:"items"`
+	PageMeta
+}
+
+type DeleteCommentInput struct {
+	AdminUserID uuid.UUID
+	CommentID   uuid.UUID
+	Reason      *string
+}
+
+type ListEventRatingsInput struct {
+	PageInput
+	CreatedRange
+	EventID *uuid.UUID
+	UserID  *uuid.UUID
+}
+
+type AdminEventRatingItem struct {
+	ID                uuid.UUID `json:"id"`
+	EventID           uuid.UUID `json:"event_id"`
+	EventTitle        string    `json:"event_title"`
+	ParticipantUserID uuid.UUID `json:"participant_user_id"`
+	Username          string    `json:"username"`
+	UserEmail         string    `json:"user_email"`
+	Score             float64   `json:"score"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type ListEventRatingsResult struct {
+	Items []AdminEventRatingItem `json:"items"`
+	PageMeta
+}
+
+type ListParticipantRatingsInput struct {
+	PageInput
+	CreatedRange
+	EventID *uuid.UUID
+	HostID  *uuid.UUID
+	UserID  *uuid.UUID
+}
+
+type AdminParticipantRatingItem struct {
+	ID                  uuid.UUID `json:"id"`
+	EventID             uuid.UUID `json:"event_id"`
+	EventTitle          string    `json:"event_title"`
+	HostUserID          uuid.UUID `json:"host_user_id"`
+	HostUsername        string    `json:"host_username"`
+	ParticipantUserID   uuid.UUID `json:"participant_user_id"`
+	ParticipantUsername string    `json:"participant_username"`
+	Score               float64   `json:"score"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
+type ListParticipantRatingsResult struct {
+	Items []AdminParticipantRatingItem `json:"items"`
+	PageMeta
+}
+
+type DeleteRatingInput struct {
+	AdminUserID uuid.UUID
+	RatingID    uuid.UUID
+	Reason      *string
+}
+
+type ListFavoriteEventsInput struct {
+	PageInput
+	CreatedRange
+	UserID  *uuid.UUID
+	EventID *uuid.UUID
+}
+
+type AdminFavoriteEventItem struct {
+	ID         uuid.UUID `json:"id"`
+	UserID     uuid.UUID `json:"user_id"`
+	Username   string    `json:"username"`
+	UserEmail  string    `json:"user_email"`
+	EventID    uuid.UUID `json:"event_id"`
+	EventTitle string    `json:"event_title"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+type ListFavoriteEventsResult struct {
+	Items []AdminFavoriteEventItem `json:"items"`
+	PageMeta
+}
+
+type ListFavoriteLocationsInput struct {
+	PageInput
+	CreatedRange
+	UserID *uuid.UUID
+	Query  *string
+}
+
+type AdminFavoriteLocationItem struct {
+	ID        uuid.UUID `json:"id"`
+	UserID    uuid.UUID `json:"user_id"`
+	Username  string    `json:"username"`
+	UserEmail string    `json:"user_email"`
+	Name      *string   `json:"name"`
+	Address   *string   `json:"address"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type ListFavoriteLocationsResult struct {
+	Items []AdminFavoriteLocationItem `json:"items"`
+	PageMeta
+}
+
+type ListUserBadgesInput struct {
+	PageInput
+	UserID *uuid.UUID
+	Query  *string
+}
+
+type AdminUserBadgeItem struct {
+	UserID        uuid.UUID `json:"user_id"`
+	Username      string    `json:"username"`
+	UserEmail     string    `json:"user_email"`
+	BadgeID       int       `json:"badge_id"`
+	BadgeSlug     string    `json:"badge_slug"`
+	BadgeName     string    `json:"badge_name"`
+	BadgeCategory string    `json:"badge_category"`
+	EarnedAt      time.Time `json:"earned_at"`
+}
+
+type ListUserBadgesResult struct {
+	Items []AdminUserBadgeItem `json:"items"`
+	PageMeta
+}
+
+type ListPushDevicesInput struct {
+	PageInput
+	CreatedRange
+	UserID   *uuid.UUID
+	Platform *string
+	Active   *bool
+}
+
+type AdminPushDeviceItem struct {
+	ID             uuid.UUID  `json:"id"`
+	UserID         uuid.UUID  `json:"user_id"`
+	Username       string     `json:"username"`
+	UserEmail      string     `json:"user_email"`
+	InstallationID uuid.UUID  `json:"installation_id"`
+	Platform       string     `json:"platform"`
+	LastSeenAt     time.Time  `json:"last_seen_at"`
+	RevokedAt      *time.Time `json:"revoked_at"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+type ListPushDevicesResult struct {
+	Items []AdminPushDeviceItem `json:"items"`
+	PageMeta
+}
+
+type RevokePushDeviceInput struct {
+	AdminUserID uuid.UUID
+	DeviceID    uuid.UUID
+	Reason      *string
+}
+
 type SendCustomNotificationInput struct {
 	AdminUserID    uuid.UUID
 	UserIDs        []uuid.UUID
@@ -272,4 +628,48 @@ func (s *Service) ListTickets(ctx context.Context, input ListTicketsInput) (*Lis
 
 func (s *Service) ListNotifications(ctx context.Context, input ListNotificationsInput) (*ListNotificationsResult, error) {
 	return s.repo.ListNotifications(ctx, input)
+}
+
+func (s *Service) ListEventReports(ctx context.Context, input ListEventReportsInput) (*ListEventReportsResult, error) {
+	return s.repo.ListEventReports(ctx, input)
+}
+
+func (s *Service) ListCategories(ctx context.Context) (*ListCategoriesResult, error) {
+	return s.repo.ListCategories(ctx)
+}
+
+func (s *Service) ListInvitations(ctx context.Context, input ListInvitationsInput) (*ListInvitationsResult, error) {
+	return s.repo.ListInvitations(ctx, input)
+}
+
+func (s *Service) ListJoinRequests(ctx context.Context, input ListJoinRequestsInput) (*ListJoinRequestsResult, error) {
+	return s.repo.ListJoinRequests(ctx, input)
+}
+
+func (s *Service) ListComments(ctx context.Context, input ListCommentsInput) (*ListCommentsResult, error) {
+	return s.repo.ListComments(ctx, input)
+}
+
+func (s *Service) ListEventRatings(ctx context.Context, input ListEventRatingsInput) (*ListEventRatingsResult, error) {
+	return s.repo.ListEventRatings(ctx, input)
+}
+
+func (s *Service) ListParticipantRatings(ctx context.Context, input ListParticipantRatingsInput) (*ListParticipantRatingsResult, error) {
+	return s.repo.ListParticipantRatings(ctx, input)
+}
+
+func (s *Service) ListFavoriteEvents(ctx context.Context, input ListFavoriteEventsInput) (*ListFavoriteEventsResult, error) {
+	return s.repo.ListFavoriteEvents(ctx, input)
+}
+
+func (s *Service) ListFavoriteLocations(ctx context.Context, input ListFavoriteLocationsInput) (*ListFavoriteLocationsResult, error) {
+	return s.repo.ListFavoriteLocations(ctx, input)
+}
+
+func (s *Service) ListUserBadges(ctx context.Context, input ListUserBadgesInput) (*ListUserBadgesResult, error) {
+	return s.repo.ListUserBadges(ctx, input)
+}
+
+func (s *Service) ListPushDevices(ctx context.Context, input ListPushDevicesInput) (*ListPushDevicesResult, error) {
+	return s.repo.ListPushDevices(ctx, input)
 }

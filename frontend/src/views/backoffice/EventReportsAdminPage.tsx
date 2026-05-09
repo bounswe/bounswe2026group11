@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AdminEventReportFilters } from '@/models/admin';
-import { listAdminEventReports } from '@/services/adminService';
+import { listAdminEventReports, updateAdminEventReportStatus } from '@/services/adminService';
 import { useAdminListViewModel } from '@/viewmodels/admin/useAdminListViewModel';
-import { BackofficeIdCell, BackofficePageShell, BackofficePagination, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
+import { useAdminMutation } from '@/viewmodels/admin/useAdminMutation';
+import { BackofficeIdCell, BackofficeImageModal, BackofficePageShell, BackofficePagination, BackofficeStatusPill, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
 
 const INITIAL_FILTERS: AdminEventReportFilters = {
   q: '',
@@ -30,6 +31,9 @@ export default function EventReportsAdminPage() {
   const { token } = useAuth();
   const initialFilters = useMemo(() => INITIAL_FILTERS, []);
   const vm = useAdminListViewModel({ token, initialFilters, fetchPage: listAdminEventReports });
+  const mutation = useAdminMutation(vm.retry);
+  const [imageReportId, setImageReportId] = useState<string | null>(null);
+  const imageReport = vm.items.find((report) => report.id === imageReportId);
 
   return (
     <BackofficePageShell
@@ -73,6 +77,7 @@ export default function EventReportsAdminPage() {
               <th>Image</th>
               <th>Created</th>
               <th>Updated</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -80,9 +85,7 @@ export default function EventReportsAdminPage() {
               <tr key={report.id}>
                 <td><BackofficeIdCell id={report.id} /></td>
                 <td>
-                  <span className={`bo-status-pill bo-status-${report.status.toLowerCase()}`}>
-                    {report.status}
-                  </span>
+                  <BackofficeStatusPill status={report.status} />
                 </td>
                 <td>{REPORT_CATEGORY_LABELS[report.report_category] ?? report.report_category}</td>
                 <td>
@@ -100,19 +103,43 @@ export default function EventReportsAdminPage() {
                 <td className="bo-report-message">{report.message}</td>
                 <td>
                   {report.image_url ? (
-                    <a href={report.image_url} target="_blank" rel="noopener noreferrer">View</a>
+                    <button type="button" className="bo-row-action" onClick={() => setImageReportId(report.id)}>View image</button>
                   ) : (
                     '-'
                   )}
                 </td>
                 <td>{formatAdminDate(report.created_at)}</td>
                 <td>{formatAdminDate(report.updated_at)}</td>
+                <td>
+                  <select
+                    aria-label={`Change report status ${report.id}`}
+                    value={report.status}
+                    disabled={mutation.busyId === report.id}
+                    onChange={(event) => void mutation.run(
+                      report.id,
+                      () => updateAdminEventReportStatus(token!, report.id, { status: event.target.value as typeof report.status }),
+                      'Report status updated.',
+                    )}
+                  >
+                    <option value="PENDING">PENDING</option>
+                    <option value="REVIEWED">REVIEWED</option>
+                    <option value="DISMISSED">DISMISSED</option>
+                  </select>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {mutation.error && <div className="bo-state bo-state-error">{mutation.error}</div>}
+      {mutation.message && <div className="bo-result" role="status"><span>{mutation.message}</span></div>}
       <BackofficePagination {...vm} onPrevious={vm.previousPage} onNext={vm.nextPage} onLimitChange={vm.changeLimit} />
+      <BackofficeImageModal
+        imageUrl={imageReport?.image_url ?? null}
+        title={imageReport?.event_title ?? 'Report image'}
+        message={imageReport?.message}
+        onClose={() => setImageReportId(null)}
+      />
     </BackofficePageShell>
   );
 }

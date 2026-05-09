@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AdminEventFilters } from '@/models/admin';
-import { listAdminEvents } from '@/services/adminService';
+import { cancelAdminEvent, listAdminEvents, updateAdminEventStatus } from '@/services/adminService';
 import { useAdminListViewModel } from '@/viewmodels/admin/useAdminListViewModel';
-import { BackofficeIdCell, BackofficePageShell, BackofficePagination, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
+import { useAdminMutation } from '@/viewmodels/admin/useAdminMutation';
+import { BackofficeConfirmAction, BackofficeIdCell, BackofficePageShell, BackofficePagination, BackofficeStatusPill, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
 
 const INITIAL_FILTERS: AdminEventFilters = {
   q: '',
@@ -19,6 +20,7 @@ export default function EventsAdminPage() {
   const { token } = useAuth();
   const initialFilters = useMemo(() => INITIAL_FILTERS, []);
   const vm = useAdminListViewModel({ token, initialFilters, fetchPage: listAdminEvents });
+  const mutation = useAdminMutation(vm.retry);
 
   return (
     <BackofficePageShell
@@ -65,6 +67,7 @@ export default function EventsAdminPage() {
               <th>Capacity</th>
               <th>Approved</th>
               <th>Pending</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -72,20 +75,47 @@ export default function EventsAdminPage() {
               <tr key={event.id}>
                 <td><BackofficeIdCell id={event.id} /></td>
                 <td>{event.title}</td>
-                <td>{event.host_username}</td>
+                <td><span>{event.host_username}</span> <BackofficeIdCell id={event.host_id} /></td>
                 <td>{event.category_name ?? event.category_id ?? '-'}</td>
                 <td>{event.privacy_level}</td>
-                <td>{event.status}</td>
+                <td><BackofficeStatusPill status={event.status} /></td>
                 <td>{formatAdminDate(event.start_time)}</td>
                 <td>{formatAdminDate(event.end_time)}</td>
                 <td>{event.capacity ?? '-'}</td>
                 <td>{event.approved_participant_count}</td>
                 <td>{event.pending_participant_count}</td>
+                <td>
+                  <div className="bo-row-actions">
+                    <select
+                      aria-label={`Change status for ${event.title}`}
+                      value={event.status}
+                      disabled={mutation.busyId === `${event.id}:status`}
+                      onChange={(change) => void mutation.run(
+                        `${event.id}:status`,
+                        () => updateAdminEventStatus(token!, event.id, { status: change.target.value as typeof event.status }),
+                        'Event status updated.',
+                      )}
+                    >
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="IN_PROGRESS">IN_PROGRESS</option>
+                      <option value="CANCELED">CANCELED</option>
+                      <option value="COMPLETED">COMPLETED</option>
+                    </select>
+                    <BackofficeConfirmAction
+                      label="Cancel"
+                      disabled={event.status === 'CANCELED'}
+                      busy={mutation.busyId === `${event.id}:cancel`}
+                      onConfirm={() => void mutation.run(`${event.id}:cancel`, () => cancelAdminEvent(token!, event.id), 'Event canceled.')}
+                    />
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {mutation.error && <div className="bo-state bo-state-error">{mutation.error}</div>}
+      {mutation.message && <div className="bo-result" role="status"><span>{mutation.message}</span></div>}
       <BackofficePagination {...vm} onPrevious={vm.previousPage} onNext={vm.nextPage} onLimitChange={vm.changeLimit} />
     </BackofficePageShell>
   );

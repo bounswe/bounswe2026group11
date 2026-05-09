@@ -24,8 +24,16 @@ import BackofficeLayout from './views/backoffice/BackofficeLayout';
 import UsersAdminPage from './views/backoffice/UsersAdminPage';
 import EventsAdminPage from './views/backoffice/EventsAdminPage';
 import EventReportsAdminPage from './views/backoffice/EventReportsAdminPage';
+import CategoriesAdminPage from './views/backoffice/CategoriesAdminPage';
 import ParticipationsAdminPage from './views/backoffice/ParticipationsAdminPage';
 import TicketsAdminPage from './views/backoffice/TicketsAdminPage';
+import InvitationsAdminPage from './views/backoffice/InvitationsAdminPage';
+import JoinRequestsAdminPage from './views/backoffice/JoinRequestsAdminPage';
+import CommentsAdminPage from './views/backoffice/CommentsAdminPage';
+import RatingsAdminPage from './views/backoffice/RatingsAdminPage';
+import FavoritesAdminPage from './views/backoffice/FavoritesAdminPage';
+import BadgesAdminPage from './views/backoffice/BadgesAdminPage';
+import PushDevicesAdminPage from './views/backoffice/PushDevicesAdminPage';
 import NotificationsAdminPage from './views/backoffice/NotificationsAdminPage';
 
 export default function App() {
@@ -64,8 +72,16 @@ export default function App() {
               <Route path="users" element={<UsersAdminPage />} />
               <Route path="events" element={<EventsAdminPage />} />
               <Route path="event-reports" element={<EventReportsAdminPage />} />
+              <Route path="categories" element={<CategoriesAdminPage />} />
               <Route path="participations" element={<ParticipationsAdminPage />} />
               <Route path="tickets" element={<TicketsAdminPage />} />
+              <Route path="invitations" element={<InvitationsAdminPage />} />
+              <Route path="join-requests" element={<JoinRequestsAdminPage />} />
+              <Route path="comments" element={<CommentsAdminPage />} />
+              <Route path="ratings" element={<RatingsAdminPage />} />
+              <Route path="favorites" element={<FavoritesAdminPage />} />
+              <Route path="badges" element={<BadgesAdminPage />} />
+              <Route path="push-devices" element={<PushDevicesAdminPage />} />
               <Route path="notifications" element={<NotificationsAdminPage />} />
             </Route>
             <Route path="/admin-panel" element={<Navigate to="/backoffice" replace />} />

@@ -16,6 +16,8 @@ type UserRole string
 const (
 	// UserStatusActive is the default status assigned to newly registered users.
 	UserStatusActive = "active"
+	// UserStatusDeactivated prevents an account from continuing authenticated use.
+	UserStatusDeactivated UserStatus = "deactivated"
 
 	// UserRoleUser is the default non-admin role for regular accounts.
 	UserRoleUser UserRole = "USER"
@@ -29,7 +31,8 @@ var userRoles = map[string]UserRole{
 }
 
 var userStatuses = map[string]UserStatus{
-	UserStatusActive: UserStatus(UserStatusActive),
+	UserStatusActive:               UserStatus(UserStatusActive),
+	UserStatusDeactivated.String(): UserStatusDeactivated,
 }
 
 // ParseUserRole converts a wire string into a UserRole.

@@ -48,10 +48,26 @@ var eventReportCategories = map[string]EventReportCategory{
 	string(EventReportCategoryOther):                EventReportCategoryOther,
 }
 
+var eventReportStatuses = map[string]EventReportStatus{
+	string(EventReportStatusPending):   EventReportStatusPending,
+	string(EventReportStatusReviewed):  EventReportStatusReviewed,
+	string(EventReportStatusDismissed): EventReportStatusDismissed,
+}
+
 // ParseEventReportCategory converts a wire string to an EventReportCategory.
 func ParseEventReportCategory(value string) (EventReportCategory, bool) {
 	category, ok := eventReportCategories[value]
 	return category, ok
+}
+
+// ParseEventReportStatus converts a wire string to an EventReportStatus.
+func ParseEventReportStatus(value string) (EventReportStatus, bool) {
+	status, ok := eventReportStatuses[value]
+	return status, ok
+}
+
+func (s EventReportStatus) String() string {
+	return string(s)
 }
 
 // EventReport stores a user-submitted report for an event.
