@@ -51,11 +51,11 @@ export function useEventActionsViewModel(eventId: string): EventActionsViewModel
     try {
       const [eventDetail, ticketsResponse] = await Promise.all([
         getEventDetail(eventId, token),
-        listMyTickets(token),
+        listMyTickets(token).catch(() => ({ items: [] })),
       ]);
 
       setEvent(eventDetail);
-      setTicket(ticketsResponse.items.find((item) => item.event.id === eventId) ?? null);
+      setTicket(ticketsResponse?.items?.find((item) => item.event.id === eventId) ?? null);
     } catch (error) {
       setEvent(null);
       setTicket(null);

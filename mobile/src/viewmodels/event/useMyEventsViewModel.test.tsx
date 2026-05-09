@@ -212,13 +212,29 @@ describe('useMyEventsViewModel', () => {
 
   it('surfaces a retryable error when loading fails', async () => {
     mockListMyEvents.mockRejectedValueOnce(new Error('network'));
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { result } = renderHook(() => useMyEventsViewModel());
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.errorMessage).toBe('network');
+      expect(result.current.canRetry).toBe(true);
+      expect(result.current.visibleEvents).toEqual([]);
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it('treats a missing invitations items array as empty instead of crashing', async () => {
+    mockListMyInvitations.mockResolvedValueOnce({ total: 0 } as any);
 
     const { result } = renderHook(() => useMyEventsViewModel());
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(result.current.errorMessage).toBe('network');
-    expect(result.current.canRetry).toBe(true);
-    expect(result.current.visibleEvents).toEqual([]);
+    expect(result.current.errorMessage).toBeNull();
+    expect(result.current.invitations).toEqual([]);
+    expect(result.current.invitationCount).toBe(0);
   });
 });

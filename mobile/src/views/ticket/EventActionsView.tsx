@@ -14,6 +14,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useEventActionsViewModel } from '@/viewmodels/ticket/useEventActionsViewModel';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
+import EventCategoryChip from '@/components/events/EventCategoryChip';
 import { useTheme, type Theme } from '@/theme';
 
 interface EventActionsViewProps {
@@ -111,8 +112,11 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
           <Text style={styles.eventTitle}>{event.title}</Text>
 
           {event.category ? (
-            <View style={styles.categoryChip}>
-              <Text style={styles.categoryChipText}>{event.category.name}</Text>
+            <View style={styles.categoryChipWrap}>
+              <EventCategoryChip
+                categoryName={event.category.name}
+                testID="event-actions-category-chip"
+              />
             </View>
           ) : null}
 
@@ -213,7 +217,9 @@ function makeStyles(t: Theme) {
       borderRadius: 29,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: t.surfaceVariant,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
     },
     heroCard: {
       overflow: 'hidden',
@@ -235,18 +241,8 @@ function makeStyles(t: Theme) {
       fontWeight: '800',
       color: t.text,
     },
-    categoryChip: {
-      alignSelf: 'flex-start',
+    categoryChipWrap: {
       marginTop: 14,
-      borderRadius: 999,
-      backgroundColor: t.surfaceVariant,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-    },
-    categoryChipText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: t.text,
     },
     metaGroup: {
       marginTop: 24,
@@ -277,7 +273,9 @@ function makeStyles(t: Theme) {
       alignItems: 'center',
       gap: 12,
       borderRadius: 18,
-      backgroundColor: t.surfaceVariant,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
       paddingHorizontal: 14,
       paddingVertical: 12,
     },
@@ -326,7 +324,9 @@ function makeStyles(t: Theme) {
       marginTop: 18,
       minHeight: 66,
       borderRadius: 22,
-      backgroundColor: t.surfaceVariant,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.borderStrong,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',

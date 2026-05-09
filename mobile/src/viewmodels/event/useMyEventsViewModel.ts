@@ -104,6 +104,14 @@ function sortVisibleEvents(
   return sorted;
 }
 
+function normalizeInvitationsResponse(
+  response: { pending?: ReceivedInvitation[]; items?: ReceivedInvitation[] } | null | undefined,
+): ReceivedInvitation[] {
+  if (Array.isArray(response?.pending)) return response.pending;
+  if (Array.isArray(response?.items)) return response.items;
+  return [];
+}
+
 export function useMyEventsViewModel(): MyEventsViewModel {
   const { token } = useAuth();
 
@@ -169,10 +177,13 @@ export function useMyEventsViewModel(): MyEventsViewModel {
         };
       });
 
-      setHostedEvents(eventsResponse.hosted_events);
+      const nextHostedEvents = eventsResponse?.hosted_events ?? [];
+      const nextInvitations = normalizeInvitationsResponse(invitationsResponse);
+
+      setHostedEvents(nextHostedEvents);
       setAttendedEvents(decoratedAttendedEvents);
-      setInvitations(invitationsResponse.pending);
-      setInvitationCount(invitationsResponse.pending.length);
+      setInvitations(nextInvitations);
+      setInvitationCount(nextInvitations.length);
     } catch (error) {
       console.error('Failed to load events:', error);
       setHostedEvents([]);

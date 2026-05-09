@@ -25,8 +25,8 @@ import {
   getEventStatusBadgeColors,
 } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
-import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import { EventDetail } from '@/models/event';
+import EventCategoryChip from '@/components/events/EventCategoryChip';
 import JoinRequestsModal from '@/components/events/JoinRequestsModal';
 import ParticipantListModal from '@/components/events/ParticipantListModal';
 import InvitationsModal from '@/components/events/InvitationsModal';
@@ -763,10 +763,6 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     event.capacity != null
       ? `${event.approved_participant_count} / ${event.capacity}`
       : `${event.approved_participant_count}`;
-  const categoryPresentation = event.category
-    ? getEventCategoryPresentation(event.category.name, isDark)
-    : null;
-
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       {/* Header */}
@@ -833,22 +829,12 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
         {/* Core info */}
         <View style={styles.section}>
-          {categoryPresentation && (
-            <View
-              style={[
-                styles.categoryChip,
-                { backgroundColor: categoryPresentation.color },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  { color: categoryPresentation.textColor },
-                ]}
-                numberOfLines={1}
-              >
-                {categoryPresentation.emoji} {categoryPresentation.label}
-              </Text>
+          {event.category && (
+            <View style={styles.categoryChipWrap}>
+              <EventCategoryChip
+                categoryName={event.category.name}
+                testID="event-detail-category-chip"
+              />
             </View>
           )}
 
@@ -1702,17 +1688,8 @@ function makeStyles(t: Theme, isDark: boolean) {
     },
 
     /* Category chip */
-    categoryChip: {
-      alignSelf: 'flex-start',
-      maxWidth: '100%',
-      paddingHorizontal: 12,
-      paddingVertical: 4,
-      borderRadius: 999,
+    categoryChipWrap: {
       marginBottom: 12,
-    },
-    categoryChipText: {
-      fontSize: 12,
-      fontWeight: '700',
     },
 
     /* Event title */
