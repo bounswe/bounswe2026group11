@@ -90,6 +90,8 @@ export type MyEventRelation = 'HOSTING' | 'ATTENDING';
 
 export type MyEventBadgeType = 'HOST' | 'TICKET' | 'INVITED';
 
+export type TicketStatus = 'ACTIVE' | 'PENDING' | 'EXPIRED' | 'USED' | 'CANCELED';
+
 export interface MyEventBadge {
   type: MyEventBadgeType;
   label: string;
@@ -107,6 +109,8 @@ export interface MyEventSummary {
   relation: MyEventRelation;
   privacy_level: PrivacyLevel;
   badges: MyEventBadge[];
+  ticket_id?: string | null;
+  ticket_status?: TicketStatus | null;
 }
 
 export interface MyEventsResponse {

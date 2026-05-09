@@ -549,24 +549,33 @@ function mapToMyEventSummary(
 }
 
 export async function listMyEvents(token: string): Promise<MyEventsResponse> {
+  const withTimeout = <T>(promise: Promise<T>, timeoutMs = 10000): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out')), timeoutMs)
+      ),
+    ]);
+  };
+
   const [hostedResponse, upcomingResponse, completedResponse, canceledResponse] =
     await Promise.all([
-      apiGetAuth<BackendEventsListResponse>('/me/events/hosted', token),
-      apiGetAuth<BackendEventsListResponse>('/me/events/upcoming', token),
-      apiGetAuth<BackendEventsListResponse>('/me/events/completed', token),
-      apiGetAuth<BackendEventsListResponse>('/me/events/canceled', token),
+      withTimeout(apiGetAuth<BackendEventsListResponse>('/me/events/hosted', token)).catch(() => ({ events: [] })),
+      withTimeout(apiGetAuth<BackendEventsListResponse>('/me/events/upcoming', token)).catch(() => ({ events: [] })),
+      withTimeout(apiGetAuth<BackendEventsListResponse>('/me/events/completed', token)).catch(() => ({ events: [] })),
+      withTimeout(apiGetAuth<BackendEventsListResponse>('/me/events/canceled', token)).catch(() => ({ events: [] })),
     ]);
 
-  const hostedEvents = (hostedResponse.events ?? [])
+  const hostedEvents = (hostedResponse?.events ?? [])
     .map((event) => mapToMyEventSummary(event, 'HOSTING'))
     .filter((event): event is MyEventSummary => event != null);
 
   const hostedEventIds = new Set(hostedEvents.map((event) => event.id));
 
   const attendedSources = [
-    ...(upcomingResponse.events ?? []),
-    ...(completedResponse.events ?? []),
-    ...(canceledResponse.events ?? []),
+    ...(upcomingResponse?.events ?? []),
+    ...(completedResponse?.events ?? []),
+    ...(canceledResponse?.events ?? []),
   ];
 
   const attendedEvents = attendedSources

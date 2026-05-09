@@ -221,6 +221,40 @@ function decodeFileUriOnce(uri: string): string {
   }
 }
 
+function normalizeParticipationStatus(
+  status: string | null | undefined,
+): ParticipationStatus {
+  switch (status) {
+    case 'APPROVED':
+    case 'JOINED':
+      return 'JOINED';
+    case 'PENDING':
+    case 'INVITED':
+    case 'LEAVED':
+    case 'CANCELED':
+      return status;
+    case 'NONE':
+    default:
+      return 'NONE';
+  }
+}
+
+function normalizeEventDetailParticipation(event: EventDetail): EventDetail {
+  const rawViewerContext = event.viewer_context as {
+    is_host: boolean;
+    is_favorited: boolean;
+    participation_status?: string | null;
+  };
+
+  return {
+    ...event,
+    viewer_context: {
+      ...event.viewer_context,
+      participation_status: normalizeParticipationStatus(rawViewerContext.participation_status),
+    },
+  };
+}
+
 function normalizePickedImageUri(uri: string): string {
   let normalized = uri;
   for (let i = 0; i < 3; i += 1) {
@@ -229,17 +263,6 @@ function normalizePickedImageUri(uri: string): string {
     normalized = next;
   }
   return normalized;
-}
-
-function normalizeParticipationStatus(
-  status: EventDetail['viewer_context']['participation_status'] | 'APPROVED' | null | undefined,
-): ParticipationStatus {
-  if (status === 'APPROVED' || status === 'JOINED') return 'JOINED';
-  if (status === 'PENDING') return 'PENDING';
-  if (status === 'INVITED') return 'INVITED';
-  if (status === 'LEAVED') return 'LEAVED';
-  if (status === 'CANCELED') return 'CANCELED';
-  return 'NONE';
 }
 
 function getPickedImageUriCandidates(uri: string): string[] {
@@ -371,25 +394,13 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (!silent) setIsLoading(true);
       setApiError(null);
       if (!silent) resetHostManagement();
-
       try {
-        const data = await getEventDetail(eventId, token);
-        const normalizedParticipationStatus = normalizeParticipationStatus(
-          data.viewer_context.participation_status as
-            | EventDetail['viewer_context']['participation_status']
-            | 'APPROVED'
-            | null
-            | undefined,
+        const data = normalizeEventDetailParticipation(
+          await getEventDetail(eventId, token),
         );
-        setEvent({
-          ...data,
-          viewer_context: {
-            ...data.viewer_context,
-            participation_status: normalizedParticipationStatus,
-          },
-        });
+        setEvent(data);
         setIsFavorited(data.viewer_context.is_favorited);
-        setParticipationStatus(normalizedParticipationStatus);
+        setParticipationStatus(data.viewer_context.participation_status);
         if (data.viewer_context.is_host) {
           void refreshHostContextSummary();
         }

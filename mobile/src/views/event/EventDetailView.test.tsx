@@ -8,6 +8,10 @@ import type { EventDetailViewModel } from '@/viewmodels/event/useEventDetailView
 import EventDetailView from './EventDetailView';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 
+jest.mock('expo-status-bar', () => ({
+  StatusBar: () => null,
+}));
+
 jest.mock('expo-router', () => ({
   router: {
     back: jest.fn(),
@@ -20,6 +24,7 @@ jest.mock('react-native-safe-area-context', () => {
   return {
     SafeAreaView: ({ children }: { children: React.ReactNode }) =>
       ReactLocal.createElement('div', null, children),
+    useSafeAreaInsets: () => ({ top: 44, right: 0, bottom: 0, left: 0 }),
   };
 });
 

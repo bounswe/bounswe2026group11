@@ -19,6 +19,7 @@ const MAP_ONLY_PROPS = new Set([
   'strokeColor',
   'strokeWidth',
   'provider',
+  'userInterfaceStyle',
   'mapPadding',
   'anchor',
   'tracksViewChanges',
