@@ -580,6 +580,14 @@ export function useDiscoverViewModel(token: string | null) {
     setModalLocationResults([]);
   }, [defaultProfileLocation]);
 
+  const selectBrowserLocationInModal = useCallback(() => {
+    const current = browserLocation.current;
+    if (!current) return;
+    setPendingLocation(current);
+    setModalLocationQuery('');
+    setModalLocationResults([]);
+  }, []);
+
   const applyModalLocation = useCallback(() => {
     setSelectedLocation(pendingLocation ?? defaultProfileLocation ?? null);
     setModalLocationQuery('');
@@ -636,9 +644,12 @@ export function useDiscoverViewModel(token: string | null) {
     selectModalSuggestion,
     selectFavoriteInModal,
     selectDefaultProfileInModal,
+    selectBrowserLocationInModal,
     applyModalLocation,
     resetModalLocationDraft,
     hasCustomLocationFilter,
+    hasBrowserLocation,
+    browserLocationPermissionDenied,
     updateSearch,
     updateFilter,
     updateCategory,

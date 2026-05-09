@@ -1,7 +1,15 @@
-import { useMemo } from 'react';
-import { Circle, MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useEffect, useMemo } from 'react';
+import {
+  AdvancedMarker,
+  Map as GoogleMap,
+  Pin,
+  useMap,
+} from '@vis.gl/react-google-maps';
+import { useTheme } from '@/contexts/ThemeContext';
+import {
+  GOOGLE_MAPS_MAP_ID,
+  isGoogleMapsConfigured,
+} from '@/components/GoogleMapsProvider';
 import type { EventDetailLocation } from '@/models/event';
 import { APPROXIMATE_LOCATION_RADIUS_METERS } from '@/utils/locationApproximation';
 
@@ -9,65 +17,111 @@ interface EventDetailMiniMapProps {
   location: EventDetailLocation;
 }
 
-const markerIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+interface LatLng {
+  lat: number;
+  lng: number;
+}
+
+function ApproximateAreaCircle({
+  center,
+}: {
+  center: LatLng;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map) return;
+    const circle = new google.maps.Circle({
+      map,
+      center,
+      radius: APPROXIMATE_LOCATION_RADIUS_METERS,
+      strokeColor: '#2563eb',
+      strokeOpacity: 1,
+      strokeWeight: 2,
+      fillColor: '#60a5fa',
+      fillOpacity: 0.22,
+      clickable: false,
+    });
+    return () => {
+      circle.setMap(null);
+    };
+  }, [center, map]);
+  return null;
+}
+
+function RoutePolyline({ path }: { path: LatLng[] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map || path.length < 2) return;
+    const polyline = new google.maps.Polyline({
+      map,
+      path,
+      strokeColor: '#7c3aed',
+      strokeOpacity: 1,
+      strokeWeight: 4,
+      clickable: false,
+    });
+    return () => {
+      polyline.setMap(null);
+    };
+  }, [map, path]);
+  return null;
+}
 
 export default function EventDetailMiniMap({ location }: EventDetailMiniMapProps) {
-  const anchor = useMemo(() => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  const anchor = useMemo<LatLng | null>(() => {
     if (location.type === 'POINT' && location.point) {
-      return { lat: location.point.lat, lon: location.point.lon };
+      return { lat: location.point.lat, lng: location.point.lon };
     }
     if (location.type === 'ROUTE' && location.route_points.length > 0) {
-      return { lat: location.route_points[0].lat, lon: location.route_points[0].lon };
+      const first = location.route_points[0];
+      return { lat: first.lat, lng: first.lon };
     }
     return null;
   }, [location]);
 
-  if (!anchor) {
-    return null;
+  const routePath = useMemo<LatLng[]>(() => {
+    if (location.type !== 'ROUTE') return [];
+    return location.route_points.map((p) => ({ lat: p.lat, lng: p.lon }));
+  }, [location]);
+
+  if (!anchor) return null;
+
+  if (!isGoogleMapsConfigured()) {
+    return (
+      <div className="ed-map-surface ed-map-surface--placeholder" role="status">
+        <p>Map preview is unavailable. Configure VITE_GOOGLE_MAPS_API_KEY to view this location.</p>
+      </div>
+    );
   }
 
-  const polylinePositions: [number, number][] =
-    location.type === 'ROUTE'
-      ? location.route_points.map((p) => [p.lat, p.lon])
-      : [];
-
   return (
-    <MapContainer
-      center={[anchor.lat, anchor.lon]}
-      zoom={14}
-      scrollWheelZoom={false}
+    <GoogleMap
+      key={isDark ? 'dark' : 'light'}
+      mapId={GOOGLE_MAPS_MAP_ID}
+      defaultCenter={anchor}
+      defaultZoom={14}
+      colorScheme={isDark ? 'DARK' : 'LIGHT'}
+      gestureHandling="cooperative"
+      disableDefaultUI={false}
+      mapTypeControl={false}
+      streetViewControl={false}
+      fullscreenControl={false}
+      clickableIcons={false}
       className="ed-map-surface"
-      attributionControl
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
       {location.is_location_approximate ? (
-        <Circle
-          center={[anchor.lat, anchor.lon]}
-          radius={APPROXIMATE_LOCATION_RADIUS_METERS}
-          pathOptions={{
-            color: '#2563eb',
-            fillColor: '#60a5fa',
-            fillOpacity: 0.22,
-            weight: 2,
-          }}
-        />
+        <ApproximateAreaCircle center={anchor} />
       ) : (
-        <Marker position={[anchor.lat, anchor.lon]} icon={markerIcon} />
+        <AdvancedMarker position={anchor}>
+          <Pin background="#2563eb" borderColor="#1d4ed8" glyphColor="#ffffff" />
+        </AdvancedMarker>
       )}
-      {!location.is_location_approximate && polylinePositions.length > 1 && (
-        <Polyline positions={polylinePositions} pathOptions={{ color: '#7c3aed', weight: 4 }} />
+      {!location.is_location_approximate && routePath.length > 1 && (
+        <RoutePolyline path={routePath} />
       )}
-    </MapContainer>
+    </GoogleMap>
   );
 }

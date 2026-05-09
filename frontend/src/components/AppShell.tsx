@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDiscoverViewMode } from '@/contexts/DiscoverViewModeContext';
 import { UserAvatar } from '@/components/UserAvatar';
 import { logout } from '@/services/authService';
 import SemLogo from '@/components/SemLogo';
@@ -27,8 +28,10 @@ export default function AppShell() {
   const isLoggedIn = !!token;
   const navItems = isLoggedIn ? AUTH_NAV : [];
   const isAdminPanel = location.pathname.startsWith('/backoffice') || location.pathname.startsWith('/admin-panel');
+  const isDiscoverRoute = location.pathname === '/discover';
   const isDarkMode = theme === 'dark';
   const { unreadCount } = useUnreadCountViewModel();
+  const { viewMode, setViewMode } = useDiscoverViewMode();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -59,7 +62,7 @@ export default function AppShell() {
       <header className="shell-header">
         <div className="shell-header-inner">
           <NavLink to="/discover" className="shell-logo" onClick={closeMobileMenu}>
-            <SemLogo height={48} color={isDarkMode ? '#f9fafb' : '#111827'} />
+            <SemLogo height={56} color={isDarkMode ? '#f9fafb' : '#111827'} />
           </NavLink>
 
           {navItems.length > 0 && (
@@ -80,6 +83,59 @@ export default function AppShell() {
           )}
 
           <div className="shell-header-right">
+            {isDiscoverRoute && (
+              <div className="shell-view-toggle" role="group" aria-label="Discover view mode">
+                <button
+                  type="button"
+                  className={`shell-view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+                  onClick={() => setViewMode('list')}
+                  aria-pressed={viewMode === 'list'}
+                  title="List view"
+                >
+                  <svg
+                    className="shell-view-toggle-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <line x1="8" y1="6" x2="21" y2="6" />
+                    <line x1="8" y1="12" x2="21" y2="12" />
+                    <line x1="8" y1="18" x2="21" y2="18" />
+                    <line x1="3" y1="6" x2="3.01" y2="6" />
+                    <line x1="3" y1="12" x2="3.01" y2="12" />
+                    <line x1="3" y1="18" x2="3.01" y2="18" />
+                  </svg>
+                  <span className="shell-view-toggle-label">List</span>
+                </button>
+                <button
+                  type="button"
+                  className={`shell-view-toggle-btn ${viewMode === 'map' ? 'active' : ''}`}
+                  onClick={() => setViewMode('map')}
+                  aria-pressed={viewMode === 'map'}
+                  title="Map view"
+                >
+                  <svg
+                    className="shell-view-toggle-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                    <line x1="8" y1="2" x2="8" y2="18" />
+                    <line x1="16" y1="6" x2="16" y2="22" />
+                  </svg>
+                  <span className="shell-view-toggle-label">Map</span>
+                </button>
+              </div>
+            )}
             <button
               type="button"
               className="shell-theme-btn"
@@ -229,7 +285,11 @@ export default function AppShell() {
         />
       )}
 
-      <main className={`shell-main ${isAdminPanel ? 'admin-panel-main' : ''}`}>
+      <main
+        className={`shell-main ${isAdminPanel ? 'admin-panel-main' : ''} ${
+          isDiscoverRoute && viewMode === 'map' ? 'discover-map-main' : ''
+        }`}
+      >
         <Outlet />
       </main>
 
