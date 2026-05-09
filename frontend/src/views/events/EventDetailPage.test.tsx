@@ -252,7 +252,7 @@ describe('EventDetailPage ratings', () => {
 
     renderPage();
 
-    expect(screen.getByText(/approximate area/i)).toBeDefined();
+    expect(screen.getByText(/^approximate area$/i)).toBeDefined();
     expect(screen.getByText(/approximate location shown/i)).toBeDefined();
     expect(screen.getByText(/hides its exact address until your participation is approved/i)).toBeDefined();
     expect(screen.getByText(/exact address is visible after approval/i)).toBeDefined();
