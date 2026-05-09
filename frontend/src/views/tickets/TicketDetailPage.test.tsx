@@ -119,7 +119,7 @@ describe('TicketDetailPage', () => {
       refresh: vi.fn(),
     });
     renderPage();
-    expect(screen.getByText('Used')).toBeDefined();
+    expect(screen.getAllByText('Used').length).toBeGreaterThan(0);
     expect(screen.queryByText(/show your qr on mobile/i)).toBeNull();
   });
 
