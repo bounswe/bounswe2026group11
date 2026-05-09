@@ -40,10 +40,12 @@ func (s ParticipationStatus) String() string {
 
 // Participation records a user's membership status in an event.
 type Participation struct {
-	ID        uuid.UUID
-	EventID   uuid.UUID
-	UserID    uuid.UUID
-	Status    ParticipationStatus
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID                        uuid.UUID
+	EventID                   uuid.UUID
+	UserID                    uuid.UUID
+	Status                    ParticipationStatus
+	ReconfirmedAt             *time.Time
+	LastConfirmedEventVersion *int
+	CreatedAt                 time.Time
+	UpdatedAt                 time.Time
 }

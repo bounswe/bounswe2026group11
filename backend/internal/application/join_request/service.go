@@ -152,6 +152,21 @@ func (s *Service) ApproveJoinRequest(
 			attribute.String("participation_id", result.Participation.ID.String()),
 			attribute.String("participant_user_id", result.Participation.UserID.String()),
 		)
+		acceptedVersion := 0
+		if result.Participation.LastConfirmedEventVersion != nil {
+			acceptedVersion = *result.Participation.LastConfirmedEventVersion
+		}
+		slog.InfoContext(ctx, "join request approved",
+			"operation", "join_request.approve",
+			"event_id", eventID.String(),
+			"join_request_id", joinRequestID.String(),
+			"host_user_id", hostUserID.String(),
+			"participation_id", result.Participation.ID.String(),
+			"participant_user_id", result.Participation.UserID.String(),
+			"participation_status", result.Participation.Status.String(),
+			"accepted_event_version", acceptedVersion,
+			"ticket_service_enabled", s.tickets != nil,
+		)
 	}
 	s.notifyModeratedJoinRequest(ctx, joinRequestID, domain.JoinRequestStatusApproved, nil)
 

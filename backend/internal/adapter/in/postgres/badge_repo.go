@@ -190,6 +190,58 @@ func (r *BadgeRepository) FavoriteLocationCount(ctx context.Context, userID uuid
 	return count, nil
 }
 
+// ListParticipationBadgeCandidateUserIDs returns the distinct users whose
+// existing completed participations may qualify them for participation badges.
+func (r *BadgeRepository) ListParticipationBadgeCandidateUserIDs(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT DISTINCT p.user_id
+		FROM participation p
+		JOIN event e ON e.id = p.event_id
+		WHERE p.status = $1
+		  AND e.status = $2
+		ORDER BY p.user_id ASC
+	`, domain.ParticipationStatusApproved, domain.EventStatusCompleted)
+	if err != nil {
+		return nil, fmt.Errorf("list participation badge candidate user ids: %w", err)
+	}
+	defer rows.Close()
+
+	return scanUUIDRows(rows)
+}
+
+// ListHostBadgeCandidateUserIDs returns the distinct hosts whose completed
+// events may qualify them for hosting badges.
+func (r *BadgeRepository) ListHostBadgeCandidateUserIDs(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT DISTINCT host_id
+		FROM event
+		WHERE status = $1
+		ORDER BY host_id ASC
+	`, domain.EventStatusCompleted)
+	if err != nil {
+		return nil, fmt.Errorf("list host badge candidate user ids: %w", err)
+	}
+	defer rows.Close()
+
+	return scanUUIDRows(rows)
+}
+
+// ListFavoriteLocationBadgeCandidateUserIDs returns the distinct users with at
+// least one saved favorite location that may qualify them for social badges.
+func (r *BadgeRepository) ListFavoriteLocationBadgeCandidateUserIDs(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT DISTINCT user_id
+		FROM favorite_location
+		ORDER BY user_id ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list favorite-location badge candidate user ids: %w", err)
+	}
+	defer rows.Close()
+
+	return scanUUIDRows(rows)
+}
+
 func scanBadge(rows interface {
 	Scan(...any) error
 }) (domain.Badge, error) {
@@ -206,6 +258,28 @@ func scanBadge(rows interface {
 	b.Category = domain.BadgeCategory(category)
 	b.IconURL = textPtr(iconURL)
 	return b, nil
+}
+
+func scanUUIDRows(rows interface {
+	Next() bool
+	Scan(...any) error
+	Err() error
+}) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan uuid row: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate uuid rows: %w", err)
+	}
+	if ids == nil {
+		ids = []uuid.UUID{}
+	}
+	return ids, nil
 }
 
 var _ badgeapp.Repository = (*BadgeRepository)(nil)

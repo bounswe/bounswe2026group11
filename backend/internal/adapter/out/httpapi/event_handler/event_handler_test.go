@@ -18,6 +18,10 @@ import (
 	"github.com/google/uuid"
 )
 
+func ptrParticipationStatus(status domain.ParticipationStatus) *domain.ParticipationStatus {
+	return &status
+}
+
 type stubEventService struct {
 	result                   *event.CreateEventResult
 	discoverResult           *event.DiscoverEventsResult
@@ -143,9 +147,9 @@ func (s *stubEventService) GetEventDetail(_ context.Context, userID, eventID uui
 		Tags:        []string{},
 		Constraints: []event.EventDetailConstraint{},
 		ViewerContext: event.EventDetailViewerContext{
-			IsHost:              false,
-			IsFavorited:         false,
-			ParticipationStatus: string(domain.EventDetailParticipationStatusNone),
+			IsHost:             false,
+			IsFavorited:        false,
+			LatestEventVersion: 1,
 		},
 	}, nil
 }
@@ -321,6 +325,10 @@ func (s *stubEventService) CancelEvent(_ context.Context, _, eventID uuid.UUID) 
 }
 
 func (s *stubEventService) CompleteEvent(_ context.Context, _, _ uuid.UUID) error {
+	return s.err
+}
+
+func (s *stubEventService) TransitionExpiredEvents(_ context.Context) error {
 	return s.err
 }
 
@@ -668,7 +676,8 @@ func TestGetEventDetailReturnsRatingMetadata(t *testing.T) {
 			ViewerContext: event.EventDetailViewerContext{
 				IsHost:              false,
 				IsFavorited:         false,
-				ParticipationStatus: string(domain.EventDetailParticipationStatusJoined),
+				ParticipationStatus: ptrParticipationStatus(domain.ParticipationStatusApproved),
+				LatestEventVersion:  1,
 			},
 		},
 	}
@@ -1336,7 +1345,11 @@ func (f *fakeInvitationService) CreateInvitations(_ context.Context, _, _ uuid.U
 	return &invitation.CreateInvitationsResult{}, nil
 }
 
-func (f *fakeInvitationService) ListReceivedInvitations(_ context.Context, _ uuid.UUID) (*invitation.ReceivedInvitationsResult, error) {
+func (f *fakeInvitationService) ListReceivedInvitations(_ context.Context, _ invitation.ListReceivedInvitationsInput) (*invitation.ReceivedInvitationsResult, error) {
+	return nil, nil
+}
+
+func (f *fakeInvitationService) GetReceivedInvitation(_ context.Context, _ uuid.UUID, _ uuid.UUID) (*invitation.ReceivedInvitation, error) {
 	return nil, nil
 }
 

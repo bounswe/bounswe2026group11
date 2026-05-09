@@ -16,6 +16,7 @@ import MapView, {
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+import { DARK_MAP_STYLE } from '@/theme/mapStyle';
 import type { EventSummary } from '@/models/event';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import {
@@ -368,6 +369,8 @@ export default function EventMapView({
 }: EventMapViewProps) {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const mapRef = useRef<MapView | null>(null);
+  const [visibleRegion, setVisibleRegion] = useState<MapRegion>(region);
   const mapPadding = useMemo(
     () => ({ ...DISCOVERY_MAP_PADDING_BASE, top: DISCOVERY_MAP_PADDING_BASE.top + headerTopInset }),
     [headerTopInset],
@@ -377,9 +380,14 @@ export default function EventMapView({
     Record<string, ImageStatus>
   >({});
 
+  useEffect(() => {
+    setVisibleRegion(region);
+    mapRef.current?.animateToRegion(region, 250);
+  }, [region]);
+
   const mappableEvents = useMemo(
-    () => buildMappableEvents(events, region, isDark),
-    [events, region, isDark],
+    () => buildMappableEvents(events, visibleRegion, isDark),
+    [events, visibleRegion, isDark],
   );
 
   const selectedEvent = useMemo(
@@ -416,6 +424,7 @@ export default function EventMapView({
     }
   }, [selectedEvent, selectedEventId]);
 
+
   if (isLoading) {
     return (
       <View style={styles.centeredState} testID="map-loading">
@@ -435,10 +444,22 @@ export default function EventMapView({
   return (
     <View style={styles.container} testID="event-map-view">
       <MapView
+        key={`event-map-${isDark ? 'dark' : 'light'}`}
+        ref={mapRef}
         style={styles.map}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        region={region}
+        userInterfaceStyle={isDark ? 'dark' : 'light'}
+        customMapStyle={isDark ? DARK_MAP_STYLE : []}
+        initialRegion={region}
         mapPadding={mapPadding}
+        onRegionChangeComplete={(nextRegion) => {
+          setVisibleRegion({
+            latitude: nextRegion.latitude,
+            longitude: nextRegion.longitude,
+            latitudeDelta: nextRegion.latitudeDelta,
+            longitudeDelta: nextRegion.longitudeDelta,
+          });
+        }}
         onPress={() => setSelectedEventId(null)}
         testID="map-surface"
       >

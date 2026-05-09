@@ -58,6 +58,8 @@ type fakeEventRepo struct {
 	editSnapshot           *EventEditSnapshot
 	updateParams           UpdateEventParams
 	transitionRecords      []EventStatusTransitionRecord
+	historySnapshots       map[int]*EventHistorySnapshotRecord
+	historyCreateCount     int
 }
 
 func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams) (*domain.Event, error) {
@@ -68,6 +70,7 @@ func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams)
 	return &domain.Event{
 		ID:           uuid.New(),
 		HostID:       params.HostID,
+		VersionNo:    1,
 		Title:        params.Title,
 		PrivacyLevel: params.PrivacyLevel,
 		Status:       domain.EventStatusActive,
@@ -117,8 +120,42 @@ func (r *fakeEventRepo) UpdateEvent(_ context.Context, params UpdateEventParams)
 	e.EndTime = params.EndTime
 	e.Capacity = params.Capacity
 	e.LocationType = &params.LocationType
+	e.VersionNo++
 	e.UpdatedAt = time.Now().UTC()
 	return e, nil
+}
+
+func (r *fakeEventRepo) CreateEventHistorySnapshot(_ context.Context, eventID uuid.UUID, versionNo int, changedFields []string, _ uuid.UUID) error {
+	r.historyCreateCount++
+	if r.historySnapshots == nil {
+		r.historySnapshots = map[int]*EventHistorySnapshotRecord{}
+	}
+	r.historySnapshots[versionNo] = &EventHistorySnapshotRecord{
+		EventID:       eventID,
+		VersionNo:     versionNo,
+		ChangedFields: append([]string{}, changedFields...),
+	}
+	return r.err
+}
+
+func (r *fakeEventRepo) GetEventHistorySnapshot(_ context.Context, eventID uuid.UUID, versionNo int) (*EventHistorySnapshotRecord, error) {
+	if snapshot, ok := r.historySnapshots[versionNo]; ok {
+		return snapshot, nil
+	}
+	return &EventHistorySnapshotRecord{EventID: eventID, VersionNo: versionNo}, nil
+}
+
+func (r *fakeEventRepo) GetLatestEventHistorySnapshot(_ context.Context, eventID uuid.UUID) (*EventHistorySnapshotRecord, error) {
+	var latest *EventHistorySnapshotRecord
+	for _, snapshot := range r.historySnapshots {
+		if latest == nil || snapshot.VersionNo > latest.VersionNo {
+			latest = snapshot
+		}
+	}
+	if latest != nil {
+		return latest, nil
+	}
+	return &EventHistorySnapshotRecord{EventID: eventID, VersionNo: 1}, nil
 }
 
 func (r *fakeEventRepo) GetEventByID(_ context.Context, id uuid.UUID) (*domain.Event, error) {
@@ -256,17 +293,34 @@ func (r *fakeEventRepo) GetRequesterForJoin(_ context.Context, userID uuid.UUID)
 
 // fakeParticipationService is an in-memory implementation of ParticipationService.
 type fakeParticipationService struct {
+	err                          error
+	callCount                    int
+	leaveCallCount               int
+	cancelCallCount              int
+	evaluateBadgesCallCount      int
+	lastEventID                  uuid.UUID
+	lastUserID                   uuid.UUID
+	lastLeaveEventID             uuid.UUID
+	lastLeaveUserID              uuid.UUID
+	lastCancelEventID            uuid.UUID
+	lastCancelCtx                context.Context
+	lastEvaluateBadgesEventID    uuid.UUID
+	evaluateBadgesEventIDHistory []uuid.UUID
+	pendingUserIDs               []uuid.UUID
+}
+
+type fakeEventBadgeEvaluator struct {
 	err               error
 	callCount         int
-	leaveCallCount    int
-	cancelCallCount   int
-	lastEventID       uuid.UUID
-	lastUserID        uuid.UUID
-	lastLeaveEventID  uuid.UUID
-	lastLeaveUserID   uuid.UUID
-	lastCancelEventID uuid.UUID
-	lastCancelCtx     context.Context
-	pendingUserIDs    []uuid.UUID
+	lastHostID        uuid.UUID
+	hostIDCallHistory []uuid.UUID
+}
+
+func (e *fakeEventBadgeEvaluator) EvaluateHostBadges(_ context.Context, hostID uuid.UUID) error {
+	e.callCount++
+	e.lastHostID = hostID
+	e.hostIDCallHistory = append(e.hostIDCallHistory, hostID)
+	return e.err
 }
 
 func (s *fakeParticipationService) CreateApprovedParticipation(_ context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
@@ -312,6 +366,13 @@ func (s *fakeParticipationService) CancelEventParticipations(ctx context.Context
 	s.lastCancelEventID = eventID
 	s.lastCancelCtx = ctx
 	return nil, s.err
+}
+
+func (s *fakeParticipationService) EvaluateBadgesForEventParticipants(_ context.Context, eventID uuid.UUID) error {
+	s.evaluateBadgesCallCount++
+	s.lastEvaluateBadgesEventID = eventID
+	s.evaluateBadgesEventIDHistory = append(s.evaluateBadgesEventIDHistory, eventID)
+	return s.err
 }
 
 func (s *fakeParticipationService) MarkApprovedParticipationsPending(_ context.Context, eventID, _ uuid.UUID) ([]uuid.UUID, error) {
@@ -523,6 +584,12 @@ func newTestEventService() (*Service, *fakeEventRepo, *fakeParticipationService,
 	return NewService(eventRepo, participationService, joinRequestService, &fakeUnitOfWork{}), eventRepo, participationService, joinRequestService
 }
 
+func attachEventBadgeEvaluator(svc *Service) *fakeEventBadgeEvaluator {
+	evaluator := &fakeEventBadgeEvaluator{}
+	svc.SetBadgeEvaluator(evaluator)
+	return evaluator
+}
+
 func validInput() CreateEventInput {
 	start := time.Now().UTC().Add(time.Hour)
 	return CreateEventInput{
@@ -609,6 +676,7 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 
 	eventRepo.detailRecord = &EventDetailRecord{
 		ID:                       eventID,
+		VersionNo:                1,
 		Title:                    "Detail Event",
 		Description:              stringPtr("Full payload"),
 		ImageURL:                 stringPtr("https://example.com/event.png"),
@@ -652,7 +720,8 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 		ViewerContext: EventDetailViewerContextRecord{
 			IsHost:              false,
 			IsFavorited:         true,
-			ParticipationStatus: domain.EventDetailParticipationStatusJoined,
+			ParticipationStatus: ptrParticipationStatus(domain.ParticipationStatusApproved),
+			LatestEventVersion:  1,
 		},
 		ViewerEventRating: &EventDetailRatingRecord{
 			ID:        uuid.New(),
@@ -703,8 +772,8 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 	if result.ViewerEventRating == nil || result.ViewerEventRating.Rating != 5 {
 		t.Fatalf("expected viewer_event_rating to be mapped, got %+v", result.ViewerEventRating)
 	}
-	if result.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
-		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusJoined, result.ViewerContext.ParticipationStatus)
+	if result.ViewerContext.ParticipationStatus == nil || *result.ViewerContext.ParticipationStatus != domain.ParticipationStatusApproved {
+		t.Fatalf("expected participation_status %q, got %v", domain.ParticipationStatusApproved, result.ViewerContext.ParticipationStatus)
 	}
 	if result.RatingWindow.IsActive {
 		t.Fatal("expected canceled event rating window to be inactive")
@@ -1540,6 +1609,82 @@ func editableEvent(hostID uuid.UUID) *domain.Event {
 	}
 }
 
+func TestGetEventDetailReturnsDiffFromViewerLastConfirmedVersion(t *testing.T) {
+	// given
+	svc, eventRepo, _, _ := newTestEventService()
+	eventID := uuid.New()
+	userID := uuid.New()
+	lastConfirmed := 3
+	eventRepo.detailRecord = &EventDetailRecord{
+		ID:           eventID,
+		VersionNo:    5,
+		Title:        "New title",
+		PrivacyLevel: domain.PrivacyPublic,
+		Status:       domain.EventStatusActive,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		CreatedAt:    time.Now().UTC().Add(-time.Hour),
+		UpdatedAt:    time.Now().UTC(),
+		Host:         EventDetailPersonRecord{ID: uuid.New(), Username: "host"},
+		Location: EventDetailLocationRecord{
+			Type:  domain.LocationPoint,
+			Point: &domain.GeoPoint{Lat: 41, Lon: 29},
+		},
+		ViewerContext: EventDetailViewerContextRecord{
+			ParticipationStatus:       ptrParticipationStatus(domain.ParticipationStatusPending),
+			LastConfirmedEventVersion: &lastConfirmed,
+			LatestEventVersion:        5,
+		},
+	}
+	eventRepo.historySnapshots = map[int]*EventHistorySnapshotRecord{
+		3: {
+			EventID:   eventID,
+			VersionNo: 3,
+			Snapshot: EventHistorySnapshot{
+				Title:        "Old title",
+				PrivacyLevel: string(domain.PrivacyPublic),
+				Status:       string(domain.EventStatusActive),
+				StartTime:    eventRepo.detailRecord.StartTime,
+				Location:     EventHistoryLocationSnapshot{Type: string(domain.LocationPoint)},
+				Tags:         []string{"old"},
+				Constraints:  []EventDetailConstraintRecord{},
+			},
+		},
+		5: {
+			EventID:   eventID,
+			VersionNo: 5,
+			Snapshot: EventHistorySnapshot{
+				Title:        "New title",
+				PrivacyLevel: string(domain.PrivacyPublic),
+				Status:       string(domain.EventStatusActive),
+				StartTime:    eventRepo.detailRecord.StartTime,
+				Location:     EventHistoryLocationSnapshot{Type: string(domain.LocationPoint)},
+				Tags:         []string{"new"},
+				Constraints:  []EventDetailConstraintRecord{},
+			},
+		},
+	}
+
+	// when
+	result, err := svc.GetEventDetail(context.Background(), userID, eventID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if !result.ViewerContext.NeedsReconfirmation {
+		t.Fatal("expected needs_reconfirmation=true")
+	}
+	if result.ViewerContext.EventDiff == nil {
+		t.Fatal("expected event_diff")
+	}
+	if result.ViewerContext.EventDiff.FromVersionNo != 3 || result.ViewerContext.EventDiff.ToVersionNo != 5 {
+		t.Fatalf("unexpected diff versions: %+v", result.ViewerContext.EventDiff)
+	}
+	if len(result.ViewerContext.EventDiff.Changes) != 2 {
+		t.Fatalf("expected title and tags changes, got %+v", result.ViewerContext.EventDiff.Changes)
+	}
+}
+
 func TestUpdateEventTriggeringChangeMarksApprovedParticipantsPendingAndTickets(t *testing.T) {
 	// given
 	hostID := uuid.New()
@@ -1753,13 +1898,20 @@ func TestCancelEventRollsBackUnitOfWorkWhenParticipationCancelFails(t *testing.T
 func TestCompleteEventHostSuccess(t *testing.T) {
 	hostID := uuid.New()
 	ev := publicEvent(hostID)
-	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+	svc, _, participationService, _ := newTestEventServiceWithEvent(ev)
+	badgeEvaluator := attachEventBadgeEvaluator(svc)
 
 	if err := svc.CompleteEvent(context.Background(), hostID, ev.ID); err != nil {
 		t.Fatalf("CompleteEvent() error = %v", err)
 	}
 	if ev.Status != domain.EventStatusCompleted {
 		t.Fatalf("expected status COMPLETED, got %q", ev.Status)
+	}
+	if participationService.evaluateBadgesCallCount != 1 || participationService.lastEvaluateBadgesEventID != ev.ID {
+		t.Fatalf("expected badge evaluation for event %s, got calls=%d event=%s", ev.ID, participationService.evaluateBadgesCallCount, participationService.lastEvaluateBadgesEventID)
+	}
+	if badgeEvaluator.callCount != 1 || badgeEvaluator.lastHostID != hostID {
+		t.Fatalf("expected host badge evaluation for host %s, got calls=%d host=%s", hostID, badgeEvaluator.callCount, badgeEvaluator.lastHostID)
 	}
 }
 
@@ -1820,6 +1972,79 @@ func TestCompleteEventConflictWhenTerminal(t *testing.T) {
 	var appErr *domain.AppError
 	if !errors.As(err, &appErr) || appErr.Status != 409 || appErr.Code != domain.ErrorCodeEventNotCompletable {
 		t.Fatalf("expected 409 event_not_completable, got %v", err)
+	}
+}
+
+func TestCompleteEventIgnoresBadgeEvaluationErrors(t *testing.T) {
+	hostID := uuid.New()
+	ev := publicEvent(hostID)
+	svc, _, participationService, _ := newTestEventServiceWithEvent(ev)
+	participationService.err = errors.New("badge evaluation failed")
+	badgeEvaluator := attachEventBadgeEvaluator(svc)
+	badgeEvaluator.err = errors.New("host badge evaluation failed")
+
+	err := svc.CompleteEvent(context.Background(), hostID, ev.ID)
+
+	if err != nil {
+		t.Fatalf("expected badge-evaluation errors to be ignored, got %v", err)
+	}
+	if participationService.evaluateBadgesCallCount != 1 {
+		t.Fatalf("expected one badge-evaluation attempt, got %d", participationService.evaluateBadgesCallCount)
+	}
+	if badgeEvaluator.callCount != 1 {
+		t.Fatalf("expected one host badge-evaluation attempt, got %d", badgeEvaluator.callCount)
+	}
+}
+
+func TestTransitionExpiredEventsEvaluatesBadgesForEachCompletedEvent(t *testing.T) {
+	completedOne := uuid.New()
+	completedTwo := uuid.New()
+	hostOne := uuid.New()
+	hostTwo := uuid.New()
+	svc, eventRepo, participationService, _ := newTestEventService()
+	badgeEvaluator := attachEventBadgeEvaluator(svc)
+	eventRepo.transitionRecords = []EventStatusTransitionRecord{
+		{EventID: completedOne, HostID: hostOne, Status: domain.EventStatusCompleted},
+		{EventID: completedTwo, HostID: hostTwo, Status: domain.EventStatusCompleted},
+	}
+
+	err := svc.TransitionExpiredEvents(context.Background())
+
+	if err != nil {
+		t.Fatalf("TransitionExpiredEvents() error = %v", err)
+	}
+	if participationService.evaluateBadgesCallCount != 2 {
+		t.Fatalf("expected 2 badge-evaluation calls, got %d", participationService.evaluateBadgesCallCount)
+	}
+	if len(participationService.evaluateBadgesEventIDHistory) != 2 ||
+		participationService.evaluateBadgesEventIDHistory[0] != completedOne ||
+		participationService.evaluateBadgesEventIDHistory[1] != completedTwo {
+		t.Fatalf("expected badge evaluation for [%s %s], got %v", completedOne, completedTwo, participationService.evaluateBadgesEventIDHistory)
+	}
+	if badgeEvaluator.callCount != 2 ||
+		len(badgeEvaluator.hostIDCallHistory) != 2 ||
+		badgeEvaluator.hostIDCallHistory[0] != hostOne ||
+		badgeEvaluator.hostIDCallHistory[1] != hostTwo {
+		t.Fatalf("expected host badge evaluation for [%s %s], got %v", hostOne, hostTwo, badgeEvaluator.hostIDCallHistory)
+	}
+}
+
+func TestTransitionExpiredEventsPropagatesRepositoryError(t *testing.T) {
+	expectedErr := errors.New("transition failed")
+	svc, eventRepo, participationService, _ := newTestEventService()
+	badgeEvaluator := attachEventBadgeEvaluator(svc)
+	eventRepo.err = expectedErr
+
+	err := svc.TransitionExpiredEvents(context.Background())
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected error %v, got %v", expectedErr, err)
+	}
+	if participationService.evaluateBadgesCallCount != 0 {
+		t.Fatalf("expected no badge evaluation after repo failure, got %d calls", participationService.evaluateBadgesCallCount)
+	}
+	if badgeEvaluator.callCount != 0 {
+		t.Fatalf("expected no host badge evaluation after repo failure, got %d calls", badgeEvaluator.callCount)
 	}
 }
 
@@ -2286,5 +2511,7 @@ func stringPtr(v string) *string { return &v }
 func timePtr(v time.Time) *time.Time { return &v }
 
 func intPtr(v int) *int { return &v }
+
+func ptrParticipationStatus(v domain.ParticipationStatus) *domain.ParticipationStatus { return &v }
 
 func floatPtr(v float64) *float64 { return &v }

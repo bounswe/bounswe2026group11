@@ -25,15 +25,29 @@ type Service struct {
 	joinRequestService   join_request.UseCase
 	joinRequestImages    JoinRequestImageConfirmer
 	ticketService        ticket.LifecycleUseCase
+	badgeEvaluator       BadgeEvaluator
 	notifications        notificationapp.UseCase
 	unitOfWork           uow.UnitOfWork
 	now                  func() time.Time
+}
+
+// BadgeEvaluator is the local port for triggering hosting badge evaluation
+// after event-completion lifecycle changes. It stays intentionally narrow so
+// the event service does not depend on the full badge use case.
+type BadgeEvaluator interface {
+	EvaluateHostBadges(ctx context.Context, hostID uuid.UUID) error
 }
 
 // SetNotificationService wires in the notification use case so the event
 // service can fan out notifications for cancellations and other lifecycle events.
 func (s *Service) SetNotificationService(notifications notificationapp.UseCase) {
 	s.notifications = notifications
+}
+
+// SetBadgeEvaluator wires in the badge use case so the event service can
+// re-evaluate host badges after events complete.
+func (s *Service) SetBadgeEvaluator(evaluator BadgeEvaluator) {
+	s.badgeEvaluator = evaluator
 }
 
 // SetJoinRequestImageConfirmer wires in the image upload service for optional
@@ -85,7 +99,31 @@ func (s *Service) CreateEvent(ctx context.Context, hostID uuid.UUID, input Creat
 	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
 		var err error
 		created, err = s.eventRepo.CreateEvent(ctx, params)
-		return err
+		if err != nil {
+			slog.ErrorContext(ctx, "event create failed before version snapshot",
+				"operation", "event.create.version_snapshot",
+				"host_user_id", hostID.String(),
+				"error", err,
+			)
+			return err
+		}
+		if err := s.eventRepo.CreateEventHistorySnapshot(ctx, created.ID, created.VersionNo, nil, hostID); err != nil {
+			slog.ErrorContext(ctx, "event initial version snapshot failed",
+				"operation", "event.create.version_snapshot",
+				"event_id", created.ID.String(),
+				"host_user_id", hostID.String(),
+				"event_version", created.VersionNo,
+				"error", err,
+			)
+			return err
+		}
+		slog.InfoContext(ctx, "event initial version snapshot created",
+			"operation", "event.create.version_snapshot",
+			"event_id", created.ID.String(),
+			"host_user_id", hostID.String(),
+			"event_version", created.VersionNo,
+		)
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -101,6 +139,7 @@ func (s *Service) UpdateEvent(ctx context.Context, hostID, eventID uuid.UUID, in
 	var (
 		updated              *domain.Event
 		versionNo            int
+		versionChangedFields []string
 		triggeredFields      []string
 		markedPendingUserIDs []uuid.UUID
 	)
@@ -134,6 +173,7 @@ func (s *Service) UpdateEvent(ctx context.Context, hostID, eventID uuid.UUID, in
 		if len(changedFields) == 0 {
 			return nil
 		}
+		versionChangedFields = changedFields
 
 		updated, err = s.eventRepo.UpdateEvent(ctx, params)
 		if err != nil {
@@ -143,6 +183,28 @@ func (s *Service) UpdateEvent(ctx context.Context, hostID, eventID uuid.UUID, in
 			return err
 		}
 		versionNo = snapshot.VersionNo + 1
+		if err := s.eventRepo.CreateEventHistorySnapshot(ctx, eventID, versionNo, versionChangedFields, hostID); err != nil {
+			slog.ErrorContext(ctx, "event version snapshot failed",
+				"operation", "event.update.version_snapshot",
+				"event_id", eventID.String(),
+				"host_user_id", hostID.String(),
+				"from_event_version", snapshot.VersionNo,
+				"to_event_version", versionNo,
+				"changed_field_count", len(versionChangedFields),
+				"reconfirmation_required", len(triggeredFields) > 0,
+				"error", err,
+			)
+			return err
+		}
+		slog.InfoContext(ctx, "event version snapshot created",
+			"operation", "event.update.version_snapshot",
+			"event_id", eventID.String(),
+			"host_user_id", hostID.String(),
+			"from_event_version", snapshot.VersionNo,
+			"to_event_version", versionNo,
+			"changed_field_count", len(versionChangedFields),
+			"reconfirmation_required", len(triggeredFields) > 0,
+		)
 
 		if len(triggeredFields) == 0 {
 			return nil
@@ -244,7 +306,52 @@ func (s *Service) GetEventDetail(ctx context.Context, userID, eventID uuid.UUID)
 		return nil, err
 	}
 
-	return toEventDetailResult(record, s.now().UTC()), nil
+	result := toEventDetailResult(record, s.now().UTC())
+	if record.ViewerContext.ParticipationStatus != nil &&
+		*record.ViewerContext.ParticipationStatus == domain.ParticipationStatusPending &&
+		record.ViewerContext.LastConfirmedEventVersion != nil &&
+		*record.ViewerContext.LastConfirmedEventVersion < record.ViewerContext.LatestEventVersion {
+		from, err := s.eventRepo.GetEventHistorySnapshot(ctx, eventID, *record.ViewerContext.LastConfirmedEventVersion)
+		if err != nil {
+			slog.ErrorContext(ctx, "event reconfirmation diff base snapshot failed",
+				"operation", "event.detail.reconfirmation_diff",
+				"event_id", eventID.String(),
+				"user_id", userID.String(),
+				"from_event_version", *record.ViewerContext.LastConfirmedEventVersion,
+				"to_event_version", record.ViewerContext.LatestEventVersion,
+				"error", err,
+			)
+			return nil, err
+		}
+		to, err := s.eventRepo.GetLatestEventHistorySnapshot(ctx, eventID)
+		if err != nil {
+			slog.ErrorContext(ctx, "event reconfirmation diff latest snapshot failed",
+				"operation", "event.detail.reconfirmation_diff",
+				"event_id", eventID.String(),
+				"user_id", userID.String(),
+				"from_event_version", *record.ViewerContext.LastConfirmedEventVersion,
+				"to_event_version", record.ViewerContext.LatestEventVersion,
+				"error", err,
+			)
+			return nil, err
+		}
+		result.ViewerContext.NeedsReconfirmation = true
+		result.ViewerContext.EventDiff = buildEventDetailDiff(from, to)
+		changeCount := 0
+		if result.ViewerContext.EventDiff != nil {
+			changeCount = len(result.ViewerContext.EventDiff.Changes)
+		}
+		slog.InfoContext(ctx, "event reconfirmation diff generated",
+			"operation", "event.detail.reconfirmation_diff",
+			"event_id", eventID.String(),
+			"user_id", userID.String(),
+			"from_event_version", from.VersionNo,
+			"to_event_version", to.VersionNo,
+			"diff_change_count", changeCount,
+		)
+	}
+
+	return result, nil
 }
 
 // GetEventHostContextSummary returns host-only management counters without
@@ -388,6 +495,18 @@ func (s *Service) JoinEvent(ctx context.Context, userID, eventID uuid.UUID) (*Jo
 	if err != nil {
 		return nil, err
 	}
+	acceptedVersion := 0
+	if p.LastConfirmedEventVersion != nil {
+		acceptedVersion = *p.LastConfirmedEventVersion
+	}
+	slog.InfoContext(ctx, "event participation created",
+		"operation", "event.participation.create",
+		"event_id", eventID.String(),
+		"user_id", userID.String(),
+		"participation_id", p.ID.String(),
+		"participation_status", p.Status.String(),
+		"accepted_event_version", acceptedVersion,
+	)
 
 	return &JoinEventResult{
 		ParticipationID: p.ID.String(),
@@ -447,6 +566,7 @@ func (s *Service) ReconfirmParticipation(ctx context.Context, userID, eventID uu
 		participation *domain.Participation
 		ticketStatus  *domain.TicketStatus
 		reconfirmedAt time.Time
+		latestVersion int
 	)
 
 	err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
@@ -463,12 +583,23 @@ func (s *Service) ReconfirmParticipation(ctx context.Context, userID, eventID uu
 		if snapshot.Event.Status == domain.EventStatusCanceled || snapshot.Event.Status == domain.EventStatusCompleted {
 			return domain.ConflictError(domain.ErrorCodeEventNotJoinable, "This event is no longer accepting participant reconfirmations.")
 		}
+		latestVersion = snapshot.VersionNo
 
 		participation, err = s.participationService.ReconfirmParticipation(ctx, eventID, userID, snapshot.VersionNo)
 		if err != nil {
+			slog.ErrorContext(ctx, "event participation reconfirm failed",
+				"operation", "event.participation.reconfirm",
+				"event_id", eventID.String(),
+				"user_id", userID.String(),
+				"event_version", snapshot.VersionNo,
+				"error", err,
+			)
 			return err
 		}
 		reconfirmedAt = participation.UpdatedAt
+		if participation.ReconfirmedAt != nil {
+			reconfirmedAt = *participation.ReconfirmedAt
+		}
 
 		if s.ticketService != nil && (snapshot.Event.PrivacyLevel == domain.PrivacyProtected || snapshot.Event.PrivacyLevel == domain.PrivacyPrivate) {
 			t, err := s.ticketService.CreateTicketForParticipation(ctx, participation, domain.TicketStatusActive)
@@ -483,13 +614,24 @@ func (s *Service) ReconfirmParticipation(ctx context.Context, userID, eventID uu
 		return nil, err
 	}
 
+	slog.InfoContext(ctx, "event participation reconfirmed",
+		"operation", "event.participation.reconfirm",
+		"event_id", eventID.String(),
+		"user_id", userID.String(),
+		"participation_id", participation.ID.String(),
+		"event_version", latestVersion,
+		"ticket_created", ticketStatus != nil,
+	)
+
 	return &ReconfirmParticipationResult{
-		ParticipationID: participation.ID.String(),
-		EventID:         participation.EventID.String(),
-		Status:          participation.Status,
-		ReconfirmedAt:   reconfirmedAt,
-		UpdatedAt:       participation.UpdatedAt,
-		TicketStatus:    ticketStatus,
+		ParticipationID:           participation.ID.String(),
+		EventID:                   participation.EventID.String(),
+		Status:                    participation.Status,
+		ReconfirmedAt:             reconfirmedAt,
+		UpdatedAt:                 participation.UpdatedAt,
+		LastConfirmedEventVersion: latestVersion,
+		LatestEventVersion:        latestVersion,
+		TicketStatus:              ticketStatus,
 	}, nil
 }
 
@@ -542,6 +684,15 @@ func (s *Service) RequestJoin(ctx context.Context, userID, eventID uuid.UUID, in
 		return nil, err
 	}
 
+	slog.InfoContext(ctx, "event join request created",
+		"operation", "event.join_request.create",
+		"event_id", eventID.String(),
+		"user_id", userID.String(),
+		"host_user_id", event.HostID.String(),
+		"join_request_id", jr.ID.String(),
+		"join_request_status", string(domain.JoinRequestStatusPending),
+	)
+
 	return &RequestJoinResult{
 		JoinRequestID: jr.ID.String(),
 		EventID:       jr.EventID.String(),
@@ -588,6 +739,20 @@ func (s *Service) ApproveJoinRequest(
 	if err != nil {
 		return nil, err
 	}
+	acceptedVersion := 0
+	if result.Participation.LastConfirmedEventVersion != nil {
+		acceptedVersion = *result.Participation.LastConfirmedEventVersion
+	}
+	slog.InfoContext(ctx, "event join request approved",
+		"operation", "event.join_request.approve",
+		"event_id", eventID.String(),
+		"host_user_id", hostUserID.String(),
+		"join_request_id", joinRequestID.String(),
+		"participation_id", result.Participation.ID.String(),
+		"participant_user_id", result.Participation.UserID.String(),
+		"participation_status", result.Participation.Status.String(),
+		"accepted_event_version", acceptedVersion,
+	)
 
 	return &ApproveJoinRequestResult{
 		JoinRequestID:       result.JoinRequest.ID.String(),
@@ -774,7 +939,7 @@ func (s *Service) CompleteEvent(ctx context.Context, userID, eventID uuid.UUID) 
 		return domain.ForbiddenError(domain.ErrorCodeEventCompleteNotAllowed, "Only the event host can complete this event.")
 	}
 
-	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+	if err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
 		if err := s.eventRepo.CompleteEvent(ctx, eventID); err != nil {
 			if errors.Is(err, ErrEventNotCompletable) {
 				return domain.ConflictError(domain.ErrorCodeEventNotCompletable, "The event cannot be completed because it is already CANCELED or COMPLETED.")
@@ -788,16 +953,63 @@ func (s *Service) CompleteEvent(ctx context.Context, userID, eventID uuid.UUID) 
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+
+	s.evaluateParticipationBadgesForEvent(ctx, eventID)
+	s.evaluateHostBadges(ctx, event.HostID)
+	return nil
+}
+
+// TransitionExpiredEvents runs the periodic event-status transition (used by
+// the event expiry job) and evaluates participation badges for every approved
+// participant of every event that just transitioned to COMPLETED.
+func (s *Service) TransitionExpiredEvents(ctx context.Context) error {
+	return s.TransitionEventStatuses(ctx)
+}
+
+// evaluateParticipationBadgesForEvent runs participant-side badge evaluation
+// for every approved participant of the given event as a best-effort hook so
+// transient failures never fail the parent operation.
+func (s *Service) evaluateParticipationBadgesForEvent(ctx context.Context, eventID uuid.UUID) {
+	if s.participationService == nil {
+		return
+	}
+	if err := s.participationService.EvaluateBadgesForEventParticipants(ctx, eventID); err != nil {
+		slog.WarnContext(ctx, "event participation badge evaluation failed",
+			slog.String("operation", "event.evaluate_participation_badges"),
+			slog.String("event_id", eventID.String()),
+			slog.String("error", err.Error()),
+		)
+	}
+}
+
+// evaluateHostBadges runs host-side badge evaluation after completed-event
+// lifecycle changes as a best-effort hook so transient failures never fail the
+// parent operation.
+func (s *Service) evaluateHostBadges(ctx context.Context, hostID uuid.UUID) {
+	if s.badgeEvaluator == nil {
+		return
+	}
+	if err := s.badgeEvaluator.EvaluateHostBadges(ctx, hostID); err != nil {
+		slog.WarnContext(ctx, "event host badge evaluation failed",
+			slog.String("operation", "event.evaluate_host_badges"),
+			slog.String("host_id", hostID.String()),
+			slog.String("error", err.Error()),
+		)
+	}
 }
 
 // TransitionEventStatuses advances lifecycle states and applies dependent
 // participation/ticket transitions in one transaction.
 func (s *Service) TransitionEventStatuses(ctx context.Context) error {
-	return s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
-		records, err := s.eventRepo.TransitionEventStatuses(ctx)
-		if err != nil {
-			return err
+	var records []EventStatusTransitionRecord
+	if err := s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		var txErr error
+		records, txErr = s.eventRepo.TransitionEventStatuses(ctx)
+		if txErr != nil {
+			return txErr
 		}
 		for _, record := range records {
 			switch record.Status {
@@ -819,7 +1031,17 @@ func (s *Service) TransitionEventStatuses(ctx context.Context) error {
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+
+	for _, record := range records {
+		if record.Status == domain.EventStatusCompleted {
+			s.evaluateParticipationBadgesForEvent(ctx, record.EventID)
+			s.evaluateHostBadges(ctx, record.HostID)
+		}
+	}
+	return nil
 }
 
 // AddFavorite saves an event to the user's favorites list.

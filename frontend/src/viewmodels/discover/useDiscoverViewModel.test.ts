@@ -1,0 +1,82 @@
+// @vitest-environment jsdom
+import { renderHook, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useDiscoverViewModel } from './useDiscoverViewModel';
+
+const mockDiscoverEvents = vi.fn();
+const mockListCategories = vi.fn();
+
+vi.mock('@/services/eventService', () => ({
+  discoverEvents: (...args: unknown[]) => mockDiscoverEvents(...args),
+  listCategories: (...args: unknown[]) => mockListCategories(...args),
+  searchLocation: vi.fn(),
+}));
+
+vi.mock('@/services/profileService', () => ({
+  profileService: {
+    getMyProfile: vi.fn(),
+    getFavoriteLocations: vi.fn(),
+  },
+}));
+
+describe('useDiscoverViewModel persistence', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.sessionStorage.clear();
+    mockListCategories.mockResolvedValue({ items: [] });
+    mockDiscoverEvents.mockResolvedValue({
+      items: [],
+      page_info: {
+        next_cursor: null,
+        has_next: false,
+      },
+    });
+  });
+
+  it('restores selected location and active query context from the current session', async () => {
+    window.sessionStorage.setItem(
+      'sem_discover_state',
+      JSON.stringify({
+        filters: {
+          q: 'jazz',
+          categoryId: 3,
+          sortBy: 'DISTANCE',
+          radiusMeters: 10000,
+          privacy: 'PROTECTED',
+          startFrom: '2026-05-10',
+          startTo: '',
+        },
+        debouncedQ: 'jazz',
+        selectedLocation: {
+          display_name: 'Kadikoy, Istanbul',
+          lat: '40.9919',
+          lon: '29.0278',
+        },
+      }),
+    );
+
+    const { result } = renderHook(() => useDiscoverViewModel(null));
+
+    await waitFor(() => expect(mockDiscoverEvents).toHaveBeenCalled());
+
+    expect(result.current.filters.q).toBe('jazz');
+    expect(result.current.filters.categoryId).toBe(3);
+    expect(result.current.filters.sortBy).toBe('DISTANCE');
+    expect(result.current.filters.radiusMeters).toBe(10000);
+    expect(result.current.filters.privacy).toBe('PROTECTED');
+    expect(result.current.mapCenter).toEqual({ lat: 40.9919, lon: 29.0278 });
+    expect(mockDiscoverEvents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lat: 40.9919,
+        lon: 29.0278,
+        q: 'jazz',
+        category_ids: '3',
+        sort_by: 'DISTANCE',
+        radius_meters: 10000,
+        privacy_levels: 'PROTECTED',
+        start_from: new Date('2026-05-10').toISOString(),
+      }),
+      null,
+    );
+  });
+});

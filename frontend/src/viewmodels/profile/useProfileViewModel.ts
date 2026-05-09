@@ -1,7 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiError } from '@/services/api';
-import { EventSummary, UserProfile, UpdateProfileRequest } from '../../models/profile';
+import {
+  CatalogBadge,
+  EarnedBadge,
+  EventSummary,
+  UserProfile,
+  UpdateProfileRequest,
+} from '../../models/profile';
 import { profileService } from '../../services/profileService';
 import { prepareAvatarBlobs } from '../../utils/imageResize';
 import { searchLocation } from '@/services/eventService';
@@ -28,12 +34,16 @@ export function useProfileViewModel(token: string | null) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [hostedEvents, setHostedEvents] = useState<EventSummary[]>([]);
   const [attendedEvents, setAttendedEvents] = useState<EventSummary[]>([]);
+  const [earnedBadges, setEarnedBadges] = useState<EarnedBadge[]>([]);
+  const [badgeCatalog, setBadgeCatalog] = useState<CatalogBadge[]>([]);
 
   // UI states
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [badgeError, setBadgeError] = useState<string | null>(null);
+  const [badgesLoading, setBadgesLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -105,9 +115,30 @@ export function useProfileViewModel(token: string | null) {
     }
   }, [token, setProfileSummary]);
 
+  const fetchBadges = useCallback(async () => {
+    if (!token) return;
+    setBadgesLoading(true);
+    setBadgeError(null);
+    try {
+      const [earned, catalog] = await Promise.all([
+        profileService.getMyBadges(token),
+        profileService.getBadgeCatalog(token),
+      ]);
+      setEarnedBadges(earned.items ?? []);
+      setBadgeCatalog(catalog.items ?? []);
+    } catch (err: unknown) {
+      setEarnedBadges([]);
+      setBadgeCatalog([]);
+      setBadgeError(err instanceof Error ? err.message : 'Failed to load badges');
+    } finally {
+      setBadgesLoading(false);
+    }
+  }, [token]);
+
   useEffect(() => {
     fetchProfile();
-  }, [fetchProfile]);
+    fetchBadges();
+  }, [fetchBadges, fetchProfile]);
 
   useEffect(
     () => () => {
@@ -346,6 +377,11 @@ export function useProfileViewModel(token: string | null) {
     profile,
     hostedEvents,
     attendedEvents,
+    earnedBadges,
+    badgeCatalog,
+    badgesLoading,
+    badgeError,
+    refreshBadges: fetchBadges,
     isLoading,
     isEditing,
     isSaving,

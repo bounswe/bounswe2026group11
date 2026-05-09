@@ -175,6 +175,138 @@ func (r *InvitationRepository) ListReceivedPendingInvitations(
 	return records, nil
 }
 
+// ListReceivedPastInvitations returns DECLINED+EXPIRED invitations for the
+// given user against PRIVATE events. The query intentionally omits an
+// event-status filter (the past bucket should still surface invitations
+// for events that have since ended). Pagination is keyset on
+// (updated_at, id) DESC; (FetchLimit) is set to (limit + 1) so callers can
+// detect whether another page exists without a count query.
+func (r *InvitationRepository) ListReceivedPastInvitations(
+	ctx context.Context,
+	userID uuid.UUID,
+	params invitationapp.ListPastInvitationsParams,
+) ([]invitationapp.ReceivedInvitationRecord, error) {
+	const baseSelect = `
+		SELECT
+			inv.id,
+			inv.status,
+			inv.message,
+			inv.expires_at,
+			inv.created_at,
+			inv.updated_at,
+			e.id,
+			e.title,
+			e.image_url,
+			e.start_time,
+			e.end_time,
+			e.status,
+			e.privacy_level,
+			e.approved_participant_count,
+			host.id,
+			host.username,
+			hp.display_name,
+			hp.avatar_url
+		FROM invitation inv
+		JOIN event e ON e.id = inv.event_id
+		JOIN app_user host ON host.id = inv.host_id
+		LEFT JOIN profile hp ON hp.user_id = host.id
+		WHERE inv.invited_user_id = $1
+		  AND inv.status = ANY($2::text[])
+		  AND e.privacy_level = $3
+	`
+
+	args := []any{
+		userID,
+		[]string{string(domain.InvitationStatusDeclined), string(domain.InvitationStatusExpired)},
+		domain.PrivacyPrivate,
+	}
+	query := baseSelect
+	if params.Cursor != nil {
+		// Strict-less-than tuple comparison preserves DESC ordering and
+		// ensures the cursor row itself is excluded from the next page.
+		query += " AND (inv.updated_at, inv.id) < ($4, $5)"
+		args = append(args, params.Cursor.UpdatedAt, params.Cursor.InvitationID)
+	}
+	query += " ORDER BY inv.updated_at DESC, inv.id DESC"
+	query += fmt.Sprintf(" LIMIT $%d", len(args)+1)
+	args = append(args, params.FetchLimit)
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list past received invitations: %w", err)
+	}
+	defer rows.Close()
+
+	records := make([]invitationapp.ReceivedInvitationRecord, 0)
+	for rows.Next() {
+		record, err := scanReceivedInvitation(rows)
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, *record)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate past received invitations: %w", err)
+	}
+	return records, nil
+}
+
+// GetReceivedInvitation returns a single invitation owned by the recipient
+// regardless of status, used by the modal-fetch flow that opens from a
+// notification. Filters: invitation id, invited_user_id, PRIVATE event.
+// Returns domain.ErrNotFound when no row matches all three filters so the
+// API can respond with a 404 that does not leak the row's existence.
+func (r *InvitationRepository) GetReceivedInvitation(
+	ctx context.Context,
+	userID, invitationID uuid.UUID,
+) (*invitationapp.ReceivedInvitationRecord, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			inv.id,
+			inv.status,
+			inv.message,
+			inv.expires_at,
+			inv.created_at,
+			inv.updated_at,
+			e.id,
+			e.title,
+			e.image_url,
+			e.start_time,
+			e.end_time,
+			e.status,
+			e.privacy_level,
+			e.approved_participant_count,
+			host.id,
+			host.username,
+			hp.display_name,
+			hp.avatar_url
+		FROM invitation inv
+		JOIN event e ON e.id = inv.event_id
+		JOIN app_user host ON host.id = inv.host_id
+		LEFT JOIN profile hp ON hp.user_id = host.id
+		WHERE inv.id = $1
+		  AND inv.invited_user_id = $2
+		  AND e.privacy_level = $3
+		LIMIT 1
+	`, invitationID, userID, domain.PrivacyPrivate)
+	if err != nil {
+		return nil, fmt.Errorf("get received invitation: %w", err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("get received invitation: %w", err)
+		}
+		return nil, domain.ErrNotFound
+	}
+	record, err := scanReceivedInvitation(rows)
+	if err != nil {
+		return nil, fmt.Errorf("scan received invitation: %w", err)
+	}
+	return record, nil
+}
+
 func (r *InvitationRepository) AcceptInvitation(
 	ctx context.Context,
 	userID, invitationID uuid.UUID,
@@ -372,7 +504,7 @@ func (r *InvitationRepository) loadInvitationEventState(
 ) (*domain.Event, error) {
 	query := `
 		SELECT host_id, privacy_level, status, capacity, approved_participant_count, pending_participant_count,
-		       start_time, minimum_age, preferred_gender
+		       start_time, minimum_age, preferred_gender, version_no
 		FROM event
 		WHERE id = $1
 	`
@@ -390,6 +522,7 @@ func (r *InvitationRepository) loadInvitationEventState(
 		startTime       time.Time
 		minimumAge      pgtype.Int4
 		preferredGender pgtype.Text
+		versionNo       int
 	)
 	err := r.db.QueryRow(ctx, query, eventID).Scan(
 		&hostID,
@@ -401,6 +534,7 @@ func (r *InvitationRepository) loadInvitationEventState(
 		&startTime,
 		&minimumAge,
 		&preferredGender,
+		&versionNo,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -417,6 +551,7 @@ func (r *InvitationRepository) loadInvitationEventState(
 		ApprovedParticipantCount: approvedCount,
 		PendingParticipantCount:  pendingCount,
 		StartTime:                startTime,
+		VersionNo:                versionNo,
 	}
 	if capacity.Valid {
 		value := int(capacity.Int32)
@@ -730,28 +865,30 @@ func (r *InvitationRepository) insertOrReactivateApprovedParticipation(
 		WITH reactivated AS (
 			UPDATE participation
 			SET status = $3,
+			    reconfirmed_at = NULL,
+			    last_confirmed_event_version = $6,
 			    created_at = NOW(),
 			    updated_at = NOW()
 			WHERE event_id = $1
 			  AND user_id = $2
 			  AND status = $4
 			  AND updated_at < $5
-			RETURNING id, status, created_at, updated_at
+			RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		),
 		inserted AS (
-			INSERT INTO participation (event_id, user_id, status)
-			SELECT $1, $2, $3
+			INSERT INTO participation (event_id, user_id, status, last_confirmed_event_version)
+			SELECT $1, $2, $3, $6
 			WHERE NOT EXISTS (SELECT 1 FROM reactivated)
 			ON CONFLICT ON CONSTRAINT uq_event_user DO NOTHING
-			RETURNING id, status, created_at, updated_at
+			RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		)
-		SELECT id, status, created_at, updated_at
+		SELECT id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		FROM reactivated
 		UNION ALL
-		SELECT id, status, created_at, updated_at
+		SELECT id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		FROM inserted
 		LIMIT 1
-	`, event.ID, userID, domain.ParticipationStatusApproved, domain.ParticipationStatusLeaved, event.StartTime), event.ID, userID, "accept invitation participation")
+	`, event.ID, userID, domain.ParticipationStatusApproved, domain.ParticipationStatusLeaved, event.StartTime, event.VersionNo), event.ID, userID, "accept invitation participation")
 	if err != nil {
 		return nil, err
 	}

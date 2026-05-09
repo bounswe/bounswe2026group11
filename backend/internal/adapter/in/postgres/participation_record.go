@@ -9,6 +9,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func loadParticipation(
@@ -18,7 +19,7 @@ func loadParticipation(
 	forUpdate bool,
 ) (*domain.Participation, error) {
 	query := `
-		SELECT id, status, created_at, updated_at
+		SELECT id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		FROM participation
 		WHERE event_id = $1 AND user_id = $2
 	`
@@ -35,13 +36,15 @@ func scanParticipation(
 	operation string,
 ) (*domain.Participation, error) {
 	var (
-		id        uuid.UUID
-		status    string
-		createdAt time.Time
-		updatedAt time.Time
+		id                   uuid.UUID
+		status               string
+		reconfirmedAt        pgtype.Timestamptz
+		lastConfirmedVersion pgtype.Int4
+		createdAt            time.Time
+		updatedAt            time.Time
 	)
 
-	err := row.Scan(&id, &status, &createdAt, &updatedAt)
+	err := row.Scan(&id, &status, &reconfirmedAt, &lastConfirmedVersion, &createdAt, &updatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -54,14 +57,21 @@ func scanParticipation(
 		return nil, fmt.Errorf("%s: unknown participation status %q", operation, status)
 	}
 
-	return &domain.Participation{
-		ID:        id,
-		EventID:   eventID,
-		UserID:    userID,
-		Status:    parsedStatus,
-		CreatedAt: createdAt,
-		UpdatedAt: updatedAt,
-	}, nil
+	participation := &domain.Participation{
+		ID:            id,
+		EventID:       eventID,
+		UserID:        userID,
+		Status:        parsedStatus,
+		ReconfirmedAt: timestamptzPtr(reconfirmedAt),
+		CreatedAt:     createdAt,
+		UpdatedAt:     updatedAt,
+	}
+	if lastConfirmedVersion.Valid {
+		value := int(lastConfirmedVersion.Int32)
+		participation.LastConfirmedEventVersion = &value
+	}
+
+	return participation, nil
 }
 
 func canReactivateLeavedParticipation(participation *domain.Participation, eventStart time.Time) bool {

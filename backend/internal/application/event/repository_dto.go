@@ -50,6 +50,51 @@ type UpdateEventParams struct {
 	ConstraintsChanged bool
 }
 
+// EventHistorySnapshot stores the versioned event fields needed to render
+// user-facing diffs.
+type EventHistorySnapshot struct {
+	Title           string                        `json:"title"`
+	Description     *string                       `json:"description"`
+	ImageURL        *string                       `json:"image_url"`
+	PrivacyLevel    string                        `json:"privacy_level"`
+	Status          string                        `json:"status"`
+	StartTime       time.Time                     `json:"start_time"`
+	EndTime         *time.Time                    `json:"end_time"`
+	Capacity        *int                          `json:"capacity"`
+	MinimumAge      *int                          `json:"minimum_age"`
+	PreferredGender *string                       `json:"preferred_gender"`
+	ChildFriendly   bool                          `json:"child_friendly"`
+	FamilyOriented  bool                          `json:"family_oriented"`
+	Category        *EventHistoryCategorySnapshot `json:"category"`
+	Location        EventHistoryLocationSnapshot  `json:"location"`
+	Tags            []string                      `json:"tags"`
+	Constraints     []EventDetailConstraintRecord `json:"constraints"`
+}
+
+// EventHistoryCategorySnapshot is the category portion of an event version.
+type EventHistoryCategorySnapshot struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+// EventHistoryLocationSnapshot is the unapproximated location portion of an
+// event version.
+type EventHistoryLocationSnapshot struct {
+	Type        string             `json:"type"`
+	Address     *string            `json:"address"`
+	Point       *EventDetailPoint  `json:"point,omitempty"`
+	RoutePoints []EventDetailPoint `json:"route_points,omitempty"`
+}
+
+// EventHistorySnapshotRecord is one immutable event version.
+type EventHistorySnapshotRecord struct {
+	EventID        uuid.UUID
+	VersionNo      int
+	ChangedFields  []string
+	Snapshot       EventHistorySnapshot
+	EventUpdatedAt time.Time
+}
+
 // EventConstraintParams is a single constraint to attach to an event.
 type EventConstraintParams struct {
 	Type string
@@ -69,6 +114,7 @@ type EventEditSnapshot struct {
 // by the scheduled event transition job.
 type EventStatusTransitionRecord struct {
 	EventID uuid.UUID
+	HostID  uuid.UUID
 	Status  domain.EventStatus
 }
 
@@ -165,6 +211,7 @@ type FavoriteEventRecord struct {
 // EventDetailRecord is the repository-level projection used for event detail responses.
 type EventDetailRecord struct {
 	ID                       uuid.UUID
+	VersionNo                int
 	Title                    string
 	Description              *string
 	ImageURL                 *string
@@ -249,9 +296,13 @@ type EventDetailRatingRecord struct {
 
 // EventDetailViewerContextRecord captures the authenticated viewer's relation to the event.
 type EventDetailViewerContextRecord struct {
-	IsHost              bool
-	IsFavorited         bool
-	ParticipationStatus domain.EventDetailParticipationStatus
+	IsHost                    bool
+	IsFavorited               bool
+	ParticipationStatus       *domain.ParticipationStatus
+	JoinRequestStatus         *domain.JoinRequestStatus
+	InvitationStatus          *domain.InvitationStatus
+	LastConfirmedEventVersion *int
+	LatestEventVersion        int
 }
 
 // EventDetailHostContextRecord contains host-only management lists for the event.

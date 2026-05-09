@@ -106,6 +106,9 @@ func (h *EventHandler) GetEventDetail(c *fiber.Ctx) error {
 		httpapi.OperationAttr("event.detail"),
 		httpapi.OptionalUserIDAttr(userID),
 		httpapi.EventIDAttr(eventID),
+		slog.Int("event_version", result.VersionNo),
+		slog.Bool("needs_reconfirmation", result.ViewerContext.NeedsReconfirmation),
+		slog.Int("latest_event_version", result.ViewerContext.LatestEventVersion),
 	)
 
 	c.Set(fiber.HeaderCacheControl, "private, no-store")
@@ -374,7 +377,9 @@ func (h *EventHandler) UpdateEvent(c *fiber.Ctx) error {
 		httpapi.UserIDAttr(claims.UserID),
 		httpapi.EventIDAttr(eventID),
 		httpapi.QuerySummaryAttr(summarizeUpdateEventInput(input)),
+		slog.Int("event_version", result.VersionNo),
 		slog.Bool("reconfirmation_required", result.ReconfirmationRequired),
+		slog.Int("reconfirmation_triggered_field_count", len(result.ReconfirmationTriggeredFields)),
 		slog.Int("participants_marked_pending", result.ParticipantsMarkedPending),
 	)
 
@@ -705,6 +710,9 @@ func (h *EventHandler) ReconfirmParticipation(c *fiber.Ctx) error {
 		httpapi.UserIDAttr(claims.UserID),
 		httpapi.EventIDAttr(eventID),
 		slog.String("participation_id", result.ParticipationID),
+		slog.Int("last_confirmed_event_version", result.LastConfirmedEventVersion),
+		slog.Int("latest_event_version", result.LatestEventVersion),
+		slog.Bool("ticket_created", result.TicketStatus != nil),
 	)
 
 	return c.JSON(result)

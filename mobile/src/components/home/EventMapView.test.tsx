@@ -422,7 +422,7 @@ describe('EventMapView', () => {
       );
     });
 
-    it('offsets markers that share the same dense coordinate area', () => {
+    it('offsets markers that are geographically very close', () => {
       render(
         <EventMapView
           events={[
@@ -446,7 +446,6 @@ describe('EventMapView', () => {
       expect(firstCoordinate).toBeTruthy();
       expect(secondCoordinate).toBeTruthy();
       expect(firstCoordinate).not.toEqual(secondCoordinate);
-      expect(screen.getAllByText('2').length).toBeGreaterThan(0);
     });
 
     it('shows participant count and capacity when both are present', () => {

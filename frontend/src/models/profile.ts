@@ -92,3 +92,30 @@ export interface ImageUploadInitResponse {
 export interface ImageUploadConfirmRequest {
   confirm_token: string;
 }
+
+export type BadgeCategory = 'HOSTING' | 'PARTICIPATION' | 'SOCIAL';
+
+export interface BadgeBase {
+  slug: string;
+  name: string;
+  description: string;
+  icon_url: string | null;
+  category: BadgeCategory;
+}
+
+export interface EarnedBadge extends BadgeBase {
+  earned_at: string;
+}
+
+export interface CatalogBadge extends BadgeBase {
+  earned: boolean;
+  earned_at: string | null;
+}
+
+export interface UserBadgesResponse {
+  items: EarnedBadge[];
+}
+
+export interface BadgeCatalogResponse {
+  items: CatalogBadge[];
+}
