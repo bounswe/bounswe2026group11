@@ -257,6 +257,64 @@
   border-bottom: 0;
 }
 
+.bo-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 78px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.bo-status-pending {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.bo-status-reviewed {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.bo-status-dismissed {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.bo-report-table td {
+  white-space: normal;
+}
+
+.bo-report-linked-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 180px;
+}
+
+.bo-report-linked-cell a,
+.bo-report-linked-cell strong {
+  color: #111827;
+  font-weight: 700;
+}
+
+.bo-report-linked-cell span {
+  color: #6b7280;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.bo-report-message {
+  min-width: 260px;
+  max-width: 440px;
+  color: #374151;
+  line-height: 1.45;
+}
+
 .bo-state {
   padding: 14px 16px;
   border: 1px solid #e5e7eb;

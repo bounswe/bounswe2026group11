@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type {
   EventDetailPendingJoinRequest,
@@ -104,6 +104,8 @@ function makeReadyViewModel(event: EventDetailResponse) {
     invitationsHasNext: false,
     joinLoading: false,
     joinError: null,
+    leaveLoading: false,
+    leaveError: null,
     viewerRatingLoading: false,
     viewerRatingError: null,
     participantRatingLoadingId: null,
@@ -112,19 +114,29 @@ function makeReadyViewModel(event: EventDetailResponse) {
     moderateError: null,
     cancelLoading: false,
     cancelError: null,
+    favoriteLoading: false,
+    reportLoading: false,
+    reportError: null,
+    reportSuccessMessage: null,
     retry: vi.fn(),
     handleJoin: vi.fn(),
+    handleLeave: vi.fn(),
     handleRequestJoin: vi.fn(),
     handleViewerRatingSubmit: vi.fn(),
     handleParticipantRatingSubmit: vi.fn(),
     handleApprove: vi.fn(),
     handleReject: vi.fn(),
     handleCancel: vi.fn(),
+    handleFavoriteToggle: vi.fn(),
+    handleReportEvent: vi.fn(),
     dismissJoinError: vi.fn(),
+    dismissLeaveError: vi.fn(),
     dismissViewerRatingError: vi.fn(),
     dismissParticipantRatingError: vi.fn(),
     dismissModerateError: vi.fn(),
     dismissCancelError: vi.fn(),
+    dismissReportError: vi.fn(),
+    dismissReportSuccess: vi.fn(),
     coverImageUploading: false,
     coverImageError: null,
     coverImageSuccessMessage: null,
@@ -144,6 +156,40 @@ function makeReadyViewModel(event: EventDetailResponse) {
 }
 
 describe('EventDetailPage ratings', () => {
+  it('opens the report modal from the flag button and submits the selected reason', async () => {
+    const event = makeBaseEvent();
+    const vm = makeReadyViewModel(event);
+    vm.handleReportEvent.mockResolvedValue(true);
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /report event/i }));
+    fireEvent.click(screen.getByLabelText(/harassment/i));
+    fireEvent.change(screen.getByLabelText(/additional details/i), {
+      target: { value: 'The event description targets a user group.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /submit report/i }));
+
+    await waitFor(() => {
+      expect(vm.handleReportEvent).toHaveBeenCalledWith(
+        'HARASSMENT',
+        'The event description targets a user group.',
+      );
+    });
+  });
+
+  it('shows report success state from the view model', () => {
+    const event = makeBaseEvent();
+    const vm = makeReadyViewModel(event);
+    vm.reportSuccessMessage = 'Thanks. Your report has been submitted for review.';
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+
+    renderPage();
+
+    expect(screen.getByText(/submitted for review/i)).toBeDefined();
+  });
+
   it('shows existing participant rating in summary mode until edit is requested', () => {
     const event = makeBaseEvent();
     event.viewer_event_rating = {

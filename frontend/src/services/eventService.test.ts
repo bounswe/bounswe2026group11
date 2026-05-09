@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { reverseGeocode, searchLocation } from './eventService';
+import { reverseGeocode, searchLocation, createEventReport } from './eventService';
 
 vi.mock('@/config/api', () => ({
   API_BASE_URL: 'http://api.test',
@@ -259,5 +259,46 @@ describe('reverseGeocode', () => {
     );
 
     expect(await reverseGeocode(41, 29)).toBeNull();
+  });
+});
+
+describe('eventService.createEventReport', () => {
+  it('posts an authenticated event report request', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'report-1',
+          event_id: 'event-1',
+          reporter_user_id: 'user-1',
+          report_category: 'SPAM_OR_SCAM',
+          message: 'This looks suspicious.',
+          image_url: null,
+          status: 'PENDING',
+          created_at: '2026-05-09T10:00:00Z',
+        }),
+        { status: 201 },
+      ),
+    );
+
+    await createEventReport(
+      'event-1',
+      {
+        report_category: 'SPAM_OR_SCAM',
+        message: 'This looks suspicious.',
+      },
+      'access-token',
+    );
+
+    expect(fetch).toHaveBeenCalledWith('http://api.test/events/event-1/reports', expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({
+        Authorization: 'Bearer access-token',
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify({
+        report_category: 'SPAM_OR_SCAM',
+        message: 'This looks suspicious.',
+      }),
+    }));
   });
 });

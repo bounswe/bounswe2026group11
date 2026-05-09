@@ -4,6 +4,7 @@ import {
   cancelAdminParticipation,
   createAdminNotification,
   createAdminParticipation,
+  listAdminEventReports,
 } from './adminService';
 
 vi.mock('@/config/api', () => ({
@@ -102,5 +103,37 @@ describe('admin mutation services', () => {
       method: 'POST',
       body: JSON.stringify({}),
     }));
+  });
+});
+
+describe('admin event report services', () => {
+  it('fetches event reports with filters', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      items: [],
+      limit: 25,
+      offset: 0,
+      total_count: 0,
+      has_next: false,
+    }), { status: 200 }));
+
+    await listAdminEventReports('token', {
+      limit: 25,
+      offset: 0,
+      status: 'PENDING',
+      report_category: 'HARASSMENT',
+      event_id: 'event-1',
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://api.test/admin/event-reports?limit=25&offset=0&status=PENDING&report_category=HARASSMENT&event_id=event-1',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token',
+          'Content-Type': 'application/json',
+        }),
+        cache: 'no-store',
+      }),
+    );
   });
 });
