@@ -187,7 +187,10 @@ describe('useEventDetailViewModel favorites', () => {
       await result.current.handleRequestJoin();
     });
 
-    expect(mockRequestJoinEvent).toHaveBeenCalledWith('event-1', 'token', undefined);
+    expect(mockRequestJoinEvent).toHaveBeenCalledWith('event-1', 'token', {
+      message: undefined,
+      image_confirm_token: undefined,
+    });
     expect(result.current.event?.viewer_context.participation_status).toBe('PENDING');
     expect(result.current.joinError).toBeNull();
   });
