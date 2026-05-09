@@ -71,7 +71,7 @@ describe('TicketsPage', () => {
     renderPage();
     expect(screen.getByText(/no tickets yet/i)).toBeDefined();
     expect(
-      screen.getByText(/tickets appear here once a host approves/i),
+      screen.getByText(/tickets appear here once you join an event/i),
     ).toBeDefined();
   });
 
