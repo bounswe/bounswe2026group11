@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDiscoverViewMode } from '@/contexts/DiscoverViewModeContext';
@@ -161,8 +161,8 @@ function SortOptionIcon({ kind, className }: { kind: 'time' | 'distance'; classN
   );
 }
 
-/** Expanded wrap: above this height ⇒ multiple chip rows → show expand toggle */
-const CATEGORY_MULTI_ROW_SCROLL_HEIGHT_PX = 52;
+/** Number of categories that fit comfortably in one row before showing expand */
+const CATEGORY_SINGLE_ROW_THRESHOLD = 7;
 
 const PRIVACY_OPTIONS: { label: string; value: PrivacyFilter }[] = [
   { label: 'All', value: 'ALL' },
@@ -288,32 +288,17 @@ export default function DiscoverPage() {
   const [overlayCollapsed, setOverlayCollapsed] = useState(false);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const categoryChipsRef = useRef<HTMLDivElement>(null);
   const [categoryChipsNeedExpand, setCategoryChipsNeedExpand] = useState(false);
 
   const isMapMode = viewMode === 'map';
 
   useLayoutEffect(() => {
-    const el = categoryChipsRef.current;
-    if (!el || vm.categories.length === 0) {
-      setCategoryChipsNeedExpand(false);
-      return;
-    }
-    const measure = () => {
-      const needsSecondRow = el.scrollHeight > CATEGORY_MULTI_ROW_SCROLL_HEIGHT_PX + 1;
-      setCategoryChipsNeedExpand(needsSecondRow);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [vm.categories, categoriesExpanded]);
-
-  useLayoutEffect(() => {
-    if (!categoryChipsNeedExpand && categoriesExpanded) {
+    const needsExpand = vm.categories.length > CATEGORY_SINGLE_ROW_THRESHOLD;
+    setCategoryChipsNeedExpand(needsExpand);
+    if (!needsExpand && categoriesExpanded) {
       setCategoriesExpanded(false);
     }
-  }, [categoryChipsNeedExpand, categoriesExpanded]);
+  }, [vm.categories.length, categoriesExpanded]);
 
   // The filter button "*" / active highlight should reflect ONLY user-applied
   // filter knobs — the location selection has its own dedicated UI affordance,
@@ -551,9 +536,8 @@ export default function DiscoverPage() {
   const categoriesBlock = vm.categories.length > 0 && (
     <div className="dc-category-block">
       <div
-        ref={categoryChipsRef}
         className={`dc-category-chips ${
-          categoryChipsNeedExpand && !categoriesExpanded ? 'dc-category-chips--collapsed' : ''
+          !categoriesExpanded ? 'dc-category-chips--collapsed' : ''
         }`}
         role="group"
         aria-label="Event categories"
@@ -575,7 +559,6 @@ export default function DiscoverPage() {
             onClick={() => setCategoriesExpanded((e) => !e)}
             aria-expanded={categoriesExpanded}
           >
-            <span>{categoriesExpanded ? 'Show less' : 'Show more'}</span>
             <ChevronDownIcon
               className={`dc-category-expand-chevron ${
                 categoriesExpanded ? 'dc-category-expand-chevron--open' : ''

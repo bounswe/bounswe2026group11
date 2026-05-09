@@ -2693,3 +2693,37 @@
     text-align: center;
   }
 }
+
+/* Route markers on event detail map */
+.ed-route-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ed-route-marker-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #7c3aed;
+  border: 3px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.ed-route-marker-dot--start {
+  background: #16a34a;
+}
+
+.ed-route-marker-dot--end {
+  background: #dc2626;
+}
+
+.ed-route-marker-number {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+}

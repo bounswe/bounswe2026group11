@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AdvancedMarker,
   Map as GoogleMap,
@@ -12,6 +12,7 @@ import {
 } from '@/components/GoogleMapsProvider';
 import type { EventDetailLocation } from '@/models/event';
 import { APPROXIMATE_LOCATION_RADIUS_METERS } from '@/utils/locationApproximation';
+import { fetchRoutedGeometry } from '@/services/eventService';
 
 interface EventDetailMiniMapProps {
   location: EventDetailLocation;
@@ -67,9 +68,23 @@ function RoutePolyline({ path }: { path: LatLng[] }) {
   return null;
 }
 
+function FitRouteBounds({ points }: { points: LatLng[] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map || points.length < 2) return;
+    const bounds = new google.maps.LatLngBounds();
+    for (const p of points) {
+      bounds.extend(p);
+    }
+    map.fitBounds(bounds, { top: 40, bottom: 40, left: 40, right: 40 });
+  }, [map, points]);
+  return null;
+}
+
 export default function EventDetailMiniMap({ location }: EventDetailMiniMapProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const [routedPath, setRoutedPath] = useState<LatLng[] | null>(null);
 
   const anchor = useMemo<LatLng | null>(() => {
     if (location.type === 'POINT' && location.point) {
@@ -82,9 +97,29 @@ export default function EventDetailMiniMap({ location }: EventDetailMiniMapProps
     return null;
   }, [location]);
 
-  const routePath = useMemo<LatLng[]>(() => {
+  const routeWaypoints = useMemo<LatLng[]>(() => {
     if (location.type !== 'ROUTE') return [];
     return location.route_points.map((p) => ({ lat: p.lat, lng: p.lon }));
+  }, [location]);
+
+  const straightPath = useMemo<LatLng[]>(() => {
+    if (location.type !== 'ROUTE') return [];
+    return location.route_points.map((p) => ({ lat: p.lat, lng: p.lon }));
+  }, [location]);
+
+  useEffect(() => {
+    if (location.type !== 'ROUTE' || location.route_points.length < 2) {
+      setRoutedPath(null);
+      return;
+    }
+    let cancelled = false;
+    fetchRoutedGeometry(location.route_points).then((geom) => {
+      if (cancelled) return;
+      if (geom && geom.length >= 2) {
+        setRoutedPath(geom.map((p) => ({ lat: p.lat, lng: p.lon })));
+      }
+    });
+    return () => { cancelled = true; };
   }, [location]);
 
   if (!anchor) return null;
@@ -97,12 +132,15 @@ export default function EventDetailMiniMap({ location }: EventDetailMiniMapProps
     );
   }
 
+  const isRoute = location.type === 'ROUTE' && routeWaypoints.length >= 2;
+  const displayPath = routedPath ?? straightPath;
+
   return (
     <GoogleMap
       key={isDark ? 'dark' : 'light'}
       mapId={GOOGLE_MAPS_MAP_ID}
       defaultCenter={anchor}
-      defaultZoom={14}
+      defaultZoom={isRoute ? 12 : 14}
       colorScheme={isDark ? 'DARK' : 'LIGHT'}
       gestureHandling="cooperative"
       disableDefaultUI={false}
@@ -114,13 +152,30 @@ export default function EventDetailMiniMap({ location }: EventDetailMiniMapProps
     >
       {location.is_location_approximate ? (
         <ApproximateAreaCircle center={anchor} />
+      ) : isRoute ? (
+        <>
+          <FitRouteBounds points={routeWaypoints} />
+          <RoutePolyline path={displayPath} />
+          {routeWaypoints.map((point, index) => {
+            const isFirst = index === 0;
+            const isLast = index === routeWaypoints.length - 1;
+            return (
+              <AdvancedMarker key={index} position={point}>
+                <div className="ed-route-marker">
+                  <div
+                    className={`ed-route-marker-dot ${isFirst ? 'ed-route-marker-dot--start' : ''} ${isLast ? 'ed-route-marker-dot--end' : ''}`}
+                  >
+                    <span className="ed-route-marker-number">{index + 1}</span>
+                  </div>
+                </div>
+              </AdvancedMarker>
+            );
+          })}
+        </>
       ) : (
         <AdvancedMarker position={anchor}>
           <Pin background="#2563eb" borderColor="#1d4ed8" glyphColor="#ffffff" />
         </AdvancedMarker>
-      )}
-      {!location.is_location_approximate && routePath.length > 1 && (
-        <RoutePolyline path={routePath} />
       )}
     </GoogleMap>
   );

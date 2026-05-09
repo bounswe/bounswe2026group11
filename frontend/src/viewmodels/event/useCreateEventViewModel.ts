@@ -14,6 +14,7 @@ import {
   type PrivacyLevel,
   type PreferredGender,
   type EventConstraint,
+  type LocationType,
 } from '@/models/event';
 import { ApiError } from '@/services/api';
 
@@ -25,6 +26,27 @@ const CAPACITY_MIN = 2;
 const MAX_TAGS = 5;
 const TAG_MAX_LENGTH = 20;
 export const MAX_CONSTRAINTS = 5;
+export const ROUTE_MIN_POINTS = 2;
+export const ROUTE_MAX_POINTS = 50;
+
+export interface RouteWaypoint {
+  lat: number;
+  lon: number;
+  label?: string | null;
+}
+
+export function deriveRouteAddress(waypoints: RouteWaypoint[]): string {
+  if (waypoints.length === 0) return '';
+  const shortLabel = (w: RouteWaypoint): string => {
+    const trimmed = (w.label ?? '').split(',')[0]?.trim();
+    if (trimmed) return trimmed;
+    return `${w.lat.toFixed(4)}, ${w.lon.toFixed(4)}`;
+  };
+  const first = shortLabel(waypoints[0]);
+  const last = shortLabel(waypoints[waypoints.length - 1]);
+  if (waypoints.length === 1 || first === last) return first;
+  return `${first} → ${last}`;
+}
 
 export const PRIVACY_OPTIONS: { label: string; value: PrivacyLevel }[] = [
   { label: 'Public', value: 'PUBLIC' },
@@ -41,10 +63,12 @@ export interface CreateEventFormData {
   imageFile: File | null;
   imagePreview: string;
   categoryId: number | null;
+  locationType: LocationType;
   locationQuery: string;
   address: string;
   lat: number | null;
   lon: number | null;
+  routePoints: RouteWaypoint[];
   startDate: string;
   startTime: string;
   endDate: string;
@@ -85,10 +109,12 @@ const INITIAL: CreateEventFormData = {
   imageFile: null,
   imagePreview: '',
   categoryId: null,
+  locationType: 'POINT',
   locationQuery: '',
   address: '',
   lat: null,
   lon: null,
+  routePoints: [],
   startDate: '',
   startTime: '',
   endDate: '',
@@ -149,7 +175,11 @@ function validateForm(form: CreateEventFormData): CreateEventFormErrors {
     errors.image = 'Event image is required.';
   }
 
-  if (form.lat === null || form.lon === null) {
+  if (form.locationType === 'ROUTE') {
+    if (form.routePoints.length < ROUTE_MIN_POINTS) {
+      errors.location = `Add at least ${ROUTE_MIN_POINTS} waypoints to create a route.`;
+    }
+  } else if (form.lat === null || form.lon === null) {
     errors.location = 'Please search and select a location.';
   }
 
@@ -456,6 +486,82 @@ export function useCreateEventViewModel() {
     });
   }, [getVisibleErrors, revokeImagePreviewUrl, submitAttempted]);
 
+  const setLocationType = useCallback((type: LocationType) => {
+    setForm((prev) => {
+      if (prev.locationType === type) return prev;
+      return {
+        ...prev,
+        locationType: type,
+        ...(type === 'ROUTE'
+          ? { lat: null, lon: null, address: '', locationQuery: '' }
+          : { routePoints: [] }),
+      };
+    });
+    setLocationResults([]);
+    setErrors((prev) => ({ ...prev, location: undefined }));
+  }, []);
+
+  const addRoutePointFromSuggestion = useCallback((suggestion: LocationSuggestion) => {
+    const lat = parseFloat(suggestion.lat);
+    const lon = parseFloat(suggestion.lon);
+    if (Number.isNaN(lat) || Number.isNaN(lon)) return;
+    setForm((prev) => {
+      if (prev.routePoints.length >= ROUTE_MAX_POINTS) return prev;
+      return {
+        ...prev,
+        locationQuery: '',
+        routePoints: [
+          ...prev.routePoints,
+          { lat, lon, label: suggestion.display_name },
+        ],
+      };
+    });
+    setLocationResults([]);
+    setErrors((prev) => ({ ...prev, location: undefined }));
+  }, []);
+
+  const addRoutePointFromCoordinate = useCallback(
+    (lat: number, lon: number, label?: string | null) => {
+      setForm((prev) => {
+        if (prev.routePoints.length >= ROUTE_MAX_POINTS) return prev;
+        return {
+          ...prev,
+          routePoints: [...prev.routePoints, { lat, lon, label: label ?? null }],
+        };
+      });
+      setErrors((prev) => ({ ...prev, location: undefined }));
+    },
+    [],
+  );
+
+  const removeRoutePoint = useCallback((index: number) => {
+    setForm((prev) => {
+      if (index < 0 || index >= prev.routePoints.length) return prev;
+      const next = [...prev.routePoints];
+      next.splice(index, 1);
+      return { ...prev, routePoints: next };
+    });
+  }, []);
+
+  const moveRoutePoint = useCallback((index: number, direction: -1 | 1) => {
+    setForm((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.routePoints.length) return prev;
+      const next = [...prev.routePoints];
+      [next[index], next[target]] = [next[target], next[index]];
+      return { ...prev, routePoints: next };
+    });
+  }, []);
+
+  const updateRoutePointLabel = useCallback((index: number, label: string) => {
+    setForm((prev) => {
+      if (index < 0 || index >= prev.routePoints.length) return prev;
+      const next = [...prev.routePoints];
+      next[index] = { ...next[index], label };
+      return { ...prev, routePoints: next };
+    });
+  }, []);
+
   const removeConstraint = useCallback((index: number) => {
     setForm((prev) => ({
       ...prev,
@@ -482,14 +588,18 @@ export function useCreateEventViewModel() {
         const startTime = toISODateTime(form.startDate, form.startTime)!;
         const endTime = toISODateTime(form.endDate, form.endTime);
 
+        const isRoute = form.locationType === 'ROUTE';
+        const routeAddress = isRoute ? deriveRouteAddress(form.routePoints) : undefined;
+
         const request = {
           title: form.title.trim(),
           description: form.description.trim(),
           category_id: form.categoryId!,
-          address: form.address || undefined,
-          lat: form.lat!,
-          lon: form.lon!,
-          location_type: 'POINT' as const,
+          address: isRoute ? routeAddress : (form.address || undefined),
+          ...(isRoute
+            ? { route_points: form.routePoints.map((p) => ({ lat: p.lat, lon: p.lon })) }
+            : { lat: form.lat!, lon: form.lon! }),
+          location_type: form.locationType,
           start_time: startTime,
           end_time: endTime || undefined,
           capacity: form.capacity ? parseInt(form.capacity, 10) : undefined,
@@ -581,6 +691,12 @@ export function useCreateEventViewModel() {
     updateField,
     handleLocationSearch,
     selectLocation,
+    setLocationType,
+    addRoutePointFromSuggestion,
+    addRoutePointFromCoordinate,
+    removeRoutePoint,
+    moveRoutePoint,
+    updateRoutePointLabel,
     addTag,
     removeTag,
     handleImageUpload,

@@ -729,17 +729,18 @@
 
 .dc-category-chips {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  /* Collapsed max-height uses em so it tracks .dc-category-chip font size */
   font-size: 12px;
 }
 
-/* Collapsed: keep up to 2 rows so show-more (inline last child) stays visible */
 .dc-category-chips--collapsed {
-  max-height: calc(2 * (1.25em + 10px) + 8px);
+  flex-wrap: nowrap;
   overflow: hidden;
+}
+
+.dc-category-chips:not(.dc-category-chips--collapsed) {
+  flex-wrap: wrap;
 }
 
 .dc-sort-row {
@@ -788,22 +789,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 5px 12px;
-  border: none;
-  border-radius: 999px;
-  background: #111827;
-  color: #ffffff;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #374151;
   font-size: 12px;
-  font-weight: 500;
-  line-height: 1.25;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: all 0.15s;
   box-sizing: border-box;
 }
 
 .dc-category-expand:hover {
-  background: #1f2937;
+  border-color: #111827;
+  color: #111827;
 }
 
 .dc-category-expand-chevron {
@@ -829,6 +830,8 @@
   cursor: pointer;
   transition: all 0.15s;
   box-sizing: border-box;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .dc-category-chip:hover {
@@ -1310,6 +1313,10 @@
 }
 
 .dc-page--map .dc-category-expand {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
 }
 
@@ -2021,9 +2028,9 @@
   text-overflow: ellipsis;
 }
 
-/* Collapsed top-left overlay: only the search row stays visible */
+/* Collapsed top-left overlay: keep the same gap so the search bar doesn't shift */
 .dc-overlay-top-left--collapsed {
-  gap: 0;
+  gap: 10px;
 }
 
 /* Dark theme overrides for the new map UI */
@@ -2055,6 +2062,17 @@
   color: #111827;
 }
 
+:root[data-theme='dark'] .dc-page--map .dc-category-expand {
+  background: rgba(8, 8, 8, 0.86);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .dc-page--map .dc-category-expand:hover {
+  border-color: #f9fafb;
+  color: #f9fafb;
+}
+
 :root[data-theme='dark'] .dc-title-card .dc-title {
   color: #f9fafb;
 }
@@ -2064,13 +2082,14 @@
 }
 
 :root[data-theme='dark'] .dc-location-bar-btn--wide {
-  background: #f9fafb;
-  color: #111827;
+  background: rgba(8, 8, 8, 0.86);
+  color: #f9fafb;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
 }
 
 :root[data-theme='dark'] .dc-location-bar-btn--wide:hover {
-  background: #ffffff;
+  background: rgba(20, 20, 20, 0.92);
 }
 
 :root[data-theme='dark'] .dc-side-panel {
