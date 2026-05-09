@@ -30,7 +30,7 @@ func NewTicketRepository(pool *pgxpool.Pool) *TicketRepository {
 	}
 }
 
-// CreateTicketForParticipation creates or reactivates a non-terminal ticket for an invite-gated participation.
+// CreateTicketForParticipation creates or reactivates the ticket for an approved participation.
 func (r *TicketRepository) CreateTicketForParticipation(ctx context.Context, participationID uuid.UUID, status domain.TicketStatus) (*domain.Ticket, error) {
 	row := r.db.QueryRow(ctx, `
 		WITH participation_event AS (
@@ -39,14 +39,13 @@ func (r *TicketRepository) CreateTicketForParticipation(ctx context.Context, par
 			FROM participation p
 			JOIN event e ON e.id = p.event_id
 			WHERE p.id = $1
-			  AND e.privacy_level IN ($3, $6)
 		),
 		existing AS (
 			SELECT t.id
 			FROM ticket t
 			JOIN participation_event pe ON pe.participation_id = t.participation_id
 			ORDER BY
-				CASE WHEN t.status IN ($4, $5) THEN 0 ELSE 1 END,
+				CASE WHEN t.status IN ($3, $4) THEN 0 ELSE 1 END,
 				t.updated_at DESC,
 				t.created_at DESC
 			LIMIT 1
@@ -84,12 +83,12 @@ func (r *TicketRepository) CreateTicketForParticipation(ctx context.Context, par
 		       expires_at, used_at, canceled_at, created_at, updated_at
 		FROM inserted
 		LIMIT 1
-	`, participationID, status, domain.PrivacyProtected, domain.TicketStatusActive, domain.TicketStatusPending, domain.PrivacyPrivate)
+	`, participationID, status, domain.TicketStatusActive, domain.TicketStatusPending)
 
 	ticket, err := scanTicket(row)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			return nil, domain.NotFoundError(domain.ErrorCodeTicketNotFound, "The linked protected participation does not exist.")
+			return nil, domain.NotFoundError(domain.ErrorCodeTicketNotFound, "The linked participation does not exist.")
 		}
 		return nil, fmt.Errorf("create ticket for participation: %w", err)
 	}

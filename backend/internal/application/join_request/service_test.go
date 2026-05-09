@@ -488,6 +488,7 @@ func TestCancelJoinRequestDelegatesToRepo(t *testing.T) {
 	}
 	if result == nil {
 		t.Fatal("expected result, got nil")
+		return
 	}
 	if result.Status != domain.JoinRequestStatusCanceled {
 		t.Fatalf("expected status CANCELED, got %s", result.Status)

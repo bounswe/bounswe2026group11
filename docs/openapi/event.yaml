@@ -375,9 +375,9 @@ paths:
         Allows an authenticated participant with `PENDING` participation status to
         reconfirm attendance for the latest event details. On success the
         participation becomes `APPROVED`, `reconfirmed_at` and
-        `last_confirmed_event_version` are updated, and protected/private event
-        tickets, including existing `PENDING` tickets created by an event edit,
-        are reactivated as `ACTIVE`.
+        `last_confirmed_event_version` are updated, and the participant's ticket,
+        including an existing `PENDING` ticket created by an event edit, is
+        reactivated as `ACTIVE`.
       operationId: reconfirmEventParticipation
       security:
         - bearerAuth: []
@@ -1516,7 +1516,7 @@ paths:
       summary: Join a public event
       description: |
         Directly joins a **PUBLIC** event. Creates an APPROVED participation record for the
-        authenticated user.
+        authenticated user and provisions an `ACTIVE` ticket for event entry flows.
 
         Rules:
         - The event must exist and have `privacy_level: PUBLIC`.

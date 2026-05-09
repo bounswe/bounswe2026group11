@@ -136,7 +136,7 @@ func TestPrivateReconfirmReactivatesPendingTicketAfterEventEdit(t *testing.T) {
 	}
 }
 
-func TestPublicJoinCreatesNoTicket(t *testing.T) {
+func TestPublicJoinCreatesActiveTicket(t *testing.T) {
 	harness := common.NewEventHarness(t)
 	host := common.GivenUser(t, harness.AuthRepo)
 	participant := common.GivenUser(t, harness.AuthRepo)
@@ -150,8 +150,14 @@ func TestPublicJoinCreatesNoTicket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListMyTickets() error = %v", err)
 	}
-	if len(tickets.Items) != 0 {
-		t.Fatalf("expected no tickets for public join, got %d", len(tickets.Items))
+	if len(tickets.Items) != 1 {
+		t.Fatalf("expected 1 ticket, got %d", len(tickets.Items))
+	}
+	if tickets.Items[0].Status != domain.TicketStatusActive {
+		t.Fatalf("expected ACTIVE ticket, got %q", tickets.Items[0].Status)
+	}
+	if tickets.Items[0].Event.ID != eventRef.ID.String() {
+		t.Fatalf("expected ticket for event %s, got %s", eventRef.ID, tickets.Items[0].Event.ID)
 	}
 }
 

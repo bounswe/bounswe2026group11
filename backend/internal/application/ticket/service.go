@@ -50,7 +50,7 @@ func NewService(repo Repository, unitOfWork uow.UnitOfWork, tokens QRTokenManage
 	}
 }
 
-// CreateTicketForParticipation creates the protected-event ticket linked to an approved participation.
+// CreateTicketForParticipation creates the event ticket linked to an approved participation.
 func (s *Service) CreateTicketForParticipation(ctx context.Context, participation *domain.Participation, status domain.TicketStatus) (*domain.Ticket, error) {
 	ctx, span := tracer.Start(ctx, "ticket.create_for_participation")
 	defer span.End()
@@ -477,9 +477,6 @@ func validateQRAccess(record TicketAccessRecord, proximityMeters float64, now ti
 	if record.EventStatus != domain.EventStatusActive && record.EventStatus != domain.EventStatusInProgress {
 		return domain.ConflictError(domain.ErrorCodeTicketNotActive, "The event is not accepting ticket access.")
 	}
-	if record.PrivacyLevel != domain.PrivacyProtected {
-		return domain.ConflictError(domain.ErrorCodeTicketNotActive, "Only PROTECTED events support tickets.")
-	}
 	if !record.Ticket.ExpiresAt.After(now) {
 		return domain.ConflictError(domain.ErrorCodeTicketNotActive, "The ticket has expired.")
 	}
@@ -506,9 +503,6 @@ func scanRejectReason(record TicketScanRecord, claims QRTokenClaims, tokenHash s
 		return RejectReasonParticipationInvalid
 	}
 	if record.EventStatus != domain.EventStatusActive && record.EventStatus != domain.EventStatusInProgress {
-		return RejectReasonEventInvalid
-	}
-	if record.PrivacyLevel != domain.PrivacyProtected {
 		return RejectReasonEventInvalid
 	}
 	if claims.Version != record.Ticket.QRTokenVersion {

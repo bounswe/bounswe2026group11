@@ -491,7 +491,24 @@ func (s *Service) JoinEvent(ctx context.Context, userID, eventID uuid.UUID) (*Jo
 		return nil, err
 	}
 
-	p, err := s.participationService.CreateApprovedParticipation(ctx, eventID, userID)
+	var (
+		p             *domain.Participation
+		ticketCreated bool
+	)
+	err = s.unitOfWork.RunInTx(ctx, func(ctx context.Context) error {
+		var err error
+		p, err = s.participationService.CreateApprovedParticipation(ctx, eventID, userID)
+		if err != nil {
+			return err
+		}
+		if s.ticketService != nil {
+			if _, err := s.ticketService.CreateTicketForParticipation(ctx, p, domain.TicketStatusActive); err != nil {
+				return err
+			}
+			ticketCreated = true
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -506,6 +523,7 @@ func (s *Service) JoinEvent(ctx context.Context, userID, eventID uuid.UUID) (*Jo
 		"participation_id", p.ID.String(),
 		"participation_status", p.Status.String(),
 		"accepted_event_version", acceptedVersion,
+		"ticket_created", ticketCreated,
 	)
 
 	return &JoinEventResult{
@@ -601,7 +619,7 @@ func (s *Service) ReconfirmParticipation(ctx context.Context, userID, eventID uu
 			reconfirmedAt = *participation.ReconfirmedAt
 		}
 
-		if s.ticketService != nil && (snapshot.Event.PrivacyLevel == domain.PrivacyProtected || snapshot.Event.PrivacyLevel == domain.PrivacyPrivate) {
+		if s.ticketService != nil {
 			t, err := s.ticketService.CreateTicketForParticipation(ctx, participation, domain.TicketStatusActive)
 			if err != nil {
 				return err

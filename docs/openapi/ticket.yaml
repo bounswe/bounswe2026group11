@@ -3,7 +3,7 @@ info:
   title: Social Event Mapper Ticket API
   version: 0.1.0
   description: |
-    Ticket endpoints for protected-event mobile entry flows.
+    Ticket endpoints for mobile entry flows across public, protected, and private events.
 
     QR display and QR scanning are product-supported only in the mobile app. QR
     stream and scan endpoints require `X-Client-Surface: MOBILE` in addition to
@@ -12,7 +12,7 @@ servers:
   - url: /api
 tags:
   - name: Tickets
-    description: Protected-event ticket list, detail, QR stream, and host scan contracts.
+    description: Ticket list, detail, QR stream, and host scan contracts across supported event privacy levels.
 security:
   - bearerAuth: []
 paths:
@@ -58,7 +58,7 @@ paths:
       description: |
         Opens a Server-Sent Events stream and emits an initial `qr_token`, then a
         refreshed token every 10 seconds. The backend validates ticket ownership,
-        ACTIVE ticket status, APPROVED participation, ACTIVE/IN_PROGRESS protected
+        ACTIVE ticket status, APPROVED participation, ACTIVE/IN_PROGRESS
         event status, ticket business expiry, and 200-meter proximity before issuing
         each token.
       parameters:
@@ -279,7 +279,7 @@ components:
           $ref: '#/components/schemas/EventStatus'
         privacy_level:
           type: string
-          enum: [PROTECTED]
+          enum: [PUBLIC, PROTECTED, PRIVATE]
         start_time:
           type: string
           format: date-time
