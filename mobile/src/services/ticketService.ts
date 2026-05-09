@@ -247,16 +247,112 @@ export async function getTicketQrTokenOnce(
   coords: { lat: number; lon: number },
   token: string,
 ): Promise<TicketQrToken> {
-  const abortController = new AbortController();
-  const stream = getTicketQrTokenStream(ticketId, coords, token, abortController.signal, 'once-request');
-  
-  try {
-    const { value } = await stream.next();
-    if (!value) throw new Error('No QR token received');
-    return value;
-  } finally {
-    // CRITICAL: Must abort the stream or it will stay open forever
-    // because getTicketQrTokenStream is an infinite generator.
-    abortController.abort();
-  }
+  const url = `${BASE_URL}/me/tickets/${ticketId}/qr-stream?lat=${encodeURIComponent(String(coords.lat))}&lon=${encodeURIComponent(String(coords.lon))}`;
+
+  return new Promise<TicketQrToken>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.setRequestHeader('X-Client-Surface', 'MOBILE');
+    xhr.setRequestHeader('Accept', 'text/event-stream');
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+    let settled = false;
+    let lastIndex = 0;
+    let buffer = '';
+
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error('Timed out while waiting for the live QR token.'));
+    }, 15000);
+
+    const settle = (handler: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      cleanup();
+      handler();
+    };
+
+    const parseBufferedEvents = () => {
+      const newText = xhr.responseText.substring(lastIndex);
+      lastIndex = xhr.responseText.length;
+      buffer += newText;
+
+      const eventBlocks = buffer.split('\n\n');
+      buffer = eventBlocks.pop() ?? '';
+
+      for (const block of eventBlocks) {
+        const lines = block
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean);
+        const eventName = lines.find((line) => line.startsWith('event:'))?.replace(/^event:\s*/, '');
+        const dataLine = lines.find((line) => line.startsWith('data:'));
+
+        if (!dataLine) {
+          continue;
+        }
+
+        try {
+          const data = JSON.parse(dataLine.replace(/^data:\s*/, ''));
+          if (eventName === 'error') {
+            settle(() => reject(new Error(data.message ?? 'Failed to load the live QR token.')));
+            return;
+          }
+
+          if (data.token) {
+            settle(() => resolve(data as TicketQrToken));
+            return;
+          }
+        } catch {
+          // Wait for more chunks if the payload is incomplete.
+        }
+      }
+    };
+
+    xhr.onprogress = () => {
+      parseBufferedEvents();
+    };
+
+    xhr.onerror = () => {
+      settle(() => reject(new Error('Stream network error')));
+    };
+
+    xhr.onload = () => {
+      parseBufferedEvents();
+
+      if (settled) {
+        return;
+      }
+
+      if (xhr.status !== 200) {
+        let errorMessage = `Stream failed (Status ${xhr.status})`;
+        try {
+          const errorData = JSON.parse(xhr.responseText);
+          if (errorData.error?.message) {
+            errorMessage = errorData.error.message;
+          }
+        } catch {
+          // Fallback
+        }
+        settle(() => reject(new Error(errorMessage)));
+        return;
+      }
+
+      settle(() => reject(new Error('No QR token received')));
+    };
+
+    const cleanup = () => {
+      xhr.onprogress = null;
+      xhr.onload = null;
+      xhr.onerror = null;
+      try {
+        xhr.abort();
+      } catch {
+        // Ignore
+      }
+    };
+
+    xhr.send();
+  });
 }

@@ -24,6 +24,7 @@ jest.mock('react-native-safe-area-context', () => {
   return {
     SafeAreaView: ({ children }: { children: React.ReactNode }) =>
       ReactLocal.createElement('div', null, children),
+    useSafeAreaInsets: () => ({ top: 44, right: 0, bottom: 0, left: 0 }),
   };
 });
 

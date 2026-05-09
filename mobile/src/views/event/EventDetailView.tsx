@@ -14,7 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
@@ -413,6 +413,7 @@ const APPROX_LOCATION_RADIUS_METERS = 500;
 export default function EventDetailView({ eventId }: EventDetailViewProps) {
   const vm = useEventDetailViewModel(eventId);
   const { theme, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const discussionVm = useEventDiscussionViewModel(eventId, vm.token ?? undefined);
   const styles = useMemo(() => makeStyles(theme, isDark), [theme, isDark]);
   const [isMapModalVisible, setIsMapModalVisible] = useState(false);
@@ -1472,7 +1473,12 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               ) : null}
             </MapView>
 
-            <SafeAreaView style={styles.fullMapHeader}>
+            <SafeAreaView
+              style={[
+                styles.fullMapHeader,
+                Platform.OS === 'ios' ? { paddingTop: Math.max(insets.top, 12) } : null,
+              ]}
+            >
               <TouchableOpacity
                 style={styles.fullMapCloseBtn}
                 onPress={() => setIsMapModalVisible(false)}

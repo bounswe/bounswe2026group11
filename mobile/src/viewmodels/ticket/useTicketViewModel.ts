@@ -37,6 +37,18 @@ function getLoadErrorMessage(error: unknown): string {
   return 'Failed to load the ticket. Please try again.';
 }
 
+function getInitialQrMessage(ticketDetail: TicketDetailResponse): string | null {
+  if (ticketDetail.ticket.status === 'USED') {
+    return null;
+  }
+
+  if (!ticketDetail.qr_access.eligible_now) {
+    return getTicketQrAccessMessage(ticketDetail.qr_access.reason);
+  }
+
+  return null;
+}
+
 async function getCurrentCoordinates() {
   const permission = await ExpoLocation.requestForegroundPermissionsAsync();
   if (permission.status !== ExpoLocation.PermissionStatus.GRANTED) {
@@ -88,6 +100,8 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
       // Fetch ticket details first
       const ticketDetail = await getMyTicket(ticketId, token);
       setTicket(ticketDetail);
+
+      setQrMessage(getInitialQrMessage(ticketDetail));
       
       // OPTIMIZATION: Hide loading spinner as soon as we have ticket data
       // The image can continue loading in the background
@@ -118,10 +132,24 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
   }, [ticket, token]);
 
   const refreshQr = useCallback(async () => {
-    const currentTicket = ticketRef.current;
+    let currentTicket = ticketRef.current;
     const currentToken = tokenRef.current;
 
     if (!currentToken || !currentTicket || isRefreshingRef.current) return;
+
+    if (!currentTicket.qr_access.eligible_now) {
+      try {
+        const refreshedTicket = await getMyTicket(currentTicket.ticket.id, currentToken);
+        currentTicket = refreshedTicket;
+        ticketRef.current = refreshedTicket;
+        setTicket(refreshedTicket);
+        setQrMessage(getInitialQrMessage(refreshedTicket));
+      } catch (error) {
+        setQrToken(null);
+        setQrMessage(getLoadErrorMessage(error));
+        return;
+      }
+    }
 
     if (!currentTicket.qr_access.eligible_now) {
       setQrToken(null);
@@ -198,6 +226,12 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
         }
 
         const coords = await getCurrentCoordinates();
+
+        const initialToken = await getTicketQrTokenOnce(currentTicketId, coords, token);
+
+        if (!active || abortController.signal.aborted) return;
+        setQrToken(initialToken);
+        setQrMessage(null);
 
         // Final check before opening the connection
         if (!active || abortController.signal.aborted) return;
