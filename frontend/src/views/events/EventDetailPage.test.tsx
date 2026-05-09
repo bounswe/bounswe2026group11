@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import type { EventDetailResponse } from '@/models/event';
+import type {
+  EventDetailPendingJoinRequest,
+  EventDetailResponse,
+  EventHostContextSummary,
+} from '@/models/event';
 import EventDetailPage, { buildDirectionsUrl } from './EventDetailPage';
 
 vi.mock('@/contexts/AuthContext', () => ({
@@ -87,12 +91,12 @@ function makeReadyViewModel(event: EventDetailResponse) {
     event,
     status: 'ready' as const,
     errorMessage: null,
-    hostContextSummary: null,
+    hostContextSummary: null as EventHostContextSummary | null,
     hostContextLoading: false,
     approvedParticipants: [],
     approvedParticipantsLoading: false,
     approvedParticipantsHasNext: false,
-    pendingJoinRequests: [],
+    pendingJoinRequests: [] as EventDetailPendingJoinRequest[],
     pendingJoinRequestsLoading: false,
     pendingJoinRequestsHasNext: false,
     invitations: [],
@@ -358,5 +362,103 @@ describe('EventDetailPage ratings', () => {
     expect(screen.getByText(/your join request is pending approval/i)).toBeDefined();
     expect(screen.queryByRole('button', { name: /request to join/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /join event/i })).toBeNull();
+  });
+
+  it('shows the proof image picker in the request form when expanded', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PROTECTED';
+    event.viewer_context.participation_status = 'NONE';
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /request to join/i }));
+
+    expect(screen.getByTestId('ed-request-image-pick')).toBeDefined();
+  });
+
+  it('renders a View Attachment link for host pending requests with image_url', () => {
+    const event = makeBaseEvent();
+    event.viewer_context = {
+      is_host: true,
+      is_favorited: false,
+      participation_status: 'NONE',
+    };
+    const vm = makeReadyViewModel(event);
+    vm.hostContextSummary = {
+      approved_participant_count: 0,
+      pending_join_request_count: 1,
+      invitation_count: 0,
+    };
+    vm.pendingJoinRequests = [
+      {
+        join_request_id: 'jr-1',
+        status: 'PENDING',
+        message: 'I attended similar events.',
+        image_url:
+          'https://sem-bucket.fra1.cdn.digitaloceanspaces.com/events/x/join-requests/y/upload-id',
+        created_at: '2026-04-02T10:00:00Z',
+        updated_at: '2026-04-02T10:00:00Z',
+        user: {
+          id: 'requester-1',
+          username: 'requester',
+          display_name: 'Requester User',
+          avatar_url: null,
+          final_score: null,
+          rating_count: 0,
+        },
+      },
+    ];
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+
+    renderPage();
+
+    const link = screen.getByTestId('ed-mgmt-attachment-jr-1') as HTMLAnchorElement;
+    expect(link).toBeDefined();
+    expect(link.href).toContain('/join-requests/y/upload-id');
+    expect(link.target).toBe('_blank');
+    expect(link.rel).toContain('noopener');
+  });
+
+  it('does not render the attachment link when image_url is null', () => {
+    const event = makeBaseEvent();
+    event.viewer_context = {
+      is_host: true,
+      is_favorited: false,
+      participation_status: 'NONE',
+    };
+    const vm = makeReadyViewModel(event);
+    vm.hostContextSummary = {
+      approved_participant_count: 0,
+      pending_join_request_count: 1,
+      invitation_count: 0,
+    };
+    vm.pendingJoinRequests = [
+      {
+        join_request_id: 'jr-2',
+        status: 'PENDING',
+        message: null,
+        image_url: null,
+        created_at: '2026-04-02T10:00:00Z',
+        updated_at: '2026-04-02T10:00:00Z',
+        user: {
+          id: 'requester-2',
+          username: 'requester2',
+          display_name: null,
+          avatar_url: null,
+          final_score: null,
+          rating_count: 0,
+        },
+      },
+    ];
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+
+    renderPage();
+
+    expect(screen.queryByTestId('ed-mgmt-attachment-jr-2')).toBeNull();
   });
 });

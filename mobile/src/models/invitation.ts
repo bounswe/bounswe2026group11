@@ -1,10 +1,14 @@
-export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED' | 'EXPIRED';
+export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELED' | 'EXPIRED';
 
 export interface InvitationEventSummary {
   id: string;
   title: string;
-  image_url: string | null;
+  image_url?: string | null;
   start_time: string;
+  end_time?: string | null;
+  status?: 'ACTIVE' | 'IN_PROGRESS';
+  privacy_level?: 'PRIVATE';
+  approved_participant_count?: number;
 }
 
 export interface ReceivedInvitation {
@@ -12,18 +16,31 @@ export interface ReceivedInvitation {
   status: InvitationStatus;
   event: InvitationEventSummary;
   host: {
+    id?: string;
     username: string;
     display_name: string | null;
     profile_image_url: string | null;
+    avatar_url?: string | null;
   };
   message: string | null;
+  expires_at?: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface ReceivedInvitationsResponse {
+export interface InvitationPageInfo {
+  next_cursor: string | null;
+  has_next: boolean;
+}
+
+export interface ReceivedInvitationsPast {
   items: ReceivedInvitation[];
-  total: number;
+  page_info: InvitationPageInfo;
+}
+
+export interface ReceivedInvitationsResponse {
+  pending: ReceivedInvitation[];
+  past: ReceivedInvitationsPast;
 }
 
 export interface AcceptInvitationResponse {

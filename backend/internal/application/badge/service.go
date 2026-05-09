@@ -2,6 +2,7 @@ package badge
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
@@ -159,5 +160,55 @@ func (s *Service) EvaluateFavoriteLocationBadges(ctx context.Context, userID uui
 			return err
 		}
 	}
+	return nil
+}
+
+// BackfillExistingBadges replays idempotent badge evaluation for users who may
+// already qualify based on historical data created before badge-trigger hooks
+// existed. Per-user evaluation is best-effort so one broken row never blocks
+// the rest of the population.
+func (s *Service) BackfillExistingBadges(ctx context.Context) error {
+	participantUserIDs, err := s.repo.ListParticipationBadgeCandidateUserIDs(ctx)
+	if err != nil {
+		return err
+	}
+	for _, userID := range participantUserIDs {
+		if err := s.EvaluateParticipationBadges(ctx, userID); err != nil {
+			slog.WarnContext(ctx, "badge backfill participation evaluation failed",
+				slog.String("operation", "badge.backfill.participation"),
+				slog.String("user_id", userID.String()),
+				slog.String("error", err.Error()),
+			)
+		}
+	}
+
+	hostUserIDs, err := s.repo.ListHostBadgeCandidateUserIDs(ctx)
+	if err != nil {
+		return err
+	}
+	for _, hostID := range hostUserIDs {
+		if err := s.EvaluateHostBadges(ctx, hostID); err != nil {
+			slog.WarnContext(ctx, "badge backfill host evaluation failed",
+				slog.String("operation", "badge.backfill.host"),
+				slog.String("host_id", hostID.String()),
+				slog.String("error", err.Error()),
+			)
+		}
+	}
+
+	favoriteUserIDs, err := s.repo.ListFavoriteLocationBadgeCandidateUserIDs(ctx)
+	if err != nil {
+		return err
+	}
+	for _, userID := range favoriteUserIDs {
+		if err := s.EvaluateFavoriteLocationBadges(ctx, userID); err != nil {
+			slog.WarnContext(ctx, "badge backfill favorite-location evaluation failed",
+				slog.String("operation", "badge.backfill.favorite_location"),
+				slog.String("user_id", userID.String()),
+				slog.String("error", err.Error()),
+			)
+		}
+	}
+
 	return nil
 }
