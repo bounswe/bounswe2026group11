@@ -15,6 +15,7 @@ import {
   EventHostContextSummary,
   JoinEventResponse,
   JoinRequestResponse,
+  RequestJoinRequestBody,
   ApproveJoinRequestResponse,
   RejectJoinRequestResponse,
   FavoriteEventsResponse,
@@ -33,7 +34,43 @@ import {
   UpsertReviewCommentRequest,
 } from '@/models/event';
 
-const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
+const PHOTON_BASE = 'https://photon.komoot.io';
+
+interface PhotonProperties {
+  name?: string;
+  street?: string;
+  housenumber?: string;
+  district?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+}
+
+interface PhotonFeature {
+  geometry?: { coordinates?: [number, number] };
+  properties?: PhotonProperties;
+}
+
+function buildPhotonDisplayName(props: PhotonProperties): string {
+  const street = props.street && props.housenumber
+    ? `${props.street} ${props.housenumber}`
+    : props.street;
+  const headline = [props.name, street].filter(Boolean).join(' ');
+
+  const parts = [headline, props.district, props.city, props.state, props.country];
+
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  for (const part of parts) {
+    const value = (part ?? '').trim();
+    if (!value) continue;
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(value);
+  }
+  return deduped.join(', ');
+}
 
 export function createEvent(
   request: CreateEventRequest,
@@ -173,11 +210,25 @@ export function leaveEvent(
 export function requestJoinEvent(
   eventId: string,
   token: string,
-  message?: string,
+  body: RequestJoinRequestBody = {},
 ): Promise<JoinRequestResponse> {
+  const payload: Record<string, string> = {};
+  if (body.message) payload.message = body.message;
+  if (body.image_confirm_token) payload.image_confirm_token = body.image_confirm_token;
   return apiPostAuth<JoinRequestResponse>(
     `/events/${eventId}/join-request`,
-    message ? { message } : {},
+    payload,
+    token,
+  );
+}
+
+export function getJoinRequestImageUploadUrl(
+  eventId: string,
+  token: string,
+): Promise<ImageUploadInitResponse> {
+  return apiPostAuth<ImageUploadInitResponse>(
+    `/events/${eventId}/join-request/image/upload-url`,
+    {},
     token,
   );
 }
@@ -331,14 +382,81 @@ export function getReviewCommentImageUploadUrl(
 export async function searchLocation(
   query: string,
 ): Promise<LocationSuggestion[]> {
+  if (query.trim().length < 2) return [];
+
   const params = new URLSearchParams({
     q: query,
-    format: 'json',
     limit: '5',
+    lang: 'en',
   });
-  const response = await fetch(`${NOMINATIM_BASE}/search?${params}`, {
-    headers: { 'User-Agent': 'SocialEventMapper/1.0' },
-  });
+
+  let response: Response;
+  try {
+    response = await fetch(`${PHOTON_BASE}/api?${params}`);
+  } catch {
+    return [];
+  }
+
   if (!response.ok) return [];
-  return response.json();
+
+  const data = await response.json().catch(() => null);
+  if (!data || !Array.isArray(data.features)) return [];
+
+  return (data.features as PhotonFeature[])
+    .map((feature): LocationSuggestion | null => {
+      const coords = feature.geometry?.coordinates;
+      if (!Array.isArray(coords) || coords.length < 2) return null;
+      const [lon, lat] = coords;
+      if (typeof lon !== 'number' || typeof lat !== 'number') return null;
+
+      const displayName = buildPhotonDisplayName(feature.properties ?? {});
+      if (!displayName) return null;
+
+      return {
+        display_name: displayName,
+        lat: String(lat),
+        lon: String(lon),
+      };
+    })
+    .filter((s): s is LocationSuggestion => s !== null);
+}
+
+export async function reverseGeocode(
+  lat: number,
+  lon: number,
+): Promise<LocationSuggestion | null> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lon),
+    lang: 'en',
+  });
+
+  let response: Response;
+  try {
+    response = await fetch(`${PHOTON_BASE}/reverse?${params}`);
+  } catch {
+    return null;
+  }
+
+  if (!response.ok) return null;
+
+  const data = await response.json().catch(() => null);
+  if (!data || !Array.isArray(data.features) || data.features.length === 0) return null;
+
+  const feature = data.features[0] as PhotonFeature;
+  const coords = feature.geometry?.coordinates;
+  // Prefer the original coordinates so a map-tap marker stays where the user
+  // tapped, even if Photon snaps the result to a nearby road or POI.
+  const resolvedLat = Array.isArray(coords) && typeof coords[1] === 'number' ? coords[1] : lat;
+  const resolvedLon = Array.isArray(coords) && typeof coords[0] === 'number' ? coords[0] : lon;
+  const displayName = buildPhotonDisplayName(feature.properties ?? {});
+  if (!displayName) return null;
+
+  return {
+    display_name: displayName,
+    lat: String(resolvedLat),
+    lon: String(resolvedLon),
+  };
 }

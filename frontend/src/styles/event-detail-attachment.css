@@ -1,0 +1,128 @@
+/* Join request image attachment */
+
+.ed-request-image {
+  margin: 12px 0;
+}
+
+.ed-request-image-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ed-request-image-pick {
+  width: 100%;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ed-request-image-pick:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.ed-request-image-pick:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ed-request-image-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.ed-request-image-preview img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.ed-request-image-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ed-request-image-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ed-request-image-size {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.ed-request-image-remove {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  background: #ffffff;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ed-request-image-remove:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.ed-request-image-error {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: #b91c1c;
+}
+
+/* Host pending-request attachment link */
+
+.ed-mgmt-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 4px 10px;
+  background: #ede9fe;
+  border: 1px solid #ddd6fe;
+  border-radius: 999px;
+  color: #5b21b6;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+  align-self: flex-start;
+}
+
+.ed-mgmt-attachment:hover {
+  background: #ddd6fe;
+  border-color: #c4b5fd;
+}
+
+.ed-mgmt-attachment-icon {
+  font-size: 0.95rem;
+}

@@ -114,6 +114,7 @@ type EventEditSnapshot struct {
 // by the scheduled event transition job.
 type EventStatusTransitionRecord struct {
 	EventID uuid.UUID
+	HostID  uuid.UUID
 	Status  domain.EventStatus
 }
 

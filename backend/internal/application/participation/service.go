@@ -57,6 +57,30 @@ func (s *Service) CancelEventParticipations(ctx context.Context, eventID uuid.UU
 	return s.repo.CancelEventParticipations(ctx, eventID)
 }
 
+// EvaluateBadgesForEventParticipants runs participant-side badge evaluation for
+// every approved participant of the given event. Best-effort per user so a
+// transient failure for one participant never blocks the others.
+func (s *Service) EvaluateBadgesForEventParticipants(ctx context.Context, eventID uuid.UUID) error {
+	if s.badgeEvaluator == nil {
+		return nil
+	}
+	userIDs, err := s.repo.ListApprovedParticipantUserIDs(ctx, eventID)
+	if err != nil {
+		return err
+	}
+	for _, userID := range userIDs {
+		if err := s.badgeEvaluator.EvaluateParticipationBadges(ctx, userID); err != nil {
+			slog.WarnContext(ctx, "participation badge evaluation failed",
+				slog.String("operation", "participation.evaluate_badges_for_event"),
+				slog.String("event_id", eventID.String()),
+				slog.String("user_id", userID.String()),
+				slog.String("error", err.Error()),
+			)
+		}
+	}
+	return nil
+}
+
 // MarkApprovedParticipationsPending moves currently approved non-host
 // participations into the reconfirmation state and returns transitioned users.
 func (s *Service) MarkApprovedParticipationsPending(ctx context.Context, eventID, hostUserID uuid.UUID) ([]uuid.UUID, error) {

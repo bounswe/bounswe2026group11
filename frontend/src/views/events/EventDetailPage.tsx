@@ -22,6 +22,7 @@ import NotFoundView from '../fallback/NotFoundView';
 import AccessDeniedView from '../fallback/AccessDeniedView';
 import EventInteractionPanel from './EventInteractionPanel';
 import '@/styles/event-detail.css';
+import '@/styles/event-detail-attachment.css';
 
 const EventDetailMiniMap = lazy(() => import('./EventDetailMiniMap'));
 
@@ -543,7 +544,7 @@ function JoinActionSection({
   leaveError: string | null;
   onJoin: () => void;
   onLeave: () => void;
-  onRequestJoin: (message?: string) => void;
+  onRequestJoin: (message?: string, imageFile?: File | null) => void;
   onDismissError: () => void;
   onDismissLeaveError: () => void;
   isAuthenticated: boolean;
@@ -551,6 +552,10 @@ function JoinActionSection({
   const [requestMessage, setRequestMessage] = useState('');
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [requestImageFile, setRequestImageFile] = useState<File | null>(null);
+  const [requestImagePreview, setRequestImagePreview] = useState<string | null>(null);
+  const [requestImageError, setRequestImageError] = useState<string | null>(null);
+  const requestImageInputRef = useRef<HTMLInputElement>(null);
   const ctx = event.viewer_context;
 
   // Host doesn't see join actions
@@ -710,14 +715,88 @@ function JoinActionSection({
                 onChange={(e) => setRequestMessage(e.target.value)}
                 rows={3}
               />
+
+              <div className="ed-request-image">
+                <input
+                  ref={requestImageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="ed-request-image-input"
+                  onChange={(e) => {
+                    setRequestImageError(null);
+                    const file = e.target.files?.[0] ?? null;
+                    if (!file) {
+                      setRequestImageFile(null);
+                      if (requestImagePreview) URL.revokeObjectURL(requestImagePreview);
+                      setRequestImagePreview(null);
+                      return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                      setRequestImageError('File must be 5 MB or smaller.');
+                      e.target.value = '';
+                      return;
+                    }
+                    setRequestImageFile(file);
+                    if (requestImagePreview) URL.revokeObjectURL(requestImagePreview);
+                    setRequestImagePreview(URL.createObjectURL(file));
+                  }}
+                  disabled={joinLoading}
+                />
+                {requestImageFile && requestImagePreview ? (
+                  <div className="ed-request-image-preview">
+                    <img src={requestImagePreview} alt="Selected proof" />
+                    <div className="ed-request-image-meta">
+                      <span className="ed-request-image-name">{requestImageFile.name}</span>
+                      <span className="ed-request-image-size">
+                        {(requestImageFile.size / 1024 / 1024).toFixed(2)} MB
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="ed-request-image-remove"
+                      onClick={() => {
+                        setRequestImageFile(null);
+                        if (requestImagePreview) URL.revokeObjectURL(requestImagePreview);
+                        setRequestImagePreview(null);
+                        if (requestImageInputRef.current) requestImageInputRef.current.value = '';
+                      }}
+                      disabled={joinLoading}
+                      aria-label="Remove image"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="ed-request-image-pick"
+                    onClick={() => requestImageInputRef.current?.click()}
+                    disabled={joinLoading}
+                    data-testid="ed-request-image-pick"
+                  >
+                    + Attach proof image (optional, up to 5 MB)
+                  </button>
+                )}
+                {requestImageError && (
+                  <p className="ed-request-image-error" role="alert">{requestImageError}</p>
+                )}
+              </div>
+
               <div className="ed-request-actions">
                 <button
                   type="button"
                   className="btn-primary ed-join-btn"
                   onClick={() => {
-                    onRequestJoin(requestMessage.trim() || undefined);
+                    onRequestJoin(
+                      requestMessage.trim() || undefined,
+                      requestImageFile,
+                    );
                     setShowRequestForm(false);
                     setRequestMessage('');
+                    setRequestImageFile(null);
+                    if (requestImagePreview) URL.revokeObjectURL(requestImagePreview);
+                    setRequestImagePreview(null);
+                    if (requestImageInputRef.current) requestImageInputRef.current.value = '';
                   }}
                   disabled={joinLoading}
                 >
@@ -726,7 +805,15 @@ function JoinActionSection({
                 <button
                   type="button"
                   className="ed-request-cancel"
-                  onClick={() => { setShowRequestForm(false); setRequestMessage(''); }}
+                  onClick={() => {
+                    setShowRequestForm(false);
+                    setRequestMessage('');
+                    setRequestImageFile(null);
+                    if (requestImagePreview) URL.revokeObjectURL(requestImagePreview);
+                    setRequestImagePreview(null);
+                    setRequestImageError(null);
+                    if (requestImageInputRef.current) requestImageInputRef.current.value = '';
+                  }}
                 >
                   Cancel
                 </button>
@@ -1266,7 +1353,7 @@ function EventContent({
   participantRatingError: { participantUserId: string; message: string } | null;
   onJoin: () => void;
   onLeave: () => void;
-  onRequestJoin: (message?: string) => void;
+  onRequestJoin: (message?: string, imageFile?: File | null) => void;
   onViewerRatingSubmit: (rating: number, message?: string) => void;
   onParticipantRatingSubmit: (participantUserId: string, rating: number, message?: string) => void;
   onDismissError: () => void;
@@ -1666,6 +1753,18 @@ function EventContent({
                         <span className="ed-mgmt-name">{r.user.display_name ?? r.user.username}</span>
                         <span className="ed-mgmt-username">@{r.user.username}</span>
                         {r.message && <span className="ed-mgmt-message">"{r.message}"</span>}
+                        {r.image_url && (
+                          <a
+                            className="ed-mgmt-attachment"
+                            href={r.image_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-testid={`ed-mgmt-attachment-${r.join_request_id}`}
+                          >
+                            <span className="ed-mgmt-attachment-icon" aria-hidden>&#128247;</span>
+                            View attachment
+                          </a>
+                        )}
                         {r.user.final_score != null && (
                           <span className="ed-mgmt-user-score">{'★'} {r.user.final_score.toFixed(1)} ({r.user.rating_count})</span>
                         )}
