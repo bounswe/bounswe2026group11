@@ -158,11 +158,12 @@ func New(ctx context.Context) (*Container, error) {
 }
 
 // StartEventExpiryJob immediately transitions event statuses
-// (ACTIVE → IN_PROGRESS → COMPLETED), then repeats every interval until ctx
-// is cancelled.
+// (ACTIVE → IN_PROGRESS → COMPLETED) and evaluates participation badges for
+// participants of any newly-completed events, then repeats every interval
+// until ctx is cancelled.
 func (c *Container) StartEventExpiryJob(ctx context.Context, interval time.Duration) {
 	expire := func() {
-		if err := c.eventRepo.TransitionEventStatuses(ctx); err != nil {
+		if err := c.EventService.TransitionExpiredEvents(ctx); err != nil {
 			slog.ErrorContext(ctx, "event status transition job failed", "error", err)
 		}
 	}
@@ -210,6 +211,15 @@ func (c *Container) StartNotificationRetentionJob(ctx context.Context, interval 
 			}
 		}
 	}()
+}
+
+// RunBadgeBackfill recomputes badge state for users who may already qualify
+// from historical data created before badge-trigger hooks existed.
+func (c *Container) RunBadgeBackfill(ctx context.Context) error {
+	if c == nil || c.BadgeService == nil {
+		return nil
+	}
+	return c.BadgeService.BackfillExistingBadges(ctx)
 }
 
 // Close releases all long-lived resources (e.g. database connections).
@@ -276,6 +286,7 @@ func newAdminService(c *Container) admin.UseCase {
 func newEventService(c *Container) event.UseCase {
 	service := event.NewService(c.eventRepo, c.ParticipationService, c.JoinRequestService, c.UnitOfWork, c.TicketService)
 	service.SetNotificationService(c.NotificationService)
+	service.SetBadgeEvaluator(c.BadgeService)
 	return service
 }
 

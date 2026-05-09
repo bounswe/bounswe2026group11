@@ -1763,8 +1763,11 @@ func (r *EventRepository) CompleteEvent(ctx context.Context, eventID uuid.UUID) 
 //
 // updated_at reflects event-level mutations (title, description, cancel, etc.).
 // Participation activity does not advance updated_at.
-func (r *EventRepository) TransitionEventStatuses(ctx context.Context) error {
-	_, err := r.pool.Exec(ctx, `
+//
+// Returns the completed-event transitions so callers can fan out
+// post-completion side effects (e.g. badge evaluation).
+func (r *EventRepository) TransitionEventStatuses(ctx context.Context) ([]eventapp.CompletedEventTransitionRecord, error) {
+	rows, err := r.pool.Query(ctx, `
 		WITH transitioned AS (
 			UPDATE event
 			SET status = CASE
@@ -1778,18 +1781,38 @@ func (r *EventRepository) TransitionEventStatuses(ctx context.Context) error {
 			    start_time < NOW()
 			    OR (end_time IS NOT NULL AND end_time < NOW())
 			  )
-			RETURNING id, status
+			RETURNING id, host_id, status
+		),
+		expired_tickets AS (
+			UPDATE ticket t
+			SET status = 'EXPIRED',
+			    updated_at = NOW()
+			FROM participation p
+			JOIN transitioned e ON e.id = p.event_id
+			WHERE t.participation_id = p.id
+			  AND e.status = 'COMPLETED'
+			  AND t.status IN ('ACTIVE', 'PENDING')
+			RETURNING 1
 		)
-		UPDATE ticket t
-		SET status = 'EXPIRED',
-		    updated_at = NOW()
-		FROM participation p
-		JOIN transitioned e ON e.id = p.event_id
-		WHERE t.participation_id = p.id
-		  AND e.status = 'COMPLETED'
-		  AND t.status IN ('ACTIVE', 'PENDING')
+		SELECT id, host_id FROM transitioned WHERE status = 'COMPLETED'
 	`)
-	return err
+	if err != nil {
+		return nil, fmt.Errorf("transition event statuses: %w", err)
+	}
+	defer rows.Close()
+
+	var completedTransitions []eventapp.CompletedEventTransitionRecord
+	for rows.Next() {
+		var transition eventapp.CompletedEventTransitionRecord
+		if err := rows.Scan(&transition.EventID, &transition.HostID); err != nil {
+			return nil, fmt.Errorf("scan completed event transition: %w", err)
+		}
+		completedTransitions = append(completedTransitions, transition)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("completed event transition rows: %w", err)
+	}
+	return completedTransitions, nil
 }
 
 // AddFavorite inserts a row into favorite_event. If the row already exists the

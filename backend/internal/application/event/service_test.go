@@ -54,6 +54,7 @@ type fakeEventRepo struct {
 	lastCancelCount        int
 	requesters             map[uuid.UUID]*domain.User
 	getRequesterForJoinErr error
+	completedTransitions   []CompletedEventTransitionRecord
 }
 
 func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams) (*domain.Event, error) {
@@ -141,8 +142,11 @@ func (r *fakeEventRepo) ListEventInvitations(
 	return r.invitationRecords, nil
 }
 
-func (r *fakeEventRepo) TransitionEventStatuses(_ context.Context) error {
-	return r.err
+func (r *fakeEventRepo) TransitionEventStatuses(_ context.Context) ([]CompletedEventTransitionRecord, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	return r.completedTransitions, nil
 }
 
 func (r *fakeEventRepo) CancelEvent(ctx context.Context, eventID uuid.UUID, canceledApprovedParticipantCount int) error {
@@ -210,16 +214,33 @@ func (r *fakeEventRepo) GetRequesterForJoin(_ context.Context, userID uuid.UUID)
 
 // fakeParticipationService is an in-memory implementation of ParticipationService.
 type fakeParticipationService struct {
+	err                          error
+	callCount                    int
+	leaveCallCount               int
+	cancelCallCount              int
+	evaluateBadgesCallCount      int
+	lastEventID                  uuid.UUID
+	lastUserID                   uuid.UUID
+	lastLeaveEventID             uuid.UUID
+	lastLeaveUserID              uuid.UUID
+	lastCancelEventID            uuid.UUID
+	lastCancelCtx                context.Context
+	lastEvaluateBadgesEventID    uuid.UUID
+	evaluateBadgesEventIDHistory []uuid.UUID
+}
+
+type fakeEventBadgeEvaluator struct {
 	err               error
 	callCount         int
-	leaveCallCount    int
-	cancelCallCount   int
-	lastEventID       uuid.UUID
-	lastUserID        uuid.UUID
-	lastLeaveEventID  uuid.UUID
-	lastLeaveUserID   uuid.UUID
-	lastCancelEventID uuid.UUID
-	lastCancelCtx     context.Context
+	lastHostID        uuid.UUID
+	hostIDCallHistory []uuid.UUID
+}
+
+func (e *fakeEventBadgeEvaluator) EvaluateHostBadges(_ context.Context, hostID uuid.UUID) error {
+	e.callCount++
+	e.lastHostID = hostID
+	e.hostIDCallHistory = append(e.hostIDCallHistory, hostID)
+	return e.err
 }
 
 func (s *fakeParticipationService) CreateApprovedParticipation(_ context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
@@ -265,6 +286,13 @@ func (s *fakeParticipationService) CancelEventParticipations(ctx context.Context
 	s.lastCancelEventID = eventID
 	s.lastCancelCtx = ctx
 	return nil, s.err
+}
+
+func (s *fakeParticipationService) EvaluateBadgesForEventParticipants(_ context.Context, eventID uuid.UUID) error {
+	s.evaluateBadgesCallCount++
+	s.lastEvaluateBadgesEventID = eventID
+	s.evaluateBadgesEventIDHistory = append(s.evaluateBadgesEventIDHistory, eventID)
+	return s.err
 }
 
 // fakeJoinRequestService is an in-memory implementation of JoinRequestService.
@@ -419,6 +447,12 @@ func newTestEventService() (*Service, *fakeEventRepo, *fakeParticipationService,
 	participationService := &fakeParticipationService{}
 	joinRequestService := &fakeJoinRequestService{}
 	return NewService(eventRepo, participationService, joinRequestService, &fakeUnitOfWork{}), eventRepo, participationService, joinRequestService
+}
+
+func attachEventBadgeEvaluator(svc *Service) *fakeEventBadgeEvaluator {
+	evaluator := &fakeEventBadgeEvaluator{}
+	svc.SetBadgeEvaluator(evaluator)
+	return evaluator
 }
 
 func validInput() CreateEventInput {
@@ -1480,13 +1514,20 @@ func TestCancelEventRollsBackUnitOfWorkWhenParticipationCancelFails(t *testing.T
 func TestCompleteEventHostSuccess(t *testing.T) {
 	hostID := uuid.New()
 	ev := publicEvent(hostID)
-	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+	svc, _, participationService, _ := newTestEventServiceWithEvent(ev)
+	badgeEvaluator := attachEventBadgeEvaluator(svc)
 
 	if err := svc.CompleteEvent(context.Background(), hostID, ev.ID); err != nil {
 		t.Fatalf("CompleteEvent() error = %v", err)
 	}
 	if ev.Status != domain.EventStatusCompleted {
 		t.Fatalf("expected status COMPLETED, got %q", ev.Status)
+	}
+	if participationService.evaluateBadgesCallCount != 1 || participationService.lastEvaluateBadgesEventID != ev.ID {
+		t.Fatalf("expected badge evaluation for event %s, got calls=%d event=%s", ev.ID, participationService.evaluateBadgesCallCount, participationService.lastEvaluateBadgesEventID)
+	}
+	if badgeEvaluator.callCount != 1 || badgeEvaluator.lastHostID != hostID {
+		t.Fatalf("expected host badge evaluation for host %s, got calls=%d host=%s", hostID, badgeEvaluator.callCount, badgeEvaluator.lastHostID)
 	}
 }
 
@@ -1547,6 +1588,79 @@ func TestCompleteEventConflictWhenTerminal(t *testing.T) {
 	var appErr *domain.AppError
 	if !errors.As(err, &appErr) || appErr.Status != 409 || appErr.Code != domain.ErrorCodeEventNotCompletable {
 		t.Fatalf("expected 409 event_not_completable, got %v", err)
+	}
+}
+
+func TestCompleteEventIgnoresBadgeEvaluationErrors(t *testing.T) {
+	hostID := uuid.New()
+	ev := publicEvent(hostID)
+	svc, _, participationService, _ := newTestEventServiceWithEvent(ev)
+	participationService.err = errors.New("badge evaluation failed")
+	badgeEvaluator := attachEventBadgeEvaluator(svc)
+	badgeEvaluator.err = errors.New("host badge evaluation failed")
+
+	err := svc.CompleteEvent(context.Background(), hostID, ev.ID)
+
+	if err != nil {
+		t.Fatalf("expected badge-evaluation errors to be ignored, got %v", err)
+	}
+	if participationService.evaluateBadgesCallCount != 1 {
+		t.Fatalf("expected one badge-evaluation attempt, got %d", participationService.evaluateBadgesCallCount)
+	}
+	if badgeEvaluator.callCount != 1 {
+		t.Fatalf("expected one host badge-evaluation attempt, got %d", badgeEvaluator.callCount)
+	}
+}
+
+func TestTransitionExpiredEventsEvaluatesBadgesForEachCompletedEvent(t *testing.T) {
+	completedOne := uuid.New()
+	completedTwo := uuid.New()
+	hostOne := uuid.New()
+	hostTwo := uuid.New()
+	svc, eventRepo, participationService, _ := newTestEventService()
+	badgeEvaluator := attachEventBadgeEvaluator(svc)
+	eventRepo.completedTransitions = []CompletedEventTransitionRecord{
+		{EventID: completedOne, HostID: hostOne},
+		{EventID: completedTwo, HostID: hostTwo},
+	}
+
+	err := svc.TransitionExpiredEvents(context.Background())
+
+	if err != nil {
+		t.Fatalf("TransitionExpiredEvents() error = %v", err)
+	}
+	if participationService.evaluateBadgesCallCount != 2 {
+		t.Fatalf("expected 2 badge-evaluation calls, got %d", participationService.evaluateBadgesCallCount)
+	}
+	if len(participationService.evaluateBadgesEventIDHistory) != 2 ||
+		participationService.evaluateBadgesEventIDHistory[0] != completedOne ||
+		participationService.evaluateBadgesEventIDHistory[1] != completedTwo {
+		t.Fatalf("expected badge evaluation for [%s %s], got %v", completedOne, completedTwo, participationService.evaluateBadgesEventIDHistory)
+	}
+	if badgeEvaluator.callCount != 2 ||
+		len(badgeEvaluator.hostIDCallHistory) != 2 ||
+		badgeEvaluator.hostIDCallHistory[0] != hostOne ||
+		badgeEvaluator.hostIDCallHistory[1] != hostTwo {
+		t.Fatalf("expected host badge evaluation for [%s %s], got %v", hostOne, hostTwo, badgeEvaluator.hostIDCallHistory)
+	}
+}
+
+func TestTransitionExpiredEventsPropagatesRepositoryError(t *testing.T) {
+	expectedErr := errors.New("transition failed")
+	svc, eventRepo, participationService, _ := newTestEventService()
+	badgeEvaluator := attachEventBadgeEvaluator(svc)
+	eventRepo.err = expectedErr
+
+	err := svc.TransitionExpiredEvents(context.Background())
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected error %v, got %v", expectedErr, err)
+	}
+	if participationService.evaluateBadgesCallCount != 0 {
+		t.Fatalf("expected no badge evaluation after repo failure, got %d calls", participationService.evaluateBadgesCallCount)
+	}
+	if badgeEvaluator.callCount != 0 {
+		t.Fatalf("expected no host badge evaluation after repo failure, got %d calls", badgeEvaluator.callCount)
 	}
 }
 

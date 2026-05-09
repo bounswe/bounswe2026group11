@@ -14,6 +14,13 @@ var ErrEventNotCancelable = errors.New("event is not cancelable")
 // ErrEventNotCompletable is returned by Repository.CompleteEvent when the event is not ACTIVE or IN_PROGRESS.
 var ErrEventNotCompletable = errors.New("event is not completable")
 
+// CompletedEventTransitionRecord identifies one event that has just moved to
+// COMPLETED and carries the host needed for post-completion side effects.
+type CompletedEventTransitionRecord struct {
+	EventID uuid.UUID
+	HostID  uuid.UUID
+}
+
 // Repository is the application-layer persistence port for event flows.
 type Repository interface {
 	CreateEvent(ctx context.Context, params CreateEventParams) (*domain.Event, error)
@@ -25,7 +32,7 @@ type Repository interface {
 	ListEventInvitations(ctx context.Context, eventID uuid.UUID, params EventCollectionPageParams) ([]EventDetailInvitationRecord, error)
 	GetEventByID(ctx context.Context, eventID uuid.UUID) (*domain.Event, error)
 	GetRequesterForJoin(ctx context.Context, userID uuid.UUID) (*domain.User, error)
-	TransitionEventStatuses(ctx context.Context) error
+	TransitionEventStatuses(ctx context.Context) ([]CompletedEventTransitionRecord, error)
 	CancelEvent(ctx context.Context, eventID uuid.UUID, canceledApprovedParticipantCount int) error
 	CompleteEvent(ctx context.Context, eventID uuid.UUID) error
 	AddFavorite(ctx context.Context, userID, eventID uuid.UUID) error

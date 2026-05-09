@@ -180,6 +180,34 @@ func (r *ParticipationRepository) loadEventJoinState(ctx context.Context, eventI
 	return event, nil
 }
 
+// ListApprovedParticipantUserIDs returns the user IDs of every APPROVED
+// participation for the given event. Used by post-completion badge evaluation
+// fan-out.
+func (r *ParticipationRepository) ListApprovedParticipantUserIDs(ctx context.Context, eventID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT user_id
+		FROM participation
+		WHERE event_id = $1 AND status = $2
+	`, eventID, domain.ParticipationStatusApproved)
+	if err != nil {
+		return nil, fmt.Errorf("list approved participant user ids: %w", err)
+	}
+	defer rows.Close()
+
+	var userIDs []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan approved participant user id: %w", err)
+		}
+		userIDs = append(userIDs, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("approved participant user ids rows: %w", err)
+	}
+	return userIDs, nil
+}
+
 // CancelEventParticipations transitions every non-LEAVED participation for the
 // event to CANCELED, preserving historical leave records. It returns the user
 // IDs of every participation that was transitioned so callers can fan out

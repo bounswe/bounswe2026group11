@@ -283,6 +283,10 @@ func (s *stubEventService) CompleteEvent(_ context.Context, _, _ uuid.UUID) erro
 	return s.err
 }
 
+func (s *stubEventService) TransitionExpiredEvents(_ context.Context) error {
+	return s.err
+}
+
 func (s *stubEventService) AddFavorite(_ context.Context, _, _ uuid.UUID) error {
 	return s.err
 }

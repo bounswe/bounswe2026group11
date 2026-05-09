@@ -16,6 +16,9 @@ type fakeRepo struct {
 	participation    map[uuid.UUID]ParticipationStatsRecord
 	host             map[uuid.UUID]HostStatsRecord
 	favoriteCounts   map[uuid.UUID]int
+	participationIDs []uuid.UUID
+	hostIDs          []uuid.UUID
+	favoriteIDs      []uuid.UUID
 	awarded          map[uuid.UUID][]domain.BadgeSlug
 	awardErr         error
 	listAllErr       error
@@ -23,6 +26,7 @@ type fakeRepo struct {
 	participationErr error
 	hostErr          error
 	favoriteCountErr error
+	listIDsErr       error
 }
 
 func newFakeRepo() *fakeRepo {
@@ -81,6 +85,27 @@ func (r *fakeRepo) FavoriteLocationCount(ctx context.Context, userID uuid.UUID) 
 		return 0, r.favoriteCountErr
 	}
 	return r.favoriteCounts[userID], nil
+}
+
+func (r *fakeRepo) ListParticipationBadgeCandidateUserIDs(ctx context.Context) ([]uuid.UUID, error) {
+	if r.listIDsErr != nil {
+		return nil, r.listIDsErr
+	}
+	return r.participationIDs, nil
+}
+
+func (r *fakeRepo) ListHostBadgeCandidateUserIDs(ctx context.Context) ([]uuid.UUID, error) {
+	if r.listIDsErr != nil {
+		return nil, r.listIDsErr
+	}
+	return r.hostIDs, nil
+}
+
+func (r *fakeRepo) ListFavoriteLocationBadgeCandidateUserIDs(ctx context.Context) ([]uuid.UUID, error) {
+	if r.listIDsErr != nil {
+		return nil, r.listIDsErr
+	}
+	return r.favoriteIDs, nil
 }
 
 func sampleCatalog() []domain.Badge {
@@ -350,6 +375,65 @@ func TestEvaluateParticipationBadgesPropagatesRepoError(t *testing.T) {
 	err := svc.EvaluateParticipationBadges(context.Background(), uuid.New())
 	if err == nil || err.Error() != "boom" {
 		t.Errorf("err = %v, want boom", err)
+	}
+}
+
+func TestBackfillExistingBadgesEvaluatesHistoricalCandidates(t *testing.T) {
+	repo := newFakeRepo()
+	participantID := uuid.New()
+	hostID := uuid.New()
+	favoriteID := uuid.New()
+	score := 4.8
+	repo.participationIDs = []uuid.UUID{participantID}
+	repo.hostIDs = []uuid.UUID{hostID}
+	repo.favoriteIDs = []uuid.UUID{favoriteID}
+	repo.participation[participantID] = ParticipationStatsRecord{
+		CompletedEventCount:     5,
+		DistinctCategoriesCount: 3,
+	}
+	repo.host[hostID] = HostStatsRecord{
+		CompletedHostedEventCount: 10,
+		HostScore:                 &score,
+		HostRatingCount:           5,
+	}
+	repo.favoriteCounts[favoriteID] = 3
+	svc := NewService(repo)
+
+	err := svc.BackfillExistingBadges(context.Background())
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !sameSet(repo.awarded[participantID], []domain.BadgeSlug{
+		domain.BadgeSlugFirstSteps,
+		domain.BadgeSlugRegular,
+		domain.BadgeSlugExplorer,
+	}) {
+		t.Fatalf("unexpected participation backfill awards: %v", repo.awarded[participantID])
+	}
+	if !sameSet(repo.awarded[hostID], []domain.BadgeSlug{
+		domain.BadgeSlugHostDebut,
+		domain.BadgeSlugSuperHost,
+		domain.BadgeSlugTopRated,
+	}) {
+		t.Fatalf("unexpected host backfill awards: %v", repo.awarded[hostID])
+	}
+	if !sameSet(repo.awarded[favoriteID], []domain.BadgeSlug{
+		domain.BadgeSlugFavoriteFinder,
+	}) {
+		t.Fatalf("unexpected favorite-location backfill awards: %v", repo.awarded[favoriteID])
+	}
+}
+
+func TestBackfillExistingBadgesPropagatesCandidateLookupError(t *testing.T) {
+	repo := newFakeRepo()
+	repo.listIDsErr = errors.New("candidate lookup failed")
+	svc := NewService(repo)
+
+	err := svc.BackfillExistingBadges(context.Background())
+
+	if err == nil || err.Error() != "candidate lookup failed" {
+		t.Fatalf("err = %v, want candidate lookup failed", err)
 	}
 }
 
