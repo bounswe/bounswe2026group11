@@ -25,16 +25,16 @@ func TestAudienceAttributes_CreateAndDetail(t *testing.T) {
 	startTime := time.Now().UTC().Add(24 * time.Hour)
 
 	result, err := harness.Service.CreateEvent(context.Background(), host.ID, eventapp.CreateEventInput{
-		Title:         "Child Friendly Event",
-		Description:   common.StringPtr("an event for all ages"),
-		CategoryID:    &categoryID,
-		LocationType:  domain.LocationPoint,
-		Address:       common.StringPtr("Bebek, Istanbul"),
-		Lat:           &lat,
-		Lon:           &lon,
-		StartTime:     startTime,
-		PrivacyLevel:  domain.PrivacyPublic,
-		ChildFriendly: true,
+		Title:          "Child Friendly Event",
+		Description:    common.StringPtr("an event for all ages"),
+		CategoryID:     &categoryID,
+		LocationType:   domain.LocationPoint,
+		Address:        common.StringPtr("Bebek, Istanbul"),
+		Lat:            &lat,
+		Lon:            &lon,
+		StartTime:      startTime,
+		PrivacyLevel:   domain.PrivacyPublic,
+		ChildFriendly:  true,
 		FamilyOriented: false,
 	})
 	if err != nil {

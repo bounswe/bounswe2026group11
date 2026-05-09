@@ -66,6 +66,13 @@ func (r *fakeProfileRepo) UpdatePasswordHash(_ context.Context, _ uuid.UUID, _ s
 	return r.profileErr
 }
 
+func (r *fakeProfileRepo) GetLocale(_ context.Context, _ uuid.UUID) (string, error) {
+	if r.profile != nil {
+		return r.profile.Locale, nil
+	}
+	return "", r.profileErr
+}
+
 func newService(repo *fakeProfileRepo) *Service {
 	return NewService(repo, &fakeUnitOfWork{})
 }

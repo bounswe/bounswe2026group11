@@ -39,9 +39,19 @@ type SendPushInput struct {
 }
 
 type SendNotificationInput struct {
-	UserIDs        []uuid.UUID
-	Title          string
+	UserIDs []uuid.UUID
+	// Title is the literal English title used when TitleKey is empty; it is
+	// also kept as a server-side fallback so notifications still render if
+	// the i18n catalog is missing the requested key.
+	Title string
+	// TitleKey, when non-empty, points to an entry in the i18n catalog.
+	// The service translates it per recipient using their stored locale and
+	// persists the resolved string into the notification row.
+	TitleKey       string
+	TitleArgs      []any
 	Body           string
+	BodyKey        string
+	BodyArgs       []any
 	Type           *string
 	DeepLink       *string
 	Data           map[string]string

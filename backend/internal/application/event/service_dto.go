@@ -111,21 +111,21 @@ type UpdateEventResult struct {
 
 // DiscoverEventsInput is the validated input for event discovery and search.
 type DiscoverEventsInput struct {
-	Lat           *float64
-	Lon           *float64
-	RadiusMeters  *int
-	Query         *string
-	PrivacyLevels []domain.EventPrivacyLevel
-	CategoryIDs   []int
-	StartFrom     *time.Time
-	StartTo       *time.Time
-	TagNames      []string
+	Lat                *float64
+	Lon                *float64
+	RadiusMeters       *int
+	Query              *string
+	PrivacyLevels      []domain.EventPrivacyLevel
+	CategoryIDs        []int
+	StartFrom          *time.Time
+	StartTo            *time.Time
+	TagNames           []string
 	OnlyFavorited      bool
 	OnlyChildFriendly  bool
 	OnlyFamilyOriented bool
 	SortBy             *domain.EventDiscoverySort
-	Limit         *int
-	Cursor        *string
+	Limit              *int
+	Cursor             *string
 }
 
 // DiscoverEventsResult is returned after a successful event discovery query.

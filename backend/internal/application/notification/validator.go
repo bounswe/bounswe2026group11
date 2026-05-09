@@ -50,10 +50,13 @@ func validateSendNotificationInput(input SendNotificationInput) *domain.AppError
 	if len(input.UserIDs) == 0 {
 		details["user_ids"] = "must contain at least one user id"
 	}
-	if strings.TrimSpace(input.Title) == "" {
+	// Either a literal Title or a TitleKey is required; same for body.
+	// Callers that go through the i18n path supply the keys, while admin
+	// custom notifications and legacy paths supply the literal text.
+	if strings.TrimSpace(input.Title) == "" && strings.TrimSpace(input.TitleKey) == "" {
 		details["title"] = "is required"
 	}
-	if strings.TrimSpace(input.Body) == "" {
+	if strings.TrimSpace(input.Body) == "" && strings.TrimSpace(input.BodyKey) == "" {
 		details["body"] = "is required"
 	}
 	if strings.TrimSpace(input.IdempotencyKey) == "" {

@@ -1,0 +1,33 @@
+{
+  "error.internal": "An internal error occurred.",
+  "error.missing_token": "Authorization header with Bearer token is required.",
+  "error.invalid_token": "The access token is invalid or expired.",
+  "error.admin_access_required": "Admin access is required for this endpoint.",
+  "error.validation": "The request body contains invalid fields. See error.details for field-specific messages.",
+
+  "validation.body.invalid_json": "must be valid JSON",
+  "validation.phone_number.too_long": "must be at most 32 characters",
+  "validation.gender.invalid": "must be one of: MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY",
+  "validation.birth_date.format": "must be in YYYY-MM-DD format",
+  "validation.default_location_address.too_long": "must be at most 512 characters",
+  "validation.default_location_lat.range": "must be between -90 and 90",
+  "validation.default_location_lon.range": "must be between -180 and 180",
+  "validation.default_location.lat_lon_pair_required": "lat and lon must be provided together",
+  "validation.display_name.too_long": "must be at most 64 characters",
+  "validation.bio.too_long": "must be at most 512 characters",
+  "validation.avatar_url.too_long": "must be at most 512 characters",
+  "validation.locale.unsupported": "must be one of: en, tr",
+
+  "notification.event.cancelled.title": "Event cancelled",
+  "notification.event.cancelled.body": "The event \"%s\" has been cancelled by the host.",
+  "notification.invitation.received.title": "Private event invitation",
+  "notification.invitation.received.body": "%s invited you to %s.",
+  "notification.invitation.accepted.title": "Invitation accepted",
+  "notification.invitation.accepted.body": "%s accepted your invitation to %s.",
+  "notification.invitation.declined.title": "Invitation declined",
+  "notification.invitation.declined.body": "%s declined your invitation to %s.",
+  "notification.join_request.approved.title": "Join request approved",
+  "notification.join_request.approved.body": "%s approved your request to join %s.",
+  "notification.join_request.rejected.title": "Join request rejected",
+  "notification.join_request.rejected.body": "%s rejected your request to join %s."
+}

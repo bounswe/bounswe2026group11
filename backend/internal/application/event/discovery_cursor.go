@@ -12,31 +12,31 @@ import (
 )
 
 type discoverEventsFingerprintPayload struct {
-	Lat           float64  `json:"lat"`
-	Lon           float64  `json:"lon"`
-	RadiusMeters  int      `json:"radius_meters"`
-	Query         string   `json:"query"`
-	PrivacyLevels []string `json:"privacy_levels,omitempty"`
-	CategoryIDs   []int    `json:"category_ids,omitempty"`
-	StartFrom     *string  `json:"start_from,omitempty"`
-	StartTo       *string  `json:"start_to,omitempty"`
-	TagNames      []string `json:"tag_names,omitempty"`
-	OnlyFavorited      bool `json:"only_favorited"`
-	OnlyChildFriendly  bool `json:"only_child_friendly"`
-	OnlyFamilyOriented bool `json:"only_family_oriented"`
+	Lat                float64  `json:"lat"`
+	Lon                float64  `json:"lon"`
+	RadiusMeters       int      `json:"radius_meters"`
+	Query              string   `json:"query"`
+	PrivacyLevels      []string `json:"privacy_levels,omitempty"`
+	CategoryIDs        []int    `json:"category_ids,omitempty"`
+	StartFrom          *string  `json:"start_from,omitempty"`
+	StartTo            *string  `json:"start_to,omitempty"`
+	TagNames           []string `json:"tag_names,omitempty"`
+	OnlyFavorited      bool     `json:"only_favorited"`
+	OnlyChildFriendly  bool     `json:"only_child_friendly"`
+	OnlyFamilyOriented bool     `json:"only_family_oriented"`
 }
 
 // buildDiscoverEventsFilterFingerprint hashes the normalized filter set so a
 // cursor cannot be reused with a different filter combination.
 func buildDiscoverEventsFilterFingerprint(params DiscoverEventsParams) (string, error) {
 	payload := discoverEventsFingerprintPayload{
-		Lat:           params.Origin.Lat,
-		Lon:           params.Origin.Lon,
-		RadiusMeters:  params.RadiusMeters,
-		Query:         params.Query,
-		PrivacyLevels: toPrivacyLevelStrings(params.PrivacyLevels),
-		CategoryIDs:   params.CategoryIDs,
-		TagNames:      params.TagNames,
+		Lat:                params.Origin.Lat,
+		Lon:                params.Origin.Lon,
+		RadiusMeters:       params.RadiusMeters,
+		Query:              params.Query,
+		PrivacyLevels:      toPrivacyLevelStrings(params.PrivacyLevels),
+		CategoryIDs:        params.CategoryIDs,
+		TagNames:           params.TagNames,
 		OnlyFavorited:      params.OnlyFavorited,
 		OnlyChildFriendly:  params.OnlyChildFriendly,
 		OnlyFamilyOriented: params.OnlyFamilyOriented,

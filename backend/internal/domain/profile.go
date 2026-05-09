@@ -55,6 +55,7 @@ type UserProfile struct {
 	BirthDate              *time.Time
 	EmailVerified          bool
 	Status                 string
+	Locale                 string
 	DefaultLocationAddress *string
 	DefaultLocationLat     *float64
 	DefaultLocationLon     *float64
