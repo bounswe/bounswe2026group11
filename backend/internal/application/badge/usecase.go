@@ -26,4 +26,7 @@ type UseCase interface {
 	// EvaluateFavoriteLocationBadges runs idempotent badge evaluation after a
 	// favorite-location is saved by the given user.
 	EvaluateFavoriteLocationBadges(ctx context.Context, userID uuid.UUID) error
+	// BackfillExistingBadges recomputes badge state for users who may already
+	// qualify based on historical data created before badge hooks existed.
+	BackfillExistingBadges(ctx context.Context) error
 }

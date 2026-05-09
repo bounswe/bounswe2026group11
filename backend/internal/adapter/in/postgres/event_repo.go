@@ -2378,9 +2378,20 @@ func (r *EventRepository) TransitionEventStatuses(ctx context.Context) ([]eventa
 			    start_time < NOW()
 			    OR (end_time IS NOT NULL AND end_time < NOW())
 			  )
-			RETURNING id, status
+			RETURNING id, host_id, status
+		),
+		expired_tickets AS (
+			UPDATE ticket t
+			SET status = 'EXPIRED',
+			    updated_at = NOW()
+			FROM participation p
+			JOIN transitioned e ON e.id = p.event_id
+			WHERE t.participation_id = p.id
+			  AND e.status = 'COMPLETED'
+			  AND t.status IN ('ACTIVE', 'PENDING')
+			RETURNING 1
 		)
-		SELECT id, status FROM transitioned
+		SELECT id, host_id, status FROM transitioned
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("transition event statuses: %w", err)
@@ -2391,13 +2402,15 @@ func (r *EventRepository) TransitionEventStatuses(ctx context.Context) ([]eventa
 	for rows.Next() {
 		var (
 			eventID uuid.UUID
+			hostID  uuid.UUID
 			status  string
 		)
-		if err := rows.Scan(&eventID, &status); err != nil {
+		if err := rows.Scan(&eventID, &hostID, &status); err != nil {
 			return nil, fmt.Errorf("scan transitioned event status: %w", err)
 		}
 		records = append(records, eventapp.EventStatusTransitionRecord{
 			EventID: eventID,
+			HostID:  hostID,
 			Status:  domain.EventStatus(status),
 		})
 	}

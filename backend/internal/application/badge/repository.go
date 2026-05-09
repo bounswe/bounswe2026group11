@@ -29,4 +29,15 @@ type Repository interface {
 	// FavoriteLocationCount returns the number of favorite locations saved
 	// by the given user.
 	FavoriteLocationCount(ctx context.Context, userID uuid.UUID) (int, error)
+	// ListParticipationBadgeCandidateUserIDs returns the distinct users whose
+	// existing completed participations may qualify them for participation
+	// badges during retroactive backfill.
+	ListParticipationBadgeCandidateUserIDs(ctx context.Context) ([]uuid.UUID, error)
+	// ListHostBadgeCandidateUserIDs returns the distinct hosts whose completed
+	// events may qualify them for hosting badges during retroactive backfill.
+	ListHostBadgeCandidateUserIDs(ctx context.Context) ([]uuid.UUID, error)
+	// ListFavoriteLocationBadgeCandidateUserIDs returns the distinct users who
+	// have at least one saved favorite location and may qualify for social
+	// badges during retroactive backfill.
+	ListFavoriteLocationBadgeCandidateUserIDs(ctx context.Context) ([]uuid.UUID, error)
 }
