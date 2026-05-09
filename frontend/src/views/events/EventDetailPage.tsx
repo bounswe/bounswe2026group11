@@ -1558,7 +1558,6 @@ function EventContent({
   const navigate = useNavigate();
   const coverFileInputRef = useRef<HTMLInputElement>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [showTitleMenu, setShowTitleMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [activeParticipantEditorId, setActiveParticipantEditorId] = useState<string | null>(null);
   const hostCanRateParticipants = (
@@ -1648,38 +1647,34 @@ function EventContent({
             >
               {event.viewer_context.is_favorited ? '★' : '☆'}
             </button>
-            <div className="ed-title-menu-wrap">
-              <button
-                type="button"
-                className="ed-title-menu-btn"
-                onClick={() => setShowTitleMenu((open) => !open)}
-                aria-label="More event actions"
-                aria-haspopup="menu"
-                aria-expanded={showTitleMenu}
+            <button
+              type="button"
+              className="ed-report-flag-btn"
+              aria-label="Report event"
+              onClick={() => {
+                if (!isAuthenticated) {
+                  navigate('/login');
+                  return;
+                }
+                onDismissReportError();
+                setShowReportModal(true);
+              }}
+            >
+              <svg
+                width={18}
+                height={18}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
               >
-                ⋯
-              </button>
-              {showTitleMenu && (
-                <div className="ed-title-menu" role="menu">
-                  <button
-                    type="button"
-                    className="ed-title-menu-item"
-                    role="menuitem"
-                    onClick={() => {
-                      setShowTitleMenu(false);
-                      if (!isAuthenticated) {
-                        navigate('/login');
-                        return;
-                      }
-                      onDismissReportError();
-                      setShowReportModal(true);
-                    }}
-                  >
-                    Report Event
-                  </button>
-                </div>
-              )}
-            </div>
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                <line x1="4" y1="22" x2="4" y2="15" />
+              </svg>
+            </button>
             <StatusBadge status={event.status} />
           </div>
         </div>

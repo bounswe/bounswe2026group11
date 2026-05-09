@@ -156,7 +156,7 @@ function makeReadyViewModel(event: EventDetailResponse) {
 }
 
 describe('EventDetailPage ratings', () => {
-  it('opens the report modal from the title action menu and submits the selected reason', async () => {
+  it('opens the report modal from the flag button and submits the selected reason', async () => {
     const event = makeBaseEvent();
     const vm = makeReadyViewModel(event);
     vm.handleReportEvent.mockResolvedValue(true);
@@ -164,8 +164,7 @@ describe('EventDetailPage ratings', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /more event actions/i }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /report event/i }));
+    fireEvent.click(screen.getByRole('button', { name: /report event/i }));
     fireEvent.click(screen.getByLabelText(/harassment/i));
     fireEvent.change(screen.getByLabelText(/additional details/i), {
       target: { value: 'The event description targets a user group.' },
