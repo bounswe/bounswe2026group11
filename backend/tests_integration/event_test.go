@@ -71,6 +71,49 @@ func TestCreateEventSuccessPath(t *testing.T) {
 	if result.EndTime == nil {
 		t.Fatal("expected non-nil end_time")
 	}
+
+	eventID, err := uuid.Parse(result.ID)
+	if err != nil {
+		t.Fatalf("uuid.Parse() error = %v", err)
+	}
+	var (
+		versionNo     int
+		historyCount  int
+		historyTitle  string
+		historyFields []string
+	)
+	if err := common.RequirePool(t).QueryRow(
+		context.Background(),
+		`SELECT version_no FROM event WHERE id = $1`,
+		eventID,
+	).Scan(&versionNo); err != nil {
+		t.Fatalf("load event version error = %v", err)
+	}
+	if versionNo != 1 {
+		t.Fatalf("expected event version 1, got %d", versionNo)
+	}
+	if err := common.RequirePool(t).QueryRow(
+		context.Background(),
+		`SELECT COUNT(*)
+		 FROM event_history
+		 WHERE event_id = $1`,
+		eventID,
+	).Scan(&historyCount); err != nil {
+		t.Fatalf("load event history error = %v", err)
+	}
+	if err := common.RequirePool(t).QueryRow(
+		context.Background(),
+		`SELECT snapshot->>'title', changed_fields
+		 FROM event_history
+		 WHERE event_id = $1
+		   AND version_no = 1`,
+		eventID,
+	).Scan(&historyTitle, &historyFields); err != nil {
+		t.Fatalf("load event history snapshot error = %v", err)
+	}
+	if historyCount != 1 || historyTitle != input.Title || len(historyFields) != 0 {
+		t.Fatalf("unexpected event history row count=%d title=%q fields=%v", historyCount, historyTitle, historyFields)
+	}
 }
 
 func TestCreateEventPersistsInternalHostParticipationWithoutChangingVisibleCounts(t *testing.T) {
@@ -104,16 +147,19 @@ func TestCreateEventPersistsInternalHostParticipationWithoutChangingVisibleCount
 		t.Fatalf("uuid.Parse() error = %v", err)
 	}
 
-	var participationStatus string
+	var (
+		participationStatus string
+		lastConfirmed       *int
+	)
 	if err := common.RequirePool(t).QueryRow(
 		context.Background(),
-		`SELECT status
+		`SELECT status, last_confirmed_event_version
 		 FROM participation
 		 WHERE event_id = $1
 		   AND user_id = $2`,
 		eventID,
 		host.ID,
-	).Scan(&participationStatus); err != nil {
+	).Scan(&participationStatus, &lastConfirmed); err != nil {
 		t.Fatalf("load host participation error = %v", err)
 	}
 
@@ -126,12 +172,13 @@ func TestCreateEventPersistsInternalHostParticipationWithoutChangingVisibleCount
 	if participationStatus != string(domain.ParticipationStatusApproved) {
 		t.Fatalf("expected host participation status %q, got %q", domain.ParticipationStatusApproved, participationStatus)
 	}
+	if lastConfirmed == nil || *lastConfirmed != 1 {
+		t.Fatalf("expected host last_confirmed_event_version 1, got %v", lastConfirmed)
+	}
 	if detail.ApprovedParticipantCount != 0 {
 		t.Fatalf("expected visible approved_participant_count 0, got %d", detail.ApprovedParticipantCount)
 	}
-	if detail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusNone) {
-		t.Fatalf("expected host participation_status %q, got %q", domain.EventDetailParticipationStatusNone, detail.ViewerContext.ParticipationStatus)
-	}
+	assertNoViewerParticipationStatus(t, detail.ViewerContext)
 	hostSummary, err := harness.Service.GetEventHostContextSummary(context.Background(), host.ID, eventID)
 	if err != nil {
 		t.Fatalf("GetEventHostContextSummary() error = %v", err)
@@ -1030,9 +1077,7 @@ func TestGetEventDetailReadsPublicEventForAuthenticatedUser(t *testing.T) {
 	if !result.ViewerContext.IsFavorited {
 		t.Fatal("expected viewer to see is_favorited=true")
 	}
-	if result.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusNone) {
-		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusNone, result.ViewerContext.ParticipationStatus)
-	}
+	assertNoViewerParticipationStatus(t, result.ViewerContext)
 	if result.HostContext != nil {
 		t.Fatal("expected non-host response to omit host_context")
 	}
@@ -1127,9 +1172,7 @@ func TestGetEventDetailReadsPrivateEventForApprovedParticipant(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetEventDetail() error = %v", err)
 	}
-	if result.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
-		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusJoined, result.ViewerContext.ParticipationStatus)
-	}
+	assertViewerParticipationStatus(t, result.ViewerContext, domain.ParticipationStatusApproved)
 }
 
 func TestGetEventDetailReadsPrivateEventForAcceptedInvitee(t *testing.T) {
@@ -1158,9 +1201,8 @@ func TestGetEventDetailReadsPrivateEventForAcceptedInvitee(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetEventDetail() error = %v", err)
 	}
-	if result.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusInvited) {
-		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusInvited, result.ViewerContext.ParticipationStatus)
-	}
+	assertNoViewerParticipationStatus(t, result.ViewerContext)
+	assertViewerInvitationStatus(t, result.ViewerContext, domain.InvitationStatusAccepted)
 }
 
 func TestGetEventDetailRejectsPrivateEventForUnrelatedUser(t *testing.T) {
@@ -1231,18 +1273,12 @@ func TestGetEventDetailReportsViewerParticipationStatuses(t *testing.T) {
 	}
 
 	// then
-	if joinedDetail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
-		t.Fatalf("expected joined status %q, got %q", domain.EventDetailParticipationStatusJoined, joinedDetail.ViewerContext.ParticipationStatus)
-	}
-	if pendingDetail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusPending) {
-		t.Fatalf("expected pending status %q, got %q", domain.EventDetailParticipationStatusPending, pendingDetail.ViewerContext.ParticipationStatus)
-	}
-	if invitedDetail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusInvited) {
-		t.Fatalf("expected invited status %q, got %q", domain.EventDetailParticipationStatusInvited, invitedDetail.ViewerContext.ParticipationStatus)
-	}
-	if noneDetail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusNone) {
-		t.Fatalf("expected none status %q, got %q", domain.EventDetailParticipationStatusNone, noneDetail.ViewerContext.ParticipationStatus)
-	}
+	assertViewerParticipationStatus(t, joinedDetail.ViewerContext, domain.ParticipationStatusApproved)
+	assertNoViewerParticipationStatus(t, pendingDetail.ViewerContext)
+	assertViewerJoinRequestStatus(t, pendingDetail.ViewerContext, domain.JoinRequestStatusPending)
+	assertNoViewerParticipationStatus(t, invitedDetail.ViewerContext)
+	assertViewerInvitationStatus(t, invitedDetail.ViewerContext, domain.InvitationStatusPending)
+	assertNoViewerParticipationStatus(t, noneDetail.ViewerContext)
 }
 
 func TestGetEventDetailReturnsCanceledAndCompletedStatuses(t *testing.T) {
@@ -1576,9 +1612,7 @@ func TestAcceptInvitationCreatesParticipationAndAllowsPrivateDetail(t *testing.T
 	if err != nil {
 		t.Fatalf("GetEventDetail() error = %v", err)
 	}
-	if detail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
-		t.Fatalf("expected participation_status JOINED, got %q", detail.ViewerContext.ParticipationStatus)
-	}
+	assertViewerParticipationStatus(t, detail.ViewerContext, domain.ParticipationStatusApproved)
 }
 
 func TestDeclineInvitationCreatesCooldownAndNoParticipation(t *testing.T) {
@@ -1791,9 +1825,7 @@ func TestJoinEventAllowsRejoinAfterLeavingBeforeStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetEventDetail() error = %v", err)
 	}
-	if detail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
-		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusJoined, detail.ViewerContext.ParticipationStatus)
-	}
+	assertViewerParticipationStatus(t, detail.ViewerContext, domain.ParticipationStatusApproved)
 }
 
 func TestJoinEventRejectsRejoinAfterLeavingStartedEvent(t *testing.T) {
@@ -1909,9 +1941,7 @@ func TestLeaveEventSuccessPathBeforeStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetEventDetail() error = %v", err)
 	}
-	if detail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusLeaved) {
-		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusLeaved, detail.ViewerContext.ParticipationStatus)
-	}
+	assertViewerParticipationStatus(t, detail.ViewerContext, domain.ParticipationStatusLeaved)
 
 	upcomingEvents, err := harness.ProfileService.GetMyUpcomingEvents(context.Background(), participant.ID)
 	if err != nil {
@@ -1965,6 +1995,75 @@ func TestLeaveEventRejectsEndedEvent(t *testing.T) {
 	_, err := harness.Service.LeaveEvent(context.Background(), participant.ID, eventID)
 
 	common.RequireAppErrorCode(t, err, domain.ErrorCodeEventNotLeaveable)
+}
+
+func TestEventDetailReturnsVersionDiffUntilParticipantReconfirms(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	participant := common.GivenUser(t, harness.AuthRepo)
+	ref := common.GivenPublicEvent(t, harness.Service, host.ID)
+
+	if _, err := harness.Service.JoinEvent(context.Background(), participant.ID, ref.ID); err != nil {
+		t.Fatalf("JoinEvent() error = %v", err)
+	}
+	newTitle := "Versioned Event Title"
+	if _, err := harness.Service.UpdateEvent(context.Background(), host.ID, ref.ID, eventapp.UpdateEventInput{
+		Title: &newTitle,
+	}); err != nil {
+		t.Fatalf("UpdateEvent() title error = %v", err)
+	}
+	newCapacity := 10
+	if _, err := harness.Service.UpdateEvent(context.Background(), host.ID, ref.ID, eventapp.UpdateEventInput{
+		Capacity: eventapp.OptionalInt{Set: true, Value: &newCapacity},
+	}); err != nil {
+		t.Fatalf("UpdateEvent() capacity error = %v", err)
+	}
+
+	// when
+	detail, err := harness.Service.GetEventDetail(context.Background(), participant.ID, ref.ID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	assertViewerParticipationStatus(t, detail.ViewerContext, domain.ParticipationStatusPending)
+	if !detail.ViewerContext.NeedsReconfirmation {
+		t.Fatal("expected needs_reconfirmation=true")
+	}
+	if detail.ViewerContext.LastConfirmedEventVersion == nil || *detail.ViewerContext.LastConfirmedEventVersion != 1 {
+		t.Fatalf("expected last_confirmed_event_version 1, got %v", detail.ViewerContext.LastConfirmedEventVersion)
+	}
+	if detail.ViewerContext.LatestEventVersion != 3 {
+		t.Fatalf("expected latest_event_version 3, got %d", detail.ViewerContext.LatestEventVersion)
+	}
+	if detail.ViewerContext.EventDiff == nil {
+		t.Fatal("expected event_diff")
+	}
+	if detail.ViewerContext.EventDiff.FromVersionNo != 1 || detail.ViewerContext.EventDiff.ToVersionNo != 3 {
+		t.Fatalf("unexpected diff versions: %+v", detail.ViewerContext.EventDiff)
+	}
+	if !diffContainsField(detail.ViewerContext.EventDiff, "title") || !diffContainsField(detail.ViewerContext.EventDiff, "capacity") {
+		t.Fatalf("expected title and capacity diff fields, got %+v", detail.ViewerContext.EventDiff.ChangedFields)
+	}
+
+	reconfirmed, err := harness.Service.ReconfirmParticipation(context.Background(), participant.ID, ref.ID)
+	if err != nil {
+		t.Fatalf("ReconfirmParticipation() error = %v", err)
+	}
+	if reconfirmed.LastConfirmedEventVersion != 3 || reconfirmed.LatestEventVersion != 3 {
+		t.Fatalf("unexpected reconfirm versions: %+v", reconfirmed)
+	}
+	after, err := harness.Service.GetEventDetail(context.Background(), participant.ID, ref.ID)
+	if err != nil {
+		t.Fatalf("GetEventDetail() after reconfirm error = %v", err)
+	}
+	assertViewerParticipationStatus(t, after.ViewerContext, domain.ParticipationStatusApproved)
+	if after.ViewerContext.NeedsReconfirmation || after.ViewerContext.EventDiff != nil {
+		t.Fatalf("expected reconfirmation diff cleared, got context=%+v", after.ViewerContext)
+	}
 }
 
 // ---------------------------------------------------------
@@ -2079,9 +2178,8 @@ func TestRequestJoinReflectsPendingStatusInProtectedEventDetail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetEventDetail() error = %v", err)
 	}
-	if detail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusPending) {
-		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusPending, detail.ViewerContext.ParticipationStatus)
-	}
+	assertNoViewerParticipationStatus(t, detail.ViewerContext)
+	assertViewerJoinRequestStatus(t, detail.ViewerContext, domain.JoinRequestStatusPending)
 }
 
 func TestRequestJoinRejectsDuplicate(t *testing.T) {
@@ -2357,9 +2455,7 @@ func TestApproveJoinRequestSuccessPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetEventDetail() requester error = %v", err)
 	}
-	if requesterDetail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
-		t.Fatalf("expected requester participation_status %q, got %q", domain.EventDetailParticipationStatusJoined, requesterDetail.ViewerContext.ParticipationStatus)
-	}
+	assertViewerParticipationStatus(t, requesterDetail.ViewerContext, domain.ParticipationStatusApproved)
 }
 
 func TestApproveJoinRequestCreatesRequesterNotification(t *testing.T) {
@@ -2481,9 +2577,7 @@ func TestRejectJoinRequestSuccessPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetEventDetail() requester error = %v", err)
 	}
-	if requesterDetail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusNone) {
-		t.Fatalf("expected requester participation_status %q, got %q", domain.EventDetailParticipationStatusNone, requesterDetail.ViewerContext.ParticipationStatus)
-	}
+	assertNoViewerParticipationStatus(t, requesterDetail.ViewerContext)
 }
 
 func TestApproveJoinRequestRejectsNonHost(t *testing.T) {
@@ -2869,7 +2963,9 @@ func insertParticipation(t *testing.T, eventID, userID uuid.UUID, status domain.
 	var participationID uuid.UUID
 	err := common.RequirePool(t).QueryRow(
 		context.Background(),
-		`INSERT INTO participation (event_id, user_id, status) VALUES ($1, $2, $3) RETURNING id`,
+		`INSERT INTO participation (event_id, user_id, status, last_confirmed_event_version)
+		 VALUES ($1, $2, $3, (SELECT version_no FROM event WHERE id = $1))
+		 RETURNING id`,
 		eventID,
 		userID,
 		status,
@@ -2892,9 +2988,9 @@ func insertParticipationWithTimes(
 	var participationID uuid.UUID
 	err := common.RequirePool(t).QueryRow(
 		context.Background(),
-		`INSERT INTO participation (event_id, user_id, status, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5)
-		 RETURNING id`,
+		`INSERT INTO participation (event_id, user_id, status, last_confirmed_event_version, created_at, updated_at)
+			 VALUES ($1, $2, $3, (SELECT version_no FROM event WHERE id = $1), $4, $5)
+			 RETURNING id`,
 		eventID,
 		userID,
 		status,
@@ -2906,6 +3002,59 @@ func insertParticipationWithTimes(
 	}
 
 	return participationID
+}
+
+func assertViewerParticipationStatus(t *testing.T, context eventapp.EventDetailViewerContext, want domain.ParticipationStatus) {
+	t.Helper()
+
+	if context.ParticipationStatus == nil {
+		t.Fatalf("expected participation_status %q, got nil", want)
+	}
+	if *context.ParticipationStatus != want {
+		t.Fatalf("expected participation_status %q, got %q", want, *context.ParticipationStatus)
+	}
+}
+
+func assertNoViewerParticipationStatus(t *testing.T, context eventapp.EventDetailViewerContext) {
+	t.Helper()
+
+	if context.ParticipationStatus != nil {
+		t.Fatalf("expected participation_status nil, got %q", *context.ParticipationStatus)
+	}
+}
+
+func assertViewerJoinRequestStatus(t *testing.T, context eventapp.EventDetailViewerContext, want domain.JoinRequestStatus) {
+	t.Helper()
+
+	if context.JoinRequestStatus == nil {
+		t.Fatalf("expected join_request_status %q, got nil", want)
+	}
+	if *context.JoinRequestStatus != want {
+		t.Fatalf("expected join_request_status %q, got %q", want, *context.JoinRequestStatus)
+	}
+}
+
+func assertViewerInvitationStatus(t *testing.T, context eventapp.EventDetailViewerContext, want domain.InvitationStatus) {
+	t.Helper()
+
+	if context.InvitationStatus == nil {
+		t.Fatalf("expected invitation_status %q, got nil", want)
+	}
+	if *context.InvitationStatus != want {
+		t.Fatalf("expected invitation_status %q, got %q", want, *context.InvitationStatus)
+	}
+}
+
+func diffContainsField(diff *eventapp.EventDetailDiff, field string) bool {
+	if diff == nil {
+		return false
+	}
+	for _, changedField := range diff.ChangedFields {
+		if changedField == field {
+			return true
+		}
+	}
+	return false
 }
 
 func loadEventStartTime(t *testing.T, eventID uuid.UUID) time.Time {
@@ -3672,10 +3821,7 @@ func TestGetEventDetailShowsCanceledParticipationStatus(t *testing.T) {
 		t.Fatalf("GetEventDetail() error = %v", err)
 	}
 
-	if detail.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusCanceled) {
-		t.Fatalf("expected participation_status %q, got %q",
-			domain.EventDetailParticipationStatusCanceled, detail.ViewerContext.ParticipationStatus)
-	}
+	assertViewerParticipationStatus(t, detail.ViewerContext, domain.ParticipationStatusCanceled)
 	if detail.Status != string(domain.EventStatusCanceled) {
 		t.Fatalf("expected event status %q, got %q", domain.EventStatusCanceled, detail.Status)
 	}
@@ -3951,9 +4097,7 @@ func TestGetEventDetailAnonymousCanReadPublicEvent(t *testing.T) {
 	if result.ID != ref.ID.String() {
 		t.Fatalf("expected event id %s, got %s", ref.ID, result.ID)
 	}
-	if result.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusNone) {
-		t.Fatalf("expected participation_status NONE, got %q", result.ViewerContext.ParticipationStatus)
-	}
+	assertNoViewerParticipationStatus(t, result.ViewerContext)
 	if result.ViewerContext.IsFavorited {
 		t.Fatal("anonymous viewer should never see is_favorited=true")
 	}

@@ -114,7 +114,13 @@ paths:
         - `rating_window` describes the event-specific 7-day mutation window computed from `COALESCE(end_time, start_time)`.
         - `viewer_event_rating` returns the authenticated participant's current rating for the event, if one exists.
         - `viewer_context` is always present. For unauthenticated callers, `participation_status`
-          is `NONE` and `is_favorited` is `false`.
+          is `null`, `join_request_status` is `null`, and `is_favorited` is `false`.
+        - `viewer_context.participation_status` contains only real participation rows:
+          `APPROVED`, `PENDING`, `LEAVED`, `CANCELED`, or `null`. Pending join requests
+          are exposed separately as `viewer_context.join_request_status`.
+        - When an accepted participant must reconfirm edited event details,
+          `viewer_context.needs_reconfirmation` is `true` and `viewer_context.event_diff`
+          compares the user's `last_confirmed_event_version` with the latest event version.
         - Responses are viewer-specific when a bearer token is supplied, so the endpoint returns
           `Cache-Control: private, no-store` and `Vary: Authorization`.
         - Host management collections are no longer embedded in this response. Hosts should use
@@ -155,6 +161,7 @@ paths:
                 non_host:
                   value:
                     id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                    version_no: 5
                     title: Istanbul Trail Run
                     description: A 10 km trail run through Belgrad Forest.
                     image_url: https://example.com/trail.jpg
@@ -204,10 +211,17 @@ paths:
                     viewer_context:
                       is_host: false
                       is_favorited: true
-                      participation_status: PENDING
+                      participation_status: APPROVED
+                      join_request_status: null
+                      invitation_status: null
+                      needs_reconfirmation: false
+                      last_confirmed_event_version: 5
+                      latest_event_version: 5
+                      event_diff: null
                 host:
                   value:
                     id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                    version_no: 5
                     title: Istanbul Trail Run
                     description: A 10 km trail run through Belgrad Forest.
                     image_url: https://example.com/trail.jpg
@@ -254,7 +268,13 @@ paths:
                     viewer_context:
                       is_host: true
                       is_favorited: false
-                      participation_status: NONE
+                      participation_status: null
+                      join_request_status: null
+                      invitation_status: null
+                      needs_reconfirmation: false
+                      last_confirmed_event_version: null
+                      latest_event_version: 5
+                      event_diff: null
         '400':
           description: Invalid event ID format.
           content:
@@ -3025,6 +3045,7 @@ components:
       additionalProperties: false
       required:
         - id
+        - version_no
         - title
         - category_name
         - start_time
@@ -3141,6 +3162,11 @@ components:
           type: string
           format: uuid
           example: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+        version_no:
+          type: integer
+          minimum: 1
+          description: Latest persisted event version.
+          example: 5
         title:
           type: string
           example: Istanbul Trail Run
@@ -3496,20 +3522,95 @@ components:
     EventDetailViewerContext:
       type: object
       additionalProperties: false
-      required: [is_host, is_favorited, participation_status]
+      required:
+        - is_host
+        - is_favorited
+        - participation_status
+        - join_request_status
+        - invitation_status
+        - needs_reconfirmation
+        - last_confirmed_event_version
+        - latest_event_version
+        - event_diff
       properties:
         is_host:
           type: boolean
         is_favorited:
           type: boolean
         participation_status:
-          type: string
-          enum: [JOINED, LEAVED, PENDING, INVITED, CANCELED, NONE]
+          oneOf:
+            - type: string
+              enum: [APPROVED, PENDING, LEAVED, CANCELED]
+            - type: "null"
           description: |
-            Resolved for the authenticated user with the following precedence:
-            approved participation -> `JOINED`, leaved participation -> `LEAVED`,
-            canceled participation -> `CANCELED`, pending join request -> `PENDING`,
-            invitation row -> `INVITED`, otherwise `NONE`.
+            Actual participation-row status for the authenticated user, or `null`
+            when the user has not accepted/joined the event. Pending join requests
+            do not populate this field.
+        join_request_status:
+          oneOf:
+            - type: string
+              enum: [PENDING, APPROVED, REJECTED, CANCELED]
+            - type: "null"
+          description: Latest join-request status for the viewer on this event, or `null`.
+        invitation_status:
+          oneOf:
+            - type: string
+              enum: [PENDING, ACCEPTED, DECLINED, EXPIRED, CANCELED]
+            - type: "null"
+          description: Latest invitation status for the viewer on this event, or `null`.
+        needs_reconfirmation:
+          type: boolean
+          description: True when the viewer's accepted participation is pending reconfirmation against a newer event version.
+        last_confirmed_event_version:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          description: Event version last accepted by this viewer's participation, or `null` when there is no participation.
+        latest_event_version:
+          type: integer
+          minimum: 1
+          description: Latest event version number.
+        event_diff:
+          oneOf:
+            - $ref: '#/components/schemas/EventDetailDiff'
+            - type: "null"
+          description: Viewer-specific diff from `last_confirmed_event_version` to the latest version when reconfirmation is needed.
+
+    EventDetailDiff:
+      type: object
+      additionalProperties: false
+      required: [from_version_no, to_version_no, changed_fields, changes]
+      properties:
+        from_version_no:
+          type: integer
+          minimum: 1
+        to_version_no:
+          type: integer
+          minimum: 1
+        changed_fields:
+          type: array
+          items:
+            type: string
+          example: [title, start_time, location]
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventDetailDiffChange'
+
+    EventDetailDiffChange:
+      type: object
+      additionalProperties: false
+      required: [field, old_value, new_value]
+      properties:
+        field:
+          type: string
+          description: Event detail field that changed.
+          example: start_time
+        old_value:
+          description: Value from the viewer's last confirmed event version.
+        new_value:
+          description: Value from the latest event version.
 
     EventHostScoreSummary:
       type: object
@@ -4040,7 +4141,14 @@ components:
     ReconfirmParticipationResponse:
       type: object
       additionalProperties: false
-      required: [participation_id, event_id, status, reconfirmed_at, updated_at]
+      required:
+        - participation_id
+        - event_id
+        - status
+        - reconfirmed_at
+        - updated_at
+        - last_confirmed_event_version
+        - latest_event_version
       properties:
         participation_id:
           type: string
@@ -4057,6 +4165,14 @@ components:
         updated_at:
           type: string
           format: date-time
+        last_confirmed_event_version:
+          type: integer
+          minimum: 1
+          description: Event version accepted by this reconfirmation.
+        latest_event_version:
+          type: integer
+          minimum: 1
+          description: Latest event version at reconfirmation time.
         ticket_status:
           type: string
           enum: [ACTIVE]

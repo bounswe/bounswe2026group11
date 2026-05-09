@@ -18,6 +18,10 @@ import (
 	"github.com/google/uuid"
 )
 
+func ptrParticipationStatus(status domain.ParticipationStatus) *domain.ParticipationStatus {
+	return &status
+}
+
 type stubEventService struct {
 	result                   *event.CreateEventResult
 	discoverResult           *event.DiscoverEventsResult
@@ -143,9 +147,9 @@ func (s *stubEventService) GetEventDetail(_ context.Context, userID, eventID uui
 		Tags:        []string{},
 		Constraints: []event.EventDetailConstraint{},
 		ViewerContext: event.EventDetailViewerContext{
-			IsHost:              false,
-			IsFavorited:         false,
-			ParticipationStatus: string(domain.EventDetailParticipationStatusNone),
+			IsHost:             false,
+			IsFavorited:        false,
+			LatestEventVersion: 1,
 		},
 	}, nil
 }
@@ -668,7 +672,8 @@ func TestGetEventDetailReturnsRatingMetadata(t *testing.T) {
 			ViewerContext: event.EventDetailViewerContext{
 				IsHost:              false,
 				IsFavorited:         false,
-				ParticipationStatus: string(domain.EventDetailParticipationStatusJoined),
+				ParticipationStatus: ptrParticipationStatus(domain.ParticipationStatusApproved),
+				LatestEventVersion:  1,
 			},
 		},
 	}
