@@ -481,6 +481,26 @@ describe('useEventDetailViewModel', () => {
       expect(result.current.apiError).toBeNull();
     });
 
+    it('normalizes backend APPROVED participation status to JOINED', async () => {
+      mockGetEventDetail.mockResolvedValueOnce({
+        ...publicEventFixture,
+        viewer_context: {
+          ...publicEventFixture.viewer_context,
+          participation_status: 'APPROVED',
+        },
+      } as any);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.participationStatus).toBe('JOINED');
+      expect(result.current.event?.viewer_context.participation_status).toBe('JOINED');
+      expect(result.current.apiError).toBeNull();
+    });
+
     it('sets apiError when fetch fails', async () => {
       mockGetEventDetail.mockRejectedValueOnce(new Error('network error'));
 

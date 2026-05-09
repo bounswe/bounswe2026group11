@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       unsubscribe();
     };
-  }, [applySession, isHydrating]);
+  }, [applySession]);
 
   const setSession = useCallback(
     async (accessToken: string, refresh: string, userSummary: UserSummary) => {

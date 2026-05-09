@@ -161,7 +161,7 @@ export default function MyEventsView() {
                   <MyEventCard
                     key={event.id}
                     event={event}
-                    onPress={(eventId) => router.push(`/event/${eventId}` as Href)}
+                    onPress={(eventId) => router.push(`/event-actions/${eventId}` as Href)}
                   />
                 ))
               )}

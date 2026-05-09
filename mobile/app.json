@@ -14,6 +14,12 @@
           "locationWhenInUsePermission": "Allow Social Event Mapper to access your location so we can suggest nearby events and fill in your current location when you do not have a default location set."
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Social Event Mapper to use your camera so event hosts can scan participant tickets."
+        }
+      ],
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
       "@react-native-community/datetimepicker",
@@ -39,7 +45,8 @@
       "androidNavigationBar": {
         "backgroundColor": "#0F172A",
         "barStyle": "light-content"
-      }
+      },
+      "usesCleartextTraffic": true
     },
     "experiments": {
       "typedRoutes": true

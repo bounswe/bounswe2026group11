@@ -133,6 +133,21 @@ describe('MyEventsView', () => {
     expect(screen.getByText('Host')).toBeTruthy();
   });
 
+  it('opens the event actions screen when an event card is pressed', () => {
+    const event = makeEvent();
+    (mockUseMyEventsViewModel as any).mockReturnValue(
+      buildViewModel({
+        visibleEvents: [event],
+      }) as any,
+    );
+
+    render(<MyEventsView />);
+
+    fireEvent.click(screen.getByText('Bosphorus Sunrise Run'));
+
+    expect(mockPush).toHaveBeenCalledWith('/event-actions/event-1');
+  });
+
   it('updates the selected status tab when a segment is pressed', () => {
     const setActiveStatus = jest.fn();
     (mockUseMyEventsViewModel as any).mockReturnValue(
