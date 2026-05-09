@@ -19,6 +19,7 @@ import NotFoundView from './views/fallback/NotFoundView';
 import BackofficeLayout from './views/backoffice/BackofficeLayout';
 import UsersAdminPage from './views/backoffice/UsersAdminPage';
 import EventsAdminPage from './views/backoffice/EventsAdminPage';
+import EventReportsAdminPage from './views/backoffice/EventReportsAdminPage';
 import ParticipationsAdminPage from './views/backoffice/ParticipationsAdminPage';
 import TicketsAdminPage from './views/backoffice/TicketsAdminPage';
 import NotificationsAdminPage from './views/backoffice/NotificationsAdminPage';
@@ -54,6 +55,7 @@ export default function App() {
           <Route index element={<Navigate to="/backoffice/users" replace />} />
           <Route path="users" element={<UsersAdminPage />} />
           <Route path="events" element={<EventsAdminPage />} />
+          <Route path="event-reports" element={<EventReportsAdminPage />} />
           <Route path="participations" element={<ParticipationsAdminPage />} />
           <Route path="tickets" element={<TicketsAdminPage />} />
           <Route path="notifications" element={<NotificationsAdminPage />} />

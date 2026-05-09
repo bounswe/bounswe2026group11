@@ -9,6 +9,7 @@ const mockGetEventHostContextSummary = vi.fn();
 const mockAddFavorite = vi.fn();
 const mockRemoveFavorite = vi.fn();
 const mockRequestJoinEvent = vi.fn();
+const mockCreateEventReport = vi.fn();
 
 vi.mock('@/services/eventService', () => ({
   getEventDetail: (...args: unknown[]) => mockGetEventDetail(...args),
@@ -28,6 +29,7 @@ vi.mock('@/services/eventService', () => ({
   removeFavorite: (...args: unknown[]) => mockRemoveFavorite(...args),
   upsertEventRating: vi.fn(),
   upsertParticipantRating: vi.fn(),
+  createEventReport: (...args: unknown[]) => mockCreateEventReport(...args),
 }));
 
 vi.mock('@/utils/imageResize', () => ({
@@ -100,6 +102,16 @@ describe('useEventDetailViewModel favorites', () => {
     mockRequestJoinEvent.mockResolvedValue({
       join_request_id: 'join-request-1',
       event_id: 'event-1',
+      status: 'PENDING',
+      created_at: '2026-04-02T10:00:00Z',
+    });
+    mockCreateEventReport.mockResolvedValue({
+      id: 'report-1',
+      event_id: 'event-1',
+      reporter_user_id: 'user-1',
+      report_category: 'SPAM_OR_SCAM',
+      message: 'No additional details provided.',
+      image_url: null,
       status: 'PENDING',
       created_at: '2026-04-02T10:00:00Z',
     });

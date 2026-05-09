@@ -19,8 +19,10 @@ import {
   upsertEventRating,
   upsertParticipantRating,
   leaveEvent,
+  createEventReport,
 } from '@/services/eventService';
 import type {
+  EventReportCategory,
   EventDetailApprovedParticipant,
   EventDetailInvitation,
   EventDetailPendingJoinRequest,
@@ -70,6 +72,9 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteResult, setInviteResult] = useState<CreateEventInvitationsResponse | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportSuccessMessage, setReportSuccessMessage] = useState<string | null>(null);
 
   useEffect(
     () => () => {
@@ -582,6 +587,49 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     }
   }, [eventId, token, refreshEventDetail, dismissCoverImageSuccess]);
 
+  const handleReportEvent = useCallback(async (
+    reportCategory: EventReportCategory,
+    message?: string,
+  ): Promise<boolean> => {
+    if (!eventId || !token) return false;
+    setReportLoading(true);
+    setReportError(null);
+    setReportSuccessMessage(null);
+
+    try {
+      await createEventReport(
+        eventId,
+        {
+          report_category: reportCategory,
+          message: message?.trim() || 'No additional details provided.',
+        },
+        token,
+      );
+      setReportSuccessMessage('Thanks. Your report has been submitted for review.');
+      return true;
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const errorMap: Record<string, string> = {
+          event_report_not_allowed: 'This event cannot be reported right now.',
+          already_reported: 'You have already reported this event.',
+          duplicate_report: 'You have already reported this event.',
+          event_report_duplicate: 'You have already reported this event.',
+          validation_error: err.details?.message ?? err.message,
+        };
+        if (err.status === 409) {
+          setReportError(errorMap[err.code] ?? 'You have already reported this event.');
+        } else {
+          setReportError(errorMap[err.code] ?? err.message);
+        }
+      } else {
+        setReportError('Failed to submit report. Please try again.');
+      }
+      return false;
+    } finally {
+      setReportLoading(false);
+    }
+  }, [eventId, token]);
+
   const loadMoreApprovedParticipants = useCallback(async () => {
     if (!approvedParticipantsHasNext || !approvedParticipantsNextCursor || approvedParticipantsLoading) return;
     await refreshApprovedParticipants(approvedParticipantsNextCursor, true);
@@ -640,6 +688,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
 
   const dismissInviteError = useCallback(() => setInviteError(null), []);
   const clearInviteResult = useCallback(() => setInviteResult(null), []);
+  const dismissReportError = useCallback(() => setReportError(null), []);
+  const dismissReportSuccess = useCallback(() => setReportSuccessMessage(null), []);
 
   return {
     event,
@@ -675,7 +725,11 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     cancelLoading,
     cancelError,
     favoriteLoading,
+    reportLoading,
+    reportError,
+    reportSuccessMessage,
     handleFavoriteToggle,
+    handleReportEvent,
     retry: fetchDetail,
     handleJoin,
     handleLeave,
@@ -697,6 +751,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     handleCoverImageUpload,
     dismissCoverImageError,
     dismissCoverImageSuccess,
+    dismissReportError,
+    dismissReportSuccess,
     loadMoreApprovedParticipants,
     loadMorePendingJoinRequests,
     loadMoreInvitations,

@@ -4,6 +4,7 @@ import '@/styles/backoffice.css';
 const SIDEBAR_ITEMS = [
   { to: '/backoffice/users', label: 'Users' },
   { to: '/backoffice/events', label: 'Events' },
+  { to: '/backoffice/event-reports', label: 'Event Reports' },
   { to: '/backoffice/participations', label: 'Participations' },
   { to: '/backoffice/tickets', label: 'Tickets' },
   { to: '/backoffice/notifications', label: 'Notifications' },

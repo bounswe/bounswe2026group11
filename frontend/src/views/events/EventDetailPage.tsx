@@ -4,6 +4,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import type {
+  EventReportCategory,
   EventDetailApprovedParticipant,
   EventDetailInvitation,
   EventDetailPendingJoinRequest,
@@ -35,6 +36,25 @@ export function buildDirectionsUrl(lat: number, lon: number): string {
 
 const FEEDBACK_MIN_LENGTH = 10;
 const FEEDBACK_MAX_LENGTH = 100;
+const REPORT_MESSAGE_MAX_LENGTH = 1000;
+
+const REPORT_REASONS: Array<{ value: EventReportCategory; label: string; hint: string }> = [
+  {
+    value: 'SPAM_OR_SCAM',
+    label: 'Spam',
+    hint: 'Promotional, misleading, or scam-like event content.',
+  },
+  {
+    value: 'INAPPROPRIATE_CONTENT',
+    label: 'Inappropriate',
+    hint: 'Offensive, explicit, or otherwise inappropriate event content.',
+  },
+  {
+    value: 'HARASSMENT',
+    label: 'Harassment',
+    hint: 'Targeted abuse, threats, or harassing behavior.',
+  },
+];
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -1267,6 +1287,108 @@ function CancelConfirmModal({
   );
 }
 
+function ReportEventModal({
+  loading,
+  error,
+  onSubmit,
+  onDismissError,
+  onClose,
+}: {
+  loading: boolean;
+  error: string | null;
+  onSubmit: (category: EventReportCategory, message?: string) => Promise<boolean>;
+  onDismissError: () => void;
+  onClose: () => void;
+}) {
+  const [category, setCategory] = useState<EventReportCategory>('SPAM_OR_SCAM');
+  const [message, setMessage] = useState('');
+  const isMessageTooLong = message.length > REPORT_MESSAGE_MAX_LENGTH;
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (isMessageTooLong || loading) return;
+    const success = await onSubmit(category, message);
+    if (success) onClose();
+  };
+
+  return (
+    <div className="ed-modal-overlay" onClick={onClose}>
+      <form className="ed-modal ed-report-modal" onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()}>
+        <h3 className="ed-modal-title">Report Event</h3>
+        <p className="ed-modal-text">
+          Choose the closest reason. Reports are sent to moderators for review.
+        </p>
+
+        {error && (
+          <div className="ed-join-error" role="alert">
+            <span>{error}</span>
+            <button type="button" className="ed-join-error-dismiss" onClick={onDismissError}>
+              &times;
+            </button>
+          </div>
+        )}
+
+        <div className="ed-report-reasons" role="radiogroup" aria-label="Report reason">
+          {REPORT_REASONS.map((reason) => (
+            <label
+              key={reason.value}
+              className={`ed-report-reason ${category === reason.value ? 'selected' : ''}`}
+            >
+              <input
+                type="radio"
+                name="report-category"
+                value={reason.value}
+                checked={category === reason.value}
+                onChange={() => setCategory(reason.value)}
+                disabled={loading}
+              />
+              <span className="ed-report-reason-copy">
+                <span className="ed-report-reason-label">{reason.label}</span>
+                <span className="ed-report-reason-hint">{reason.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <label className="ed-report-message-label" htmlFor="ed-report-message">
+          Additional details <span>(optional)</span>
+        </label>
+        <textarea
+          id="ed-report-message"
+          className={`ed-report-message ${isMessageTooLong ? 'has-error' : ''}`}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          maxLength={REPORT_MESSAGE_MAX_LENGTH + 1}
+          rows={4}
+          placeholder="Add context that would help moderators understand the issue."
+          disabled={loading}
+        />
+        <div className={`ed-report-char-count ${isMessageTooLong ? 'is-error' : ''}`}>
+          {message.length}/{REPORT_MESSAGE_MAX_LENGTH}
+        </div>
+
+        <div className="ed-modal-actions">
+          <button
+            type="button"
+            className="ed-modal-cancel-btn"
+            onClick={onClose}
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="ed-modal-confirm-btn ed-report-submit-btn"
+            disabled={loading || isMessageTooLong}
+          >
+            {loading ? <span className="spinner" /> : 'Submit Report'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function LeaveConfirmModal({
   onConfirm,
   onClose,
@@ -1336,6 +1458,12 @@ function EventContent({
   onDismissCancelError,
   favoriteLoading,
   onFavoriteToggle,
+  reportLoading,
+  reportError,
+  reportSuccessMessage,
+  onReportEvent,
+  onDismissReportError,
+  onDismissReportSuccess,
   isAuthenticated,
   token,
   hostContextSummary,
@@ -1393,6 +1521,12 @@ function EventContent({
   onDismissCancelError: () => void;
   favoriteLoading: boolean;
   onFavoriteToggle: () => void;
+  reportLoading: boolean;
+  reportError: string | null;
+  reportSuccessMessage: string | null;
+  onReportEvent: (category: EventReportCategory, message?: string) => Promise<boolean>;
+  onDismissReportError: () => void;
+  onDismissReportSuccess: () => void;
   isAuthenticated: boolean;
   token: string | null;
   hostContextSummary: EventHostContextSummary | null;
@@ -1424,6 +1558,8 @@ function EventContent({
   const navigate = useNavigate();
   const coverFileInputRef = useRef<HTMLInputElement>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showTitleMenu, setShowTitleMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [activeParticipantEditorId, setActiveParticipantEditorId] = useState<string | null>(null);
   const hostCanRateParticipants = (
     event.viewer_context.is_host
@@ -1490,6 +1626,13 @@ function EventContent({
         </div>
       )}
 
+      {reportSuccessMessage && (
+        <div className="ed-report-success" role="status">
+          <span>{reportSuccessMessage}</span>
+          <button type="button" className="ed-report-success-dismiss" onClick={onDismissReportSuccess}>&times;</button>
+        </div>
+      )}
+
       {/* Title & category */}
       <div className="ed-header">
         <div className="ed-title-row">
@@ -1505,6 +1648,38 @@ function EventContent({
             >
               {event.viewer_context.is_favorited ? '★' : '☆'}
             </button>
+            <div className="ed-title-menu-wrap">
+              <button
+                type="button"
+                className="ed-title-menu-btn"
+                onClick={() => setShowTitleMenu((open) => !open)}
+                aria-label="More event actions"
+                aria-haspopup="menu"
+                aria-expanded={showTitleMenu}
+              >
+                ⋯
+              </button>
+              {showTitleMenu && (
+                <div className="ed-title-menu" role="menu">
+                  <button
+                    type="button"
+                    className="ed-title-menu-item"
+                    role="menuitem"
+                    onClick={() => {
+                      setShowTitleMenu(false);
+                      if (!isAuthenticated) {
+                        navigate('/login');
+                        return;
+                      }
+                      onDismissReportError();
+                      setShowReportModal(true);
+                    }}
+                  >
+                    Report Event
+                  </button>
+                </div>
+              )}
+            </div>
             <StatusBadge status={event.status} />
           </div>
         </div>
@@ -1864,6 +2039,16 @@ function EventContent({
           onClose={() => setShowCancelModal(false)}
         />
       )}
+
+      {showReportModal && (
+        <ReportEventModal
+          loading={reportLoading}
+          error={reportError}
+          onSubmit={onReportEvent}
+          onDismissError={onDismissReportError}
+          onClose={() => setShowReportModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1952,6 +2137,12 @@ export default function EventDetailPage() {
       onDismissCancelError={vm.dismissCancelError}
       favoriteLoading={vm.favoriteLoading}
       onFavoriteToggle={vm.handleFavoriteToggle}
+      reportLoading={vm.reportLoading}
+      reportError={vm.reportError}
+      reportSuccessMessage={vm.reportSuccessMessage}
+      onReportEvent={vm.handleReportEvent}
+      onDismissReportError={vm.dismissReportError}
+      onDismissReportSuccess={vm.dismissReportSuccess}
       hostContextSummary={vm.hostContextSummary}
       approvedParticipants={vm.approvedParticipants}
       approvedParticipantsLoading={vm.approvedParticipantsLoading}

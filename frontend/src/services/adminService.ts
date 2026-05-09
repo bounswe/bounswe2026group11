@@ -8,6 +8,8 @@ import type {
   AdminCreateParticipationResponse,
   AdminEvent,
   AdminEventFilters,
+  AdminEventReport,
+  AdminEventReportFilters,
   AdminListResponse,
   AdminNotification,
   AdminNotificationFilters,
@@ -85,6 +87,16 @@ export function listAdminNotifications(
   params: AdminPageParams & AdminNotificationFilters,
 ): Promise<AdminListResponse<AdminNotification>> {
   return apiGetAuth<AdminListResponse<AdminNotification>>(buildAdminListPath('/admin/notifications', params), token);
+}
+
+export function listAdminEventReports(
+  token: string,
+  params: AdminPageParams & AdminEventReportFilters,
+): Promise<AdminListResponse<AdminEventReport>> {
+  return apiGetAuth<AdminListResponse<AdminEventReport>>(
+    buildAdminListPath('/admin/event-reports', params),
+    token,
+  );
 }
 
 export function createAdminNotification(

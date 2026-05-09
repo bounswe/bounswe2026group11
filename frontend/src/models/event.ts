@@ -1,6 +1,10 @@
 export type PrivacyLevel = 'PUBLIC' | 'PROTECTED' | 'PRIVATE';
 export type LocationType = 'POINT' | 'ROUTE';
 export type PreferredGender = 'MALE' | 'FEMALE' | 'OTHER';
+export type EventReportCategory =
+  | 'SPAM_OR_SCAM'
+  | 'INAPPROPRIATE_CONTENT'
+  | 'HARASSMENT';
 
 export interface EventConstraint {
   type: string;
@@ -389,4 +393,23 @@ export interface UpsertReviewCommentRequest {
   message: string;
   rating: number;
   image_confirm_token?: string | null;
+}
+
+/* ── Event Reports ── */
+
+export interface CreateEventReportRequest {
+  report_category: EventReportCategory;
+  message: string;
+  image_confirm_token?: string | null;
+}
+
+export interface EventReportResponse {
+  id: string;
+  event_id: string;
+  reporter_user_id: string;
+  report_category: EventReportCategory;
+  message: string;
+  image_url: string | null;
+  status: 'PENDING' | 'REVIEWED' | 'DISMISSED';
+  created_at: string;
 }

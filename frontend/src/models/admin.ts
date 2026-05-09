@@ -63,6 +63,23 @@ export interface AdminNotificationFilters {
   created_to?: string;
 }
 
+export interface AdminEventReportFilters {
+  q?: string;
+  status?: 'PENDING' | 'REVIEWED' | 'DISMISSED';
+  report_category?:
+    | 'SAFETY'
+    | 'HARASSMENT'
+    | 'SPAM_OR_SCAM'
+    | 'INAPPROPRIATE_CONTENT'
+    | 'EVENT_NOT_AS_DESCRIBED'
+    | 'ILLEGAL_OR_DANGEROUS'
+    | 'OTHER';
+  event_id?: string;
+  reporter_user_id?: string;
+  created_from?: string;
+  created_to?: string;
+}
+
 export interface AdminUser {
   id: string;
   username: string;
@@ -141,6 +158,28 @@ export interface AdminNotification {
   sse_sent_count: number;
   push_sent_count: number;
   push_failed_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminEventReport {
+  id: string;
+  event_id: string;
+  event_title: string | null;
+  reporter_user_id: string;
+  reporter_username: string | null;
+  reporter_email: string | null;
+  report_category:
+    | 'SAFETY'
+    | 'HARASSMENT'
+    | 'SPAM_OR_SCAM'
+    | 'INAPPROPRIATE_CONTENT'
+    | 'EVENT_NOT_AS_DESCRIBED'
+    | 'ILLEGAL_OR_DANGEROUS'
+    | 'OTHER';
+  message: string;
+  image_url: string | null;
+  status: 'PENDING' | 'REVIEWED' | 'DISMISSED';
   created_at: string;
   updated_at: string;
 }

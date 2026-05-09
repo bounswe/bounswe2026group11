@@ -32,6 +32,8 @@ import {
   ListEventCommentRepliesParams,
   CreateDiscussionCommentRequest,
   UpsertReviewCommentRequest,
+  CreateEventReportRequest,
+  EventReportResponse,
 } from '@/models/event';
 
 const PHOTON_BASE = 'https://photon.komoot.io';
@@ -377,6 +379,14 @@ export function getReviewCommentImageUploadUrl(
     {},
     token,
   );
+}
+
+export function createEventReport(
+  eventId: string,
+  request: CreateEventReportRequest,
+  token: string,
+): Promise<EventReportResponse> {
+  return apiPostAuth<EventReportResponse>(`/events/${eventId}/reports`, request, token);
 }
 
 export async function searchLocation(
