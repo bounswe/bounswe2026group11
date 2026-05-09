@@ -21,7 +21,9 @@ type discoverEventsFingerprintPayload struct {
 	StartFrom     *string  `json:"start_from,omitempty"`
 	StartTo       *string  `json:"start_to,omitempty"`
 	TagNames      []string `json:"tag_names,omitempty"`
-	OnlyFavorited bool     `json:"only_favorited"`
+	OnlyFavorited      bool `json:"only_favorited"`
+	OnlyChildFriendly  bool `json:"only_child_friendly"`
+	OnlyFamilyOriented bool `json:"only_family_oriented"`
 }
 
 // buildDiscoverEventsFilterFingerprint hashes the normalized filter set so a
@@ -35,7 +37,9 @@ func buildDiscoverEventsFilterFingerprint(params DiscoverEventsParams) (string, 
 		PrivacyLevels: toPrivacyLevelStrings(params.PrivacyLevels),
 		CategoryIDs:   params.CategoryIDs,
 		TagNames:      params.TagNames,
-		OnlyFavorited: params.OnlyFavorited,
+		OnlyFavorited:      params.OnlyFavorited,
+		OnlyChildFriendly:  params.OnlyChildFriendly,
+		OnlyFamilyOriented: params.OnlyFamilyOriented,
 	}
 	if params.StartFrom != nil {
 		value := params.StartFrom.UTC().Format(timeLayoutCursor)

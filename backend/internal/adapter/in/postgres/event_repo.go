@@ -81,17 +81,20 @@ func insertEventRow(ctx context.Context, db execer, params eventapp.CreateEventP
 		INSERT INTO event (
 			host_id, title, description, image_url, category_id,
 			start_time, end_time, privacy_level, status,
-			capacity, minimum_age, preferred_gender, location_type
+			capacity, minimum_age, preferred_gender, location_type,
+			child_friendly, family_oriented
 		) VALUES (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8, $9,
-			$10, $11, $12, $13
+			$10, $11, $12, $13,
+			$14, $15
 		)
 		RETURNING id, title, privacy_level, status, start_time, end_time, created_at, updated_at
 	`,
 		params.HostID, params.Title, params.Description, params.ImageURL, params.CategoryID,
 		params.StartTime, params.EndTime, string(params.PrivacyLevel), string(domain.EventStatusActive),
 		params.Capacity, params.MinimumAge, preferredGender, string(params.LocationType),
+		params.ChildFriendly, params.FamilyOriented,
 	).Scan(&id, &title, &privacyLevel, &status, &startTime, &endTime, &createdAt, &updatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("insert event: %w", err)
@@ -331,6 +334,13 @@ func (r *EventRepository) ListDiscoverableEvents(
 		filters = append(filters, "fav.event_id IS NOT NULL")
 	}
 
+	if params.OnlyChildFriendly {
+		filters = append(filters, "e.child_friendly = true")
+	}
+	if params.OnlyFamilyOriented {
+		filters = append(filters, "e.family_oriented = true")
+	}
+
 	paginationClause, orderByClause := buildDiscoverEventsPagination(params, addArg)
 	limitPlaceholder := addArg(params.RepositoryFetchLimit)
 
@@ -350,6 +360,8 @@ func (r *EventRepository) ListDiscoverableEvents(
 				e.approved_participant_count,
 				e.favorite_count,
 				(fav.event_id IS NOT NULL) AS is_favorited,
+				e.child_friendly,
+				e.family_oriented,
 				us.final_score AS host_final_score,
 				COALESCE(us.hosted_event_rating_count, 0) AS host_rating_count,
 				%s AS distance_meters,
@@ -375,6 +387,8 @@ func (r *EventRepository) ListDiscoverableEvents(
 			approved_participant_count,
 			favorite_count,
 			is_favorited,
+			child_friendly,
+			family_oriented,
 			host_final_score,
 			host_rating_count,
 			distance_meters,
@@ -407,6 +421,8 @@ func (r *EventRepository) ListDiscoverableEvents(
 			approvedParticipantCount int
 			favoriteCount            int
 			isFavorited              bool
+			childFriendly            bool
+			familyOriented           bool
 			hostFinalScore           pgtype.Float8
 			hostRatingCount          int
 			distanceMeters           float64
@@ -427,6 +443,8 @@ func (r *EventRepository) ListDiscoverableEvents(
 			&approvedParticipantCount,
 			&favoriteCount,
 			&isFavorited,
+			&childFriendly,
+			&familyOriented,
 			&hostFinalScore,
 			&hostRatingCount,
 			&distanceMeters,
@@ -445,6 +463,8 @@ func (r *EventRepository) ListDiscoverableEvents(
 			ApprovedParticipantCount: approvedParticipantCount,
 			FavoriteCount:            favoriteCount,
 			IsFavorited:              isFavorited,
+			ChildFriendly:            childFriendly,
+			FamilyOriented:           familyOriented,
 			HostScore: eventapp.EventHostScoreSummaryRecord{
 				HostedEventRatingCount: hostRatingCount,
 			},
@@ -749,6 +769,8 @@ func (r *EventRepository) loadEventDetailCore(
 		hostRatingCount          int
 		locationType             string
 		locationAddress          pgtype.Text
+		childFriendly            bool
+		familyOriented           bool
 		isHost                   bool
 		isFavorited              bool
 		participationStatus      string
@@ -787,6 +809,8 @@ func (r *EventRepository) loadEventDetailCore(
 			COALESCE(us.hosted_event_rating_count, 0),
 			e.location_type,
 			el.address,
+			e.child_friendly,
+			e.family_oriented,
 			(e.host_id = $2) AS is_host,
 			EXISTS (
 				SELECT 1
@@ -901,6 +925,8 @@ func (r *EventRepository) loadEventDetailCore(
 		&hostRatingCount,
 		&locationType,
 		&locationAddress,
+		&childFriendly,
+		&familyOriented,
 		&isHost,
 		&isFavorited,
 		&participationStatus,
@@ -982,6 +1008,8 @@ func (r *EventRepository) loadEventDetailCore(
 	if locationAddress.Valid {
 		record.Location.Address = &locationAddress.String
 	}
+	record.ChildFriendly = childFriendly
+	record.FamilyOriented = familyOriented
 
 	return record, nil
 }

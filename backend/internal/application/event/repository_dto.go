@@ -21,6 +21,8 @@ type CreateEventParams struct {
 	Capacity        *int
 	MinimumAge      *int
 	PreferredGender *domain.EventParticipantGender
+	ChildFriendly   bool
+	FamilyOriented  bool
 	LocationType    domain.EventLocationType
 	Address         *string
 	Point           *domain.GeoPoint
@@ -47,6 +49,8 @@ type DiscoverEventsParams struct {
 	StartTo              *time.Time
 	TagNames             []string
 	OnlyFavorited        bool
+	OnlyChildFriendly    bool
+	OnlyFamilyOriented   bool
 	SortBy               domain.EventDiscoverySort
 	Limit                int
 	CursorToken          string
@@ -70,6 +74,8 @@ type DiscoverableEventRecord struct {
 	ApprovedParticipantCount int
 	FavoriteCount            int
 	IsFavorited              bool
+	ChildFriendly            bool
+	FamilyOriented           bool
 	HostScore                EventHostScoreSummaryRecord
 	DistanceMeters           float64
 	RelevanceScore           *float64
@@ -133,6 +139,8 @@ type EventDetailRecord struct {
 	Capacity                 *int
 	MinimumAge               *int
 	PreferredGender          *domain.EventParticipantGender
+	ChildFriendly            bool
+	FamilyOriented           bool
 	ApprovedParticipantCount int
 	PendingParticipantCount  int
 	FavoriteCount            int

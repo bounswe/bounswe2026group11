@@ -411,6 +411,9 @@ func toCreateEventInput(body createEventBody) (event.CreateEventInput, map[strin
 		}
 	}
 
+	input.ChildFriendly = body.ChildFriendly
+	input.FamilyOriented = body.FamilyOriented
+
 	return input, errs
 }
 
@@ -720,6 +723,12 @@ func summarizeDiscoverEventsInput(input event.DiscoverEventsInput) string {
 		fmt.Sprintf("sort_by=%s", optionalSortBySummaryValue(input.SortBy)),
 		fmt.Sprintf("cursor=%s", optionalStringSummaryValue(input.Cursor)),
 	}
+	if input.OnlyChildFriendly {
+		parts = append(parts, "child_friendly=true")
+	}
+	if input.OnlyFamilyOriented {
+		parts = append(parts, "family_oriented=true")
+	}
 	return strings.Join(parts, " ")
 }
 
@@ -875,6 +884,24 @@ func parseDiscoverEventsInput(c *fiber.Ctx) (event.DiscoverEventsInput, map[stri
 			errs["only_favorited"] = "only_favorited must be a boolean"
 		} else {
 			input.OnlyFavorited = parsed
+		}
+	}
+
+	if rawChildFriendly := strings.TrimSpace(c.Query("child_friendly")); rawChildFriendly != "" {
+		parsed, err := strconv.ParseBool(rawChildFriendly)
+		if err != nil {
+			errs["child_friendly"] = "child_friendly must be a boolean"
+		} else {
+			input.OnlyChildFriendly = parsed
+		}
+	}
+
+	if rawFamilyOriented := strings.TrimSpace(c.Query("family_oriented")); rawFamilyOriented != "" {
+		parsed, err := strconv.ParseBool(rawFamilyOriented)
+		if err != nil {
+			errs["family_oriented"] = "family_oriented must be a boolean"
+		} else {
+			input.OnlyFamilyOriented = parsed
 		}
 	}
 
