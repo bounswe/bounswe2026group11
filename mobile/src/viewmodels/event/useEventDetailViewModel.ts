@@ -231,6 +231,17 @@ function normalizePickedImageUri(uri: string): string {
   return normalized;
 }
 
+function normalizeParticipationStatus(
+  status: EventDetail['viewer_context']['participation_status'] | 'APPROVED' | null | undefined,
+): ParticipationStatus {
+  if (status === 'APPROVED' || status === 'JOINED') return 'JOINED';
+  if (status === 'PENDING') return 'PENDING';
+  if (status === 'INVITED') return 'INVITED';
+  if (status === 'LEAVED') return 'LEAVED';
+  if (status === 'CANCELED') return 'CANCELED';
+  return 'NONE';
+}
+
 function getPickedImageUriCandidates(uri: string): string[] {
   return [...new Set([uri, decodeFileUriOnce(uri), normalizePickedImageUri(uri)])];
 }
@@ -363,9 +374,22 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
 
       try {
         const data = await getEventDetail(eventId, token);
-        setEvent(data);
+        const normalizedParticipationStatus = normalizeParticipationStatus(
+          data.viewer_context.participation_status as
+            | EventDetail['viewer_context']['participation_status']
+            | 'APPROVED'
+            | null
+            | undefined,
+        );
+        setEvent({
+          ...data,
+          viewer_context: {
+            ...data.viewer_context,
+            participation_status: normalizedParticipationStatus,
+          },
+        });
         setIsFavorited(data.viewer_context.is_favorited);
-        setParticipationStatus(data.viewer_context.participation_status);
+        setParticipationStatus(normalizedParticipationStatus);
         if (data.viewer_context.is_host) {
           void refreshHostContextSummary();
         }
@@ -849,7 +873,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     if (!token || !event) return null;
 
     const response = await listMyInvitations(token);
-    const invitation = response.items.find((item) => item.event.id === event.id);
+    const invitation = response.pending.find((item) => item.event.id === event.id);
     return invitation?.invitation_id ?? null;
   }, [event, token]);
 

@@ -411,7 +411,7 @@ describe('useEventDetailViewModel', () => {
     });
     mockSearchUsers.mockResolvedValue({ items: [] });
     mockListMyInvitations.mockResolvedValue({
-      items: [
+      pending: [
         {
           invitation_id: 'inv-1',
           status: 'PENDING',
@@ -431,7 +431,10 @@ describe('useEventDetailViewModel', () => {
           updated_at: invitedPrivateEventFixture.updated_at,
         },
       ],
-      total: 1,
+      past: {
+        items: [],
+        page_info: { next_cursor: null, has_next: false },
+      },
     });
     mockAcceptInvitation.mockResolvedValue({
       message: 'Invitation accepted',
