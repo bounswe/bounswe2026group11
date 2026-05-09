@@ -151,4 +151,27 @@ describe('useTicketViewModel', () => {
     expect(result.current.qrToken).toEqual(qrTokenFixture);
     expect(result.current.qrMessage).toBeNull();
   });
+
+  it('uses the live stream directly for automatic qr updates', async () => {
+    mockGetMyTicket.mockResolvedValue(baseTicket);
+    mockLocation.getForegroundPermissionsAsync.mockResolvedValue({
+      status: ExpoLocation.PermissionStatus.GRANTED,
+    } as never);
+    mockGetTicketQrTokenStream.mockImplementation(async function* () {
+      yield qrTokenFixture;
+    });
+
+    const { result } = renderHook(() => useTicketViewModel('ticket-1'));
+
+    await waitFor(() => expect(result.current.qrToken).toEqual(qrTokenFixture));
+
+    expect(mockGetTicketQrTokenOnce).not.toHaveBeenCalled();
+    expect(mockGetTicketQrTokenStream).toHaveBeenCalledWith(
+      'ticket-1',
+      { lat: 41.0369, lon: 28.985 },
+      'mock-token',
+      expect.any(AbortSignal),
+      expect.any(String),
+    );
+  });
 });

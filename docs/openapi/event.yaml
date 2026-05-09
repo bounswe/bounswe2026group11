@@ -376,7 +376,8 @@ paths:
         reconfirm attendance for the latest event details. On success the
         participation becomes `APPROVED`, `reconfirmed_at` and
         `last_confirmed_event_version` are updated, and protected/private event
-        tickets are reactivated as `ACTIVE`.
+        tickets, including existing `PENDING` tickets created by an event edit,
+        are reactivated as `ACTIVE`.
       operationId: reconfirmEventParticipation
       security:
         - bearerAuth: []

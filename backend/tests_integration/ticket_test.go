@@ -8,6 +8,7 @@ import (
 	"time"
 
 	eventapp "github.com/bounswe/bounswe2026group11/backend/internal/application/event"
+	invitationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/invitation"
 	ticketapp "github.com/bounswe/bounswe2026group11/backend/internal/application/ticket"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/bounswe/bounswe2026group11/backend/tests_integration/common"
@@ -42,6 +43,96 @@ func TestProtectedJoinApprovalCreatesActiveTicket(t *testing.T) {
 	}
 	if tickets.Items[0].Event.ID != eventRef.ID.String() {
 		t.Fatalf("expected ticket for event %s, got %s", eventRef.ID, tickets.Items[0].Event.ID)
+	}
+}
+
+func TestProtectedReconfirmReactivatesPendingTicketAfterEventEdit(t *testing.T) {
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	participant := common.GivenUser(t, harness.AuthRepo)
+	eventRef := common.GivenProtectedEvent(t, harness.Service, host.ID)
+	ticketID := approveProtectedParticipantAndReturnTicketID(t, harness, host.ID, participant.ID, eventRef.ID)
+	newTitle := "Updated protected event"
+
+	if _, err := harness.Service.UpdateEvent(context.Background(), host.ID, eventRef.ID, eventapp.UpdateEventInput{
+		Title: &newTitle,
+	}); err != nil {
+		t.Fatalf("UpdateEvent() error = %v", err)
+	}
+
+	pendingDetail, err := harness.TicketService.GetMyTicket(context.Background(), participant.ID, ticketID)
+	if err != nil {
+		t.Fatalf("GetMyTicket() pending error = %v", err)
+	}
+	if pendingDetail.Ticket.Status != domain.TicketStatusPending {
+		t.Fatalf("expected PENDING ticket before reconfirmation, got %q", pendingDetail.Ticket.Status)
+	}
+
+	// when
+	reconfirmed, err := harness.Service.ReconfirmParticipation(context.Background(), participant.ID, eventRef.ID)
+
+	// then
+	if err != nil {
+		t.Fatalf("ReconfirmParticipation() error = %v", err)
+	}
+	if reconfirmed.Status != domain.ParticipationStatusApproved {
+		t.Fatalf("expected APPROVED participation, got %q", reconfirmed.Status)
+	}
+	if reconfirmed.TicketStatus == nil || *reconfirmed.TicketStatus != domain.TicketStatusActive {
+		t.Fatalf("expected ACTIVE reconfirmed ticket status, got %v", reconfirmed.TicketStatus)
+	}
+	activeDetail, err := harness.TicketService.GetMyTicket(context.Background(), participant.ID, ticketID)
+	if err != nil {
+		t.Fatalf("GetMyTicket() active error = %v", err)
+	}
+	if activeDetail.Ticket.Status != domain.TicketStatusActive {
+		t.Fatalf("expected ACTIVE ticket after reconfirmation, got %q", activeDetail.Ticket.Status)
+	}
+}
+
+func TestPrivateReconfirmReactivatesPendingTicketAfterEventEdit(t *testing.T) {
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo)
+	participant := common.GivenUser(t, harness.AuthRepo)
+	eventRef := common.GivenPrivateEvent(t, harness.Service, host.ID)
+	ticketID := acceptPrivateInvitationAndReturnTicketID(t, harness, host.ID, participant, eventRef.ID)
+	newTitle := "Updated private event"
+
+	if _, err := harness.Service.UpdateEvent(context.Background(), host.ID, eventRef.ID, eventapp.UpdateEventInput{
+		Title: &newTitle,
+	}); err != nil {
+		t.Fatalf("UpdateEvent() error = %v", err)
+	}
+
+	pendingDetail, err := harness.TicketService.GetMyTicket(context.Background(), participant.ID, ticketID)
+	if err != nil {
+		t.Fatalf("GetMyTicket() pending error = %v", err)
+	}
+	if pendingDetail.Ticket.Status != domain.TicketStatusPending {
+		t.Fatalf("expected PENDING ticket before reconfirmation, got %q", pendingDetail.Ticket.Status)
+	}
+
+	// when
+	reconfirmed, err := harness.Service.ReconfirmParticipation(context.Background(), participant.ID, eventRef.ID)
+
+	// then
+	if err != nil {
+		t.Fatalf("ReconfirmParticipation() error = %v", err)
+	}
+	if reconfirmed.Status != domain.ParticipationStatusApproved {
+		t.Fatalf("expected APPROVED participation, got %q", reconfirmed.Status)
+	}
+	if reconfirmed.TicketStatus == nil || *reconfirmed.TicketStatus != domain.TicketStatusActive {
+		t.Fatalf("expected ACTIVE reconfirmed ticket status, got %v", reconfirmed.TicketStatus)
+	}
+	activeDetail, err := harness.TicketService.GetMyTicket(context.Background(), participant.ID, ticketID)
+	if err != nil {
+		t.Fatalf("GetMyTicket() active error = %v", err)
+	}
+	if activeDetail.Ticket.Status != domain.TicketStatusActive {
+		t.Fatalf("expected ACTIVE ticket after reconfirmation, got %q", activeDetail.Ticket.Status)
 	}
 }
 
@@ -177,6 +268,31 @@ func approveProtectedParticipantAndReturnTicketID(t *testing.T, harness *common.
 		t.Fatalf("ApproveJoinRequest() error = %v", err)
 	}
 	tickets, err := harness.TicketService.ListMyTickets(context.Background(), participantID)
+	if err != nil {
+		t.Fatalf("ListMyTickets() error = %v", err)
+	}
+	if len(tickets.Items) != 1 {
+		t.Fatalf("expected one ticket, got %d", len(tickets.Items))
+	}
+	return uuid.MustParse(tickets.Items[0].TicketID)
+}
+
+func acceptPrivateInvitationAndReturnTicketID(t *testing.T, harness *common.EventHarness, hostID uuid.UUID, participant *domain.User, eventID uuid.UUID) uuid.UUID {
+	t.Helper()
+
+	invitations, err := harness.InvitationService.CreateInvitations(context.Background(), hostID, eventID, invitationapp.CreateInvitationsInput{
+		Usernames: []string{participant.Username},
+	})
+	if err != nil {
+		t.Fatalf("CreateInvitations() error = %v", err)
+	}
+	if len(invitations.SuccessfulInvitations) != 1 {
+		t.Fatalf("expected one successful invitation, got %d", len(invitations.SuccessfulInvitations))
+	}
+	if _, err := harness.InvitationService.AcceptInvitation(context.Background(), participant.ID, uuid.MustParse(invitations.SuccessfulInvitations[0].InvitationID)); err != nil {
+		t.Fatalf("AcceptInvitation() error = %v", err)
+	}
+	tickets, err := harness.TicketService.ListMyTickets(context.Background(), participant.ID)
 	if err != nil {
 		t.Fatalf("ListMyTickets() error = %v", err)
 	}
