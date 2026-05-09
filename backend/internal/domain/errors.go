@@ -33,36 +33,39 @@ const (
 	ErrorCodeEventTitleExists  = "event_title_already_exists"
 	ErrorCodeUserNotFound      = "user_not_found"
 
-	ErrorCodeEventNotFound                   = "event_not_found"
-	ErrorCodeAlreadyParticipating            = "already_participating"
-	ErrorCodeParticipationNotFound           = "participation_not_found"
-	ErrorCodeAlreadyRequested                = "already_requested"
-	ErrorCodeEventJoinNotAllowed             = "event_join_not_allowed"
-	ErrorCodeHostCannotJoin                  = "host_cannot_join"
-	ErrorCodeHostCannotLeave                 = "host_cannot_leave"
-	ErrorCodeCapacityExceeded                = "capacity_exceeded"
-	ErrorCodeJoinRequestNotFound             = "join_request_not_found"
-	ErrorCodeJoinRequestModerationNotAllowed = "join_request_moderation_not_allowed"
-	ErrorCodeJoinRequestStateInvalid         = "join_request_state_invalid"
-	ErrorCodeJoinRequestCooldownActive       = "join_request_cooldown_active"
-	ErrorCodeEventHostManagementNotAllowed   = "event_host_management_not_allowed"
-	ErrorCodeInvitationNotFound              = "invitation_not_found"
-	ErrorCodeInvitationNotAllowed            = "invitation_not_allowed"
-	ErrorCodeInvitationStateInvalid          = "invitation_state_invalid"
-	ErrorCodeInvitationCooldownActive        = "invitation_cooldown_active"
-	ErrorCodeEventCancelNotAllowed           = "event_cancel_not_allowed"
-	ErrorCodeEventNotCancelable              = "event_not_cancelable"
-	ErrorCodeEventCompleteNotAllowed         = "event_complete_not_allowed"
-	ErrorCodeEventNotCompletable             = "event_not_completable"
-	ErrorCodeEventCanceled                   = "event_canceled"
-	ErrorCodeEventNotJoinable                = "event_not_joinable"
-	ErrorCodeEventLeaveNotAllowed            = "event_leave_not_allowed"
-	ErrorCodeEventNotLeaveable               = "event_not_leaveable"
-	ErrorCodeFavoriteLocationNotFound        = "favorite_location_not_found"
-	ErrorCodeFavoriteLocationLimitExceeded   = "favorite_location_limit_exceeded"
-	ErrorCodeAgeRequirementNotMet            = "age_requirement_not_met"
-	ErrorCodeGenderRequirementNotMet         = "gender_requirement_not_met"
-	ErrorCodeProfileIncomplete               = "profile_incomplete"
+	ErrorCodeEventNotFound                    = "event_not_found"
+	ErrorCodeAlreadyParticipating             = "already_participating"
+	ErrorCodeParticipationNotFound            = "participation_not_found"
+	ErrorCodeAlreadyRequested                 = "already_requested"
+	ErrorCodeEventJoinNotAllowed              = "event_join_not_allowed"
+	ErrorCodeHostCannotJoin                   = "host_cannot_join"
+	ErrorCodeHostCannotLeave                  = "host_cannot_leave"
+	ErrorCodeCapacityExceeded                 = "capacity_exceeded"
+	ErrorCodeJoinRequestNotFound              = "join_request_not_found"
+	ErrorCodeJoinRequestModerationNotAllowed  = "join_request_moderation_not_allowed"
+	ErrorCodeJoinRequestStateInvalid          = "join_request_state_invalid"
+	ErrorCodeJoinRequestCooldownActive        = "join_request_cooldown_active"
+	ErrorCodeEventHostManagementNotAllowed    = "event_host_management_not_allowed"
+	ErrorCodeInvitationNotFound               = "invitation_not_found"
+	ErrorCodeInvitationNotAllowed             = "invitation_not_allowed"
+	ErrorCodeInvitationStateInvalid           = "invitation_state_invalid"
+	ErrorCodeInvitationCooldownActive         = "invitation_cooldown_active"
+	ErrorCodeEventCancelNotAllowed            = "event_cancel_not_allowed"
+	ErrorCodeEventNotCancelable               = "event_not_cancelable"
+	ErrorCodeEventCompleteNotAllowed          = "event_complete_not_allowed"
+	ErrorCodeEventNotCompletable              = "event_not_completable"
+	ErrorCodeEventNotEditable                 = "event_not_editable"
+	ErrorCodeEventCanceled                    = "event_canceled"
+	ErrorCodeEventNotJoinable                 = "event_not_joinable"
+	ErrorCodeEventLeaveNotAllowed             = "event_leave_not_allowed"
+	ErrorCodeEventNotLeaveable                = "event_not_leaveable"
+	ErrorCodeCapacityBelowParticipantCount    = "capacity_below_participant_count"
+	ErrorCodeParticipationReconfirmNotAllowed = "participation_reconfirm_not_allowed"
+	ErrorCodeFavoriteLocationNotFound         = "favorite_location_not_found"
+	ErrorCodeFavoriteLocationLimitExceeded    = "favorite_location_limit_exceeded"
+	ErrorCodeAgeRequirementNotMet             = "age_requirement_not_met"
+	ErrorCodeGenderRequirementNotMet          = "gender_requirement_not_met"
+	ErrorCodeProfileIncomplete                = "profile_incomplete"
 
 	ErrorCodeImageUploadTokenInvalid    = "image_upload_token_invalid"
 	ErrorCodeImageUploadNotAllowed      = "image_upload_not_allowed"
@@ -90,11 +93,18 @@ var ErrNotFound = errors.New("not found")
 // AppError is the structured error type used across the application. It carries
 // an HTTP status code, a machine-readable code, a human-readable message, and
 // optional per-field validation details.
+//
+// MessageKey/DetailKeys, when set, point to entries in the i18n catalog and
+// are resolved against the request locale by the HTTP layer. They take
+// precedence over Message/Details. Existing constructors that set only
+// Message/Details remain backward compatible.
 type AppError struct {
-	Code    string
-	Message string
-	Status  int
-	Details map[string]string
+	Code       string
+	Message    string
+	Status     int
+	Details    map[string]string
+	MessageKey string
+	DetailKeys map[string]string
 }
 
 func (e *AppError) Error() string {
@@ -111,6 +121,19 @@ func ValidationError(details map[string]string) *AppError {
 	}
 }
 
+// ValidationErrorI18n creates a 400 Bad Request whose per-field details are
+// catalog keys. The HTTP layer resolves them against the request locale.
+// The top-level message uses the standard validation key.
+func ValidationErrorI18n(detailKeys map[string]string) *AppError {
+	return &AppError{
+		Code:       ErrorCodeValidation,
+		MessageKey: "error.validation",
+		Message:    "The request body contains invalid fields. See error.details for field-specific messages.",
+		Status:     StatusBadRequest,
+		DetailKeys: detailKeys,
+	}
+}
+
 // BadRequestError creates a 400 Bad Request error for invalid request states
 // that are not field-validation failures.
 func BadRequestError(code, message string) *AppError {
@@ -118,6 +141,15 @@ func BadRequestError(code, message string) *AppError {
 		Code:    code,
 		Message: message,
 		Status:  StatusBadRequest,
+	}
+}
+
+// BadRequestErrorI18n is the i18n-aware variant of BadRequestError.
+func BadRequestErrorI18n(code, messageKey string) *AppError {
+	return &AppError{
+		Code:       code,
+		MessageKey: messageKey,
+		Status:     StatusBadRequest,
 	}
 }
 
@@ -147,6 +179,24 @@ func AuthError(code, message string) *AppError {
 		Code:    code,
 		Message: message,
 		Status:  StatusUnauthorized,
+	}
+}
+
+// AuthErrorI18n is the i18n-aware variant of AuthError.
+func AuthErrorI18n(code, messageKey string) *AppError {
+	return &AppError{
+		Code:       code,
+		MessageKey: messageKey,
+		Status:     StatusUnauthorized,
+	}
+}
+
+// ForbiddenErrorI18n is the i18n-aware variant of ForbiddenError.
+func ForbiddenErrorI18n(code, messageKey string) *AppError {
+	return &AppError{
+		Code:       code,
+		MessageKey: messageKey,
+		Status:     StatusForbidden,
 	}
 }
 

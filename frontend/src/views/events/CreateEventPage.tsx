@@ -510,6 +510,13 @@ function CreateEventForm() {
               </button>
             ))}
           </div>
+          <p className="field-hint">
+            {vm.form.privacyLevel === 'PUBLIC'
+              ? 'Public events appear in discovery and anyone can join immediately.'
+              : vm.form.privacyLevel === 'PROTECTED'
+                ? 'Protected events appear in discovery but require host approval to join.'
+                : 'Private events are invite-based: only invited users can see and join. They do not appear in public discovery.'}
+          </p>
         </div>
 
         {/* Capacity */}

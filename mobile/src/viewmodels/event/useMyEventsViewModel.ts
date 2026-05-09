@@ -133,8 +133,8 @@ export function useMyEventsViewModel(): MyEventsViewModel {
       ]);
       setHostedEvents(eventsResponse.hosted_events);
       setAttendedEvents(eventsResponse.attended_events);
-      setInvitations(invitationsResponse.items);
-      setInvitationCount(invitationsResponse.items.length);
+      setInvitations(invitationsResponse.pending);
+      setInvitationCount(invitationsResponse.pending.length);
     } catch {
       setHostedEvents([]);
       setAttendedEvents([]);

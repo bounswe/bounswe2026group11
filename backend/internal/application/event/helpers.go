@@ -21,6 +21,22 @@ func toCreateEventResult(e *domain.Event) *CreateEventResult {
 	}
 }
 
+func toUpdateEventResult(e *domain.Event, versionNo int, triggeredFields []string, markedPending int) *UpdateEventResult {
+	return &UpdateEventResult{
+		ID:                            e.ID.String(),
+		Title:                         e.Title,
+		PrivacyLevel:                  string(e.PrivacyLevel),
+		Status:                        string(e.Status),
+		StartTime:                     e.StartTime,
+		EndTime:                       e.EndTime,
+		VersionNo:                     versionNo,
+		ReconfirmationRequired:        len(triggeredFields) > 0,
+		ReconfirmationTriggeredFields: append([]string{}, triggeredFields...),
+		ParticipantsMarkedPending:     markedPending,
+		UpdatedAt:                     e.UpdatedAt,
+	}
+}
+
 // toCreateEventParams maps a validated CreateEventInput to the repository params
 // expected by the repository.
 func toCreateEventParams(hostID uuid.UUID, input CreateEventInput) CreateEventParams {
@@ -45,6 +61,8 @@ func toCreateEventParams(hostID uuid.UUID, input CreateEventInput) CreateEventPa
 		Capacity:        input.Capacity,
 		MinimumAge:      input.MinimumAge,
 		PreferredGender: input.PreferredGender,
+		ChildFriendly:   input.ChildFriendly,
+		FamilyOriented:  input.FamilyOriented,
 		LocationType:    input.LocationType,
 		Address:         input.Address,
 		Tags:            input.Tags,
@@ -89,6 +107,8 @@ func toDiscoverableEventItem(record DiscoverableEventRecord) DiscoverableEventIt
 		item.LocationLat = &lat
 		item.LocationLon = &lon
 	}
+	item.ChildFriendly = record.ChildFriendly
+	item.FamilyOriented = record.FamilyOriented
 	return item
 }
 
@@ -101,6 +121,7 @@ func toEventDetailResult(record *EventDetailRecord, now time.Time) *GetEventDeta
 
 	result := &GetEventDetailResult{
 		ID:                       record.ID.String(),
+		VersionNo:                record.VersionNo,
 		Title:                    record.Title,
 		Description:              record.Description,
 		ImageURL:                 record.ImageURL,
@@ -127,9 +148,13 @@ func toEventDetailResult(record *EventDetailRecord, now time.Time) *GetEventDeta
 		},
 		ViewerEventRating: toEventDetailRating(record.ViewerEventRating),
 		ViewerContext: EventDetailViewerContext{
-			IsHost:              record.ViewerContext.IsHost,
-			IsFavorited:         record.ViewerContext.IsFavorited,
-			ParticipationStatus: string(record.ViewerContext.ParticipationStatus),
+			IsHost:                    record.ViewerContext.IsHost,
+			IsFavorited:               record.ViewerContext.IsFavorited,
+			ParticipationStatus:       record.ViewerContext.ParticipationStatus,
+			JoinRequestStatus:         record.ViewerContext.JoinRequestStatus,
+			InvitationStatus:          record.ViewerContext.InvitationStatus,
+			LastConfirmedEventVersion: record.ViewerContext.LastConfirmedEventVersion,
+			LatestEventVersion:        record.ViewerContext.LatestEventVersion,
 		},
 	}
 
@@ -143,6 +168,15 @@ func toEventDetailResult(record *EventDetailRecord, now time.Time) *GetEventDeta
 		preferredGender := string(*record.PreferredGender)
 		result.PreferredGender = &preferredGender
 	}
+	result.ChildFriendly = record.ChildFriendly
+	result.FamilyOriented = record.FamilyOriented
+	if record.HostContext != nil {
+		result.HostContext = &EventDetailHostContext{
+			ApprovedParticipants: toEventDetailApprovedParticipants(record.HostContext.ApprovedParticipants),
+			PendingJoinRequests:  toEventDetailPendingJoinRequests(record.HostContext.PendingJoinRequests),
+			Invitations:          toEventDetailInvitations(record.HostContext.Invitations),
+		}
+	}
 
 	return result
 }
@@ -151,11 +185,13 @@ func toEventDetailLocation(
 	record EventDetailLocationRecord,
 	privacyLevel domain.EventPrivacyLevel,
 	isHost bool,
-	participationStatus domain.EventDetailParticipationStatus,
+	participationStatus *domain.ParticipationStatus,
 ) EventDetailLocation {
+	isAcceptedParticipant := participationStatus != nil &&
+		(*participationStatus == domain.ParticipationStatusApproved || *participationStatus == domain.ParticipationStatusPending)
 	shouldApproximate := privacyLevel == domain.PrivacyProtected &&
 		!isHost &&
-		participationStatus != domain.EventDetailParticipationStatusJoined
+		!isAcceptedParticipant
 
 	location := EventDetailLocation{
 		Type:                  string(record.Type),
@@ -213,6 +249,7 @@ func toEventDetailPendingJoinRequests(records []EventDetailPendingJoinRequestRec
 			JoinRequestID: record.JoinRequestID.String(),
 			Status:        record.Status,
 			Message:       record.Message,
+			ImageURL:      record.ImageURL,
 			CreatedAt:     record.CreatedAt,
 			UpdatedAt:     record.UpdatedAt,
 			User:          toEventDetailHostContextUser(record.User),

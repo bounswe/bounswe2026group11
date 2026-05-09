@@ -15,6 +15,7 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/ratelimit"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/security"
 	spacesadapter "github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/spaces"
+	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/admin"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/auth"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/badge"
@@ -34,8 +35,11 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/ticket"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
+	"github.com/bounswe/bounswe2026group11/backend/internal/i18n"
+	i18nlocales "github.com/bounswe/bounswe2026group11/backend/internal/i18n/locales"
 	"github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config"
 	"github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/database"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -48,6 +52,7 @@ type Container struct {
 	MailProvider            emailapp.Provider
 	TokenIssuer             auth.TokenIssuer
 	TokenVerifier           domain.TokenVerifier
+	Translator              *i18n.Catalog
 	authRepo                *postgres.AuthRepository
 	adminRepo               *postgres.AdminRepository
 	eventRepo               *postgres.EventRepository
@@ -103,6 +108,12 @@ func New(ctx context.Context) (*Container, error) {
 	}
 	spacesStorage := buildSpacesStorage(cfg)
 
+	translator, err := i18n.LoadFromFS(i18nlocales.FS, i18nlocales.Dir)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("load i18n catalog: %w", err)
+	}
+
 	container := &Container{
 		Config:        cfg,
 		DB:            db,
@@ -110,6 +121,7 @@ func New(ctx context.Context) (*Container, error) {
 		MailProvider:  mailProvider,
 		TokenIssuer:   buildTokenIssuer(cfg),
 		TokenVerifier: buildTokenVerifier(cfg),
+		Translator:    translator,
 	}
 	container.authRepo = postgres.NewAuthRepository(container.DB)
 	container.adminRepo = postgres.NewAdminRepository(container.DB)
@@ -148,6 +160,9 @@ func New(ctx context.Context) (*Container, error) {
 	container.ProfileService = newProfileService(container)
 	container.FavoriteLocationService = newFavoriteLocationService(container)
 	container.ImageUploadService = newImageUploadService(container, spacesStorage)
+	if eventService, ok := container.EventService.(*event.Service); ok {
+		eventService.SetJoinRequestImageConfirmer(container.ImageUploadService)
+	}
 	if commentService, ok := container.CommentService.(*comment.Service); ok {
 		commentService.SetReviewImageConfirmer(container.ImageUploadService)
 	}
@@ -163,7 +178,7 @@ func New(ctx context.Context) (*Container, error) {
 // until ctx is cancelled.
 func (c *Container) StartEventExpiryJob(ctx context.Context, interval time.Duration) {
 	expire := func() {
-		if err := c.EventService.TransitionExpiredEvents(ctx); err != nil {
+		if err := c.EventService.TransitionEventStatuses(ctx); err != nil {
 			slog.ErrorContext(ctx, "event status transition job failed", "error", err)
 		}
 	}
@@ -228,6 +243,25 @@ func (c *Container) Close() {
 		return
 	}
 	c.DB.Close()
+}
+
+// LocalePreferenceLookup returns the function used by the HTTP layer to
+// resolve a user's saved locale preference as a fallback for requests
+// without an Accept-Language header. Lookup failures are intentionally
+// swallowed (logged would be too noisy at this seam): the caller falls
+// back to i18n.DefaultLocale.
+func (c *Container) LocalePreferenceLookup() httpapi.LocalePreferenceLookup {
+	return func(ctx context.Context, userID uuid.UUID) (i18n.Locale, bool) {
+		raw, err := c.profileRepo.GetLocale(ctx, userID)
+		if err != nil {
+			return "", false
+		}
+		loc, ok := i18n.Parse(raw)
+		if !ok {
+			return "", false
+		}
+		return loc, true
+	}
 }
 
 // buildTokenIssuer constructs the JWT token issuer adapter.
@@ -352,7 +386,9 @@ func newNotificationService(ctx context.Context, c *Container) (notification.Use
 	if err != nil {
 		return nil, fmt.Errorf("build push sender: %w", err)
 	}
-	return notification.NewService(c.notificationRepo, sender, c.UnitOfWork, c.NotificationBroker), nil
+	service := notification.NewService(c.notificationRepo, sender, c.UnitOfWork, c.NotificationBroker)
+	service.SetTranslator(c.Translator)
+	return service, nil
 }
 
 func newImageUploadService(c *Container, storage *spacesadapter.Storage) imageupload.UseCase {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/uow"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
+	"github.com/bounswe/bounswe2026group11/backend/internal/i18n"
 	"github.com/google/uuid"
 )
 
@@ -18,6 +19,7 @@ type Service struct {
 	sender     PushSender
 	realtime   RealtimeBroker
 	unitOfWork uow.UnitOfWork
+	translator *i18n.Catalog
 	now        func() time.Time
 }
 
@@ -34,6 +36,14 @@ func NewService(repo Repository, sender PushSender, unitOfWork uow.UnitOfWork, r
 		service.realtime = realtime[0]
 	}
 	return service
+}
+
+// SetTranslator installs the i18n catalog used to translate keyed
+// notification text per recipient. Calling with nil disables translation;
+// in that case keyed-notification call sites still produce a usable row
+// from the literal Title/Body fallback fields.
+func (s *Service) SetTranslator(catalog *i18n.Catalog) {
+	s.translator = catalog
 }
 
 func (s *Service) RegisterDevice(ctx context.Context, input RegisterDeviceInput) (*RegisterDeviceResult, error) {
@@ -188,12 +198,13 @@ func (s *Service) SendNotificationToUsers(ctx context.Context, input SendNotific
 	}
 
 	for userID := range uniqueUserIDs(input.UserIDs) {
+		title, body := s.resolveNotificationText(ctx, userID, input)
 		createResult, err := s.repo.CreateNotificationIfAbsent(ctx, CreateNotificationParams{
 			UserID:         userID,
 			EventID:        input.EventID,
-			Title:          strings.TrimSpace(input.Title),
+			Title:          title,
 			Type:           input.Type,
-			Body:           strings.TrimSpace(input.Body),
+			Body:           body,
 			DeepLink:       input.DeepLink,
 			ImageURL:       input.ImageURL,
 			Data:           input.Data,
@@ -455,6 +466,30 @@ func (s *Service) sendPushWithRetries(
 	}
 
 	return lastResult, lastErr
+}
+
+// resolveNotificationText translates keyed title/body to the recipient's
+// stored locale, falling back to the literal English Title/Body when the
+// translator or the recipient locale is unavailable.
+func (s *Service) resolveNotificationText(ctx context.Context, userID uuid.UUID, input SendNotificationInput) (string, string) {
+	title := strings.TrimSpace(input.Title)
+	body := strings.TrimSpace(input.Body)
+	if s.translator == nil || (input.TitleKey == "" && input.BodyKey == "") {
+		return title, body
+	}
+	loc := i18n.DefaultLocale
+	if raw, err := s.repo.GetLocale(ctx, userID); err == nil {
+		if parsed, ok := i18n.Parse(raw); ok {
+			loc = parsed
+		}
+	}
+	if input.TitleKey != "" {
+		title = strings.TrimSpace(s.translator.T(loc, input.TitleKey, input.TitleArgs...))
+	}
+	if input.BodyKey != "" {
+		body = strings.TrimSpace(s.translator.T(loc, input.BodyKey, input.BodyArgs...))
+	}
+	return title, body
 }
 
 func uniqueUserIDs(userIDs []uuid.UUID) map[uuid.UUID]struct{} {

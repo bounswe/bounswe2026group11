@@ -2,15 +2,22 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import EventMapView from './EventMapView';
 import type { MapRegion } from './EventMapView';
 import type { EventSummary } from '@/models/event';
+
+var mockImagePrefetch: jest.Mock<Promise<boolean>, [string]>;
+var mockRedrawCallout: jest.Mock;
+var mockShowCallout: jest.Mock;
 
 // ── react-native mock ──────────────────────────────────────────────────────────
 
 jest.mock('react-native', () => {
   const ReactLocal = require('react');
+  mockImagePrefetch = jest.fn<Promise<boolean>, [string]>(() =>
+    Promise.resolve(true),
+  );
 
   const rnProps = new Set([
     'accessibilityLabel',
@@ -81,9 +88,34 @@ jest.mock('react-native', () => {
         children,
       );
 
+  const MockImage = ({
+    source,
+    style,
+    testID,
+    onLoad,
+    onError,
+  }: {
+    source?: { uri?: string };
+    style?: unknown;
+    testID?: string;
+    onLoad?: () => void;
+    onError?: () => void;
+  }) =>
+    ReactLocal.createElement('img', {
+      'data-testid': testID,
+      alt: '',
+      src: source?.uri ?? '',
+      style: mergeStyle(style),
+      onLoad,
+      onError,
+    });
+
+  MockImage.prefetch = (imageUrl: string) => mockImagePrefetch(imageUrl);
+
   return {
     ActivityIndicator: ({ testID }: { testID?: string }) =>
       ReactLocal.createElement('div', { 'data-testid': testID ?? 'activity-indicator', role: 'progressbar' }),
+    Image: MockImage,
     Platform: { OS: 'ios' },
     StyleSheet: { create: <T,>(s: T) => s },
     Text: container('span'),
@@ -96,24 +128,64 @@ jest.mock('react-native', () => {
 
 jest.mock('react-native-maps', () => {
   const ReactLocal = require('react');
+  mockRedrawCallout = jest.fn();
+  mockShowCallout = jest.fn();
 
   const MapView = ({
     children,
     testID,
+    mapPadding,
+    onPress,
   }: {
     children?: React.ReactNode;
     testID?: string;
+    mapPadding?: unknown;
+    onPress?: () => void;
   }) =>
-    ReactLocal.createElement('div', { 'data-testid': testID ?? 'map-surface' }, children);
+    ReactLocal.createElement(
+      'div',
+      {
+        'data-testid': testID ?? 'map-surface',
+        'data-map-padding': mapPadding ? JSON.stringify(mapPadding) : undefined,
+        onClick: onPress,
+      },
+      children,
+    );
 
-  const Marker = ({
-    children,
-    testID,
-  }: {
-    children?: React.ReactNode;
-    testID?: string;
-  }) =>
-    ReactLocal.createElement('div', { 'data-testid': testID }, children);
+  const Marker = ReactLocal.forwardRef(
+    (
+      {
+        children,
+        testID,
+        coordinate,
+        onPress,
+      }: {
+        children?: React.ReactNode;
+        testID?: string;
+        coordinate?: { latitude: number; longitude: number };
+        onPress?: () => void;
+      },
+      ref: React.Ref<unknown>,
+    ) => {
+      ReactLocal.useImperativeHandle(ref, () => ({
+        redrawCallout: mockRedrawCallout,
+        showCallout: mockShowCallout,
+      }));
+
+      return ReactLocal.createElement(
+        'div',
+        {
+          'data-testid': testID,
+          'data-coordinate': coordinate ? JSON.stringify(coordinate) : undefined,
+          onClick: (event: React.MouseEvent) => {
+            event.stopPropagation();
+            onPress?.();
+          },
+        },
+        children,
+      );
+    },
+  );
 
   const Callout = ({
     children,
@@ -126,7 +198,13 @@ jest.mock('react-native-maps', () => {
   }) =>
     ReactLocal.createElement(
       'div',
-      { 'data-testid': testID, onClick: onPress },
+      {
+        'data-testid': testID,
+        onClick: (event: React.MouseEvent) => {
+          event.stopPropagation();
+          onPress?.();
+        },
+      },
       children,
     );
 
@@ -143,13 +221,22 @@ jest.mock('react-native-maps', () => {
 
 jest.mock('@/theme', () => ({
   useTheme: () => ({
+    isDark: false,
     theme: {
       primary: '#111827',
       text: '#111827',
       textSecondary: '#6B7280',
+      textTertiary: '#9CA3AF',
+      textMuted: '#64748B',
       textOnPrimary: '#FFFFFF',
       surface: '#FFFFFF',
+      surfaceVariant: '#F9FAFB',
+      surfaceAlt: '#F1F5F9',
+      border: '#E5E7EB',
+      borderStrong: '#D1D5DB',
+      divider: '#E5E7EB',
       errorText: '#DC2626',
+      imagePlaceholder: '#E5E7EB',
     },
   }),
 }));
@@ -179,9 +266,18 @@ function makeEvent(overrides: Partial<EventSummary> = {}): EventSummary {
   };
 }
 
+function selectMarker(eventId = 'evt-1'): void {
+  fireEvent.click(screen.getByTestId(`marker-${eventId}`));
+}
+
 // ── tests ──────────────────────────────────────────────────────────────────────
 
 describe('EventMapView', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockImagePrefetch.mockResolvedValue(true);
+  });
+
   describe('loading state', () => {
     it('renders a loading indicator and hides the map surface', () => {
       render(
@@ -291,7 +387,7 @@ describe('EventMapView', () => {
       expect(screen.queryByTestId('map-empty')).toBeNull();
     });
 
-    it('displays the event title in the callout', () => {
+    it('displays the event title in the native callout after a marker is selected', () => {
       render(
         <EventMapView
           events={[makeEvent({ title: 'Trail Run' })]}
@@ -302,7 +398,54 @@ describe('EventMapView', () => {
         />,
       );
 
+      selectMarker();
+
       expect(screen.getByText('Trail Run')).toBeTruthy();
+    });
+
+    it('uses a category-colored emoji marker for events', () => {
+      render(
+        <EventMapView
+          events={[makeEvent({ id: 'evt-sports', category_name: 'Sports' })]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      const markerBubble = screen.getByTestId('marker-bubble-evt-sports');
+
+      expect(screen.getAllByText('🏃').length).toBeGreaterThan(0);
+      expect(markerBubble.getAttribute('style')).toContain(
+        'background-color: rgb(37, 99, 235)',
+      );
+    });
+
+    it('offsets markers that are geographically very close', () => {
+      render(
+        <EventMapView
+          events={[
+            makeEvent({ id: 'evt-1', location_lat: 41.0422, location_lon: 29.0083 }),
+            makeEvent({ id: 'evt-2', location_lat: 41.04221, location_lon: 29.00831 }),
+          ]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      const firstCoordinate = screen
+        .getByTestId('marker-evt-1')
+        .getAttribute('data-coordinate');
+      const secondCoordinate = screen
+        .getByTestId('marker-evt-2')
+        .getAttribute('data-coordinate');
+
+      expect(firstCoordinate).toBeTruthy();
+      expect(secondCoordinate).toBeTruthy();
+      expect(firstCoordinate).not.toEqual(secondCoordinate);
     });
 
     it('shows participant count and capacity when both are present', () => {
@@ -321,6 +464,8 @@ describe('EventMapView', () => {
         />,
       );
 
+      selectMarker();
+
       expect(screen.getByText(/8.*20.*going/s)).toBeTruthy();
     });
 
@@ -334,6 +479,8 @@ describe('EventMapView', () => {
           onMarkerPress={jest.fn()}
         />,
       );
+
+      selectMarker();
 
       expect(screen.getByText(/5.*going/s)).toBeTruthy();
       expect(screen.queryByText(/\//)).toBeNull();
@@ -353,15 +500,15 @@ describe('EventMapView', () => {
         />,
       );
 
-      const callout = screen.getByTestId('callout-evt-42');
-      fireEvent.click(callout);
+      selectMarker('evt-42');
+      fireEvent.click(screen.getByTestId('callout-evt-42'));
 
       expect(onMarkerPress).toHaveBeenCalledWith('evt-42');
     });
   });
 
   describe('callout content', () => {
-    it('shows category name in the callout', () => {
+    it('shows category name in the native callout', () => {
       render(
         <EventMapView
           events={[makeEvent({ category_name: 'Sports' })]}
@@ -371,6 +518,8 @@ describe('EventMapView', () => {
           onMarkerPress={jest.fn()}
         />,
       );
+
+      selectMarker();
 
       expect(screen.getByText('Sports')).toBeTruthy();
     });
@@ -386,7 +535,104 @@ describe('EventMapView', () => {
         />,
       );
 
+      selectMarker();
+
       expect(screen.getByText(/Belgrad Forest/)).toBeTruthy();
+    });
+
+    it('shows a small event image in the native callout when available', async () => {
+      render(
+        <EventMapView
+          events={[
+            makeEvent({
+              id: 'evt-image',
+              image_url: 'https://example.com/event.jpg',
+            }),
+          ]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      selectMarker('evt-image');
+      const image = await screen.findByTestId('callout-image-evt-image');
+
+      expect(image).toBeTruthy();
+      expect(image.getAttribute('src')).toBe('https://example.com/event.jpg');
+      expect(mockImagePrefetch).toHaveBeenCalledWith('https://example.com/event.jpg');
+      expect(screen.queryByTestId('callout-image-placeholder-evt-image')).toBeNull();
+      await waitFor(() => expect(mockRedrawCallout).toHaveBeenCalled());
+    });
+
+    it('falls back to the category placeholder when image prefetch fails', async () => {
+      mockImagePrefetch.mockResolvedValue(false);
+
+      render(
+        <EventMapView
+          events={[
+            makeEvent({
+              id: 'evt-broken-prefetch',
+              image_url: 'https://example.com/missing.jpg',
+            }),
+          ]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      selectMarker('evt-broken-prefetch');
+
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('callout-image-placeholder-evt-broken-prefetch'),
+        ).toBeTruthy(),
+      );
+      expect(screen.queryByTestId('callout-image-evt-broken-prefetch')).toBeNull();
+    });
+
+    it('falls back to the category placeholder when the callout image fails', async () => {
+      render(
+        <EventMapView
+          events={[
+            makeEvent({
+              id: 'evt-broken-image',
+              image_url: 'https://example.com/missing.jpg',
+            }),
+          ]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      selectMarker('evt-broken-image');
+      const image = await screen.findByTestId('callout-image-evt-broken-image');
+      fireEvent.error(image);
+
+      expect(screen.getByTestId('callout-image-placeholder-evt-broken-image')).toBeTruthy();
+      expect(screen.queryByTestId('callout-image-evt-broken-image')).toBeNull();
+    });
+
+    it('uses a category placeholder when the callout has no image', () => {
+      render(
+        <EventMapView
+          events={[makeEvent({ id: 'evt-no-image', image_url: null })]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      selectMarker('evt-no-image');
+
+      expect(screen.getByTestId('callout-image-placeholder-evt-no-image')).toBeTruthy();
+      expect(screen.queryByTestId('callout-image-evt-no-image')).toBeNull();
     });
 
     it('omits location line when address is not set', () => {
@@ -399,6 +645,8 @@ describe('EventMapView', () => {
           onMarkerPress={jest.fn()}
         />,
       );
+
+      selectMarker();
 
       expect(screen.queryByText(/📍/)).toBeNull();
     });

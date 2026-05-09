@@ -1,10 +1,39 @@
 package invitation
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+const (
+	// DefaultPastInvitationLimit is the page size used when callers do not
+	// specify past_limit. Matches the team default for paginated endpoints.
+	DefaultPastInvitationLimit = 25
+	// MaxPastInvitationLimit caps client-supplied past_limit to keep request
+	// cost predictable; matches NotificationCenter's MaxNotificationLimit.
+	MaxPastInvitationLimit = 50
+)
 
 type CreateInvitationsInput struct {
 	Usernames []string
 	Message   *string
+}
+
+// ListReceivedInvitationsInput drives GET /me/invitations. Only the past
+// bucket is paginated; pending always returns the full active set.
+type ListReceivedInvitationsInput struct {
+	UserID     uuid.UUID
+	PastCursor *string
+	PastLimit  *int
+}
+
+// PastInvitationCursor is the keyset used to paginate the past bucket.
+// (UpdatedAt, InvitationID) is a stable, unique tuple under the bucket's
+// (updated_at DESC, id DESC) ordering.
+type PastInvitationCursor struct {
+	UpdatedAt    time.Time `json:"updated_at"`
+	InvitationID uuid.UUID `json:"invitation_id"`
 }
 
 type CreatedInvitation struct {
@@ -30,8 +59,28 @@ type CreateInvitationsResult struct {
 	Failed                []InvitationFailure `json:"failed"`
 }
 
+// ReceivedInvitationsResult is the response from GET /me/invitations,
+// split into a pending bucket (all currently actionable invitations) and a
+// past bucket (DECLINED + EXPIRED — actionable history excluding ACCEPTED
+// and CANCELED, which would either duplicate participation views or
+// surface host-side decisions awkwardly).
 type ReceivedInvitationsResult struct {
-	Items []ReceivedInvitation `json:"items"`
+	Pending []ReceivedInvitation          `json:"pending"`
+	Past    ReceivedInvitationsPastResult `json:"past"`
+}
+
+// ReceivedInvitationsPastResult holds the paginated past bucket plus its
+// cursor metadata. Only this bucket is paginated.
+type ReceivedInvitationsPastResult struct {
+	Items    []ReceivedInvitation `json:"items"`
+	PageInfo InvitationPageInfo   `json:"page_info"`
+}
+
+// InvitationPageInfo mirrors the project's existing PageInfo shape (e.g.
+// NotificationPageInfo) so clients can reuse pagination components.
+type InvitationPageInfo struct {
+	NextCursor *string `json:"next_cursor"`
+	HasNext    bool    `json:"has_next"`
 }
 
 type ReceivedInvitation struct {

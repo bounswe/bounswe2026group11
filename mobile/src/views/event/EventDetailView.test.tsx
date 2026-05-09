@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { EventDetail } from '@/models/event';
 import type { EventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import EventDetailView from './EventDetailView';
@@ -44,9 +44,42 @@ jest.mock('@expo/vector-icons', () => {
 jest.mock('@/components/events/JoinRequestsModal', () => () => null);
 jest.mock('@/components/events/ParticipantListModal', () => () => null);
 jest.mock('@/components/events/InvitationsModal', () => () => null);
+jest.mock('@/components/events/EventDiscussionSection', () => () => null);
 
 jest.mock('@/viewmodels/event/useEventDetailViewModel', () => ({
   useEventDetailViewModel: jest.fn(),
+}));
+
+jest.mock('@/viewmodels/event/useEventDiscussionViewModel', () => ({
+  useEventDiscussionViewModel: jest.fn(() => ({
+    discussions: { items: [], nextCursor: null, hasNext: false, loading: false },
+    reviews: { items: [], nextCursor: null, hasNext: false, loading: false },
+    repliesMap: {},
+    newDiscussionMessage: '',
+    setNewDiscussionMessage: jest.fn(),
+    replyingToId: null,
+    setReplyingToId: jest.fn(),
+    replyMessage: '',
+    setReplyMessage: jest.fn(),
+    newReviewMessage: '',
+    setNewReviewMessage: jest.fn(),
+    newReviewRating: 0,
+    setNewReviewRating: jest.fn(),
+    discussionSubmitting: false,
+    discussionError: null,
+    reviewSubmitting: false,
+    reviewError: null,
+    loadMoreDiscussions: jest.fn(),
+    loadMoreReviews: jest.fn(),
+    loadReplies: jest.fn(),
+    loadMoreReplies: jest.fn(),
+    submitDiscussionComment: jest.fn(),
+    submitReply: jest.fn(),
+    submitReview: jest.fn(),
+    dismissDiscussionError: jest.fn(),
+    dismissReviewError: jest.fn(),
+    refresh: jest.fn(),
+  })),
 }));
 
 const mockUseEventDetailViewModel = jest.mocked(useEventDetailViewModel);
@@ -130,13 +163,20 @@ function buildViewModel(
     participantRatingError: null,
     showJoinRequestModal: false,
     joinRequestMessage: '',
+    selectedImageUri: null,
+    isUploadingImage: false,
+    imageError: null,
     openJoinRequestModal: jest.fn(),
     closeJoinRequestModal: jest.fn(),
+    pickImage: jest.fn().mockResolvedValue(undefined),
+    removeImage: jest.fn(),
     setJoinRequestMessage: jest.fn(),
     canLeave: false,
     handleJoin: jest.fn().mockResolvedValue(undefined),
     handleLeaveEvent: jest.fn().mockResolvedValue(undefined),
     handleRequestJoin: jest.fn().mockResolvedValue(undefined),
+    handleAcceptInvitation: jest.fn().mockResolvedValue(undefined),
+    handleDeclineInvitation: jest.fn().mockResolvedValue(undefined),
     handleToggleFavorite: jest.fn().mockResolvedValue(undefined),
     handleViewerRatingSubmit: jest.fn().mockResolvedValue(undefined),
     handleParticipantRatingSubmit: jest.fn().mockResolvedValue(undefined),
@@ -164,6 +204,21 @@ function buildViewModel(
     setUserSearchQuery: jest.fn(),
     userSuggestions: [],
     isSearchingUsers: false,
+    handleCancelJoinRequest: jest.fn().mockResolvedValue(undefined),
+    handleRevokeInvitation: jest.fn().mockResolvedValue(undefined),
+    showReportModal: false,
+    setShowReportModal: jest.fn(),
+    reportCategory: null,
+    setReportCategory: jest.fn(),
+    reportMessage: '',
+    setReportMessage: jest.fn(),
+    reportImageUri: null,
+    pickReportImage: jest.fn().mockResolvedValue(undefined),
+    removeReportImage: jest.fn(),
+    handleReportEvent: jest.fn().mockResolvedValue(undefined),
+    canAttachReportImage: false,
+    token: 'mock-token',
+    user: null,
     ...overrides,
   };
 }
@@ -186,14 +241,14 @@ describe('EventDetailView', () => {
     mockUseEventDetailViewModel.mockReturnValue(
       buildViewModel({
         event: null,
-        apiError: 'This event is either private or does not exist. You may need an invitation to view it.',
+        apiError: 'This event is private and only accessible to invited guests. If you don\'t have a valid invitation or if you have previously declined one, you cannot view the details.',
       }),
     );
 
     render(<EventDetailView eventId="event-1" />);
 
     expect(screen.getByText('Event Inaccessible')).toBeTruthy();
-    expect(screen.getByText(/You may need an invitation/)).toBeTruthy();
+    expect(screen.getByText(/If you don't have a valid invitation/)).toBeTruthy();
     expect(screen.getByText('Go Back to Discovery')).toBeTruthy();
     
     // Check for the lock icon
@@ -230,6 +285,88 @@ describe('EventDetailView', () => {
     expect(screen.queryByText('Get Directions')).toBeNull();
   });
 
+  // ── approximate-location UX ────────────────────────────────────────────────
+
+  it('shows approximate-location banner and hides Get Directions for PROTECTED non-participant', () => {
+    const approxEvent = makeEvent({
+      privacy_level: 'PROTECTED',
+      location: { type: 'POINT', address: 'Kadikoy, Istanbul', point: { lat: 40.99, lon: 29.03 }, route_points: [], is_location_approximate: true },
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'NONE',
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: approxEvent, participationStatus: 'NONE' }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByTestId('approx-map-callout')).toBeTruthy();
+    expect(screen.getByText("You're seeing an approximate location")).toBeTruthy();
+    expect(screen.queryByText('Get Directions')).toBeNull();
+  });
+
+  it('hides the approximate-location callout and shows Get Directions for an approved participant', () => {
+    const exactEvent = makeEvent({
+      privacy_level: 'PROTECTED',
+      location: { type: 'POINT', address: 'Kadikoy, Istanbul', point: { lat: 40.99, lon: 29.03 }, route_points: [], is_location_approximate: false },
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'JOINED',
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: exactEvent, participationStatus: 'JOINED' }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.queryByTestId('approx-map-callout')).toBeNull();
+    expect(screen.getByText('Get Directions')).toBeTruthy();
+  });
+
+  it('hides approximate-location callout for the event host', () => {
+    const hostEvent = makeEvent({
+      privacy_level: 'PROTECTED',
+      location: { type: 'POINT', address: 'Kadikoy, Istanbul', point: { lat: 40.99, lon: 29.03 }, route_points: [], is_location_approximate: false },
+      viewer_context: {
+        is_host: true,
+        is_favorited: false,
+        participation_status: 'NONE',
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: hostEvent }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.queryByTestId('approx-map-callout')).toBeNull();
+  });
+
+  it('shows approximate-location callout for a pending-request viewer', () => {
+    const pendingEvent = makeEvent({
+      privacy_level: 'PROTECTED',
+      location: { type: 'POINT', address: 'Kadikoy, Istanbul', point: { lat: 40.99, lon: 29.03 }, route_points: [], is_location_approximate: true },
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'PENDING',
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: pendingEvent, participationStatus: 'PENDING' }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByTestId('approx-map-callout')).toBeTruthy();
+    expect(screen.queryByText('Get Directions')).toBeNull();
+  });
+
   it('renders meeting instructions when available', () => {
     const eventWithInstructions = makeEvent({
       location: {
@@ -246,5 +383,77 @@ describe('EventDetailView', () => {
 
     expect(screen.getByText('Meeting Instructions')).toBeTruthy();
     expect(screen.getByText('Wait at the statue')).toBeTruthy();
+  });
+
+  it('shows accept and decline actions for invited users', () => {
+    const handleAcceptInvitation = jest.fn().mockResolvedValue(undefined);
+    const handleDeclineInvitation = jest.fn().mockResolvedValue(undefined);
+    const invitedEvent = makeEvent({
+      privacy_level: 'PRIVATE',
+      viewer_context: {
+        is_host: false,
+        is_favorited: false,
+        participation_status: 'INVITED',
+      },
+    });
+
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({
+        event: invitedEvent,
+        participationStatus: 'INVITED',
+        handleAcceptInvitation,
+        handleDeclineInvitation,
+      }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    fireEvent.click(screen.getByText('Accept Invitation'));
+    fireEvent.click(screen.getByText('Decline'));
+
+    expect(handleAcceptInvitation).toHaveBeenCalledTimes(1);
+    expect(handleDeclineInvitation).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders a Directions to Start button and a Route chip for ROUTE events', () => {
+    const routeEvent = makeEvent({
+      location: {
+        type: 'ROUTE',
+        address: 'Galata Tower → Hagia Sophia',
+        point: null,
+        route_points: [
+          { lat: 41.04, lon: 29.0 },
+          { lat: 41.05, lon: 29.02 },
+          { lat: 41.06, lon: 29.04 },
+        ],
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(buildViewModel({ event: routeEvent }));
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByText('Directions to Start')).toBeTruthy();
+    expect(screen.queryByText('Get Directions')).toBeNull();
+    expect(screen.getByText('Galata Tower → Hagia Sophia')).toBeTruthy();
+    expect(screen.getByText('Route')).toBeTruthy();
+  });
+
+  it('does not render the map for a ROUTE event with no waypoints', () => {
+    const routeEventNoPoints = makeEvent({
+      location: {
+        type: 'ROUTE',
+        address: 'Empty route',
+        point: null,
+        route_points: [],
+      },
+    });
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({ event: routeEventNoPoints }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.queryByText('Get Directions')).toBeNull();
+    expect(screen.queryByText('Directions to Start')).toBeNull();
   });
 });

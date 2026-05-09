@@ -2,6 +2,7 @@ package invitation
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -73,17 +74,102 @@ func (s *Service) CreateInvitations(
 	return toCreateInvitationsResult(record), nil
 }
 
-func (s *Service) ListReceivedInvitations(ctx context.Context, userID uuid.UUID) (*ReceivedInvitationsResult, error) {
-	records, err := s.repo.ListReceivedPendingInvitations(ctx, userID)
+func (s *Service) ListReceivedInvitations(ctx context.Context, input ListReceivedInvitationsInput) (*ReceivedInvitationsResult, error) {
+	limit, cursor, appErr := normalizeListReceivedInvitationsInput(input)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	pendingRecords, err := s.repo.ListReceivedPendingInvitations(ctx, input.UserID)
+	if err != nil {
+		return nil, err
+	}
+	pending := make([]ReceivedInvitation, len(pendingRecords))
+	for i, record := range pendingRecords {
+		pending[i] = toReceivedInvitation(record)
+	}
+
+	pastRecords, err := s.repo.ListReceivedPastInvitations(ctx, input.UserID, ListPastInvitationsParams{
+		Cursor:     cursor,
+		FetchLimit: limit + 1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	hasNext := len(pastRecords) > limit
+	if hasNext {
+		pastRecords = pastRecords[:limit]
+	}
+	pastItems := make([]ReceivedInvitation, len(pastRecords))
+	for i, record := range pastRecords {
+		pastItems[i] = toReceivedInvitation(record)
+	}
+	nextCursor, err := buildNextPastInvitationCursor(pastItems, hasNext)
 	if err != nil {
 		return nil, err
 	}
 
-	items := make([]ReceivedInvitation, len(records))
-	for i, record := range records {
-		items[i] = toReceivedInvitation(record)
+	return &ReceivedInvitationsResult{
+		Pending: pending,
+		Past: ReceivedInvitationsPastResult{
+			Items: pastItems,
+			PageInfo: InvitationPageInfo{
+				NextCursor: nextCursor,
+				HasNext:    hasNext,
+			},
+		},
+	}, nil
+}
+
+// GetReceivedInvitation fetches the latest state of one invitation owned
+// by the caller. It deliberately returns no event-status or invitation-
+// status filter so the modal flow can render warnings for CANCELED,
+// EXPIRED, or already-actioned invitations. domain.ErrNotFound from the
+// repo (missing row, wrong recipient, non-PRIVATE event) maps to a 404
+// with the standard invitation_not_found code; the caller's identity is
+// never leaked via a 403.
+func (s *Service) GetReceivedInvitation(ctx context.Context, userID, invitationID uuid.UUID) (*ReceivedInvitation, error) {
+	record, err := s.repo.GetReceivedInvitation(ctx, userID, invitationID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.NotFoundError(domain.ErrorCodeInvitationNotFound, "The requested invitation does not exist.")
+		}
+		return nil, fmt.Errorf("get received invitation: %w", err)
 	}
-	return &ReceivedInvitationsResult{Items: items}, nil
+	dto := toReceivedInvitation(*record)
+	return &dto, nil
+}
+
+// normalizeListReceivedInvitationsInput resolves the past-bucket page size
+// and decodes the cursor token. A bad cursor produces a 400 with code
+// `validation_error` so clients can react predictably; a missing cursor or
+// limit falls back to safe defaults.
+func normalizeListReceivedInvitationsInput(input ListReceivedInvitationsInput) (int, *PastInvitationCursor, *domain.AppError) {
+	limit := DefaultPastInvitationLimit
+	if input.PastLimit != nil {
+		v := *input.PastLimit
+		if v < 1 || v > MaxPastInvitationLimit {
+			return 0, nil, domain.ValidationError(map[string]string{
+				"past_limit": fmt.Sprintf("must be between 1 and %d", MaxPastInvitationLimit),
+			})
+		}
+		limit = v
+	}
+
+	var cursor *PastInvitationCursor
+	if input.PastCursor != nil {
+		token := strings.TrimSpace(*input.PastCursor)
+		if token != "" {
+			decoded, err := decodePastInvitationCursor(token)
+			if err != nil {
+				return 0, nil, domain.ValidationError(map[string]string{
+					"past_cursor": "cursor is invalid",
+				})
+			}
+			cursor = decoded
+		}
+	}
+	return limit, cursor, nil
 }
 
 func (s *Service) AcceptInvitation(ctx context.Context, userID, invitationID uuid.UUID) (*AcceptInvitationResult, error) {
@@ -92,11 +178,25 @@ func (s *Service) AcceptInvitation(ctx context.Context, userID, invitationID uui
 		var err error
 		record, err = s.repo.AcceptInvitation(ctx, userID, invitationID)
 		if err != nil {
+			slog.ErrorContext(ctx, "invitation accept failed",
+				"operation", "invitation.accept",
+				"invitation_id", invitationID.String(),
+				"user_id", userID.String(),
+				"error", err,
+			)
 			return err
 		}
 		if s.tickets != nil {
 			_, err = s.tickets.CreateTicketForParticipation(ctx, record.Participation, domain.TicketStatusActive)
 			if err != nil {
+				slog.ErrorContext(ctx, "ticket creation after invitation accept failed",
+					"operation", "invitation.accept.ticket_create",
+					"invitation_id", invitationID.String(),
+					"event_id", record.Invitation.EventID.String(),
+					"user_id", userID.String(),
+					"participation_id", record.Participation.ID.String(),
+					"error", err,
+				)
 				return err
 			}
 		}
@@ -107,6 +207,20 @@ func (s *Service) AcceptInvitation(ctx context.Context, userID, invitationID uui
 	}
 
 	s.notifyInvitationResponse(ctx, record.Invitation.ID, domain.InvitationStatusAccepted)
+	acceptedVersion := 0
+	if record.Participation.LastConfirmedEventVersion != nil {
+		acceptedVersion = *record.Participation.LastConfirmedEventVersion
+	}
+	slog.InfoContext(ctx, "invitation accepted",
+		"operation", "invitation.accept",
+		"invitation_id", record.Invitation.ID.String(),
+		"event_id", record.Invitation.EventID.String(),
+		"user_id", userID.String(),
+		"participation_id", record.Participation.ID.String(),
+		"participation_status", record.Participation.Status.String(),
+		"accepted_event_version", acceptedVersion,
+		"ticket_created", s.tickets != nil,
+	)
 
 	return &AcceptInvitationResult{
 		InvitationID:        record.Invitation.ID.String(),
@@ -221,19 +335,27 @@ func (s *Service) notifyInvitationResponse(ctx context.Context, invitationID uui
 
 	notificationType := "PRIVATE_EVENT_INVITATION_ACCEPTED"
 	title := "Invitation accepted"
-	body := fmt.Sprintf("%s accepted your invitation to %s.", displayLabel(notificationCtx.InvitedDisplayName, notificationCtx.InvitedUsername), notificationCtx.EventTitle)
+	titleKey := "notification.invitation.accepted.title"
+	bodyKey := "notification.invitation.accepted.body"
+	invitedLabel := displayLabel(notificationCtx.InvitedDisplayName, notificationCtx.InvitedUsername)
+	body := fmt.Sprintf("%s accepted your invitation to %s.", invitedLabel, notificationCtx.EventTitle)
 	if status == domain.InvitationStatusDeclined {
 		notificationType = "PRIVATE_EVENT_INVITATION_DECLINED"
 		title = "Invitation declined"
-		body = fmt.Sprintf("%s declined your invitation to %s.", displayLabel(notificationCtx.InvitedDisplayName, notificationCtx.InvitedUsername), notificationCtx.EventTitle)
+		titleKey = "notification.invitation.declined.title"
+		bodyKey = "notification.invitation.declined.body"
+		body = fmt.Sprintf("%s declined your invitation to %s.", invitedLabel, notificationCtx.EventTitle)
 	}
 
 	deepLink := fmt.Sprintf("/events/%s", notificationCtx.EventID.String())
 	_, err = s.notifications.SendNotificationToUsers(ctx, notificationapp.SendNotificationInput{
 		UserIDs:  []uuid.UUID{notificationCtx.HostUserID},
 		Title:    title,
+		TitleKey: titleKey,
 		Type:     &notificationType,
 		Body:     body,
+		BodyKey:  bodyKey,
+		BodyArgs: []any{invitedLabel, notificationCtx.EventTitle},
 		DeepLink: &deepLink,
 		EventID:  &notificationCtx.EventID,
 		ImageURL: notificationCtx.EventImageURL,
@@ -263,11 +385,15 @@ func (s *Service) sendInvitationReceivedNotification(ctx context.Context, notifi
 	}
 	notificationType := "PRIVATE_EVENT_INVITATION_RECEIVED"
 	deepLink := fmt.Sprintf("/events/%s", notificationCtx.EventID.String())
+	hostLabel := displayLabel(notificationCtx.HostDisplayName, notificationCtx.HostUsername)
 	_, err := s.notifications.SendNotificationToUsers(ctx, notificationapp.SendNotificationInput{
 		UserIDs:  []uuid.UUID{notificationCtx.InvitedUserID},
 		Title:    "Private event invitation",
+		TitleKey: "notification.invitation.received.title",
 		Type:     &notificationType,
-		Body:     fmt.Sprintf("%s invited you to %s.", displayLabel(notificationCtx.HostDisplayName, notificationCtx.HostUsername), notificationCtx.EventTitle),
+		Body:     fmt.Sprintf("%s invited you to %s.", hostLabel, notificationCtx.EventTitle),
+		BodyKey:  "notification.invitation.received.body",
+		BodyArgs: []any{hostLabel, notificationCtx.EventTitle},
 		DeepLink: &deepLink,
 		EventID:  &notificationCtx.EventID,
 		ImageURL: notificationCtx.EventImageURL,

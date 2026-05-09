@@ -18,6 +18,10 @@ import (
 	"github.com/google/uuid"
 )
 
+func ptrParticipationStatus(status domain.ParticipationStatus) *domain.ParticipationStatus {
+	return &status
+}
+
 type stubEventService struct {
 	result                   *event.CreateEventResult
 	discoverResult           *event.DiscoverEventsResult
@@ -26,6 +30,8 @@ type stubEventService struct {
 	participantsResult       *event.ListEventApprovedParticipantsResult
 	joinRequestsResult       *event.ListEventPendingJoinRequestsResult
 	invitationsResult        *event.ListEventInvitationsResult
+	updateResult             *event.UpdateEventResult
+	reconfirmResult          *event.ReconfirmParticipationResult
 	err                      error
 	callCount                int
 	discoverCallCount        int
@@ -39,6 +45,7 @@ type stubEventService struct {
 	approveJoinCallCount     int
 	rejectJoinCallCount      int
 	lastInput                event.CreateEventInput
+	lastUpdateInput          event.UpdateEventInput
 	lastDiscoverInput        event.DiscoverEventsInput
 	lastDetailUserID         uuid.UUID
 	lastDetailEventID        uuid.UUID
@@ -69,6 +76,27 @@ func (s *stubEventService) CreateEvent(_ context.Context, _ uuid.UUID, input eve
 		Status:       string(domain.EventStatusActive),
 		StartTime:    now.Add(time.Hour),
 		CreatedAt:    now,
+	}, nil
+}
+
+func (s *stubEventService) UpdateEvent(_ context.Context, _, eventID uuid.UUID, input event.UpdateEventInput) (*event.UpdateEventResult, error) {
+	s.lastUpdateInput = input
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.updateResult != nil {
+		return s.updateResult, nil
+	}
+	now := time.Now().UTC()
+	return &event.UpdateEventResult{
+		ID:                        eventID.String(),
+		Title:                     "Updated Event",
+		PrivacyLevel:              string(domain.PrivacyPublic),
+		Status:                    string(domain.EventStatusActive),
+		StartTime:                 now.Add(time.Hour),
+		VersionNo:                 2,
+		ParticipantsMarkedPending: 0,
+		UpdatedAt:                 now,
 	}, nil
 }
 
@@ -119,9 +147,9 @@ func (s *stubEventService) GetEventDetail(_ context.Context, userID, eventID uui
 		Tags:        []string{},
 		Constraints: []event.EventDetailConstraint{},
 		ViewerContext: event.EventDetailViewerContext{
-			IsHost:              false,
-			IsFavorited:         false,
-			ParticipationStatus: string(domain.EventDetailParticipationStatusNone),
+			IsHost:             false,
+			IsFavorited:        false,
+			LatestEventVersion: 1,
 		},
 	}, nil
 }
@@ -227,6 +255,23 @@ func (s *stubEventService) LeaveEvent(_ context.Context, _, eventID uuid.UUID) (
 	}, nil
 }
 
+func (s *stubEventService) ReconfirmParticipation(_ context.Context, _, eventID uuid.UUID) (*event.ReconfirmParticipationResult, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.reconfirmResult != nil {
+		return s.reconfirmResult, nil
+	}
+	now := time.Now().UTC()
+	return &event.ReconfirmParticipationResult{
+		ParticipationID: uuid.NewString(),
+		EventID:         eventID.String(),
+		Status:          domain.ParticipationStatusApproved,
+		ReconfirmedAt:   now,
+		UpdatedAt:       now,
+	}, nil
+}
+
 func (s *stubEventService) RequestJoin(_ context.Context, _, eventID uuid.UUID, input event.RequestJoinInput) (*event.RequestJoinResult, error) {
 	s.requestJoinCallCount++
 	s.lastRequestJoinInput = input
@@ -301,6 +346,10 @@ func (s *stubEventService) CancelJoinRequest(_ context.Context, _, _ uuid.UUID) 
 
 func (s *stubEventService) ListFavoriteEvents(_ context.Context, _ uuid.UUID) (*event.FavoriteEventsResult, error) {
 	return &event.FavoriteEventsResult{Items: []event.FavoriteEventItem{}}, s.err
+}
+
+func (s *stubEventService) TransitionEventStatuses(_ context.Context) error {
+	return s.err
 }
 
 // fakeVerifier implements domain.TokenVerifier for tests in this package.
@@ -627,7 +676,8 @@ func TestGetEventDetailReturnsRatingMetadata(t *testing.T) {
 			ViewerContext: event.EventDetailViewerContext{
 				IsHost:              false,
 				IsFavorited:         false,
-				ParticipationStatus: string(domain.EventDetailParticipationStatusJoined),
+				ParticipationStatus: ptrParticipationStatus(domain.ParticipationStatusApproved),
+				LatestEventVersion:  1,
 			},
 		},
 	}
@@ -1093,6 +1143,33 @@ func TestRequestJoinParsesMessageBeforeCallingService(t *testing.T) {
 	}
 }
 
+func TestRequestJoinParsesImageConfirmTokenBeforeCallingService(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+	eventID := uuid.New()
+	token := "confirm-token"
+
+	req := httptest.NewRequest(fiber.MethodPost, "/events/"+eventID.String()+"/join-request", bytes.NewBufferString(`{"image_confirm_token":"`+token+`"}`))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("expected status %d, got %d", fiber.StatusCreated, resp.StatusCode)
+	}
+	if svc.lastRequestJoinInput.ImageConfirmToken == nil || *svc.lastRequestJoinInput.ImageConfirmToken != token {
+		t.Fatalf("expected parsed image confirm token %q, got %v", token, svc.lastRequestJoinInput.ImageConfirmToken)
+	}
+}
+
 func TestApproveJoinRequestInvalidEventIDReturns400(t *testing.T) {
 	// given
 	app := newEventTestApp(&stubEventService{}, authedVerifier())
@@ -1268,7 +1345,11 @@ func (f *fakeInvitationService) CreateInvitations(_ context.Context, _, _ uuid.U
 	return &invitation.CreateInvitationsResult{}, nil
 }
 
-func (f *fakeInvitationService) ListReceivedInvitations(_ context.Context, _ uuid.UUID) (*invitation.ReceivedInvitationsResult, error) {
+func (f *fakeInvitationService) ListReceivedInvitations(_ context.Context, _ invitation.ListReceivedInvitationsInput) (*invitation.ReceivedInvitationsResult, error) {
+	return nil, nil
+}
+
+func (f *fakeInvitationService) GetReceivedInvitation(_ context.Context, _ uuid.UUID, _ uuid.UUID) (*invitation.ReceivedInvitation, error) {
 	return nil, nil
 }
 

@@ -146,16 +146,22 @@ const TouchableOpacity = React.forwardRef(function MockTouchableOpacity(
   ref,
 ) {
   return React.createElement(
-    'button',
+    'div',
     {
       ref,
-      type: 'button',
-      role: accessibilityRole,
+      role: accessibilityRole || 'button',
       'aria-label': accessibilityLabel,
       'data-testid': testID,
-      style: mergeStyle(style),
+      style: {
+        cursor: disabled ? 'default' : 'pointer',
+        ...mergeStyle(style),
+      },
       disabled,
-      onClick: disabled ? undefined : onPress,
+      onClick: (event) => {
+        if (disabled) return;
+        event.stopPropagation(); // Prevent row click when clicking delete
+        onPress?.(event);
+      },
       ...stripReactNativeOnlyProps(props),
     },
     children,
@@ -250,6 +256,49 @@ const Switch = React.forwardRef(function MockSwitch(
   });
 });
 
+const FlatList = React.forwardRef(function MockFlatList(
+  { data, renderItem, ListEmptyComponent, ListHeaderComponent, ListFooterComponent, keyExtractor },
+  ref,
+) {
+  if (!data || data.length === 0) {
+    return React.createElement('div', { ref }, ListEmptyComponent);
+  }
+  return React.createElement(
+    'div',
+    { ref },
+    ListHeaderComponent,
+    data.map((item, index) =>
+      React.createElement('div', { key: keyExtractor ? keyExtractor(item, index) : index }, renderItem({ item, index })),
+    ),
+    ListFooterComponent,
+  );
+});
+
+const SectionList = React.forwardRef(function MockSectionList(
+  { sections, renderItem, renderSectionHeader, ListEmptyComponent, ListHeaderComponent, ListFooterComponent, keyExtractor },
+  ref,
+) {
+  if (!sections || sections.length === 0) {
+    return React.createElement('div', { ref }, ListEmptyComponent);
+  }
+  return React.createElement(
+    'div',
+    { ref },
+    ListHeaderComponent,
+    sections.map((section, idx) =>
+      React.createElement(
+        'div',
+        { key: idx },
+        renderSectionHeader ? renderSectionHeader({ section }) : null,
+        section.data.map((item, idy) =>
+          React.createElement('div', { key: keyExtractor ? keyExtractor(item, idy) : idy }, renderItem({ item, section, index: idy })),
+        ),
+      ),
+    ),
+    ListFooterComponent,
+  );
+});
+
 module.exports = {
   Alert: {
     alert: jest.fn(),
@@ -276,6 +325,8 @@ module.exports = {
     create: (styles) => styles,
   },
   ScrollView,
+  FlatList,
+  SectionList,
   ActivityIndicator,
   KeyboardAvoidingView,
   Modal,

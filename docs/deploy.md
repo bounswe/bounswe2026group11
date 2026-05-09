@@ -61,21 +61,21 @@ docker compose -f deploy/docker-compose.dev.yml -f deploy/docker-compose.dev.ove
 | File | Used by | Purpose |
 |------|---------|---------|
 | [`nginx/nginx.local.conf`](../nginx/nginx.local.conf) | [`deploy/docker-compose.local.yml`](../deploy/docker-compose.local.yml) | HTTP only (port 80), for **local** Docker. Keep this minimal so `docker compose … up` works without TLS. |
-| [`nginx/nginx.dev.conf`](../nginx/nginx.dev.conf) | [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml) | HTTPS (443), HTTP→HTTPS redirect; same `/api/` and `/` proxy rules. Mount expects TLS files under **`certs/`** at the repo root (see below). |
+| [`nginx/nginx.dev.conf`](../nginx/nginx.dev.conf) | [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml) | HTTPS (443), HTTP→HTTPS redirect; same `/api/`, `/api/docs/`, and `/` routing. Mount expects TLS files under **`certs/`** at the repo root (see below). |
 
 Track **both** files in git: local and droplet stay reproducible; secrets stay off-repo.
 
 ## API documentation
 
-This section covers **OpenAPI 3.x YAML** specs and the **Swagger UI** used to browse them interactively. This keeps the Go API binary free of documentation routes: **nginx** serves the documentation files only in the **local Docker Compose** stack.
+This section covers **OpenAPI 3.x YAML** specs and the **Swagger UI** used to browse them interactively. This keeps the Go API binary free of documentation routes: **nginx** serves the documentation files in the **local Docker Compose** and **dev droplet** stacks.
 
 ### How it works
 
-1. **Local Compose** bind-mounts **only** [`docs/openapi/`](../docs/openapi/) and [`docs/swagger-ui/`](../docs/swagger-ui/) into the nginx container (read-only). Other repo folders under `docs/` (for example `db/`, `design/`) are **not** mounted, so they cannot be served or enumerated by nginx. [`deploy/docker-compose.dev.yml`](../deploy/docker-compose.dev.yml) does **not** mount these folders.
+1. **Local Compose** and the **dev droplet Compose** bind-mount **only** [`docs/openapi/`](../docs/openapi/) and [`docs/swagger-ui/`](../docs/swagger-ui/) into the nginx container (read-only). Other repo folders under `docs/` (for example `db/`, `design/`) are **not** mounted, so they cannot be served or enumerated by nginx.
 2. **Nginx** exposes:
    - **`/api/docs/`** — Swagger UI (HTML + vendored Swagger UI JS/CSS under [`docs/swagger-ui/`](../docs/swagger-ui/)).
    - **`/api/docs/openapi/`** — Raw OpenAPI files (e.g. [`docs/openapi/auth.yaml`](../docs/openapi/auth.yaml)).
-3. **Backend traffic** is unchanged: in local, requests under **`/api/`** that are *not* matched by the docs locations still proxy to the Go service. In the dev droplet, there are no nginx docs routes, so all **`/api/`** traffic goes straight to the backend proxy.
+3. **Backend traffic** is unchanged: requests under **`/api/`** that are *not* matched by the docs locations still proxy to the Go service.
 
 Swagger UI assets are **vendored** in git (see [`docs/swagger-ui/vendor/README.md`](../docs/swagger-ui/vendor/README.md)) so the docs work **without internet access** (no CDN).
 
@@ -84,7 +84,7 @@ Swagger UI assets are **vendored** in git (see [`docs/swagger-ui/vendor/README.m
 | Environment | Swagger UI | Example spec URL |
 |-------------|------------|------------------|
 | **Local** (`docker-compose.local`) | `http://localhost/api/docs/` | `http://localhost/api/docs/openapi/auth.yaml` |
-| **Dev droplet** (HTTPS) | Not served | Not served |
+| **Dev droplet** (HTTPS) | `https://socialeventmapper.com/api/docs/` | `https://socialeventmapper.com/api/docs/openapi/auth.yaml` |
 
 `/api/docs` without a trailing slash redirects to `/api/docs/`.
 

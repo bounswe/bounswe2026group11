@@ -30,6 +30,11 @@ func NewCommentRepository(pool *pgxpool.Pool) *CommentRepository {
 
 var _ commentapp.Repository = (*CommentRepository)(nil)
 
+const (
+	commentCursorBefore = "<"
+	commentCursorAfter  = ">"
+)
+
 func (r *CommentRepository) GetEventCommentContext(ctx context.Context, eventID uuid.UUID, viewerUserID *uuid.UUID) (*commentapp.EventCommentContext, error) {
 	var (
 		record                  commentapp.EventCommentContext
@@ -154,7 +159,7 @@ func (r *CommentRepository) GetDiscussionParentContext(ctx context.Context, even
 
 func (r *CommentRepository) ListTopLevelComments(ctx context.Context, eventID uuid.UUID, params commentapp.ListCommentsParams) ([]commentapp.CommentRecord, error) {
 	args := []any{eventID, string(params.CommentType)}
-	cursorClause := buildCommentCursorClause(params, &args, "ec.created_at", "ec.id")
+	cursorClause := buildCommentCursorClause(params, &args, "ec.created_at", "ec.id", commentCursorBefore)
 	args = append(args, params.RepositoryFetchLimit)
 
 	rows, err := r.db.Query(ctx, fmt.Sprintf(`
@@ -194,7 +199,7 @@ func (r *CommentRepository) ListTopLevelComments(ctx context.Context, eventID uu
 
 func (r *CommentRepository) ListReplies(ctx context.Context, eventID, parentID uuid.UUID, params commentapp.ListCommentsParams) ([]commentapp.CommentRecord, error) {
 	args := []any{eventID, parentID, string(domain.CommentTypeDiscussion)}
-	cursorClause := buildCommentCursorClause(params, &args, "ec.created_at", "ec.id")
+	cursorClause := buildCommentCursorClause(params, &args, "ec.created_at", "ec.id", commentCursorAfter)
 	args = append(args, params.RepositoryFetchLimit)
 
 	rows, err := r.db.Query(ctx, fmt.Sprintf(`
@@ -221,7 +226,7 @@ func (r *CommentRepository) ListReplies(ctx context.Context, eventID, parentID u
 		  AND ec.parent_id = $2
 		  AND ec.comment_type = $3
 		  %s
-		ORDER BY ec.created_at DESC, ec.id DESC
+		ORDER BY ec.created_at ASC, ec.id ASC
 		LIMIT $%d
 	`, cursorClause, len(args)), args...)
 	if err != nil {
@@ -310,14 +315,14 @@ func (r *CommentRepository) DeleteReviewComment(ctx context.Context, eventID, us
 	return tag.RowsAffected() == 1, nil
 }
 
-func buildCommentCursorClause(params commentapp.ListCommentsParams, args *[]any, createdAtColumn, idColumn string) string {
+func buildCommentCursorClause(params commentapp.ListCommentsParams, args *[]any, createdAtColumn, idColumn, comparator string) string {
 	if params.DecodedCursor == nil {
 		return ""
 	}
 	*args = append(*args, params.DecodedCursor.CreatedAt, params.DecodedCursor.CommentID)
 	createdAtIndex := len(*args) - 1
 	idIndex := len(*args)
-	return fmt.Sprintf("AND (%s, %s) < ($%d, $%d)", createdAtColumn, idColumn, createdAtIndex, idIndex)
+	return fmt.Sprintf("AND (%s, %s) %s ($%d, $%d)", createdAtColumn, idColumn, comparator, createdAtIndex, idIndex)
 }
 
 func scanCommentRecords(rows pgx.Rows, operation string) ([]commentapp.CommentRecord, error) {

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload"
 	"github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/google/uuid"
@@ -54,7 +55,11 @@ type fakeEventRepo struct {
 	lastCancelCount        int
 	requesters             map[uuid.UUID]*domain.User
 	getRequesterForJoinErr error
-	completedTransitions   []CompletedEventTransitionRecord
+	editSnapshot           *EventEditSnapshot
+	updateParams           UpdateEventParams
+	transitionRecords      []EventStatusTransitionRecord
+	historySnapshots       map[int]*EventHistorySnapshotRecord
+	historyCreateCount     int
 }
 
 func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams) (*domain.Event, error) {
@@ -65,6 +70,7 @@ func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams)
 	return &domain.Event{
 		ID:           uuid.New(),
 		HostID:       params.HostID,
+		VersionNo:    1,
 		Title:        params.Title,
 		PrivacyLevel: params.PrivacyLevel,
 		Status:       domain.EventStatusActive,
@@ -74,6 +80,82 @@ func (r *fakeEventRepo) CreateEvent(_ context.Context, params CreateEventParams)
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}, nil
+}
+
+func (r *fakeEventRepo) GetEventEditSnapshot(_ context.Context, eventID uuid.UUID) (*EventEditSnapshot, error) {
+	if r.editSnapshot != nil {
+		return r.editSnapshot, nil
+	}
+	if e, ok := r.events[eventID]; ok {
+		locType := domain.LocationPoint
+		if e.LocationType != nil {
+			locType = *e.LocationType
+		}
+		return &EventEditSnapshot{
+			Event:     *e,
+			VersionNo: 1,
+			Location: EventDetailLocationRecord{
+				Type:  locType,
+				Point: &domain.GeoPoint{Lat: 41, Lon: 29},
+			},
+			Constraints: []EventDetailConstraintRecord{},
+		}, nil
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (r *fakeEventRepo) UpdateEvent(_ context.Context, params UpdateEventParams) (*domain.Event, error) {
+	r.updateParams = params
+	if r.err != nil {
+		return nil, r.err
+	}
+	e, ok := r.events[params.EventID]
+	if !ok {
+		return nil, domain.ErrNotFound
+	}
+	e.Title = params.Title
+	e.Description = params.Description
+	e.CategoryID = params.CategoryID
+	e.StartTime = params.StartTime
+	e.EndTime = params.EndTime
+	e.Capacity = params.Capacity
+	e.LocationType = &params.LocationType
+	e.VersionNo++
+	e.UpdatedAt = time.Now().UTC()
+	return e, nil
+}
+
+func (r *fakeEventRepo) CreateEventHistorySnapshot(_ context.Context, eventID uuid.UUID, versionNo int, changedFields []string, _ uuid.UUID) error {
+	r.historyCreateCount++
+	if r.historySnapshots == nil {
+		r.historySnapshots = map[int]*EventHistorySnapshotRecord{}
+	}
+	r.historySnapshots[versionNo] = &EventHistorySnapshotRecord{
+		EventID:       eventID,
+		VersionNo:     versionNo,
+		ChangedFields: append([]string{}, changedFields...),
+	}
+	return r.err
+}
+
+func (r *fakeEventRepo) GetEventHistorySnapshot(_ context.Context, eventID uuid.UUID, versionNo int) (*EventHistorySnapshotRecord, error) {
+	if snapshot, ok := r.historySnapshots[versionNo]; ok {
+		return snapshot, nil
+	}
+	return &EventHistorySnapshotRecord{EventID: eventID, VersionNo: versionNo}, nil
+}
+
+func (r *fakeEventRepo) GetLatestEventHistorySnapshot(_ context.Context, eventID uuid.UUID) (*EventHistorySnapshotRecord, error) {
+	var latest *EventHistorySnapshotRecord
+	for _, snapshot := range r.historySnapshots {
+		if latest == nil || snapshot.VersionNo > latest.VersionNo {
+			latest = snapshot
+		}
+	}
+	if latest != nil {
+		return latest, nil
+	}
+	return &EventHistorySnapshotRecord{EventID: eventID, VersionNo: 1}, nil
 }
 
 func (r *fakeEventRepo) GetEventByID(_ context.Context, id uuid.UUID) (*domain.Event, error) {
@@ -142,11 +224,8 @@ func (r *fakeEventRepo) ListEventInvitations(
 	return r.invitationRecords, nil
 }
 
-func (r *fakeEventRepo) TransitionEventStatuses(_ context.Context) ([]CompletedEventTransitionRecord, error) {
-	if r.err != nil {
-		return nil, r.err
-	}
-	return r.completedTransitions, nil
+func (r *fakeEventRepo) TransitionEventStatuses(_ context.Context) ([]EventStatusTransitionRecord, error) {
+	return r.transitionRecords, r.err
 }
 
 func (r *fakeEventRepo) CancelEvent(ctx context.Context, eventID uuid.UUID, canceledApprovedParticipantCount int) error {
@@ -227,6 +306,7 @@ type fakeParticipationService struct {
 	lastCancelCtx                context.Context
 	lastEvaluateBadgesEventID    uuid.UUID
 	evaluateBadgesEventIDHistory []uuid.UUID
+	pendingUserIDs               []uuid.UUID
 }
 
 type fakeEventBadgeEvaluator struct {
@@ -295,6 +375,26 @@ func (s *fakeParticipationService) EvaluateBadgesForEventParticipants(_ context.
 	return s.err
 }
 
+func (s *fakeParticipationService) MarkApprovedParticipationsPending(_ context.Context, eventID, _ uuid.UUID) ([]uuid.UUID, error) {
+	s.lastEventID = eventID
+	return s.pendingUserIDs, s.err
+}
+
+func (s *fakeParticipationService) ReconfirmParticipation(_ context.Context, eventID, userID uuid.UUID, _ int) (*domain.Participation, error) {
+	s.lastEventID = eventID
+	s.lastUserID = userID
+	if s.err != nil {
+		return nil, s.err
+	}
+	now := time.Now().UTC()
+	return &domain.Participation{ID: uuid.New(), EventID: eventID, UserID: userID, Status: domain.ParticipationStatusApproved, CreatedAt: now, UpdatedAt: now}, nil
+}
+
+func (s *fakeParticipationService) ApprovePendingParticipationsForEvent(_ context.Context, eventID uuid.UUID) error {
+	s.lastEventID = eventID
+	return s.err
+}
+
 // fakeJoinRequestService is an in-memory implementation of JoinRequestService.
 type fakeJoinRequestService struct {
 	err               error
@@ -308,17 +408,41 @@ type fakeJoinRequestService struct {
 	lastInput         join_request.CreatePendingJoinRequestInput
 }
 
+type fakeJoinRequestImageConfirmer struct {
+	baseURL          string
+	err              error
+	callCount        int
+	lastUserID       uuid.UUID
+	lastEventID      uuid.UUID
+	lastConfirmToken string
+}
+
+func (f *fakeJoinRequestImageConfirmer) ConfirmEventJoinRequestImageUpload(_ context.Context, userID, eventID uuid.UUID, input imageupload.ConfirmUploadInput) (*imageupload.ConfirmJoinRequestImageResult, error) {
+	f.callCount++
+	f.lastUserID = userID
+	f.lastEventID = eventID
+	f.lastConfirmToken = input.ConfirmToken
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &imageupload.ConfirmJoinRequestImageResult{BaseURL: f.baseURL}, nil
+}
+
 type fakeTicketLifecycle struct {
+	createCallCount              int
 	cancelParticipationCallCount int
 	cancelEventCallCount         int
 	expireEventCallCount         int
 	lastParticipationID          uuid.UUID
 	lastCancelEventID            uuid.UUID
 	lastExpireEventID            uuid.UUID
+	pendingEventID               uuid.UUID
+	activateEventID              uuid.UUID
 	err                          error
 }
 
 func (s *fakeTicketLifecycle) CreateTicketForParticipation(_ context.Context, participation *domain.Participation, status domain.TicketStatus) (*domain.Ticket, error) {
+	s.createCallCount++
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -343,6 +467,16 @@ func (s *fakeTicketLifecycle) ExpireTicketsForEvent(_ context.Context, eventID u
 	return s.err
 }
 
+func (s *fakeTicketLifecycle) MarkTicketsPendingForEvent(_ context.Context, eventID uuid.UUID) error {
+	s.pendingEventID = eventID
+	return s.err
+}
+
+func (s *fakeTicketLifecycle) ActivatePendingTicketsForEvent(_ context.Context, eventID uuid.UUID) error {
+	s.activateEventID = eventID
+	return s.err
+}
+
 func (s *fakeJoinRequestService) CreatePendingJoinRequest(
 	_ context.Context,
 	eventID, userID, hostUserID uuid.UUID,
@@ -364,6 +498,7 @@ func (s *fakeJoinRequestService) CreatePendingJoinRequest(
 		UserID:     userID,
 		HostUserID: hostUserID,
 		Status:     domain.JoinRequestStatusPending,
+		ImageURL:   input.ImageURL,
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}, nil
@@ -536,10 +671,12 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 	viewerRatingMessage := "Great event host."
 	viewerRatingCreatedAt := createdAt.Add(5 * time.Minute)
 	viewerRatingUpdatedAt := viewerRatingCreatedAt.Add(2 * time.Minute)
+	joinRequestImageURL := "https://cdn.example/join-request.jpg"
 	svc.now = func() time.Time { return fixedNow }
 
 	eventRepo.detailRecord = &EventDetailRecord{
 		ID:                       eventID,
+		VersionNo:                1,
 		Title:                    "Detail Event",
 		Description:              stringPtr("Full payload"),
 		ImageURL:                 stringPtr("https://example.com/event.png"),
@@ -583,7 +720,8 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 		ViewerContext: EventDetailViewerContextRecord{
 			IsHost:              false,
 			IsFavorited:         true,
-			ParticipationStatus: domain.EventDetailParticipationStatusJoined,
+			ParticipationStatus: ptrParticipationStatus(domain.ParticipationStatusApproved),
+			LatestEventVersion:  1,
 		},
 		ViewerEventRating: &EventDetailRatingRecord{
 			ID:        uuid.New(),
@@ -591,6 +729,21 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 			Message:   &viewerRatingMessage,
 			CreatedAt: viewerRatingCreatedAt,
 			UpdatedAt: viewerRatingUpdatedAt,
+		},
+		HostContext: &EventDetailHostContextRecord{
+			PendingJoinRequests: []EventDetailPendingJoinRequestRecord{
+				{
+					JoinRequestID: uuid.New(),
+					Status:        string(domain.JoinRequestStatusPending),
+					ImageURL:      &joinRequestImageURL,
+					CreatedAt:     createdAt,
+					UpdatedAt:     updatedAt,
+					User: EventDetailHostContextUserRecord{
+						ID:       uuid.New(),
+						Username: "requester_user",
+					},
+				},
+			},
 		},
 	}
 
@@ -619,14 +772,17 @@ func TestGetEventDetailMapsRepositoryRecord(t *testing.T) {
 	if result.ViewerEventRating == nil || result.ViewerEventRating.Rating != 5 {
 		t.Fatalf("expected viewer_event_rating to be mapped, got %+v", result.ViewerEventRating)
 	}
-	if result.ViewerContext.ParticipationStatus != string(domain.EventDetailParticipationStatusJoined) {
-		t.Fatalf("expected participation_status %q, got %q", domain.EventDetailParticipationStatusJoined, result.ViewerContext.ParticipationStatus)
+	if result.ViewerContext.ParticipationStatus == nil || *result.ViewerContext.ParticipationStatus != domain.ParticipationStatusApproved {
+		t.Fatalf("expected participation_status %q, got %v", domain.ParticipationStatusApproved, result.ViewerContext.ParticipationStatus)
 	}
 	if result.RatingWindow.IsActive {
 		t.Fatal("expected canceled event rating window to be inactive")
 	}
 	if len(result.Location.RoutePoints) != 2 {
 		t.Fatalf("expected 2 route points, got %d", len(result.Location.RoutePoints))
+	}
+	if result.HostContext == nil || len(result.HostContext.PendingJoinRequests) != 1 || result.HostContext.PendingJoinRequests[0].ImageURL == nil || *result.HostContext.PendingJoinRequests[0].ImageURL != joinRequestImageURL {
+		t.Fatalf("expected host context join request image URL %q, got %+v", joinRequestImageURL, result.HostContext)
 	}
 }
 
@@ -1428,6 +1584,234 @@ func publicEventWithCapacity(hostID uuid.UUID, capacity, approvedCount int) *dom
 	}
 }
 
+func editableEvent(hostID uuid.UUID) *domain.Event {
+	categoryID := 1
+	capacity := 10
+	description := "Original description"
+	locationType := domain.LocationPoint
+	now := time.Now().UTC()
+	return &domain.Event{
+		ID:                       uuid.New(),
+		HostID:                   hostID,
+		Title:                    "Original title",
+		Description:              &description,
+		CategoryID:               &categoryID,
+		PrivacyLevel:             domain.PrivacyProtected,
+		Status:                   domain.EventStatusActive,
+		StartTime:                now.Add(2 * time.Hour),
+		EndTime:                  timePtr(now.Add(3 * time.Hour)),
+		Capacity:                 &capacity,
+		ApprovedParticipantCount: 2,
+		PendingParticipantCount:  1,
+		LocationType:             &locationType,
+		CreatedAt:                now.Add(-time.Hour),
+		UpdatedAt:                now.Add(-time.Hour),
+	}
+}
+
+func TestGetEventDetailReturnsDiffFromViewerLastConfirmedVersion(t *testing.T) {
+	// given
+	svc, eventRepo, _, _ := newTestEventService()
+	eventID := uuid.New()
+	userID := uuid.New()
+	lastConfirmed := 3
+	eventRepo.detailRecord = &EventDetailRecord{
+		ID:           eventID,
+		VersionNo:    5,
+		Title:        "New title",
+		PrivacyLevel: domain.PrivacyPublic,
+		Status:       domain.EventStatusActive,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		CreatedAt:    time.Now().UTC().Add(-time.Hour),
+		UpdatedAt:    time.Now().UTC(),
+		Host:         EventDetailPersonRecord{ID: uuid.New(), Username: "host"},
+		Location: EventDetailLocationRecord{
+			Type:  domain.LocationPoint,
+			Point: &domain.GeoPoint{Lat: 41, Lon: 29},
+		},
+		ViewerContext: EventDetailViewerContextRecord{
+			ParticipationStatus:       ptrParticipationStatus(domain.ParticipationStatusPending),
+			LastConfirmedEventVersion: &lastConfirmed,
+			LatestEventVersion:        5,
+		},
+	}
+	eventRepo.historySnapshots = map[int]*EventHistorySnapshotRecord{
+		3: {
+			EventID:   eventID,
+			VersionNo: 3,
+			Snapshot: EventHistorySnapshot{
+				Title:        "Old title",
+				PrivacyLevel: string(domain.PrivacyPublic),
+				Status:       string(domain.EventStatusActive),
+				StartTime:    eventRepo.detailRecord.StartTime,
+				Location:     EventHistoryLocationSnapshot{Type: string(domain.LocationPoint)},
+				Tags:         []string{"old"},
+				Constraints:  []EventDetailConstraintRecord{},
+			},
+		},
+		5: {
+			EventID:   eventID,
+			VersionNo: 5,
+			Snapshot: EventHistorySnapshot{
+				Title:        "New title",
+				PrivacyLevel: string(domain.PrivacyPublic),
+				Status:       string(domain.EventStatusActive),
+				StartTime:    eventRepo.detailRecord.StartTime,
+				Location:     EventHistoryLocationSnapshot{Type: string(domain.LocationPoint)},
+				Tags:         []string{"new"},
+				Constraints:  []EventDetailConstraintRecord{},
+			},
+		},
+	}
+
+	// when
+	result, err := svc.GetEventDetail(context.Background(), userID, eventID)
+
+	// then
+	if err != nil {
+		t.Fatalf("GetEventDetail() error = %v", err)
+	}
+	if !result.ViewerContext.NeedsReconfirmation {
+		t.Fatal("expected needs_reconfirmation=true")
+	}
+	if result.ViewerContext.EventDiff == nil {
+		t.Fatal("expected event_diff")
+	}
+	if result.ViewerContext.EventDiff.FromVersionNo != 3 || result.ViewerContext.EventDiff.ToVersionNo != 5 {
+		t.Fatalf("unexpected diff versions: %+v", result.ViewerContext.EventDiff)
+	}
+	if len(result.ViewerContext.EventDiff.Changes) != 2 {
+		t.Fatalf("expected title and tags changes, got %+v", result.ViewerContext.EventDiff.Changes)
+	}
+}
+
+func TestUpdateEventTriggeringChangeMarksApprovedParticipantsPendingAndTickets(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	ev := editableEvent(hostID)
+	svc, _, participationService, _, ticketService := newTestEventServiceWithEventAndTickets(ev)
+	participantID := uuid.New()
+	participationService.pendingUserIDs = []uuid.UUID{participantID}
+	newTitle := "Updated title"
+
+	// when
+	result, err := svc.UpdateEvent(context.Background(), hostID, ev.ID, UpdateEventInput{Title: &newTitle})
+
+	// then
+	if err != nil {
+		t.Fatalf("UpdateEvent() error = %v", err)
+	}
+	if result.VersionNo != 2 {
+		t.Fatalf("expected version 2, got %d", result.VersionNo)
+	}
+	if !result.ReconfirmationRequired || len(result.ReconfirmationTriggeredFields) != 1 || result.ReconfirmationTriggeredFields[0] != "title" {
+		t.Fatalf("unexpected triggered fields: %+v", result.ReconfirmationTriggeredFields)
+	}
+	if result.ParticipantsMarkedPending != 1 {
+		t.Fatalf("expected one marked pending, got %d", result.ParticipantsMarkedPending)
+	}
+	if participationService.lastEventID != ev.ID {
+		t.Fatalf("expected participation transition for event %s, got %s", ev.ID, participationService.lastEventID)
+	}
+	if ticketService.pendingEventID != ev.ID {
+		t.Fatalf("expected tickets pending for event %s, got %s", ev.ID, ticketService.pendingEventID)
+	}
+}
+
+func TestUpdateEventRemovingConstraintDoesNotRequireReconfirmation(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	ev := editableEvent(hostID)
+	svc, repo, participationService, _ := newTestEventServiceWithEvent(ev)
+	repo.editSnapshot = &EventEditSnapshot{
+		Event:     *ev,
+		VersionNo: 4,
+		Location: EventDetailLocationRecord{
+			Type:  domain.LocationPoint,
+			Point: &domain.GeoPoint{Lat: 41, Lon: 29},
+		},
+		Constraints: []EventDetailConstraintRecord{{Type: "equipment", Info: "Shoes"}},
+	}
+	constraints := []ConstraintInput{}
+
+	// when
+	result, err := svc.UpdateEvent(context.Background(), hostID, ev.ID, UpdateEventInput{Constraints: &constraints})
+
+	// then
+	if err != nil {
+		t.Fatalf("UpdateEvent() error = %v", err)
+	}
+	if result.ReconfirmationRequired {
+		t.Fatalf("expected no reconfirmation for constraint removal, got %+v", result.ReconfirmationTriggeredFields)
+	}
+	if participationService.lastEventID != uuid.Nil {
+		t.Fatalf("expected no participation transition, got %s", participationService.lastEventID)
+	}
+}
+
+func TestUpdateEventRejectsCapacityBelowApprovedAndPendingCount(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	ev := editableEvent(hostID)
+	svc, _, _, _ := newTestEventServiceWithEvent(ev)
+	capacity := 2
+
+	// when
+	_, err := svc.UpdateEvent(context.Background(), hostID, ev.ID, UpdateEventInput{Capacity: OptionalInt{Set: true, Value: &capacity}})
+
+	// then
+	if appErr, ok := errors.AsType[*domain.AppError](err); !ok || appErr.Code != domain.ErrorCodeCapacityBelowParticipantCount {
+		t.Fatalf("expected capacity_below_participant_count, got %v", err)
+	}
+}
+
+func TestReconfirmParticipationCreatesActiveTicketForProtectedEvent(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	ev := editableEvent(hostID)
+	svc, _, participationService, _, ticketService := newTestEventServiceWithEventAndTickets(ev)
+	userID := uuid.New()
+
+	// when
+	result, err := svc.ReconfirmParticipation(context.Background(), userID, ev.ID)
+
+	// then
+	if err != nil {
+		t.Fatalf("ReconfirmParticipation() error = %v", err)
+	}
+	if result.Status != domain.ParticipationStatusApproved {
+		t.Fatalf("expected APPROVED, got %q", result.Status)
+	}
+	if participationService.lastEventID != ev.ID || participationService.lastUserID != userID {
+		t.Fatalf("expected reconfirm for event %s user %s, got event %s user %s", ev.ID, userID, participationService.lastEventID, participationService.lastUserID)
+	}
+	if ticketService.createCallCount == 0 || result.TicketStatus == nil || *result.TicketStatus != domain.TicketStatusActive {
+		t.Fatalf("expected active ticket creation, got count=%d status=%v", ticketService.createCallCount, result.TicketStatus)
+	}
+}
+
+func TestTransitionEventStatusesAutoApprovesPendingWhenEventStarts(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	ev := editableEvent(hostID)
+	svc, repo, participationService, _, ticketService := newTestEventServiceWithEventAndTickets(ev)
+	repo.transitionRecords = []EventStatusTransitionRecord{{EventID: ev.ID, Status: domain.EventStatusInProgress}}
+
+	// when
+	err := svc.TransitionEventStatuses(context.Background())
+
+	// then
+	if err != nil {
+		t.Fatalf("TransitionEventStatuses() error = %v", err)
+	}
+	if participationService.lastEventID != ev.ID {
+		t.Fatalf("expected pending approvals for event %s, got %s", ev.ID, participationService.lastEventID)
+	}
+	if ticketService.activateEventID != ev.ID {
+		t.Fatalf("expected pending ticket activation for event %s, got %s", ev.ID, ticketService.activateEventID)
+	}
+}
+
 func protectedEvent(hostID uuid.UUID) *domain.Event {
 	return &domain.Event{
 		ID:           uuid.New(),
@@ -1619,9 +2003,9 @@ func TestTransitionExpiredEventsEvaluatesBadgesForEachCompletedEvent(t *testing.
 	hostTwo := uuid.New()
 	svc, eventRepo, participationService, _ := newTestEventService()
 	badgeEvaluator := attachEventBadgeEvaluator(svc)
-	eventRepo.completedTransitions = []CompletedEventTransitionRecord{
-		{EventID: completedOne, HostID: hostOne},
-		{EventID: completedTwo, HostID: hostTwo},
+	eventRepo.transitionRecords = []EventStatusTransitionRecord{
+		{EventID: completedOne, HostID: hostOne, Status: domain.EventStatusCompleted},
+		{EventID: completedTwo, HostID: hostTwo, Status: domain.EventStatusCompleted},
 	}
 
 	err := svc.TransitionExpiredEvents(context.Background())
@@ -1943,6 +2327,63 @@ func TestRequestJoinSuccessReturnsPending(t *testing.T) {
 	}
 }
 
+func TestRequestJoinWithImageTokenConfirmsAndStoresImageURL(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	requesterID := uuid.New()
+	ev := protectedEvent(hostID)
+	svc, _, _, joinRequestService := newTestEventServiceWithEvent(ev)
+	confirmer := &fakeJoinRequestImageConfirmer{baseURL: "https://cdn.example/join-request.jpg"}
+	svc.SetJoinRequestImageConfirmer(confirmer)
+	token := "confirm-token"
+
+	// when
+	result, err := svc.RequestJoin(context.Background(), requesterID, ev.ID, RequestJoinInput{
+		ImageConfirmToken: &token,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+	if confirmer.callCount != 1 {
+		t.Fatalf("expected image confirmer to be called once, got %d", confirmer.callCount)
+	}
+	if confirmer.lastUserID != requesterID || confirmer.lastEventID != ev.ID || confirmer.lastConfirmToken != token {
+		t.Fatalf("unexpected image confirmer input: user=%s event=%s token=%q", confirmer.lastUserID, confirmer.lastEventID, confirmer.lastConfirmToken)
+	}
+	if joinRequestService.lastInput.ImageURL == nil || *joinRequestService.lastInput.ImageURL != confirmer.baseURL {
+		t.Fatalf("expected join request image URL %q, got %v", confirmer.baseURL, joinRequestService.lastInput.ImageURL)
+	}
+	if result.ImageURL == nil || *result.ImageURL != confirmer.baseURL {
+		t.Fatalf("expected response image URL %q, got %v", confirmer.baseURL, result.ImageURL)
+	}
+}
+
+func TestRequestJoinWithoutImageTokenDoesNotConfirmImage(t *testing.T) {
+	// given
+	hostID := uuid.New()
+	requesterID := uuid.New()
+	ev := protectedEvent(hostID)
+	svc, _, _, joinRequestService := newTestEventServiceWithEvent(ev)
+	confirmer := &fakeJoinRequestImageConfirmer{baseURL: "https://cdn.example/join-request.jpg"}
+	svc.SetJoinRequestImageConfirmer(confirmer)
+
+	// when
+	_, err := svc.RequestJoin(context.Background(), requesterID, ev.ID, RequestJoinInput{})
+
+	// then
+	if err != nil {
+		t.Fatalf("RequestJoin() error = %v", err)
+	}
+	if confirmer.callCount != 0 {
+		t.Fatalf("expected image confirmer not to be called, got %d", confirmer.callCount)
+	}
+	if joinRequestService.lastInput.ImageURL != nil {
+		t.Fatalf("expected no join request image URL, got %v", joinRequestService.lastInput.ImageURL)
+	}
+}
+
 func TestRequestJoinRejectsHost(t *testing.T) {
 	hostID := uuid.New()
 	ev := protectedEvent(hostID)
@@ -2067,6 +2508,10 @@ func TestRejectJoinRequestDelegatesToJoinRequestService(t *testing.T) {
 
 func stringPtr(v string) *string { return &v }
 
+func timePtr(v time.Time) *time.Time { return &v }
+
 func intPtr(v int) *int { return &v }
+
+func ptrParticipationStatus(v domain.ParticipationStatus) *domain.ParticipationStatus { return &v }
 
 func floatPtr(v float64) *float64 { return &v }

@@ -492,7 +492,7 @@ func (r *AdminRepository) CountExistingUsers(ctx context.Context, userIDs []uuid
 
 func (r *AdminRepository) GetEventState(ctx context.Context, eventID uuid.UUID, forUpdate bool) (*adminapp.AdminEventState, error) {
 	query := `
-		SELECT id, privacy_level
+		SELECT id, privacy_level, capacity, approved_participant_count, pending_participant_count
 		FROM event
 		WHERE id = $1
 	`
@@ -503,8 +503,9 @@ func (r *AdminRepository) GetEventState(ctx context.Context, eventID uuid.UUID, 
 	var (
 		state        adminapp.AdminEventState
 		privacyLevel string
+		capacity     pgtype.Int4
 	)
-	err := r.db.QueryRow(ctx, query, eventID).Scan(&state.ID, &privacyLevel)
+	err := r.db.QueryRow(ctx, query, eventID).Scan(&state.ID, &privacyLevel, &capacity, &state.ApprovedParticipantCount, &state.PendingParticipantCount)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -516,6 +517,10 @@ func (r *AdminRepository) GetEventState(ctx context.Context, eventID uuid.UUID, 
 		return nil, fmt.Errorf("admin get event state: unknown privacy level %q", privacyLevel)
 	}
 	state.PrivacyLevel = parsed
+	if capacity.Valid {
+		state.Capacity = new(int)
+		*state.Capacity = int(capacity.Int32)
+	}
 	return &state, nil
 }
 
@@ -533,11 +538,15 @@ func (r *AdminRepository) CreateManualParticipation(ctx context.Context, eventID
 			UPDATE participation
 			SET status = $3,
 			    reconfirmed_at = NULL,
+			    last_confirmed_event_version = CASE
+			        WHEN $3 = $4 THEN (SELECT version_no FROM event WHERE id = $1)
+			        ELSE last_confirmed_event_version
+			    END,
 			    updated_at = NOW()
 			WHERE event_id = $1
 			  AND user_id = $2
-			RETURNING id, status, created_at, updated_at
-		`, eventID, userID, status), eventID, userID, "admin reactivate participation")
+			RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
+		`, eventID, userID, status, domain.ParticipationStatusApproved), eventID, userID, "admin reactivate participation")
 		if err != nil {
 			return nil, err
 		}
@@ -545,10 +554,15 @@ func (r *AdminRepository) CreateManualParticipation(ctx context.Context, eventID
 	}
 
 	participation, err := scanParticipation(r.db.QueryRow(ctx, `
-		INSERT INTO participation (event_id, user_id, status)
-		VALUES ($1, $2, $3)
-		RETURNING id, status, created_at, updated_at
-	`, eventID, userID, status), eventID, userID, "admin create participation")
+		INSERT INTO participation (event_id, user_id, status, last_confirmed_event_version)
+		VALUES (
+			$1,
+			$2,
+			$3,
+			CASE WHEN $3 = $4 THEN (SELECT version_no FROM event WHERE id = $1) ELSE NULL END
+		)
+		RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
+	`, eventID, userID, status, domain.ParticipationStatusApproved), eventID, userID, "admin create participation")
 	if err != nil {
 		return nil, mapAdminParticipationMutationError(err)
 	}
@@ -560,7 +574,7 @@ func (r *AdminRepository) CreateManualParticipation(ctx context.Context, eventID
 
 func (r *AdminRepository) GetParticipationByID(ctx context.Context, participationID uuid.UUID, forUpdate bool) (*domain.Participation, error) {
 	query := `
-		SELECT id, event_id, user_id, status, created_at, updated_at
+		SELECT id, event_id, user_id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		FROM participation
 		WHERE id = $1
 	`
@@ -587,7 +601,7 @@ func (r *AdminRepository) CancelParticipation(ctx context.Context, participation
 		SET status = $2,
 		    updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, event_id, user_id, status, created_at, updated_at
+		RETURNING id, event_id, user_id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 	`, participationID, domain.ParticipationStatusCanceled), "admin cancel participation")
 	if err != nil {
 		return nil, false, err
@@ -597,14 +611,18 @@ func (r *AdminRepository) CancelParticipation(ctx context.Context, participation
 
 func scanAdminParticipation(row pgx.Row, operation string) (*domain.Participation, error) {
 	var (
-		participation domain.Participation
-		status        string
+		participation        domain.Participation
+		status               string
+		reconfirmedAt        pgtype.Timestamptz
+		lastConfirmedVersion pgtype.Int4
 	)
 	err := row.Scan(
 		&participation.ID,
 		&participation.EventID,
 		&participation.UserID,
 		&status,
+		&reconfirmedAt,
+		&lastConfirmedVersion,
 		&participation.CreatedAt,
 		&participation.UpdatedAt,
 	)
@@ -619,6 +637,11 @@ func scanAdminParticipation(row pgx.Row, operation string) (*domain.Participatio
 		return nil, fmt.Errorf("%s: unknown participation status %q", operation, status)
 	}
 	participation.Status = parsed
+	participation.ReconfirmedAt = timestamptzPtr(reconfirmedAt)
+	if lastConfirmedVersion.Valid {
+		value := int(lastConfirmedVersion.Int32)
+		participation.LastConfirmedEventVersion = &value
+	}
 	return &participation, nil
 }
 

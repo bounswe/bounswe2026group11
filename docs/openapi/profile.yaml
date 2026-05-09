@@ -2,6 +2,15 @@ openapi: 3.1.0
 info:
   title: Social Event Mapper - Profile API
   version: 0.1.0
+  description: >
+    Localization: every error response and notification body honors the
+    request's locale, resolved in this order: (1) `Accept-Language` header
+    (q-weighted, region tags stripped), (2) the authenticated user's
+    `locale` preference, (3) the default `en`. The `code` field on error
+    envelopes is locale-stable; clients must switch on `code`, not on
+    `message`. Notification rows persist text already rendered in the
+    recipient's locale; switching `locale` afterwards does not retranslate
+    historical notifications.
 
 servers:
   - url: /api
@@ -129,12 +138,34 @@ paths:
 
   /me/invitations:
     get:
-      summary: Get current private-event invitations
-      description: Returns the authenticated user's current `PENDING` invitations for active private events.
+      summary: Get the authenticated user's invitations
+      description: |
+        Returns the authenticated user's invitations split into two buckets:
+
+        - `pending`: actionable invitations — `status = PENDING`, `event.privacy_level = PRIVATE`, event status in `ACTIVE` or `IN_PROGRESS`. Ordered `created_at ASC, id ASC`. Always returned in full (unpaginated).
+        - `past`: history of `DECLINED` and `EXPIRED` invitations for `PRIVATE` events, regardless of event status (so a declined invitation for a now-ended event is still visible). Ordered `updated_at DESC, id DESC`. Paginated via `past_cursor` / `past_limit`.
+
+        `ACCEPTED` invitations are intentionally absent from `past` because the resulting participation is already visible via `GET /me/events/upcoming` and `/me/events/completed`. `CANCELED` invitations (host-revoked) are also absent so the recipient is not confronted with host-side decisions.
       tags:
         - Profile
       security:
         - bearerAuth: []
+      parameters:
+        - in: query
+          name: past_cursor
+          required: false
+          schema:
+            type: string
+          description: Opaque pagination cursor for the past bucket. Echo back the `past.page_info.next_cursor` value from the previous response. Omit on the first page. Returns `validation_error` (400) when the cursor is malformed.
+        - in: query
+          name: past_limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+          description: Page size for the past bucket. Pending bucket ignores this parameter.
       responses:
         "200":
           description: Invitations retrieved successfully.
@@ -142,8 +173,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReceivedInvitationsResponse"
+        "400":
+          description: Validation error (invalid `past_cursor` or `past_limit` out of range).
         "401":
           description: Missing or invalid access token.
+
+  /me/invitations/{invitation_id}:
+    get:
+      summary: Get the latest state of a single received invitation
+      description: |
+        Returns the latest state of one invitation addressed to the authenticated user. Used by clients to refresh modal content opened from a (possibly stale) notification — the response can carry any status (`PENDING`, `ACCEPTED`, `DECLINED`, `EXPIRED`, `CANCELED`) so the client can render an appropriate banner before letting the user act.
+
+        Returns `404` (`invitation_not_found`) when the invitation does not exist, when it is addressed to a different user, or when its event is not `PRIVATE` — the response shape is identical for all three so the API does not leak the existence of rows belonging to other users.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/InvitationIdParam"
+      responses:
+        "200":
+          description: Invitation found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceivedInvitation"
+        "400":
+          description: Invalid invitation id.
+        "401":
+          description: Missing or invalid access token.
+        "404":
+          description: Invitation not found, not yours, or not for a `PRIVATE` event.
 
   /me/invitations/{invitation_id}/accept:
     post:
@@ -338,6 +398,11 @@ components:
           type: string
           description: Account status.
           example: active
+        locale:
+          type: string
+          enum: [en, tr]
+          description: User's preferred locale. Drives error/notification text when no Accept-Language header is sent. Defaults to "en" for new accounts.
+          example: tr
         phone_number:
           type:
             - string
@@ -485,12 +550,41 @@ components:
     ReceivedInvitationsResponse:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [pending, past]
+      properties:
+        pending:
+          type: array
+          description: Actionable invitations (`status = PENDING`) for `PRIVATE` events whose status is `ACTIVE` or `IN_PROGRESS`. Unpaginated.
+          items:
+            $ref: "#/components/schemas/ReceivedInvitation"
+        past:
+          $ref: "#/components/schemas/ReceivedInvitationsPast"
+
+    ReceivedInvitationsPast:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
       properties:
         items:
           type: array
+          description: Page of past invitations (`status` ∈ {`DECLINED`, `EXPIRED`}) ordered by `updated_at` descending.
           items:
             $ref: "#/components/schemas/ReceivedInvitation"
+        page_info:
+          $ref: "#/components/schemas/InvitationPageInfo"
+
+    InvitationPageInfo:
+      type: object
+      additionalProperties: false
+      required: [next_cursor, has_next]
+      properties:
+        next_cursor:
+          type:
+            - string
+            - "null"
+          description: Token to pass as `past_cursor` on the next request. `null` when `has_next` is `false`.
+        has_next:
+          type: boolean
 
     ReceivedInvitation:
       type: object
@@ -502,7 +596,9 @@ components:
           format: uuid
         status:
           type: string
-          enum: [PENDING]
+          enum: [PENDING, ACCEPTED, DECLINED, EXPIRED, CANCELED]
+          description: |
+            Invitation lifecycle status. The list endpoint (`GET /me/invitations`) only returns `PENDING` (in `pending`) or `DECLINED`/`EXPIRED` (in `past.items`); the detail endpoint (`GET /me/invitations/{id}`) can return any of the five values so clients can surface CANCELED and ACCEPTED states.
         message:
           type:
             - string
@@ -703,6 +799,14 @@ components:
           maxLength: 512
           description: URL of the user's avatar image.
           example: "https://example.com/avatars/john.jpg"
+        locale:
+          type: string
+          enum: [en, tr]
+          description: >
+            Preferred locale, used as the per-user fallback when subsequent
+            requests omit Accept-Language. Region tags such as "tr-TR" are
+            accepted on input but normalized to the base language.
+          example: tr
 
     ImageUploadInitResponse:
       type: object

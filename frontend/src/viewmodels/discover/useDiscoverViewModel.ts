@@ -21,6 +21,7 @@ const PAGE_SIZE = 20;
 /** Safari/WebKit often ignores page-load geolocation; hard-cap wait so we can show a user-gesture fallback. */
 const GEO_AUTO_ATTEMPT_MAX_MS = 4000;
 const LOCATION_PROMPT_DISMISS_KEY = 'sem_discover_location_prompt_dismissed';
+const DISCOVER_STATE_STORAGE_KEY = 'sem_discover_state';
 
 function buildBrowserLocationSuggestion(pos: GeolocationPosition): LocationSuggestion {
   const lat = pos.coords.latitude;
@@ -71,6 +72,12 @@ const INITIAL_FILTERS: DiscoverFilters = {
   startTo: '',
 };
 
+interface StoredDiscoverState {
+  filters: DiscoverFilters;
+  debouncedQ: string;
+  selectedLocation: LocationSuggestion | null;
+}
+
 export const RADIUS_OPTIONS = [
   { label: '1 km', value: 1000 },
   { label: '5 km', value: 5000 },
@@ -108,6 +115,64 @@ function locationsMatch(
   return left.lat === right.lat && left.lon === right.lon;
 }
 
+function isLocationSuggestion(value: unknown): value is LocationSuggestion {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<LocationSuggestion>;
+  return (
+    typeof candidate.display_name === 'string' &&
+    typeof candidate.lat === 'string' &&
+    typeof candidate.lon === 'string' &&
+    Number.isFinite(Number(candidate.lat)) &&
+    Number.isFinite(Number(candidate.lon))
+  );
+}
+
+function readStoredDiscoverState(): StoredDiscoverState | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(DISCOVER_STATE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredDiscoverState>;
+    const filters = parsed.filters;
+    if (!filters || typeof filters !== 'object') return null;
+
+    const restoredFilters: DiscoverFilters = {
+      q: typeof filters.q === 'string' ? filters.q : INITIAL_FILTERS.q,
+      categoryId: typeof filters.categoryId === 'number' ? filters.categoryId : null,
+      sortBy: filters.sortBy === 'DISTANCE' ? 'DISTANCE' : 'START_TIME',
+      radiusMeters:
+        typeof filters.radiusMeters === 'number'
+          ? filters.radiusMeters
+          : INITIAL_FILTERS.radiusMeters,
+      privacy:
+        filters.privacy === 'PUBLIC' || filters.privacy === 'PROTECTED'
+          ? filters.privacy
+          : INITIAL_FILTERS.privacy,
+      startFrom: typeof filters.startFrom === 'string' ? filters.startFrom : '',
+      startTo: typeof filters.startTo === 'string' ? filters.startTo : '',
+    };
+
+    return {
+      filters: restoredFilters,
+      debouncedQ: typeof parsed.debouncedQ === 'string' ? parsed.debouncedQ : restoredFilters.q,
+      selectedLocation: isLocationSuggestion(parsed.selectedLocation) ? parsed.selectedLocation : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredDiscoverState(state: StoredDiscoverState) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.sessionStorage.setItem(DISCOVER_STATE_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    /* ignore */
+  }
+}
+
 function favoriteToSuggestion(f: FavoriteLocation): LocationSuggestion {
   return {
     display_name: f.address,
@@ -137,17 +202,22 @@ function isDiscoverLocationFilterActive(
 }
 
 export function useDiscoverViewModel(token: string | null) {
+  const restoredState = useRef<StoredDiscoverState | null>(readStoredDiscoverState());
   const [events, setEvents] = useState<DiscoverEventItem[]>([]);
-  const [filters, setFilters] = useState<DiscoverFilters>(INITIAL_FILTERS);
+  const [filters, setFilters] = useState<DiscoverFilters>(
+    () => restoredState.current?.filters ?? INITIAL_FILTERS,
+  );
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasNext, setHasNext] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<LocationSuggestion | null>(null);
-  const [locationReady, setLocationReady] = useState(false);
-  const [debouncedQ, setDebouncedQ] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState<LocationSuggestion | null>(
+    () => restoredState.current?.selectedLocation ?? null,
+  );
+  const [locationReady, setLocationReady] = useState(() => restoredState.current !== null);
+  const [debouncedQ, setDebouncedQ] = useState(() => restoredState.current?.debouncedQ ?? '');
   const [defaultProfileLocation, setDefaultProfileLocation] = useState<LocationSuggestion | null>(null);
   const [favoriteLocations, setFavoriteLocations] = useState<FavoriteLocation[]>([]);
   const [hasBrowserLocation, setHasBrowserLocation] = useState(false);
@@ -179,7 +249,8 @@ export function useDiscoverViewModel(token: string | null) {
   // Attempt geolocation on load (Chrome/Firefox may prompt). Safari often requires a tap — see requestBrowserLocation.
   useEffect(() => {
     let cancelled = false;
-    setLocationReady(false);
+    const hasRestoredState = restoredState.current !== null;
+    setLocationReady(hasRestoredState);
     setHasBrowserLocation(false);
     setBrowserLocationPermissionDenied(false);
     setBrowserLocationError(null);
@@ -240,7 +311,12 @@ export function useDiscoverViewModel(token: string | null) {
         setBrowserLocationPermissionDenied(true);
       }
 
-      if (browserSuggestion) {
+      if (hasRestoredState) {
+        if (browserSuggestion) {
+          browserLocation.current = browserSuggestion;
+          setHasBrowserLocation(true);
+        }
+      } else if (browserSuggestion) {
         browserLocation.current = browserSuggestion;
         setHasBrowserLocation(true);
         setSelectedLocation(browserSuggestion);
@@ -256,6 +332,15 @@ export function useDiscoverViewModel(token: string | null) {
       cancelled = true;
     };
   }, [token]);
+
+  useEffect(() => {
+    if (!locationReady) return;
+    writeStoredDiscoverState({
+      filters,
+      debouncedQ,
+      selectedLocation,
+    });
+  }, [debouncedQ, filters, locationReady, selectedLocation]);
 
   const requestBrowserLocation = useCallback(() => {
     if (browserLocationRequestPending) return;
@@ -523,6 +608,11 @@ export function useDiscoverViewModel(token: string | null) {
     defaultProfileLocation,
   );
 
+  const mapCenter: { lat: number; lon: number } = {
+    lat: selectedLocation ? Number(selectedLocation.lat) : DEFAULT_LAT,
+    lon: selectedLocation ? Number(selectedLocation.lon) : DEFAULT_LON,
+  };
+
   return {
     events,
     filters,
@@ -561,5 +651,6 @@ export function useDiscoverViewModel(token: string | null) {
     dismissBrowserLocationPrompt,
     browserLocationRequestPending,
     browserLocationError,
+    mapCenter,
   };
 }

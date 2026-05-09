@@ -66,7 +66,7 @@ const myEventsResponse: MyEventsResponse = {
 };
 
 const myInvitationsResponse = {
-  items: [
+  pending: [
     {
       invitation_id: 'inv-1',
       status: 'PENDING',
@@ -75,7 +75,10 @@ const myInvitationsResponse = {
       message: 'Join us!',
     },
   ],
-  total: 1,
+  past: {
+    items: [],
+    page_info: { next_cursor: null, has_next: false },
+  },
 };
 
 describe('useMyEventsViewModel', () => {
@@ -124,7 +127,10 @@ describe('useMyEventsViewModel', () => {
     // First call returns 1, second (after reload) returns 0
     mockListMyInvitations
       .mockResolvedValueOnce(myInvitationsResponse as any)
-      .mockResolvedValueOnce({ items: [], total: 0 } as any);
+      .mockResolvedValueOnce({
+        pending: [],
+        past: { items: [], page_info: { next_cursor: null, has_next: false } },
+      } as any);
 
     const { result } = renderHook(() => useMyEventsViewModel());
     await waitFor(() => expect(result.current.isLoading).toBe(false));

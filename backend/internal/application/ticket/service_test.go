@@ -81,6 +81,16 @@ func (r *fakeTicketRepo) ExpireTicketsForEvent(_ context.Context, eventID uuid.U
 	return r.err
 }
 
+func (r *fakeTicketRepo) MarkTicketsPendingForEvent(_ context.Context, eventID uuid.UUID) error {
+	r.canceledEvent = eventID
+	return r.err
+}
+
+func (r *fakeTicketRepo) ActivatePendingTicketsForEvent(_ context.Context, eventID uuid.UUID) error {
+	r.expiredEvent = eventID
+	return r.err
+}
+
 func (r *fakeTicketRepo) ListTicketsByUser(_ context.Context, _ uuid.UUID) ([]TicketRecord, error) {
 	return r.listRecords, r.err
 }

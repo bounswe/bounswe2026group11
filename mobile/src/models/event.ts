@@ -9,6 +9,11 @@ export interface EventConstraint {
   info: string;
 }
 
+export interface RoutePointInput {
+  lat: number;
+  lon: number;
+}
+
 export interface CreateEventRequest {
   title: string;
   description: string;
@@ -18,6 +23,7 @@ export interface CreateEventRequest {
   lat?: number;
   lon?: number;
   location_type: LocationType;
+  route_points?: RoutePointInput[];
   start_time: string;
   end_time?: string;
   capacity?: number;
@@ -71,6 +77,7 @@ export interface EventSummary {
   capacity?: number;
   favorite_count?: number;
   status?: string;
+  is_location_approximate?: boolean | null;
 }
 
 export type MyEventStatus =
@@ -163,6 +170,8 @@ export interface EventDetailLocation {
   point?: EventDetailPoint | null;
   route_points?: EventDetailPoint[];
   meeting_instructions?: string | null;
+  /** True when the backend has fuzzed the coordinates for a PROTECTED event. */
+  is_location_approximate?: boolean;
 }
 
 export interface EventDetailRatingWindow {
@@ -222,6 +231,7 @@ export interface EventDetailPendingJoinRequest {
   join_request_id: string;
   status: string;
   message?: string | null;
+  image_url?: string | null;
   created_at: string;
   updated_at: string;
   user: EventDetailHostContextUser;
@@ -307,12 +317,14 @@ export interface JoinEventResponse {
 
 export interface RequestJoinRequest {
   message?: string | null;
+  image_confirm_token?: string | null;
 }
 
 export interface RequestJoinResponse {
   join_request_id: string;
   event_id: string;
   status: string;
+  image_url?: string | null;
   created_at: string;
 }
 
@@ -350,4 +362,30 @@ export interface ImageUploadInitResponse {
   version: number;
   confirm_token: string;
   uploads: PresignedUpload[];
+}
+
+export enum EventReportCategory {
+  SAFETY = 'SAFETY',
+  HARASSMENT = 'HARASSMENT',
+  SPAM_OR_SCAM = 'SPAM_OR_SCAM',
+  INAPPROPRIATE_CONTENT = 'INAPPROPRIATE_CONTENT',
+  EVENT_NOT_AS_DESCRIBED = 'EVENT_NOT_AS_DESCRIBED',
+  ILLEGAL_OR_DANGEROUS = 'ILLEGAL_OR_DANGEROUS',
+  OTHER = 'OTHER',
+}
+
+export interface RequestReportEvent {
+  report_category: EventReportCategory;
+  message: string;
+  image_confirm_token?: string | null;
+}
+
+export interface ReportEventResponse {
+  id: string;
+  event_id: string;
+  reporter_id: string;
+  category: EventReportCategory;
+  message: string;
+  image_url?: string | null;
+  created_at: string;
 }

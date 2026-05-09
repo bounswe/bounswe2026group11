@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
+	"github.com/bounswe/bounswe2026group11/backend/internal/i18n"
 )
 
 func validateChangePasswordInput(input ChangePasswordInput) *domain.AppError {
@@ -27,7 +28,7 @@ func validateChangePasswordInput(input ChangePasswordInput) *domain.AppError {
 }
 
 func validateUpdateProfileInput(input UpdateProfileInput) (*UpdateProfileInput, *domain.AppError) {
-	details := make(map[string]string)
+	detailKeys := make(map[string]string)
 
 	out := UpdateProfileInput{UserID: input.UserID}
 
@@ -36,7 +37,7 @@ func validateUpdateProfileInput(input UpdateProfileInput) (*UpdateProfileInput, 
 		if trimmed == "" {
 			out.PhoneNumber = nil
 		} else if len(trimmed) > 32 {
-			details["phone_number"] = "must be at most 32 characters"
+			detailKeys["phone_number"] = "validation.phone_number.too_long"
 		} else {
 			out.PhoneNumber = &trimmed
 		}
@@ -51,7 +52,7 @@ func validateUpdateProfileInput(input UpdateProfileInput) (*UpdateProfileInput, 
 			case "MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY":
 				out.Gender = &upper
 			default:
-				details["gender"] = "must be one of: MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY"
+				detailKeys["gender"] = "validation.gender.invalid"
 			}
 		}
 	}
@@ -62,7 +63,7 @@ func validateUpdateProfileInput(input UpdateProfileInput) (*UpdateProfileInput, 
 			out.BirthDate = nil
 		} else {
 			if _, err := time.Parse("2006-01-02", trimmed); err != nil {
-				details["birth_date"] = "must be in YYYY-MM-DD format"
+				detailKeys["birth_date"] = "validation.birth_date.format"
 			} else {
 				out.BirthDate = &trimmed
 			}
@@ -74,7 +75,7 @@ func validateUpdateProfileInput(input UpdateProfileInput) (*UpdateProfileInput, 
 		if trimmed == "" {
 			out.DefaultLocationAddress = nil
 		} else if len(trimmed) > 512 {
-			details["default_location_address"] = "must be at most 512 characters"
+			detailKeys["default_location_address"] = "validation.default_location_address.too_long"
 		} else {
 			out.DefaultLocationAddress = &trimmed
 		}
@@ -83,7 +84,7 @@ func validateUpdateProfileInput(input UpdateProfileInput) (*UpdateProfileInput, 
 	if input.DefaultLocationLat != nil {
 		lat := *input.DefaultLocationLat
 		if lat < -90 || lat > 90 {
-			details["default_location_lat"] = "must be between -90 and 90"
+			detailKeys["default_location_lat"] = "validation.default_location_lat.range"
 		} else {
 			out.DefaultLocationLat = &lat
 		}
@@ -92,14 +93,14 @@ func validateUpdateProfileInput(input UpdateProfileInput) (*UpdateProfileInput, 
 	if input.DefaultLocationLon != nil {
 		lon := *input.DefaultLocationLon
 		if lon < -180 || lon > 180 {
-			details["default_location_lon"] = "must be between -180 and 180"
+			detailKeys["default_location_lon"] = "validation.default_location_lon.range"
 		} else {
 			out.DefaultLocationLon = &lon
 		}
 	}
 
 	if (input.DefaultLocationLat != nil) != (input.DefaultLocationLon != nil) {
-		details["default_location"] = "lat and lon must be provided together"
+		detailKeys["default_location"] = "validation.default_location.lat_lon_pair_required"
 	}
 
 	if input.DisplayName != nil {
@@ -107,7 +108,7 @@ func validateUpdateProfileInput(input UpdateProfileInput) (*UpdateProfileInput, 
 		if trimmed == "" {
 			out.DisplayName = nil
 		} else if len(trimmed) > 64 {
-			details["display_name"] = "must be at most 64 characters"
+			detailKeys["display_name"] = "validation.display_name.too_long"
 		} else {
 			out.DisplayName = &trimmed
 		}
@@ -118,7 +119,7 @@ func validateUpdateProfileInput(input UpdateProfileInput) (*UpdateProfileInput, 
 		if trimmed == "" {
 			out.Bio = nil
 		} else if len(trimmed) > 512 {
-			details["bio"] = "must be at most 512 characters"
+			detailKeys["bio"] = "validation.bio.too_long"
 		} else {
 			out.Bio = &trimmed
 		}
@@ -129,14 +130,26 @@ func validateUpdateProfileInput(input UpdateProfileInput) (*UpdateProfileInput, 
 		if trimmed == "" {
 			out.AvatarURL = nil
 		} else if len(trimmed) > 512 {
-			details["avatar_url"] = "must be at most 512 characters"
+			detailKeys["avatar_url"] = "validation.avatar_url.too_long"
 		} else {
 			out.AvatarURL = &trimmed
 		}
 	}
 
-	if len(details) > 0 {
-		return nil, domain.ValidationError(details)
+	if input.Locale != nil {
+		trimmed := strings.TrimSpace(*input.Locale)
+		if trimmed == "" {
+			out.Locale = nil
+		} else if loc, ok := i18n.Parse(trimmed); ok {
+			normalized := string(loc)
+			out.Locale = &normalized
+		} else {
+			detailKeys["locale"] = "validation.locale.unsupported"
+		}
+	}
+
+	if len(detailKeys) > 0 {
+		return nil, domain.ValidationErrorI18n(detailKeys)
 	}
 
 	return &out, nil

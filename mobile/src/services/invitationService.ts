@@ -1,4 +1,4 @@
-import { apiGetAuth, apiPostAuth } from './api';
+import { apiGetAuth, apiPostAuth, apiDeleteAuth } from './api';
 import {
   AcceptInvitationResponse,
   DeclineInvitationResponse,
@@ -6,7 +6,7 @@ import {
 } from '@/models/invitation';
 
 /**
- * Fetches the current user's pending private-event invitations.
+ * Fetches the current user's invitations grouped into pending and past buckets.
  */
 export async function listMyInvitations(token: string): Promise<ReceivedInvitationsResponse> {
   return apiGetAuth<ReceivedInvitationsResponse>('/me/invitations', token);
@@ -38,4 +38,15 @@ export async function declineInvitation(
     {},
     token,
   );
+}
+
+/**
+ * Revokes a pending invitation (Host only).
+ */
+export async function revokeInvitation(
+  eventId: string,
+  invitationId: string,
+  token: string,
+): Promise<void> {
+  return apiDeleteAuth<void>(`/events/${eventId}/invitations/${invitationId}`, token);
 }

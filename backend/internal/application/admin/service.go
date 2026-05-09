@@ -120,6 +120,11 @@ func (s *Service) CreateManualParticipation(ctx context.Context, input CreateMan
 		if eventState == nil {
 			return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
 		}
+		if (input.Status == domain.ParticipationStatusApproved || input.Status == domain.ParticipationStatusPending) &&
+			eventState.Capacity != nil &&
+			eventState.ApprovedParticipantCount+eventState.PendingParticipantCount >= *eventState.Capacity {
+			return domain.ConflictError(domain.ErrorCodeCapacityExceeded, "This event has reached its maximum capacity.")
+		}
 		if err := s.requireUsersExist(ctx, []uuid.UUID{input.UserID}); err != nil {
 			return err
 		}

@@ -21,7 +21,9 @@ const (
 func normalizeAndValidateDiscoverEventsInput(input DiscoverEventsInput) (DiscoverEventsParams, map[string]string) {
 	errs := make(map[string]string)
 	params := DiscoverEventsParams{
-		OnlyFavorited: input.OnlyFavorited,
+		OnlyFavorited:      input.OnlyFavorited,
+		OnlyChildFriendly:  input.OnlyChildFriendly,
+		OnlyFamilyOriented: input.OnlyFamilyOriented,
 	}
 
 	if input.Lat == nil {

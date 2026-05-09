@@ -46,6 +46,14 @@ func (f *fakeTicketLifecycle) ExpireTicketsForEvent(context.Context, uuid.UUID) 
 	return nil
 }
 
+func (f *fakeTicketLifecycle) MarkTicketsPendingForEvent(context.Context, uuid.UUID) error {
+	return nil
+}
+
+func (f *fakeTicketLifecycle) ActivatePendingTicketsForEvent(context.Context, uuid.UUID) error {
+	return nil
+}
+
 type fakeJoinRequestRepo struct {
 	err               error
 	callCount         int
@@ -182,10 +190,12 @@ func TestCreatePendingJoinRequestDelegatesToRepo(t *testing.T) {
 	userID := uuid.New()
 	hostUserID := uuid.New()
 	message := "Please let me join."
+	imageURL := "https://cdn.example/join-request.jpg"
 
 	// when
 	result, err := service.CreatePendingJoinRequest(context.Background(), eventID, userID, hostUserID, CreatePendingJoinRequestInput{
-		Message: &message,
+		Message:  &message,
+		ImageURL: &imageURL,
 	})
 
 	// then
@@ -203,6 +213,9 @@ func TestCreatePendingJoinRequestDelegatesToRepo(t *testing.T) {
 	}
 	if repo.lastParams.Message == nil || *repo.lastParams.Message != message {
 		t.Fatalf("expected repo message %q, got %v", message, repo.lastParams.Message)
+	}
+	if repo.lastParams.ImageURL == nil || *repo.lastParams.ImageURL != imageURL {
+		t.Fatalf("expected repo image URL %q, got %v", imageURL, repo.lastParams.ImageURL)
 	}
 }
 

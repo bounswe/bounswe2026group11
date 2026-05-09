@@ -51,6 +51,7 @@ type GetProfileResult struct {
 	BirthDate              *string           `json:"birth_date"`
 	EmailVerified          bool              `json:"email_verified"`
 	Status                 string            `json:"status"`
+	Locale                 string            `json:"locale"`
 	DefaultLocationAddress *string           `json:"default_location_address"`
 	DefaultLocationLat     *float64          `json:"default_location_lat"`
 	DefaultLocationLon     *float64          `json:"default_location_lon"`
@@ -69,6 +70,7 @@ type UpdateProfileInput struct {
 	PhoneNumber            *string
 	Gender                 *string
 	BirthDate              *string
+	Locale                 *string
 	DefaultLocationAddress *string
 	DefaultLocationLat     *float64
 	DefaultLocationLon     *float64
@@ -83,6 +85,7 @@ type UpdateProfileParams struct {
 	PhoneNumber            *string
 	Gender                 *string
 	BirthDate              *string
+	Locale                 *string
 	DefaultLocationAddress *string
 	DefaultLocationLat     *float64
 	DefaultLocationLon     *float64

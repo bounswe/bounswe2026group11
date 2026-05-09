@@ -330,6 +330,14 @@ type fakeNotificationRepo struct {
 	devices          map[uuid.UUID]*domain.PushDevice
 	notifications    map[uuid.UUID]*domain.Notification
 	deliveryAttempts []CreateDeliveryAttemptParams
+	locales          map[uuid.UUID]string
+}
+
+func (r *fakeNotificationRepo) GetLocale(_ context.Context, userID uuid.UUID) (string, error) {
+	if loc, ok := r.locales[userID]; ok {
+		return loc, nil
+	}
+	return "en", nil
 }
 
 type fakeUnitOfWork struct{}

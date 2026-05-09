@@ -32,36 +32,38 @@ func NewParticipationRepository(pool *pgxpool.Pool) *ParticipationRepository {
 func (r *ParticipationRepository) CreateParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
 	participation, err := scanParticipation(r.db.QueryRow(ctx, `
 		WITH joinable_event AS (
-			SELECT id, start_time
+			SELECT id, start_time, version_no
 			FROM event
 			WHERE id = $1
 			  AND host_id <> $2
 			  AND privacy_level = $3
-			  AND (capacity IS NULL OR approved_participant_count < capacity)
+			  AND (capacity IS NULL OR approved_participant_count + pending_participant_count < capacity)
 		),
 		reactivated AS (
 			UPDATE participation
 			SET status = $4,
+			    reconfirmed_at = NULL,
+			    last_confirmed_event_version = (SELECT version_no FROM joinable_event),
 			    created_at = NOW(),
 			    updated_at = NOW()
 			WHERE event_id = $1
 			  AND user_id = $2
 			  AND status = $5
 			  AND updated_at < (SELECT start_time FROM joinable_event)
-			RETURNING id, status, created_at, updated_at
+			RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		),
 		inserted AS (
-			INSERT INTO participation (event_id, user_id, status)
-			SELECT id, $2, $4
+			INSERT INTO participation (event_id, user_id, status, last_confirmed_event_version)
+			SELECT id, $2, $4, version_no
 			FROM joinable_event
 			WHERE NOT EXISTS (SELECT 1 FROM reactivated)
 			ON CONFLICT ON CONSTRAINT uq_event_user DO NOTHING
-			RETURNING id, status, created_at, updated_at
+			RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		)
-		SELECT id, status, created_at, updated_at
+		SELECT id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		FROM reactivated
 		UNION ALL
-		SELECT id, status, created_at, updated_at
+		SELECT id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
 		FROM inserted
 		LIMIT 1
 	`, eventID, userID, domain.PrivacyPublic, domain.ParticipationStatusApproved, domain.ParticipationStatusLeaved), eventID, userID, "create participation")
@@ -76,7 +78,7 @@ func (r *ParticipationRepository) CreateParticipation(ctx context.Context, event
 	return participation, nil
 }
 
-// LeaveParticipation transitions an APPROVED participation to LEAVED.
+// LeaveParticipation transitions an APPROVED or PENDING participation to LEAVED.
 func (r *ParticipationRepository) LeaveParticipation(ctx context.Context, eventID, userID uuid.UUID) (*domain.Participation, error) {
 	participation, err := scanParticipation(r.db.QueryRow(ctx, `
 		UPDATE participation
@@ -84,9 +86,9 @@ func (r *ParticipationRepository) LeaveParticipation(ctx context.Context, eventI
 		    updated_at = NOW()
 		WHERE event_id = $1
 		  AND user_id = $2
-		  AND status = $4
-		RETURNING id, status, created_at, updated_at
-	`, eventID, userID, domain.ParticipationStatusLeaved, domain.ParticipationStatusApproved), eventID, userID, "leave participation")
+		  AND status IN ($4, $5)
+		RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
+	`, eventID, userID, domain.ParticipationStatusLeaved, domain.ParticipationStatusApproved, domain.ParticipationStatusPending), eventID, userID, "leave participation")
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +115,7 @@ func (r *ParticipationRepository) mapCreateParticipationNoRow(ctx context.Contex
 	if event.PrivacyLevel != domain.PrivacyPublic {
 		return domain.ConflictError(domain.ErrorCodeEventJoinNotAllowed, "Only PUBLIC events can be joined directly.")
 	}
-	if event.Capacity != nil && event.ApprovedParticipantCount >= *event.Capacity {
+	if event.Capacity != nil && event.ApprovedParticipantCount+event.PendingParticipantCount >= *event.Capacity {
 		return domain.ConflictError(domain.ErrorCodeCapacityExceeded, "This event has reached its maximum capacity.")
 	}
 
@@ -142,7 +144,7 @@ func (r *ParticipationRepository) mapLeaveParticipationNoRow(ctx context.Context
 		return domain.NotFoundError(domain.ErrorCodeEventNotFound, "The requested event does not exist.")
 	}
 
-	return domain.ConflictError(domain.ErrorCodeEventLeaveNotAllowed, "Only approved participants can leave this event.")
+	return domain.ConflictError(domain.ErrorCodeEventLeaveNotAllowed, "Only approved or pending participants can leave this event.")
 }
 
 func (r *ParticipationRepository) loadEventJoinState(ctx context.Context, eventID uuid.UUID) (*domain.Event, error) {
@@ -151,14 +153,15 @@ func (r *ParticipationRepository) loadEventJoinState(ctx context.Context, eventI
 		privacyLevel  string
 		capacity      pgtype.Int4
 		approvedCount int
+		pendingCount  int
 		startTime     time.Time
 	)
 
 	err := r.db.QueryRow(ctx, `
-		SELECT host_id, privacy_level, capacity, approved_participant_count, start_time
+		SELECT host_id, privacy_level, capacity, approved_participant_count, pending_participant_count, start_time
 		FROM event
 		WHERE id = $1
-	`, eventID).Scan(&hostID, &privacyLevel, &capacity, &approvedCount, &startTime)
+	`, eventID).Scan(&hostID, &privacyLevel, &capacity, &approvedCount, &pendingCount, &startTime)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -171,6 +174,7 @@ func (r *ParticipationRepository) loadEventJoinState(ctx context.Context, eventI
 		HostID:                   hostID,
 		PrivacyLevel:             domain.EventPrivacyLevel(privacyLevel),
 		ApprovedParticipantCount: approvedCount,
+		PendingParticipantCount:  pendingCount,
 		StartTime:                startTime,
 	}
 	if capacity.Valid {
@@ -238,4 +242,75 @@ func (r *ParticipationRepository) CancelEventParticipations(ctx context.Context,
 	}
 
 	return userIDs, nil
+}
+
+// MarkApprovedParticipationsPending moves approved non-host participants to
+// PENDING for event-change reconfirmation and returns transitioned user IDs.
+func (r *ParticipationRepository) MarkApprovedParticipationsPending(ctx context.Context, eventID, hostUserID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := r.db.Query(ctx, `
+		UPDATE participation
+		SET status = $1,
+		    reconfirmed_at = NULL,
+		    updated_at = NOW()
+		WHERE event_id = $2
+		  AND user_id <> $3
+		  AND status = $4
+		RETURNING user_id
+	`, domain.ParticipationStatusPending, eventID, hostUserID, domain.ParticipationStatusApproved)
+	if err != nil {
+		return nil, fmt.Errorf("mark approved participations pending: %w", err)
+	}
+	defer rows.Close()
+
+	userIDs := []uuid.UUID{}
+	for rows.Next() {
+		var userID uuid.UUID
+		if err := rows.Scan(&userID); err != nil {
+			return nil, fmt.Errorf("scan pending participant user: %w", err)
+		}
+		userIDs = append(userIDs, userID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate pending participant users: %w", err)
+	}
+	return userIDs, nil
+}
+
+// ReconfirmParticipation transitions one pending participant back to APPROVED
+// and records the event version they accepted.
+func (r *ParticipationRepository) ReconfirmParticipation(ctx context.Context, eventID, userID uuid.UUID, eventVersion int) (*domain.Participation, error) {
+	participation, err := scanParticipation(r.db.QueryRow(ctx, `
+		UPDATE participation
+		SET status = $4,
+		    reconfirmed_at = NOW(),
+		    last_confirmed_event_version = $3,
+		    updated_at = NOW()
+		WHERE event_id = $1
+		  AND user_id = $2
+		  AND status = $5
+		RETURNING id, status, reconfirmed_at, last_confirmed_event_version, created_at, updated_at
+	`, eventID, userID, eventVersion, domain.ParticipationStatusApproved, domain.ParticipationStatusPending), eventID, userID, "reconfirm participation")
+	if err != nil {
+		return nil, err
+	}
+	if participation == nil {
+		return nil, domain.ConflictError(domain.ErrorCodeParticipationReconfirmNotAllowed, "Only PENDING participations can be reconfirmed.")
+	}
+	return participation, nil
+}
+
+// ApprovePendingParticipationsForEvent auto-approves pending participants when
+// an event starts without setting reconfirmation metadata.
+func (r *ParticipationRepository) ApprovePendingParticipationsForEvent(ctx context.Context, eventID uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE participation
+		SET status = $2,
+		    updated_at = NOW()
+		WHERE event_id = $1
+		  AND status = $3
+	`, eventID, domain.ParticipationStatusApproved, domain.ParticipationStatusPending)
+	if err != nil {
+		return fmt.Errorf("approve pending participations for event: %w", err)
+	}
+	return nil
 }

@@ -39,6 +39,14 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 	// focused on high-signal business actions inside handlers.
 	app.Use(otelfiber.Middleware())
 
+	// Install i18n translator and resolve the request locale early so every
+	// route — including unauthenticated ones — can produce localized error
+	// envelopes. The user-preference fallback for authenticated requests is
+	// applied by the auth middlewares once they attach claims.
+	httpapi.SetTranslator(container.Translator)
+	httpapi.SetLocalePreferenceLookup(container.LocalePreferenceLookup())
+	app.Use(httpapi.ResolveLocale())
+
 	registerHealthRoute(app)
 
 	// Auth routes

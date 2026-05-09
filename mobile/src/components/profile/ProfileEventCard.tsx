@@ -13,6 +13,7 @@ import {
   formatEventStatusLabel,
   getEventStatusBadgeColors,
 } from '@/utils/eventStatus';
+import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -41,10 +42,14 @@ export default function ProfileEventCard({
   privacyLevel,
   onPress,
 }: ProfileEventCardProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const statusColors = getEventStatusBadgeColors(status);
+  const categoryPresentation = getEventCategoryPresentation(
+    categoryLabel,
+    isDark,
+  );
 
   let privacyBg = theme.badgePublicBg;
   let privacyText = theme.badgePublicText;
@@ -95,8 +100,22 @@ export default function ProfileEventCard({
           </View>
 
           <View style={styles.imageBottomRow}>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>{categoryLabel}</Text>
+            <View
+              style={[
+                styles.categoryBadge,
+                { backgroundColor: categoryPresentation.color },
+              ]}
+              testID="profile-event-category-badge"
+            >
+              <Text
+                style={[
+                  styles.categoryBadgeText,
+                  { color: categoryPresentation.textColor },
+                ]}
+                numberOfLines={1}
+              >
+                {categoryPresentation.emoji} {categoryPresentation.label}
+              </Text>
             </View>
 
             <View
@@ -191,13 +210,12 @@ function makeStyles(t: Theme) {
     },
     categoryBadge: {
       alignSelf: 'flex-start',
-      backgroundColor: 'rgba(15, 23, 42, 0.72)',
+      maxWidth: '70%',
       paddingHorizontal: 14,
       paddingVertical: 8,
       borderRadius: 999,
     },
     categoryBadgeText: {
-      color: '#FFFFFF',
       fontSize: 13,
       fontWeight: '700',
     },

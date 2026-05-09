@@ -7,6 +7,7 @@ import "github.com/google/uuid"
 // UseCase is the inbound application port for event flows.
 type UseCase interface {
 	CreateEvent(ctx context.Context, hostID uuid.UUID, input CreateEventInput) (*CreateEventResult, error)
+	UpdateEvent(ctx context.Context, hostID, eventID uuid.UUID, input UpdateEventInput) (*UpdateEventResult, error)
 	DiscoverEvents(ctx context.Context, userID uuid.UUID, input DiscoverEventsInput) (*DiscoverEventsResult, error)
 	GetEventDetail(ctx context.Context, userID, eventID uuid.UUID) (*GetEventDetailResult, error)
 	GetEventHostContextSummary(ctx context.Context, userID, eventID uuid.UUID) (*EventHostContextSummary, error)
@@ -15,6 +16,7 @@ type UseCase interface {
 	ListEventInvitations(ctx context.Context, userID, eventID uuid.UUID, input ListEventCollectionInput) (*ListEventInvitationsResult, error)
 	JoinEvent(ctx context.Context, userID, eventID uuid.UUID) (*JoinEventResult, error)
 	LeaveEvent(ctx context.Context, userID, eventID uuid.UUID) (*LeaveEventResult, error)
+	ReconfirmParticipation(ctx context.Context, userID, eventID uuid.UUID) (*ReconfirmParticipationResult, error)
 	RequestJoin(ctx context.Context, userID, eventID uuid.UUID, input RequestJoinInput) (*RequestJoinResult, error)
 	ApproveJoinRequest(ctx context.Context, hostUserID, eventID, joinRequestID uuid.UUID) (*ApproveJoinRequestResult, error)
 	RejectJoinRequest(ctx context.Context, hostUserID, eventID, joinRequestID uuid.UUID) (*RejectJoinRequestResult, error)
@@ -25,4 +27,5 @@ type UseCase interface {
 	AddFavorite(ctx context.Context, userID, eventID uuid.UUID) error
 	RemoveFavorite(ctx context.Context, userID, eventID uuid.UUID) error
 	ListFavoriteEvents(ctx context.Context, userID uuid.UUID) (*FavoriteEventsResult, error)
+	TransitionEventStatuses(ctx context.Context) error
 }

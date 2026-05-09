@@ -21,6 +21,8 @@ type CreateEventParams struct {
 	Capacity        *int
 	MinimumAge      *int
 	PreferredGender *domain.EventParticipantGender
+	ChildFriendly   bool
+	FamilyOriented  bool
 	LocationType    domain.EventLocationType
 	Address         *string
 	Point           *domain.GeoPoint
@@ -29,10 +31,91 @@ type CreateEventParams struct {
 	Constraints     []EventConstraintParams
 }
 
+// UpdateEventParams carries the fully merged event state to persist.
+type UpdateEventParams struct {
+	EventID            uuid.UUID
+	Title              string
+	Description        *string
+	CategoryID         *int
+	StartTime          time.Time
+	EndTime            *time.Time
+	Capacity           *int
+	LocationType       domain.EventLocationType
+	Address            *string
+	Point              *domain.GeoPoint
+	RoutePoints        []domain.GeoPoint
+	Constraints        []EventConstraintParams
+	Changed            bool
+	LocationChanged    bool
+	ConstraintsChanged bool
+}
+
+// EventHistorySnapshot stores the versioned event fields needed to render
+// user-facing diffs.
+type EventHistorySnapshot struct {
+	Title           string                        `json:"title"`
+	Description     *string                       `json:"description"`
+	ImageURL        *string                       `json:"image_url"`
+	PrivacyLevel    string                        `json:"privacy_level"`
+	Status          string                        `json:"status"`
+	StartTime       time.Time                     `json:"start_time"`
+	EndTime         *time.Time                    `json:"end_time"`
+	Capacity        *int                          `json:"capacity"`
+	MinimumAge      *int                          `json:"minimum_age"`
+	PreferredGender *string                       `json:"preferred_gender"`
+	ChildFriendly   bool                          `json:"child_friendly"`
+	FamilyOriented  bool                          `json:"family_oriented"`
+	Category        *EventHistoryCategorySnapshot `json:"category"`
+	Location        EventHistoryLocationSnapshot  `json:"location"`
+	Tags            []string                      `json:"tags"`
+	Constraints     []EventDetailConstraintRecord `json:"constraints"`
+}
+
+// EventHistoryCategorySnapshot is the category portion of an event version.
+type EventHistoryCategorySnapshot struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+// EventHistoryLocationSnapshot is the unapproximated location portion of an
+// event version.
+type EventHistoryLocationSnapshot struct {
+	Type        string             `json:"type"`
+	Address     *string            `json:"address"`
+	Point       *EventDetailPoint  `json:"point,omitempty"`
+	RoutePoints []EventDetailPoint `json:"route_points,omitempty"`
+}
+
+// EventHistorySnapshotRecord is one immutable event version.
+type EventHistorySnapshotRecord struct {
+	EventID        uuid.UUID
+	VersionNo      int
+	ChangedFields  []string
+	Snapshot       EventHistorySnapshot
+	EventUpdatedAt time.Time
+}
+
 // EventConstraintParams is a single constraint to attach to an event.
 type EventConstraintParams struct {
 	Type string
 	Info string
+}
+
+// EventEditSnapshot is the locked repository projection used to evaluate an
+// event edit against the current persisted state.
+type EventEditSnapshot struct {
+	Event       domain.Event
+	VersionNo   int
+	Location    EventDetailLocationRecord
+	Constraints []EventDetailConstraintRecord
+}
+
+// EventStatusTransitionRecord describes one lifecycle status transition made
+// by the scheduled event transition job.
+type EventStatusTransitionRecord struct {
+	EventID uuid.UUID
+	HostID  uuid.UUID
+	Status  domain.EventStatus
 }
 
 // DiscoverEventsParams carries the normalized discovery filters and pagination state.
@@ -47,6 +130,8 @@ type DiscoverEventsParams struct {
 	StartTo              *time.Time
 	TagNames             []string
 	OnlyFavorited        bool
+	OnlyChildFriendly    bool
+	OnlyFamilyOriented   bool
 	SortBy               domain.EventDiscoverySort
 	Limit                int
 	CursorToken          string
@@ -70,6 +155,8 @@ type DiscoverableEventRecord struct {
 	ApprovedParticipantCount int
 	FavoriteCount            int
 	IsFavorited              bool
+	ChildFriendly            bool
+	FamilyOriented           bool
 	HostScore                EventHostScoreSummaryRecord
 	DistanceMeters           float64
 	RelevanceScore           *float64
@@ -89,6 +176,7 @@ type DiscoverEventsCursor struct {
 type EventCollectionPageParams struct {
 	Limit                int
 	CursorToken          string
+	Status               domain.ParticipationStatus
 	RepositoryFetchLimit int
 	DecodedCursor        *EventCollectionCursor
 }
@@ -123,6 +211,7 @@ type FavoriteEventRecord struct {
 // EventDetailRecord is the repository-level projection used for event detail responses.
 type EventDetailRecord struct {
 	ID                       uuid.UUID
+	VersionNo                int
 	Title                    string
 	Description              *string
 	ImageURL                 *string
@@ -133,6 +222,8 @@ type EventDetailRecord struct {
 	Capacity                 *int
 	MinimumAge               *int
 	PreferredGender          *domain.EventParticipantGender
+	ChildFriendly            bool
+	FamilyOriented           bool
 	ApprovedParticipantCount int
 	PendingParticipantCount  int
 	FavoriteCount            int
@@ -205,9 +296,13 @@ type EventDetailRatingRecord struct {
 
 // EventDetailViewerContextRecord captures the authenticated viewer's relation to the event.
 type EventDetailViewerContextRecord struct {
-	IsHost              bool
-	IsFavorited         bool
-	ParticipationStatus domain.EventDetailParticipationStatus
+	IsHost                    bool
+	IsFavorited               bool
+	ParticipationStatus       *domain.ParticipationStatus
+	JoinRequestStatus         *domain.JoinRequestStatus
+	InvitationStatus          *domain.InvitationStatus
+	LastConfirmedEventVersion *int
+	LatestEventVersion        int
 }
 
 // EventDetailHostContextRecord contains host-only management lists for the event.
@@ -232,6 +327,7 @@ type EventDetailPendingJoinRequestRecord struct {
 	JoinRequestID uuid.UUID
 	Status        string
 	Message       *string
+	ImageURL      *string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	User          EventDetailHostContextUserRecord

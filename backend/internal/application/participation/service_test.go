@@ -24,6 +24,7 @@ type fakeParticipationRepo struct {
 	lastCancelEventID    uuid.UUID
 	lastListApprovedEvID uuid.UUID
 	approvedUserIDs      []uuid.UUID
+	pendingUserIDs       []uuid.UUID
 	result               *domain.Participation
 }
 
@@ -98,6 +99,22 @@ func (r *fakeParticipationRepo) ListApprovedParticipantUserIDs(_ context.Context
 		return nil, r.listApprovedErr
 	}
 	return r.approvedUserIDs, nil
+}
+
+func (r *fakeParticipationRepo) MarkApprovedParticipationsPending(_ context.Context, eventID, _ uuid.UUID) ([]uuid.UUID, error) {
+	r.lastEventID = eventID
+	return r.pendingUserIDs, r.err
+}
+
+func (r *fakeParticipationRepo) ReconfirmParticipation(_ context.Context, eventID, userID uuid.UUID, _ int) (*domain.Participation, error) {
+	r.lastEventID = eventID
+	r.lastUserID = userID
+	return r.CreateParticipation(context.Background(), eventID, userID)
+}
+
+func (r *fakeParticipationRepo) ApprovePendingParticipationsForEvent(_ context.Context, eventID uuid.UUID) error {
+	r.lastEventID = eventID
+	return r.err
 }
 
 func TestCreateApprovedParticipationDelegatesToRepo(t *testing.T) {

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { EventDetailResponse } from '@/models/event';
-import EventDetailPage from './EventDetailPage';
+import EventDetailPage, { buildDirectionsUrl } from './EventDetailPage';
 
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ token: 'token' }),
@@ -129,6 +129,12 @@ function makeReadyViewModel(event: EventDetailResponse) {
     loadMoreApprovedParticipants: vi.fn(),
     loadMorePendingJoinRequests: vi.fn(),
     loadMoreInvitations: vi.fn(),
+    inviteLoading: false,
+    inviteError: null,
+    inviteResult: null,
+    handleCreateInvitations: vi.fn(),
+    dismissInviteError: vi.fn(),
+    clearInviteResult: vi.fn(),
   };
 }
 
@@ -210,6 +216,108 @@ describe('EventDetailPage ratings', () => {
     expect(screen.getByText(/4\/5/i)).toBeDefined();
     expect(screen.getByText(/reliable and easy to coordinate with\./i)).toBeDefined();
     expect(screen.getByRole('button', { name: /edit rating/i })).toBeDefined();
+  });
+
+  it('renders the directions link with the event coordinates when location is a POINT', () => {
+    const event = makeBaseEvent();
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    const link = screen.getByTestId('ed-directions-link') as HTMLAnchorElement;
+    expect(link).toBeDefined();
+    expect(link.href).toContain(
+      'https://www.google.com/maps/dir/?api=1&destination=',
+    );
+    expect(link.href).toContain(encodeURIComponent('40.98,29.03'));
+    expect(link.target).toBe('_blank');
+    expect(link.rel).toContain('noopener');
+  });
+
+  it('shows the map fallback and hides the directions link when coordinates are missing', () => {
+    const event = makeBaseEvent();
+    event.location = {
+      type: 'POINT',
+      address: 'No coordinates here',
+      point: null,
+      route_points: [],
+    };
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.getByText(/map unavailable for this event/i)).toBeDefined();
+    expect(screen.queryByTestId('ed-directions-link')).toBeNull();
+  });
+
+  it('builds a Google Maps directions URL with encoded destination coordinates', () => {
+    const url = buildDirectionsUrl(40.98, 29.03);
+    expect(url).toBe(
+      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent('40.98,29.03')}`,
+    );
+  });
+
+  it('shows the Invite Users button on private events for the host', () => {
+    const event = makeBaseEvent();
+    event.privacy_level = 'PRIVATE';
+    event.status = 'ACTIVE';
+    event.viewer_context = {
+      is_host: true,
+      is_favorited: false,
+      participation_status: 'NONE',
+    };
+    const vm = makeReadyViewModel(event);
+    vm.hostContextSummary = {
+      approved_participant_count: 0,
+      pending_join_request_count: 0,
+      invitation_count: 0,
+    };
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+    renderPage();
+
+    expect(screen.getByTestId('ed-invite-open')).toBeDefined();
+    expect(screen.getByText(/no invitations sent yet/i)).toBeDefined();
+  });
+
+  it('hides the Invite Users button on public events even for the host', () => {
+    const event = makeBaseEvent();
+    event.privacy_level = 'PUBLIC';
+    event.status = 'ACTIVE';
+    event.viewer_context = {
+      is_host: true,
+      is_favorited: false,
+      participation_status: 'NONE',
+    };
+    const vm = makeReadyViewModel(event);
+    vm.hostContextSummary = {
+      approved_participant_count: 0,
+      pending_join_request_count: 0,
+      invitation_count: 0,
+    };
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+    renderPage();
+
+    expect(screen.queryByTestId('ed-invite-open')).toBeNull();
+  });
+
+  it('hides the Invite Users button for non-host viewers on private events', () => {
+    const event = makeBaseEvent();
+    event.privacy_level = 'PRIVATE';
+    event.status = 'ACTIVE';
+    event.viewer_context = {
+      is_host: false,
+      is_favorited: false,
+      participation_status: 'NONE',
+    };
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+    renderPage();
+
+    expect(screen.queryByTestId('ed-invite-open')).toBeNull();
   });
 
   it('shows a pending join-request banner instead of join actions', () => {

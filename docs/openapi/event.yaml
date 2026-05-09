@@ -23,6 +23,74 @@ tags:
     description: Event creation and related request/response contracts.
 paths:
   /events/{id}:
+    patch:
+      tags: [Events]
+      summary: Update an active event
+      description: |
+        Allows the authenticated host to edit an `ACTIVE` event before it starts.
+        The request is partial: omitted fields are unchanged, while explicit `null`
+        clears nullable fields such as `description`, `category_id`, `address`,
+        `end_time`, and `capacity`.
+
+        Reconfirmation-triggering changes are `title`, `description`, `category_id`,
+        location/address/geometry/route changes, `start_time`, `end_time`, and
+        adding a new constraint. When any of those changes occur, all currently
+        `APPROVED` non-host participations become `PENDING`, their active tickets
+        become `PENDING`, and participants receive an `EVENT_RECONFIRMATION_REQUIRED`
+        notification with deep link `/events/{id}`. Users already in `PENDING` are
+        not notified.
+
+        `constraints`, when present, replaces the full constraint list. Removing
+        constraints alone does not require reconfirmation. `capacity` cannot be set
+        below `approved_participant_count + pending_participant_count`.
+      operationId: updateEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEventRequest'
+      responses:
+        '200':
+          description: Event updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateEventResponse'
+        '400':
+          description: Invalid event ID, JSON body, or update fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is not the event host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Event is not editable or capacity is below approved plus pending participants.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
     get:
       tags: [Events]
       summary: Get event detail
@@ -46,7 +114,13 @@ paths:
         - `rating_window` describes the event-specific 7-day mutation window computed from `COALESCE(end_time, start_time)`.
         - `viewer_event_rating` returns the authenticated participant's current rating for the event, if one exists.
         - `viewer_context` is always present. For unauthenticated callers, `participation_status`
-          is `NONE` and `is_favorited` is `false`.
+          is `null`, `join_request_status` is `null`, and `is_favorited` is `false`.
+        - `viewer_context.participation_status` contains only real participation rows:
+          `APPROVED`, `PENDING`, `LEAVED`, `CANCELED`, or `null`. Pending join requests
+          are exposed separately as `viewer_context.join_request_status`.
+        - When an accepted participant must reconfirm edited event details,
+          `viewer_context.needs_reconfirmation` is `true` and `viewer_context.event_diff`
+          compares the user's `last_confirmed_event_version` with the latest event version.
         - Responses are viewer-specific when a bearer token is supplied, so the endpoint returns
           `Cache-Control: private, no-store` and `Vary: Authorization`.
         - Host management collections are no longer embedded in this response. Hosts should use
@@ -87,6 +161,7 @@ paths:
                 non_host:
                   value:
                     id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                    version_no: 5
                     title: Istanbul Trail Run
                     description: A 10 km trail run through Belgrad Forest.
                     image_url: https://example.com/trail.jpg
@@ -136,10 +211,17 @@ paths:
                     viewer_context:
                       is_host: false
                       is_favorited: true
-                      participation_status: PENDING
+                      participation_status: APPROVED
+                      join_request_status: null
+                      invitation_status: null
+                      needs_reconfirmation: false
+                      last_confirmed_event_version: 5
+                      latest_event_version: 5
+                      event_diff: null
                 host:
                   value:
                     id: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+                    version_no: 5
                     title: Istanbul Trail Run
                     description: A 10 km trail run through Belgrad Forest.
                     image_url: https://example.com/trail.jpg
@@ -186,7 +268,13 @@ paths:
                     viewer_context:
                       is_host: true
                       is_favorited: false
-                      participation_status: NONE
+                      participation_status: null
+                      join_request_status: null
+                      invitation_status: null
+                      needs_reconfirmation: false
+                      last_confirmed_event_version: null
+                      latest_event_version: 5
+                      event_diff: null
         '400':
           description: Invalid event ID format.
           content:
@@ -279,6 +367,59 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /events/{id}/participation/reconfirm:
+    post:
+      tags: [Events]
+      summary: Reconfirm participation after event details changed
+      description: |
+        Allows an authenticated participant with `PENDING` participation status to
+        reconfirm attendance for the latest event details. On success the
+        participation becomes `APPROVED`, `reconfirmed_at` and
+        `last_confirmed_event_version` are updated, and protected/private event
+        tickets are reactivated as `ACTIVE`.
+      operationId: reconfirmEventParticipation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventIdParam'
+      responses:
+        '200':
+          description: Participation reconfirmed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconfirmParticipationResponse'
+        '400':
+          description: Invalid event ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Host cannot reconfirm as a participant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Caller does not have a PENDING participation or event is no longer joinable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /events/{id}/participants:
     get:
       tags: [Events]
@@ -292,6 +433,7 @@ paths:
         - $ref: '#/components/parameters/EventIdParam'
         - $ref: '#/components/parameters/EventCollectionLimitParam'
         - $ref: '#/components/parameters/EventCollectionCursorParam'
+        - $ref: '#/components/parameters/ParticipationStatusParam'
       responses:
         '200':
           description: Approved participants returned successfully.
@@ -610,7 +752,8 @@ paths:
         The response always contains two independently paginated collections:
         `discussion_comments` and `review_comments`, both ordered by latest comment first.
         Child comments are not embedded; use `GET /events/{id}/comments/{commentId}/replies`
-        when the user chooses to see replies.
+        when the user chooses to see replies. Reply collections are ordered by oldest reply first
+        so threaded conversations read chronologically.
 
         PRIVATE events do not expose comments. If the authenticated caller can otherwise see
         the private event, the API returns `409 comments_not_allowed`; if not visible, it returns
@@ -751,7 +894,7 @@ paths:
     get:
       tags: [Events]
       summary: List replies for a discussion comment
-      description: Returns replies for a top-level DISCUSSION comment, ordered latest first.
+      description: Returns replies for a top-level DISCUSSION comment, ordered oldest first.
       operationId: listEventCommentReplies
       security:
         - bearerAuth: []
@@ -927,6 +1070,67 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
         '409':
           description: Review images are not available for this event state or privacy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/join-request/image/upload-url:
+    post:
+      tags: [Events]
+      summary: Create upload URLs for a join-request image
+      description: |
+        Creates presigned upload instructions for the authenticated user's optional one image on a protected-event join request.
+        The caller must upload both `ORIGINAL` and `SMALL` JPEG variants, then pass the returned
+        `confirm_token` as `image_confirm_token` when calling `POST /events/{id}/join-request`.
+
+        Naming convention:
+        - original object key: `events/{event_id}/join-requests/{user_id}/{upload_id}`
+        - small object key: `events/{event_id}/join-requests/{user_id}/{upload_id}-small`
+      operationId: createEventJoinRequestImageUpload
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the protected event the caller wants to join.
+      responses:
+        '200':
+          description: Upload instructions returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadInitResponse'
+        '400':
+          description: Invalid event id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Caller is the event host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Event is not PROTECTED or is no longer accepting participants.
           content:
             application/json:
               schema:
@@ -1680,6 +1884,7 @@ paths:
         - A user can only submit one pending request per event; a second attempt returns `409`.
         - After the host rejects a request, the same user must wait **3 days** before requesting again.
         - When the cooldown expires, the backend reactivates the same `join_request` row as `PENDING`.
+        - When a reactivated request omits `image_confirm_token`, any previous join-request image is cleared.
         - If the user previously had an approved participation but left before `start_time`, the backend reactivates the same `join_request` row as `PENDING` so the host can approve them again.
         - If the user left at or after `start_time`, later request attempts return `409 already_participating`.
         - Calling this endpoint on a `PUBLIC` event returns `409 event_join_not_allowed`.
@@ -1705,6 +1910,10 @@ paths:
               with_message:
                 value:
                   message: I have attended similar events and can help with setup.
+              with_image:
+                value:
+                  message: I have attended similar events and can help with setup.
+                  image_confirm_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
       responses:
         '201':
           description: Join request created successfully.
@@ -1718,9 +1927,10 @@ paths:
                     join_request_id: b2c3d4e5-f6a7-8901-bcde-f01234567890
                     event_id: 7a2c8b1e-3d4f-5e6a-bcde-f90123456789
                     status: PENDING
+                    image_url: https://sem-bucket.fra1.cdn.digitaloceanspaces.com/events/7a2c8b1e-3d4f-5e6a-bcde-f90123456789/join-requests/11111111-1111-1111-1111-111111111111/upload-id
                     created_at: "2026-03-26T12:00:00+03:00"
         '400':
-          description: "Invalid event ID format, malformed JSON body, or the requester's profile is missing a field required by the event (`profile_incomplete`)."
+          description: "Invalid event ID format, malformed JSON body, invalid image confirm token (`image_upload_token_invalid`), or the requester's profile is missing a field required by the event (`profile_incomplete`)."
           content:
             application/json:
               schema:
@@ -1745,6 +1955,11 @@ paths:
                     error:
                       code: profile_incomplete
                       message: Your gender must be set on your profile to join this event.
+                invalid_image_token:
+                  value:
+                    error:
+                      code: image_upload_token_invalid
+                      message: The confirm token is invalid or expired.
         '401':
           description: Missing or invalid access token.
           content:
@@ -1782,7 +1997,8 @@ paths:
             requests (`event_join_not_allowed`), a rejection cooldown is still active
             (`join_request_cooldown_active`), the requester is below the event's minimum age
             (`age_requirement_not_met`), or the requester's gender does not match the event's
-            preferred gender (`gender_requirement_not_met`).
+            preferred gender (`gender_requirement_not_met`), or the image upload is incomplete
+            (`image_upload_incomplete`).
           content:
             application/json:
               schema:
@@ -1820,6 +2036,11 @@ paths:
                     error:
                       code: gender_requirement_not_met
                       message: This event is restricted to participants of a specific gender.
+                image_upload_incomplete:
+                  value:
+                    error:
+                      code: image_upload_incomplete
+                      message: The uploaded image files could not be found. Upload both variants before confirming.
         '500':
           description: Unexpected server error.
           content:
@@ -2193,6 +2414,18 @@ paths:
           schema:
             type: string
           description: Opaque cursor returned by a previous page of the same query.
+        - name: child_friendly
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: If true, return only child-friendly events.
+        - name: family_oriented
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: If true, return only family-oriented events.
       responses:
         '200':
           description: Discovery results returned successfully.
@@ -2525,11 +2758,74 @@ components:
       schema:
         type: string
       description: Opaque cursor returned by the previous page of the same collection.
+    ParticipationStatusParam:
+      name: status
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [APPROVED, PENDING]
+        default: APPROVED
+      description: Participant status collection to list. Defaults to `APPROVED`.
   schemas:
     CreateEventRequest:
       oneOf:
         - $ref: '#/components/schemas/CreatePointEventRequest'
         - $ref: '#/components/schemas/CreateRouteEventRequest'
+
+    UpdateEventRequest:
+      type: object
+      additionalProperties: false
+      description: Partial event update. Omitted fields remain unchanged.
+      properties:
+        title:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        category_id:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+        address:
+          type:
+            - string
+            - "null"
+        location_type:
+          type: string
+          enum: [POINT, ROUTE]
+        lat:
+          type: number
+          format: double
+        lon:
+          type: number
+          format: double
+        route_points:
+          type: array
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/RoutePointInput'
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type:
+            - string
+            - "null"
+          format: date-time
+        capacity:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+        constraints:
+          type: array
+          maxItems: 5
+          description: Full replacement list. Added constraints require reconfirmation; removals alone do not.
+          items:
+            $ref: '#/components/schemas/ConstraintInput'
 
     CreateEventRequestBase:
       type: object
@@ -2650,6 +2946,14 @@ components:
             $ref: '#/components/schemas/ConstraintInput'
           maxItems: 5
           description: Optional participation constraints. At most 5 items.
+        child_friendly:
+          type: boolean
+          default: false
+          description: Whether the event is suitable for children.
+        family_oriented:
+          type: boolean
+          default: false
+          description: Whether the event is family-oriented.
 
     CreatePointEventRequest:
       allOf:
@@ -2741,6 +3045,7 @@ components:
       additionalProperties: false
       required:
         - id
+        - version_no
         - title
         - category_name
         - start_time
@@ -2807,6 +3112,12 @@ components:
           example: true
         host_score:
           $ref: '#/components/schemas/EventHostScoreSummary'
+        child_friendly:
+          type: boolean
+          description: Whether the event is suitable for children.
+        family_oriented:
+          type: boolean
+          description: Whether the event is family-oriented.
 
     DiscoverEventsPageInfo:
       type: object
@@ -2851,6 +3162,11 @@ components:
           type: string
           format: uuid
           example: 5f81d6de-8cb4-4639-8f60-7c9f55456121
+        version_no:
+          type: integer
+          minimum: 1
+          description: Latest persisted event version.
+          example: 5
         title:
           type: string
           example: Istanbul Trail Run
@@ -2899,6 +3215,12 @@ components:
             - type: string
               enum: [MALE, FEMALE, OTHER]
             - type: "null"
+        child_friendly:
+          type: boolean
+          description: Whether the event is suitable for children.
+        family_oriented:
+          type: boolean
+          description: Whether the event is family-oriented.
         approved_participant_count:
           type: integer
           minimum: 0
@@ -2946,6 +3268,11 @@ components:
             - type: "null"
         viewer_context:
           $ref: '#/components/schemas/EventDetailViewerContext'
+        host_context:
+          oneOf:
+            - $ref: '#/components/schemas/EventDetailHostContext'
+            - type: "null"
+          description: Host-only embedded management context when included by the backend. Pending join request items include optional `image_url`.
 
     EventHostContextSummaryResponse:
       type: object
@@ -3195,20 +3522,95 @@ components:
     EventDetailViewerContext:
       type: object
       additionalProperties: false
-      required: [is_host, is_favorited, participation_status]
+      required:
+        - is_host
+        - is_favorited
+        - participation_status
+        - join_request_status
+        - invitation_status
+        - needs_reconfirmation
+        - last_confirmed_event_version
+        - latest_event_version
+        - event_diff
       properties:
         is_host:
           type: boolean
         is_favorited:
           type: boolean
         participation_status:
-          type: string
-          enum: [JOINED, LEAVED, PENDING, INVITED, CANCELED, NONE]
+          oneOf:
+            - type: string
+              enum: [APPROVED, PENDING, LEAVED, CANCELED]
+            - type: "null"
           description: |
-            Resolved for the authenticated user with the following precedence:
-            approved participation -> `JOINED`, leaved participation -> `LEAVED`,
-            canceled participation -> `CANCELED`, pending join request -> `PENDING`,
-            invitation row -> `INVITED`, otherwise `NONE`.
+            Actual participation-row status for the authenticated user, or `null`
+            when the user has not accepted/joined the event. Pending join requests
+            do not populate this field.
+        join_request_status:
+          oneOf:
+            - type: string
+              enum: [PENDING, APPROVED, REJECTED, CANCELED]
+            - type: "null"
+          description: Latest join-request status for the viewer on this event, or `null`.
+        invitation_status:
+          oneOf:
+            - type: string
+              enum: [PENDING, ACCEPTED, DECLINED, EXPIRED, CANCELED]
+            - type: "null"
+          description: Latest invitation status for the viewer on this event, or `null`.
+        needs_reconfirmation:
+          type: boolean
+          description: True when the viewer's accepted participation is pending reconfirmation against a newer event version.
+        last_confirmed_event_version:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          description: Event version last accepted by this viewer's participation, or `null` when there is no participation.
+        latest_event_version:
+          type: integer
+          minimum: 1
+          description: Latest event version number.
+        event_diff:
+          oneOf:
+            - $ref: '#/components/schemas/EventDetailDiff'
+            - type: "null"
+          description: Viewer-specific diff from `last_confirmed_event_version` to the latest version when reconfirmation is needed.
+
+    EventDetailDiff:
+      type: object
+      additionalProperties: false
+      required: [from_version_no, to_version_no, changed_fields, changes]
+      properties:
+        from_version_no:
+          type: integer
+          minimum: 1
+        to_version_no:
+          type: integer
+          minimum: 1
+        changed_fields:
+          type: array
+          items:
+            type: string
+          example: [title, start_time, location]
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventDetailDiffChange'
+
+    EventDetailDiffChange:
+      type: object
+      additionalProperties: false
+      required: [field, old_value, new_value]
+      properties:
+        field:
+          type: string
+          description: Event detail field that changed.
+          example: start_time
+        old_value:
+          description: Value from the viewer's last confirmed event version.
+        new_value:
+          description: Value from the latest event version.
 
     EventHostScoreSummary:
       type: object
@@ -3321,6 +3723,13 @@ components:
             - string
             - "null"
           example: I have attended similar events before.
+        image_url:
+          type:
+            - string
+            - "null"
+          format: uri
+          description: Optional image attached by the requester. Append `-small` to fetch the small variant.
+          example: https://sem-bucket.fra1.cdn.digitaloceanspaces.com/events/7a2c8b1e-3d4f-5e6a-bcde-f90123456789/join-requests/11111111-1111-1111-1111-111111111111/upload-id
         created_at:
           type: string
           format: date-time
@@ -3678,6 +4087,96 @@ components:
           format: date-time
           example: "2026-03-26T11:00:00+03:00"
 
+    UpdateEventResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - privacy_level
+        - status
+        - start_time
+        - version_no
+        - reconfirmation_required
+        - reconfirmation_triggered_fields
+        - participants_marked_pending
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        privacy_level:
+          type: string
+          enum: [PUBLIC, PROTECTED, PRIVATE]
+        status:
+          type: string
+          enum: [ACTIVE]
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type:
+            - string
+            - "null"
+          format: date-time
+        version_no:
+          type: integer
+          minimum: 0
+        reconfirmation_required:
+          type: boolean
+        reconfirmation_triggered_fields:
+          type: array
+          items:
+            type: string
+            enum: [title, description, category_id, location, start_time, end_time, constraints]
+        participants_marked_pending:
+          type: integer
+          minimum: 0
+        updated_at:
+          type: string
+          format: date-time
+
+    ReconfirmParticipationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - participation_id
+        - event_id
+        - status
+        - reconfirmed_at
+        - updated_at
+        - last_confirmed_event_version
+        - latest_event_version
+      properties:
+        participation_id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [APPROVED]
+        reconfirmed_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_confirmed_event_version:
+          type: integer
+          minimum: 1
+          description: Event version accepted by this reconfirmation.
+        latest_event_version:
+          type: integer
+          minimum: 1
+          description: Latest event version at reconfirmation time.
+        ticket_status:
+          type: string
+          enum: [ACTIVE]
+
     ImageUploadInitResponse:
       type: object
       additionalProperties: false
@@ -3686,7 +4185,7 @@ components:
         base_url:
           type: string
           description: >
-            Versioned CDN base URL persisted in the database after confirm.
+            CDN base URL persisted after the corresponding confirm or create mutation.
             Append `-small` to fetch the small variant.
           example: "https://sem-bucket.fra1.cdn.digitaloceanspaces.com/events/5f81d6de-8cb4-4639-8f60-7c9f55456121/cover/v2-2c1a8d5a-77c5-4e6a-b5da-84af656ba6fa"
         version:
@@ -3827,6 +4326,11 @@ components:
             - "null"
           description: Optional note from the requester to the event host. Omit or send `null` when no message is needed.
           example: I have attended similar events and can help with setup.
+        image_confirm_token:
+          type:
+            - string
+            - "null"
+          description: Optional opaque token from `POST /events/{id}/join-request/image/upload-url`. Empty, omitted, or `null` means no image.
 
     RequestJoinResponse:
       type: object
@@ -3848,6 +4352,12 @@ components:
           enum: [PENDING]
           description: Join request status. Always `PENDING` until approved or rejected by the host.
           example: PENDING
+        image_url:
+          type:
+            - string
+            - "null"
+          format: uri
+          description: Confirmed join-request image URL, or `null` when no image was attached. Append `-small` to fetch the small variant.
         created_at:
           type: string
           format: date-time

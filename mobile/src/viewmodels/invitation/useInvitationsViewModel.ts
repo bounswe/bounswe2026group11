@@ -31,7 +31,7 @@ export function useInvitationsViewModel(): InvitationsViewModel {
     setError(null);
     try {
       const response = await listMyInvitations(token);
-      setInvitations(response.items);
+      setInvitations(response.pending);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

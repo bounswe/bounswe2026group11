@@ -323,7 +323,9 @@ components:
             `PRIVATE_EVENT_INVITATION_ACCEPTED`,
             `PRIVATE_EVENT_INVITATION_DECLINED`,
             `PROTECTED_EVENT_JOIN_REQUEST_APPROVED`, and
-            `PROTECTED_EVENT_JOIN_REQUEST_REJECTED`.
+            `PROTECTED_EVENT_JOIN_REQUEST_REJECTED`,
+            `EVENT_CANCELED`, and
+            `EVENT_RECONFIRMATION_REQUIRED`.
         deep_link:
           type:
             - string

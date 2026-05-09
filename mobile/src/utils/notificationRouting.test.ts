@@ -1,9 +1,19 @@
 import { resolveNotificationRoute } from './notificationRouting';
 
 describe('resolveNotificationRoute', () => {
+  it('routes private invitation notifications to the event detail route', () => {
+    expect(
+      resolveNotificationRoute({
+        type: 'PRIVATE_EVENT_INVITATION_RECEIVED',
+        deep_link: '/events/550e8400-e29b-41d4-a716-446655440000',
+      }),
+    ).toBe('/event/550e8400-e29b-41d4-a716-446655440000');
+  });
+
   it('maps backend event deep links to the mobile event route', () => {
     expect(
       resolveNotificationRoute({
+        type: 'PROTECTED_EVENT_JOIN_REQUEST_APPROVED',
         deep_link: '/events/550e8400-e29b-41d4-a716-446655440000',
       }),
     ).toBe('/event/550e8400-e29b-41d4-a716-446655440000');

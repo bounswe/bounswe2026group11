@@ -6,7 +6,10 @@ import {
   EventHostContextSummary,
   ParticipationStatus,
   EventDetailInvitation,
+  EventReportCategory,
+  RequestReportEvent,
 } from '@/models/event';
+import type { UserSummary } from '@/models/auth';
 import {
   getEventDetail,
   getEventHostContextSummary,
@@ -22,22 +25,44 @@ import {
   upsertParticipantRating,
   listEventInvitations,
   createEventInvitations,
+  withdrawJoinRequest,
 } from '@/services/eventService';
+import {
+  acceptInvitation,
+  declineInvitation,
+  listMyInvitations,
+  revokeInvitation,
+} from '@/services/invitationService';
+import { reportEvent } from '@/services/eventService';
 import { addFavorite, removeFavorite } from '@/services/favoriteService';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiError } from '@/services/api';
 import { searchUsers } from '@/services/profileService';
+import { Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import {
+  getJoinRequestImageUploadUrl,
+  getEventReportImageUploadUrl,
+  uploadFileToPresignedUrl,
+} from '@/services/eventService';
 
 export type ActionState =
   | 'idle'
   | 'joining'
   | 'leaving'
   | 'requesting'
+  | 'accepting_invitation'
+  | 'declining_invitation'
+  | 'reporting'
   | 'saving'
   | 'success_joined'
   | 'success_left'
   | 'success_requested'
-  | 'success_saved';
+  | 'success_saved'
+  | 'canceling_request'
+  | 'revoking_invitation'
+  | 'success_reported';
 
 export interface EventDetailViewModel {
   event: EventDetail | null;
@@ -86,6 +111,8 @@ export interface EventDetailViewModel {
   handleJoin: () => Promise<void>;
   handleLeaveEvent: () => Promise<void>;
   handleRequestJoin: () => Promise<void>;
+  handleAcceptInvitation: () => Promise<void>;
+  handleDeclineInvitation: () => Promise<void>;
   handleToggleFavorite: () => Promise<void>;
   handleViewerRatingSubmit: (rating: number, message?: string) => Promise<void>;
   handleParticipantRatingSubmit: (participantUserId: string, rating: number, message?: string) => Promise<void>;
@@ -102,6 +129,28 @@ export interface EventDetailViewModel {
   handleApproveRequest: (joinRequestId: string) => Promise<void>;
   handleRejectRequest: (joinRequestId: string) => Promise<void>;
   handleCancelEvent: () => Promise<void>;
+  selectedImageUri: string | null;
+  isUploadingImage: boolean;
+  imageError: string | null;
+  pickImage: () => Promise<void>;
+  removeImage: () => void;
+  handleCancelJoinRequest: () => Promise<void>;
+  handleRevokeInvitation: (invitationId: string) => Promise<void>;
+
+  showReportModal: boolean;
+  setShowReportModal: (val: boolean) => void;
+  reportCategory: EventReportCategory | null;
+  setReportCategory: (val: EventReportCategory | null) => void;
+  reportMessage: string;
+  setReportMessage: (val: string) => void;
+  reportImageUri: string | null;
+  pickReportImage: () => Promise<void>;
+  removeReportImage: () => void;
+  handleReportEvent: () => Promise<void>;
+  canAttachReportImage: boolean;
+
+  token: string | null;
+  user: UserSummary | null;
 }
 
 function mapRatingError(err: ApiError, fallback: string): string {
@@ -161,6 +210,59 @@ export function resolveConstraintViolation(
   return violations.length > 0 ? violations.join(' · ') : null;
 }
 
+function decodeFileUriOnce(uri: string): string {
+  if (!uri.startsWith('file://')) {
+    return uri;
+  }
+  try {
+    return `file://${decodeURIComponent(uri.slice('file://'.length))}`;
+  } catch {
+    return uri;
+  }
+}
+
+function normalizePickedImageUri(uri: string): string {
+  let normalized = uri;
+  for (let i = 0; i < 3; i += 1) {
+    const next = decodeFileUriOnce(normalized);
+    if (next === normalized) break;
+    normalized = next;
+  }
+  return normalized;
+}
+
+function normalizeParticipationStatus(
+  status: EventDetail['viewer_context']['participation_status'] | 'APPROVED' | null | undefined,
+): ParticipationStatus {
+  if (status === 'APPROVED' || status === 'JOINED') return 'JOINED';
+  if (status === 'PENDING') return 'PENDING';
+  if (status === 'INVITED') return 'INVITED';
+  if (status === 'LEAVED') return 'LEAVED';
+  if (status === 'CANCELED') return 'CANCELED';
+  return 'NONE';
+}
+
+function getPickedImageUriCandidates(uri: string): string[] {
+  return [...new Set([uri, decodeFileUriOnce(uri), normalizePickedImageUri(uri)])];
+}
+
+async function preparePickedImageUri(uri: string): Promise<string> {
+  let lastError: unknown = null;
+  for (const candidateUri of getPickedImageUriCandidates(uri)) {
+    try {
+      const preparedImage = await ImageManipulator.manipulateAsync(
+        candidateUri,
+        [],
+        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG },
+      );
+      return preparedImage.uri;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error('Could not prepare the selected image');
+}
+
 export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
   const hostCollectionPageSize = 25;
   const { token, user } = useAuth();
@@ -190,6 +292,9 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
 
   const [showJoinRequestModal, setShowJoinRequestModal] = useState(false);
   const [joinRequestMessage, setJoinRequestMessage] = useState('');
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [showAttendeesModal, setShowAttendeesModal] = useState(false);
@@ -204,6 +309,11 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
   const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const userSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportCategory, setReportCategory] = useState<EventReportCategory | null>(null);
+  const [reportMessage, setReportMessage] = useState('');
+  const [reportImageUri, setReportImageUri] = useState<string | null>(null);
 
   const isQuotaFull =
     event?.capacity != null &&
@@ -264,9 +374,22 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
 
       try {
         const data = await getEventDetail(eventId, token);
-        setEvent(data);
+        const normalizedParticipationStatus = normalizeParticipationStatus(
+          data.viewer_context.participation_status as
+            | EventDetail['viewer_context']['participation_status']
+            | 'APPROVED'
+            | null
+            | undefined,
+        );
+        setEvent({
+          ...data,
+          viewer_context: {
+            ...data.viewer_context,
+            participation_status: normalizedParticipationStatus,
+          },
+        });
         setIsFavorited(data.viewer_context.is_favorited);
-        setParticipationStatus(data.viewer_context.participation_status);
+        setParticipationStatus(normalizedParticipationStatus);
         if (data.viewer_context.is_host) {
           void refreshHostContextSummary();
         }
@@ -274,7 +397,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         if (!silent) {
           if (err instanceof ApiError && err.status === 404) {
             setApiError(
-              'This event is private. If you have an invitation, you must accept it from your invitations tab to view the details.',
+              'This event is private and only accessible to invited guests. If you don\'t have a valid invitation or if you have previously declined one, you cannot view the details.',
             );
           } else {
             setApiError('Failed to load event details. Please try again.');
@@ -496,6 +619,53 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     }
   }, [token, event, fetchEvent]);
 
+  const uploadJoinRequestImage = useCallback(
+    async (eventId: string, imageUri: string, token: string): Promise<string> => {
+      setIsUploadingImage(true);
+      setImageError(null);
+      try {
+        const original = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        const small = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 400 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        const uploadInit = await getJoinRequestImageUploadUrl(eventId, token);
+
+        const originalUpload = uploadInit.uploads.find((u) => u.variant === 'ORIGINAL');
+        const smallUpload = uploadInit.uploads.find((u) => u.variant === 'SMALL');
+        if (!originalUpload || !smallUpload) {
+          throw new Error('Missing upload instructions from server');
+        }
+
+        await Promise.all([
+          uploadFileToPresignedUrl(
+            originalUpload.method,
+            originalUpload.url,
+            originalUpload.headers,
+            original.uri,
+          ),
+          uploadFileToPresignedUrl(smallUpload.method, smallUpload.url, smallUpload.headers, small.uri),
+        ]);
+
+        return uploadInit.confirm_token;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to upload image evidence.';
+        setImageError(msg);
+        throw err;
+      } finally {
+        setIsUploadingImage(false);
+      }
+    },
+    [],
+  );
+
   const handleRequestJoin = useCallback(async () => {
     if (!token || !event) return;
 
@@ -503,9 +673,17 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     setActionState('requesting');
 
     try {
+      let imageConfirmToken: string | null = null;
+      if (selectedImageUri) {
+        imageConfirmToken = await uploadJoinRequestImage(event.id, selectedImageUri, token);
+      }
+
       await requestJoinEvent(
         event.id,
-        { message: joinRequestMessage.trim() || null },
+        {
+          message: joinRequestMessage.trim() || null,
+          image_confirm_token: imageConfirmToken,
+        },
         token,
       );
       setEvent((prev) =>
@@ -523,6 +701,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       setActionState('success_requested');
       setShowJoinRequestModal(false);
       setJoinRequestMessage('');
+      setSelectedImageUri(null);
     } catch (err: unknown) {
       setActionState('idle');
       if (err && typeof err === 'object' && 'message' in err) {
@@ -531,7 +710,227 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         setActionError('Failed to send join request. Please try again.');
       }
     }
-  }, [token, event, joinRequestMessage]);
+  }, [token, event, joinRequestMessage, selectedImageUri, uploadJoinRequestImage]);
+
+  const handleCancelJoinRequest = useCallback(async () => {
+    if (!token || !event) return;
+ 
+    setActionError(null);
+    setActionState('canceling_request');
+ 
+    try {
+      await withdrawJoinRequest(event.id, token);
+      setParticipationStatus(null);
+      await fetchEvent(true);
+      setActionState('idle');
+    } catch (err: unknown) {
+      setActionState('idle');
+      if (err instanceof ApiError && err.status === 409) {
+        // Request no longer pending
+        await fetchEvent(true);
+        setActionError('This request is no longer pending.');
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        setActionError((err as { message: string }).message);
+      } else {
+        setActionError('Failed to cancel join request. Please try again.');
+      }
+    }
+  }, [token, event, fetchEvent]);
+ 
+  const uploadReportImage = useCallback(
+    async (eventId: string, imageUri: string, token: string): Promise<string> => {
+      setIsUploadingImage(true);
+      setImageError(null);
+      try {
+        const original = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        const small = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 400 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        const uploadInit = await getEventReportImageUploadUrl(eventId, token);
+
+        const originalUpload = uploadInit.uploads.find((u) => u.variant === 'ORIGINAL');
+        const smallUpload = uploadInit.uploads.find((u) => u.variant === 'SMALL');
+        if (!originalUpload || !smallUpload) {
+          throw new Error('Missing upload instructions from server');
+        }
+
+        await Promise.all([
+          uploadFileToPresignedUrl(
+            originalUpload.method,
+            originalUpload.url,
+            originalUpload.headers,
+            original.uri,
+          ),
+          uploadFileToPresignedUrl(smallUpload.method, smallUpload.url, smallUpload.headers, small.uri),
+        ]);
+
+        return uploadInit.confirm_token;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to upload report evidence.';
+        setImageError(msg);
+        throw err;
+      } finally {
+        setIsUploadingImage(false);
+      }
+    },
+    [],
+  );
+
+  const handleReportEvent = useCallback(async () => {
+    if (!token || !event) return;
+    if (!reportCategory) {
+      Alert.alert('Selection Required', 'Please select a reason for reporting this event.');
+      return;
+    }
+
+    setActionError(null);
+    setActionState('reporting');
+
+    try {
+      let imageConfirmToken: string | null = null;
+      if (reportImageUri) {
+        imageConfirmToken = await uploadReportImage(event.id, reportImageUri, token);
+      }
+
+      // Explicitly send the string value of the category from the Enum
+      const reportPayload: RequestReportEvent = {
+        report_category: reportCategory as EventReportCategory,
+        message: reportMessage.trim(),
+        image_confirm_token: imageConfirmToken,
+      };
+
+      await reportEvent(event.id, reportPayload, token);
+
+      setActionState('success_reported');
+      setShowReportModal(false);
+      setReportCategory(null);
+      setReportMessage('');
+      setReportImageUri(null);
+      Alert.alert('Report Submitted', 'Thank you for helping us keep the community safe. Our team will review your report shortly.');
+    } catch (err: unknown) {
+      setActionState('idle');
+      let msg = 'Failed to submit report. Please try again.';
+      if (err instanceof ApiError) {
+        if (err.code === 'DUPLICATE_REPORT') {
+          msg = 'You have already reported this event.';
+        } else if (err.code === 'validation_error' && err.details) {
+          // Extract the first validation error detail if available
+          const firstDetail = Object.values(err.details)[0];
+          if (firstDetail) msg = String(firstDetail);
+        } else {
+          msg = err.message;
+        }
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        msg = (err as { message: string }).message;
+      }
+      setActionError(msg);
+      Alert.alert('Reporting Error', msg);
+    }
+  }, [token, event, reportCategory, reportMessage, reportImageUri, uploadReportImage]);
+
+  const canAttachReportImage = useMemo(() => {
+    if (!event) return false;
+    const now = new Date();
+    const startTime = new Date(event.start_time);
+    return now >= startTime || event.status === 'COMPLETED';
+  }, [event]);
+
+  const pickReportImage = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please grant permission to access your photo library.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      try {
+        const prepared = await preparePickedImageUri(result.assets[0].uri);
+        setReportImageUri(prepared);
+      } catch (err) {
+        Alert.alert('Error', 'Failed to prepare selected image.');
+      }
+    }
+  }, []);
+
+  const removeReportImage = useCallback(() => {
+    setReportImageUri(null);
+  }, []);
+  const resolveCurrentInvitationID = useCallback(async () => {
+    if (!token || !event) return null;
+
+    const response = await listMyInvitations(token);
+    const invitation = response.pending.find((item) => item.event.id === event.id);
+    return invitation?.invitation_id ?? null;
+  }, [event, token]);
+
+  const handleAcceptInvitation = useCallback(async () => {
+    if (!token || !event) return;
+
+    setActionError(null);
+    setActionState('accepting_invitation');
+
+    try {
+      const invitationID = await resolveCurrentInvitationID();
+      if (!invitationID) {
+        throw new Error('This invitation is no longer available.');
+      }
+
+      await acceptInvitation(invitationID, token);
+      await fetchEvent(true);
+      setParticipationStatus('JOINED');
+      setActionState('success_joined');
+    } catch (err: unknown) {
+      setActionState('idle');
+      if (err && typeof err === 'object' && 'message' in err) {
+        setActionError((err as { message: string }).message);
+      } else {
+        setActionError('Failed to accept invitation. Please try again.');
+      }
+    }
+  }, [event, fetchEvent, resolveCurrentInvitationID, token]);
+
+  const handleDeclineInvitation = useCallback(async () => {
+    if (!token || !event) return;
+
+    setActionError(null);
+    setActionState('declining_invitation');
+
+    try {
+      const invitationID = await resolveCurrentInvitationID();
+      if (!invitationID) {
+        throw new Error('This invitation is no longer available.');
+      }
+
+      await declineInvitation(invitationID, token);
+      setParticipationStatus(null);
+      setEvent(null);
+      setApiError(
+        'You declined this private event invitation. The event detail is no longer available.',
+      );
+      setActionState('idle');
+    } catch (err: unknown) {
+      setActionState('idle');
+      if (err && typeof err === 'object' && 'message' in err) {
+        setActionError((err as { message: string }).message);
+      } else {
+        setActionError('Failed to decline invitation. Please try again.');
+      }
+    }
+  }, [event, resolveCurrentInvitationID, token]);
 
   const handleToggleFavorite = useCallback(async () => {
     if (!token || !event) return;
@@ -674,6 +1073,30 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     }
   }, [token, event, fetchEvent]);
 
+  const handleRevokeInvitation = useCallback(async (invitationId: string) => {
+    if (!token || !event) return;
+
+    setActionError(null);
+    setActionState('revoking_invitation');
+
+    try {
+      await revokeInvitation(event.id, invitationId, token);
+      await refreshHostContextSummary();
+      setInvitations([]);
+      setInvitationsCursor(null);
+      setInvitationsHasNext(false);
+      await loadMoreInvitations();
+      setActionState('idle');
+    } catch (err: unknown) {
+      setActionState('idle');
+      if (err && typeof err === 'object' && 'message' in err) {
+        setActionError((err as { message: string }).message);
+      } else {
+        setActionError('Failed to revoke invitation.');
+      }
+    }
+  }, [token, event, refreshHostContextSummary, loadMoreInvitations]);
+
   const openJoinRequestModal = useCallback(() => {
     setActionError(null);
     setShowJoinRequestModal(true);
@@ -682,7 +1105,51 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
   const closeJoinRequestModal = useCallback(() => {
     setShowJoinRequestModal(false);
     setJoinRequestMessage('');
+    setSelectedImageUri(null);
+    setImageError(null);
     setActionError(null);
+  }, []);
+
+  const pickImage = useCallback(async () => {
+    setImageError(null);
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        const message = 'Please allow access to your photo library to add an attachment.';
+        setImageError(message);
+        Alert.alert('Permission required', message);
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      if (!asset?.uri) {
+        setImageError('We could not read the selected image. Please try a different one.');
+        return;
+      }
+
+      try {
+        const preparedImageUri = await preparePickedImageUri(asset.uri);
+        setSelectedImageUri(preparedImageUri);
+      } catch {
+        setImageError('We could not process the selected image. Please try a different one.');
+      }
+    } catch {
+      setImageError('We could not open your photo library. Please try again.');
+    }
+  }, []);
+
+  const removeImage = useCallback(() => {
+    setSelectedImageUri(null);
+    setImageError(null);
   }, []);
 
   const retry = useCallback(() => {
@@ -728,20 +1195,39 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     isFavorited,
     participationStatus,
     isQuotaFull,
+    constraintViolation,
     viewerRatingLoading,
     viewerRatingError,
     participantRatingLoadingId,
     participantRatingError,
-    canLeave,
-    constraintViolation,
     showJoinRequestModal,
     joinRequestMessage,
+    selectedImageUri,
+    isUploadingImage,
+    imageError,
     openJoinRequestModal,
     closeJoinRequestModal,
+    pickImage,
+    removeImage,
     setJoinRequestMessage,
+    userSearchQuery,
+    setUserSearchQuery,
+    userSuggestions,
+    isSearchingUsers,
+    showInvitationsModal,
+    setShowInvitationsModal,
+    invitations,
+    invitationsLoading,
+    invitationsHasNext,
+    loadMoreInvitations,
+    handleInviteUsers,
+    isInviting,
+    canLeave,
     handleJoin,
     handleLeaveEvent,
     handleRequestJoin,
+    handleAcceptInvitation,
+    handleDeclineInvitation,
     handleToggleFavorite,
     handleViewerRatingSubmit,
     handleParticipantRatingSubmit,
@@ -752,22 +1238,27 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     setShowRequestsModal,
     showAttendeesModal,
     setShowAttendeesModal,
-    showInvitationsModal,
-    setShowInvitationsModal,
-    invitations,
-    invitationsLoading,
-    invitationsHasNext,
-    loadMoreInvitations,
-    handleInviteUsers,
-    isInviting,
-    userSearchQuery,
-    setUserSearchQuery,
-    userSuggestions,
-    isSearchingUsers,
     loadMoreApprovedParticipants,
     loadMorePendingJoinRequests,
     handleApproveRequest,
     handleRejectRequest,
     handleCancelEvent,
+    handleCancelJoinRequest,
+    handleRevokeInvitation,
+
+    showReportModal,
+    setShowReportModal,
+    reportCategory,
+    setReportCategory,
+    reportMessage,
+    setReportMessage,
+    reportImageUri,
+    pickReportImage,
+    removeReportImage,
+    handleReportEvent,
+    canAttachReportImage,
+
+    token,
+    user,
   };
 }
