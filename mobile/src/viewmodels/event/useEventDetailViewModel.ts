@@ -6,6 +6,8 @@ import {
   EventHostContextSummary,
   ParticipationStatus,
   EventDetailInvitation,
+  EventReportCategory,
+  RequestReportEvent,
 } from '@/models/event';
 import {
   getEventDetail,
@@ -30,6 +32,7 @@ import {
   listMyInvitations,
   revokeInvitation,
 } from '@/services/invitationService';
+import { reportEvent } from '@/services/eventService';
 import { addFavorite, removeFavorite } from '@/services/favoriteService';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiError } from '@/services/api';
@@ -39,6 +42,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import {
   getJoinRequestImageUploadUrl,
+  getEventReportImageUploadUrl,
   uploadFileToPresignedUrl,
 } from '@/services/eventService';
 
@@ -49,13 +53,15 @@ export type ActionState =
   | 'requesting'
   | 'accepting_invitation'
   | 'declining_invitation'
+  | 'reporting'
   | 'saving'
   | 'success_joined'
   | 'success_left'
   | 'success_requested'
   | 'success_saved'
   | 'canceling_request'
-  | 'revoking_invitation';
+  | 'revoking_invitation'
+  | 'success_reported';
 
 export interface EventDetailViewModel {
   event: EventDetail | null;
@@ -129,6 +135,18 @@ export interface EventDetailViewModel {
   removeImage: () => void;
   handleCancelJoinRequest: () => Promise<void>;
   handleRevokeInvitation: (invitationId: string) => Promise<void>;
+
+  showReportModal: boolean;
+  setShowReportModal: (val: boolean) => void;
+  reportCategory: EventReportCategory | null;
+  setReportCategory: (val: EventReportCategory | null) => void;
+  reportMessage: string;
+  setReportMessage: (val: string) => void;
+  reportImageUri: string | null;
+  pickReportImage: () => Promise<void>;
+  removeReportImage: () => void;
+  handleReportEvent: () => Promise<void>;
+  canAttachReportImage: boolean;
 }
 
 function mapRatingError(err: ApiError, fallback: string): string {
@@ -276,6 +294,11 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
   const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const userSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportCategory, setReportCategory] = useState<EventReportCategory | null>(null);
+  const [reportMessage, setReportMessage] = useState('');
+  const [reportImageUri, setReportImageUri] = useState<string | null>(null);
 
   const isQuotaFull =
     event?.capacity != null &&
@@ -686,6 +709,138 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     }
   }, [token, event, fetchEvent]);
  
+  const uploadReportImage = useCallback(
+    async (eventId: string, imageUri: string, token: string): Promise<string> => {
+      setIsUploadingImage(true);
+      setImageError(null);
+      try {
+        const original = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        const small = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 400 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        const uploadInit = await getEventReportImageUploadUrl(eventId, token);
+
+        const originalUpload = uploadInit.uploads.find((u) => u.variant === 'ORIGINAL');
+        const smallUpload = uploadInit.uploads.find((u) => u.variant === 'SMALL');
+        if (!originalUpload || !smallUpload) {
+          throw new Error('Missing upload instructions from server');
+        }
+
+        await Promise.all([
+          uploadFileToPresignedUrl(
+            originalUpload.method,
+            originalUpload.url,
+            originalUpload.headers,
+            original.uri,
+          ),
+          uploadFileToPresignedUrl(smallUpload.method, smallUpload.url, smallUpload.headers, small.uri),
+        ]);
+
+        return uploadInit.confirm_token;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to upload report evidence.';
+        setImageError(msg);
+        throw err;
+      } finally {
+        setIsUploadingImage(false);
+      }
+    },
+    [],
+  );
+
+  const handleReportEvent = useCallback(async () => {
+    if (!token || !event) return;
+    if (!reportCategory) {
+      Alert.alert('Selection Required', 'Please select a reason for reporting this event.');
+      return;
+    }
+
+    setActionError(null);
+    setActionState('reporting');
+
+    try {
+      let imageConfirmToken: string | null = null;
+      if (reportImageUri) {
+        imageConfirmToken = await uploadReportImage(event.id, reportImageUri, token);
+      }
+
+      // Explicitly send the string value of the category from the Enum
+      const reportPayload: RequestReportEvent = {
+        report_category: reportCategory as EventReportCategory,
+        message: reportMessage.trim(),
+        image_confirm_token: imageConfirmToken,
+      };
+
+      await reportEvent(event.id, reportPayload, token);
+
+      setActionState('success_reported');
+      setShowReportModal(false);
+      setReportCategory(null);
+      setReportMessage('');
+      setReportImageUri(null);
+      Alert.alert('Report Submitted', 'Thank you for helping us keep the community safe. Our team will review your report shortly.');
+    } catch (err: unknown) {
+      setActionState('idle');
+      let msg = 'Failed to submit report. Please try again.';
+      if (err instanceof ApiError) {
+        if (err.code === 'DUPLICATE_REPORT') {
+          msg = 'You have already reported this event.';
+        } else if (err.code === 'validation_error' && err.details) {
+          // Extract the first validation error detail if available
+          const firstDetail = Object.values(err.details)[0];
+          if (firstDetail) msg = String(firstDetail);
+        } else {
+          msg = err.message;
+        }
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        msg = (err as { message: string }).message;
+      }
+      setActionError(msg);
+      Alert.alert('Reporting Error', msg);
+    }
+  }, [token, event, reportCategory, reportMessage, reportImageUri, uploadReportImage]);
+
+  const canAttachReportImage = useMemo(() => {
+    if (!event) return false;
+    const now = new Date();
+    const startTime = new Date(event.start_time);
+    return now >= startTime || event.status === 'COMPLETED';
+  }, [event]);
+
+  const pickReportImage = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please grant permission to access your photo library.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      try {
+        const prepared = await preparePickedImageUri(result.assets[0].uri);
+        setReportImageUri(prepared);
+      } catch (err) {
+        Alert.alert('Error', 'Failed to prepare selected image.');
+      }
+    }
+  }, []);
+
+  const removeReportImage = useCallback(() => {
+    setReportImageUri(null);
+  }, []);
   const resolveCurrentInvitationID = useCallback(async () => {
     if (!token || !event) return null;
 
@@ -1062,5 +1217,17 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     handleCancelEvent,
     handleCancelJoinRequest,
     handleRevokeInvitation,
+
+    showReportModal,
+    setShowReportModal,
+    reportCategory,
+    setReportCategory,
+    reportMessage,
+    setReportMessage,
+    reportImageUri,
+    pickReportImage,
+    removeReportImage,
+    handleReportEvent,
+    canAttachReportImage,
   };
 }

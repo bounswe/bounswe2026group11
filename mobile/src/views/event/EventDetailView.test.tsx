@@ -173,6 +173,17 @@ function buildViewModel(
     isSearchingUsers: false,
     handleCancelJoinRequest: jest.fn().mockResolvedValue(undefined),
     handleRevokeInvitation: jest.fn().mockResolvedValue(undefined),
+    showReportModal: false,
+    setShowReportModal: jest.fn(),
+    reportCategory: null,
+    setReportCategory: jest.fn(),
+    reportMessage: '',
+    setReportMessage: jest.fn(),
+    reportImageUri: null,
+    pickReportImage: jest.fn().mockResolvedValue(undefined),
+    removeReportImage: jest.fn(),
+    handleReportEvent: jest.fn().mockResolvedValue(undefined),
+    canAttachReportImage: false,
     ...overrides,
   };
 }
