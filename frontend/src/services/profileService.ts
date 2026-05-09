@@ -10,6 +10,8 @@ import {
   FavoriteLocationsResponse,
   CreateFavoriteLocationRequest,
   UpdateFavoriteLocationRequest,
+  UserBadgesResponse,
+  BadgeCatalogResponse,
 } from '../models/profile';
 
 interface EventListResponse {
@@ -75,5 +77,17 @@ export const profileService = {
 
   async deleteFavoriteLocation(id: string, token: string): Promise<void> {
     return apiDeleteAuth<void>(`/me/favorite-locations/${id}`, token);
+  },
+
+  async getMyBadges(token: string): Promise<UserBadgesResponse> {
+    return apiGetAuth<UserBadgesResponse>('/me/badges', token);
+  },
+
+  async getUserBadges(userId: string, token: string): Promise<UserBadgesResponse> {
+    return apiGetAuth<UserBadgesResponse>(`/users/${userId}/badges`, token);
+  },
+
+  async getBadgeCatalog(token: string): Promise<BadgeCatalogResponse> {
+    return apiGetAuth<BadgeCatalogResponse>('/badges', token);
   },
 };
