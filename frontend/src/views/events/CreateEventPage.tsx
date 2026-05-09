@@ -6,7 +6,8 @@ import {
   PRIVACY_OPTIONS,
   MAX_CONSTRAINTS,
 } from '@/viewmodels/event/useCreateEventViewModel';
-import type { PreferredGender } from '@/models/event';
+import type { PreferredGender, LocationType } from '@/models/event';
+import RoutePointsEditor from '@/components/RoutePointsEditor';
 import '@/styles/create-event.css';
 
 const GENDER_OPTIONS: { label: string; value: PreferredGender }[] = [
@@ -372,43 +373,79 @@ function CreateEventForm() {
 
         {/* Location */}
         <div className="field-group">
-          <label className="field-label" htmlFor="event-location">
+          <label className="field-label">
             Location <RequiredMark />
           </label>
-          <div className="ce-location-wrapper">
-            <input
-              id="event-location"
-              className={`field-input ${vm.errors.location ? 'has-error' : ''}`}
-              type="text"
-              placeholder="Search for a location..."
-              value={vm.form.locationQuery}
-              onChange={(e) => vm.handleLocationSearch(e.target.value)}
-              onBlur={() => vm.touchField('location')}
-              disabled={busy}
-            />
-            {vm.locationSearching && (
-              <div className="ce-location-searching">Searching...</div>
-            )}
-            {vm.locationResults.length > 0 && (
-              <ul className="ce-location-results">
-                {vm.locationResults.map((loc, i) => (
-                  <li key={i}>
-                    <button
-                      type="button"
-                      className="ce-location-item"
-                      onClick={() => vm.selectLocation(loc)}
-                    >
-                      {loc.display_name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+          <div className="ce-location-type-row">
+            {([
+              { label: 'Point', value: 'POINT' as LocationType },
+              { label: 'Route', value: 'ROUTE' as LocationType },
+            ]).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`ce-location-type-chip ${vm.form.locationType === opt.value ? 'selected' : ''}`}
+                onClick={() => vm.setLocationType(opt.value)}
+                disabled={busy}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
-          {vm.form.address && (
-            <p className="ce-selected-location">{vm.form.address}</p>
+
+          {vm.form.locationType === 'POINT' ? (
+            <>
+              <div className="ce-location-wrapper">
+                <input
+                  id="event-location"
+                  className={`field-input ${vm.errors.location ? 'has-error' : ''}`}
+                  type="text"
+                  placeholder="Search for a location..."
+                  value={vm.form.locationQuery}
+                  onChange={(e) => vm.handleLocationSearch(e.target.value)}
+                  onBlur={() => vm.touchField('location')}
+                  disabled={busy}
+                />
+                {vm.locationSearching && (
+                  <div className="ce-location-searching">Searching...</div>
+                )}
+                {vm.locationResults.length > 0 && (
+                  <ul className="ce-location-results">
+                    {vm.locationResults.map((loc, i) => (
+                      <li key={i}>
+                        <button
+                          type="button"
+                          className="ce-location-item"
+                          onClick={() => vm.selectLocation(loc)}
+                        >
+                          {loc.display_name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {vm.form.address && (
+                <p className="ce-selected-location">{vm.form.address}</p>
+              )}
+            </>
+          ) : (
+            <RoutePointsEditor
+              routePoints={vm.form.routePoints}
+              locationQuery={vm.form.locationQuery}
+              isSearching={vm.locationSearching}
+              suggestions={vm.locationResults}
+              errorText={vm.errors.location}
+              disabled={busy}
+              onSearch={vm.handleLocationSearch}
+              onAddFromSuggestion={vm.addRoutePointFromSuggestion}
+              onAddFromCoordinate={vm.addRoutePointFromCoordinate}
+              onRemove={vm.removeRoutePoint}
+              onMove={vm.moveRoutePoint}
+              onUpdateLabel={vm.updateRoutePointLabel}
+            />
           )}
-          {vm.errors.location && (
+          {vm.form.locationType === 'POINT' && vm.errors.location && (
             <p className="field-error">{vm.errors.location}</p>
           )}
         </div>

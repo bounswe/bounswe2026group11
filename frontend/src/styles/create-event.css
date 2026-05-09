@@ -598,3 +598,295 @@
   color: #64748b;
   line-height: 1.4;
 }
+
+/* Location type toggle */
+.ce-location-type-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.ce-location-type-chip {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ce-location-type-chip:hover {
+  border-color: #111827;
+}
+
+.ce-location-type-chip.selected {
+  background: #111827;
+  border-color: #111827;
+  color: #ffffff;
+}
+
+/* Route editor */
+.ce-route-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ce-route-search-row {
+  position: relative;
+}
+
+.ce-route-search-spinner {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.ce-route-suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.ce-route-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  color: #111827;
+  transition: background 0.1s;
+}
+
+.ce-route-suggestion-item:hover {
+  background: #f3f4f6;
+}
+
+.ce-route-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.ce-route-suggestion-plus {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #111827;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ce-route-suggestion-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ce-route-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.ce-route-map-container {
+  height: 280px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.ce-route-map-surface {
+  width: 100%;
+  height: 100%;
+}
+
+.ce-route-map-placeholder {
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  color: #64748b;
+  background: #f1f5f9;
+  border-radius: 14px;
+  font-size: 14px;
+}
+
+.ce-route-list-header {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ce-route-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px dashed #d1d5db;
+  background: #f9fafb;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.ce-route-waypoints {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ce-route-waypoint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.ce-route-waypoint-index {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #7c3aed;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.ce-route-waypoint-index--start {
+  background: #16a34a;
+}
+
+.ce-route-waypoint-index--end {
+  background: #dc2626;
+}
+
+.ce-route-waypoint-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ce-route-waypoint-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ce-route-waypoint-coords {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.ce-route-waypoint-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.ce-route-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+}
+
+.ce-route-action-btn:hover:not(:disabled) {
+  border-color: #111827;
+  color: #111827;
+}
+
+.ce-route-action-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ce-route-action-btn--danger {
+  color: #dc2626;
+  font-size: 18px;
+}
+
+.ce-route-action-btn--danger:hover:not(:disabled) {
+  border-color: #dc2626;
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+/* Route markers on create event map */
+.ce-route-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ce-route-marker-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #7c3aed;
+  border: 3px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.ce-route-marker-dot--start {
+  background: #16a34a;
+}
+
+.ce-route-marker-dot--end {
+  background: #dc2626;
+}
+
+.ce-route-marker-number {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+}
