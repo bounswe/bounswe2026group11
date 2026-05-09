@@ -6,6 +6,7 @@ import {
   confirmEventImageUpload,
   joinEvent,
   requestJoinEvent,
+  getJoinRequestImageUploadUrl,
   listEventApprovedParticipants,
   listEventPendingJoinRequests,
   listEventInvitations,
@@ -273,36 +274,63 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     });
   }, []);
 
-  const handleRequestJoin = useCallback(async (message?: string) => {
-    if (!eventId || !token) return;
-    setJoinLoading(true);
-    setJoinError(null);
+  const handleRequestJoin = useCallback(
+    async (message?: string, imageFile?: File | null) => {
+      if (!eventId || !token) return;
+      setJoinLoading(true);
+      setJoinError(null);
 
-    try {
-      await requestJoinEvent(eventId, token, message);
-      markViewerPendingJoinRequest();
       try {
-        await refreshEventDetail();
-      } catch {
-        // Keep the optimistic pending state if the follow-up detail fetch is stale or fails.
+        let imageConfirmToken: string | undefined;
+        if (imageFile) {
+          const uploadInit = await getJoinRequestImageUploadUrl(eventId, token);
+          const { original, small } = await prepareAvatarBlobs(imageFile);
+          for (const instruction of uploadInit.uploads) {
+            const blob = instruction.variant === 'ORIGINAL' ? original : small;
+            const res = await fetch(instruction.url, {
+              method: instruction.method,
+              headers: instruction.headers,
+              body: blob,
+            });
+            if (!res.ok) {
+              throw new Error('Image upload failed. Please try again.');
+            }
+          }
+          imageConfirmToken = uploadInit.confirm_token;
+        }
+
+        await requestJoinEvent(eventId, token, {
+          message,
+          image_confirm_token: imageConfirmToken,
+        });
+        markViewerPendingJoinRequest();
+        try {
+          await refreshEventDetail();
+        } catch {
+          // Keep the optimistic pending state if the follow-up detail fetch is stale or fails.
+        }
+      } catch (err) {
+        if (err instanceof ApiError) {
+          const errorMap: Record<string, string> = {
+            already_participating: 'You are already participating in this event.',
+            already_requested: 'You already have a pending request for this event.',
+            event_join_not_allowed: 'This event does not accept join requests.',
+            host_cannot_join: 'You cannot request to join your own event.',
+            join_request_cooldown_active: 'You must wait before requesting again.',
+            image_upload_token_invalid: 'Image upload was rejected. Please try again.',
+          };
+          setJoinError(errorMap[err.code] ?? err.message);
+        } else if (err instanceof Error) {
+          setJoinError(err.message);
+        } else {
+          setJoinError('Failed to send join request. Please try again.');
+        }
+      } finally {
+        setJoinLoading(false);
       }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        const errorMap: Record<string, string> = {
-          already_participating: 'You are already participating in this event.',
-          already_requested: 'You already have a pending request for this event.',
-          event_join_not_allowed: 'This event does not accept join requests.',
-          host_cannot_join: 'You cannot request to join your own event.',
-          join_request_cooldown_active: 'You must wait before requesting again.',
-        };
-        setJoinError(errorMap[err.code] ?? err.message);
-      } else {
-        setJoinError('Failed to send join request. Please try again.');
-      }
-    } finally {
-      setJoinLoading(false);
-    }
-  }, [eventId, token, markViewerPendingJoinRequest, refreshEventDetail]);
+    },
+    [eventId, token, markViewerPendingJoinRequest, refreshEventDetail],
+  );
 
   const [moderatingId, setModeratingId] = useState<string | null>(null);
   const [moderateError, setModerateError] = useState<string | null>(null);

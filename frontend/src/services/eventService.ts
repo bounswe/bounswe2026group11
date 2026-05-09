@@ -15,6 +15,7 @@ import {
   EventHostContextSummary,
   JoinEventResponse,
   JoinRequestResponse,
+  RequestJoinRequestBody,
   ApproveJoinRequestResponse,
   RejectJoinRequestResponse,
   FavoriteEventsResponse,
@@ -166,11 +167,25 @@ export function leaveEvent(
 export function requestJoinEvent(
   eventId: string,
   token: string,
-  message?: string,
+  body: RequestJoinRequestBody = {},
 ): Promise<JoinRequestResponse> {
+  const payload: Record<string, string> = {};
+  if (body.message) payload.message = body.message;
+  if (body.image_confirm_token) payload.image_confirm_token = body.image_confirm_token;
   return apiPostAuth<JoinRequestResponse>(
     `/events/${eventId}/join-request`,
-    message ? { message } : {},
+    payload,
+    token,
+  );
+}
+
+export function getJoinRequestImageUploadUrl(
+  eventId: string,
+  token: string,
+): Promise<ImageUploadInitResponse> {
+  return apiPostAuth<ImageUploadInitResponse>(
+    `/events/${eventId}/join-request/image/upload-url`,
+    {},
     token,
   );
 }

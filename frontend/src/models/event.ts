@@ -182,6 +182,7 @@ export interface EventDetailPendingJoinRequest {
   join_request_id: string;
   status: string;
   message: string | null;
+  image_url: string | null;
   created_at: string;
   updated_at: string;
   user: EventDetailHostContextUser;
@@ -278,7 +279,13 @@ export interface JoinRequestResponse {
   join_request_id: string;
   event_id: string;
   status: string;
+  image_url?: string | null;
   created_at: string;
+}
+
+export interface RequestJoinRequestBody {
+  message?: string;
+  image_confirm_token?: string;
 }
 
 export interface ApproveJoinRequestResponse {

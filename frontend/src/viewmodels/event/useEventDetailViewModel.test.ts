@@ -14,6 +14,7 @@ vi.mock('@/services/eventService', () => ({
   getEventDetail: (...args: unknown[]) => mockGetEventDetail(...args),
   getEventHostContextSummary: (...args: unknown[]) => mockGetEventHostContextSummary(...args),
   getEventImageUploadUrl: vi.fn(),
+  getJoinRequestImageUploadUrl: vi.fn(),
   confirmEventImageUpload: vi.fn(),
   joinEvent: vi.fn(),
   requestJoinEvent: (...args: unknown[]) => mockRequestJoinEvent(...args),
