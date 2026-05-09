@@ -7,11 +7,12 @@ import * as favoriteService from '@/services/favoriteService';
 import * as profileService from '@/services/profileService';
 import * as invitationService from '@/services/invitationService';
 import { ApiError } from '@/services/api';
-import type {
+import {
   EventDetail,
   JoinEventResponse,
   LeaveEventResponse,
   RequestJoinResponse,
+  EventReportCategory,
 } from '@/models/event';
 import type { UserSummary } from '@/models/auth';
 import {
@@ -83,6 +84,8 @@ const mockListMyInvitations = jest.mocked(invitationService.listMyInvitations);
 const mockAcceptInvitation = jest.mocked(invitationService.acceptInvitation);
 const mockDeclineInvitation = jest.mocked(invitationService.declineInvitation);
 const mockGetJoinRequestImageUploadUrl = jest.mocked(eventService.getJoinRequestImageUploadUrl);
+const mockGetEventReportImageUploadUrl = jest.mocked(eventService.getEventReportImageUploadUrl);
+const mockReportEvent = jest.mocked(eventService.reportEvent);
 const mockUploadFileToPresignedUrl = jest.mocked(eventService.uploadFileToPresignedUrl);
 const mockWithdrawJoinRequest = jest.mocked(eventService.withdrawJoinRequest);
 const mockRevokeInvitation = jest.mocked(invitationService.revokeInvitation);
@@ -1805,6 +1808,131 @@ describe('useEventDetailViewModel', () => {
       expect(mockRevokeInvitation).toHaveBeenCalledWith(eventId, 'inv-123', 'mock-token');
       expect(mockGetEventHostContextSummary).toHaveBeenCalledTimes(3);
       expect(result.current.actionState).toBe('idle');
+    });
+  });
+
+  describe('Event Reporting', () => {
+    beforeEach(() => {
+      mockGetEventDetail.mockResolvedValue(publicEventFixture);
+    });
+
+    it('manages reporting state and handles success', async () => {
+      mockReportEvent.mockResolvedValue({
+        id: 'report-123',
+        event_id: 'event-uuid-001',
+        reporter_id: 'user-uuid-001',
+        category: EventReportCategory.SAFETY,
+        message: 'This event looks dangerous.',
+        created_at: new Date().toISOString(),
+      });
+
+      const { result } = renderHook(() => useEventDetailViewModel('event-uuid-001'));
+      await waitFor(() => expect(result.current.event).not.toBeNull());
+
+      act(() => {
+        result.current.setShowReportModal(true);
+        result.current.setReportCategory(EventReportCategory.SAFETY);
+        result.current.setReportMessage('This event looks dangerous.');
+      });
+
+      expect(result.current.reportCategory).toBe(EventReportCategory.SAFETY);
+      expect(result.current.reportMessage).toBe('This event looks dangerous.');
+
+      await act(async () => {
+        await result.current.handleReportEvent();
+      });
+
+      expect(mockReportEvent).toHaveBeenCalledWith(
+        'event-uuid-001',
+        {
+          report_category: EventReportCategory.SAFETY,
+          message: 'This event looks dangerous.',
+          image_confirm_token: null,
+        },
+        'mock-token',
+      );
+
+      expect(result.current.actionState).toBe('success_reported');
+      expect(result.current.showReportModal).toBe(false);
+      expect(result.current.reportCategory).toBeNull();
+      expect(result.current.reportMessage).toBe('');
+    });
+
+    it('handles duplicate report error', async () => {
+      mockReportEvent.mockRejectedValue(
+        new ApiError(409, { error: { code: 'DUPLICATE_REPORT', message: 'Already reported' } }),
+      );
+
+      const { result } = renderHook(() => useEventDetailViewModel('event-uuid-001'));
+      await waitFor(() => expect(result.current.event).not.toBeNull());
+
+      act(() => {
+        result.current.setShowReportModal(true);
+        result.current.setReportCategory(EventReportCategory.SPAM_OR_SCAM);
+        result.current.setReportMessage('Fake event');
+      });
+
+      await act(async () => {
+        await result.current.handleReportEvent();
+      });
+
+      expect(result.current.actionError).toBe('You have already reported this event.');
+      expect(result.current.actionState).toBe('idle');
+    });
+
+    it('supports optional image upload for reporting', async () => {
+      mockImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValue({
+        status: 'granted',
+        expires: 'never',
+        granted: true,
+        canAskAgain: true,
+      } as any);
+      mockImagePicker.launchImageLibraryAsync.mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file://report.jpg', width: 100, height: 100 }],
+      } as any);
+      mockImageManipulator.manipulateAsync.mockResolvedValue({
+        uri: 'file://prepared-report.jpg',
+      } as any);
+
+      mockGetEventReportImageUploadUrl.mockResolvedValue({
+        base_url: 'https://s3.com/report.jpg',
+        version: 1,
+        confirm_token: 'report-token-abc',
+        uploads: [
+          { variant: 'ORIGINAL', method: 'PUT', url: 'https://presigned.com/orig', headers: {} },
+          { variant: 'SMALL', method: 'PUT', url: 'https://presigned.com/small', headers: {} },
+        ],
+      });
+
+      mockReportEvent.mockResolvedValue({} as any);
+
+      const { result } = renderHook(() => useEventDetailViewModel('event-uuid-001'));
+      await waitFor(() => expect(result.current.event).not.toBeNull());
+
+      await act(async () => {
+        await result.current.pickReportImage();
+      });
+
+      expect(result.current.reportImageUri).toBe('file://prepared-report.jpg');
+
+      act(() => {
+        result.current.setReportCategory(EventReportCategory.OTHER);
+        result.current.setReportMessage('Test message');
+      });
+
+      await act(async () => {
+        await result.current.handleReportEvent();
+      });
+
+      expect(mockUploadFileToPresignedUrl).toHaveBeenCalledTimes(2);
+      expect(mockReportEvent).toHaveBeenCalledWith(
+        'event-uuid-001',
+        expect.objectContaining({
+          image_confirm_token: 'report-token-abc',
+        }),
+        'mock-token',
+      );
     });
   });
 });

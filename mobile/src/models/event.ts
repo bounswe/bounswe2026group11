@@ -363,3 +363,29 @@ export interface ImageUploadInitResponse {
   confirm_token: string;
   uploads: PresignedUpload[];
 }
+
+export enum EventReportCategory {
+  SAFETY = 'SAFETY',
+  HARASSMENT = 'HARASSMENT',
+  SPAM_OR_SCAM = 'SPAM_OR_SCAM',
+  INAPPROPRIATE_CONTENT = 'INAPPROPRIATE_CONTENT',
+  EVENT_NOT_AS_DESCRIBED = 'EVENT_NOT_AS_DESCRIBED',
+  ILLEGAL_OR_DANGEROUS = 'ILLEGAL_OR_DANGEROUS',
+  OTHER = 'OTHER',
+}
+
+export interface RequestReportEvent {
+  report_category: EventReportCategory;
+  message: string;
+  image_confirm_token?: string | null;
+}
+
+export interface ReportEventResponse {
+  id: string;
+  event_id: string;
+  reporter_id: string;
+  category: EventReportCategory;
+  message: string;
+  image_url?: string | null;
+  created_at: string;
+}
