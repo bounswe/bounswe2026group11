@@ -234,7 +234,7 @@ export default function RoutePointsEditor({
         </div>
       ) : (
         <div className="ce-route-map-placeholder">
-          Set <code>VITE_GOOGLE_MAPS_API_KEY</code> to enable the map for route creation.
+          Set <code>VITE_GOOGLE_MAPS_WEB_API_KEY</code> to enable the map for route creation.
         </div>
       )}
 

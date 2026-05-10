@@ -127,7 +127,7 @@ export default function EventDetailMiniMap({ location }: EventDetailMiniMapProps
   if (!isGoogleMapsConfigured()) {
     return (
       <div className="ed-map-surface ed-map-surface--placeholder" role="status">
-        <p>Map preview is unavailable. Configure VITE_GOOGLE_MAPS_API_KEY to view this location.</p>
+        <p>Map preview is unavailable. Configure VITE_GOOGLE_MAPS_WEB_API_KEY to view this location.</p>
       </div>
     );
   }

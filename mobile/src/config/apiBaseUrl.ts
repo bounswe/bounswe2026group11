@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
 
+const PRODUCTION_API_BASE_URL = 'https://www.socialeventmapper.com/api';
+
 /**
  * Base URL for the backend API (includes `/api` prefix).
  *
@@ -20,6 +22,10 @@ export function getApiBaseUrl(): string {
     return fromEnv.replace(/\/$/, '');
   }
 
+  if (process.env.EXPO_PUBLIC_APP_ENV === 'production') {
+    return PRODUCTION_API_BASE_URL;
+  }
+
   const host =
     Platform.OS === 'android'
       ? '10.0.2.2' // Android emulator → host machine (not localhost)
@@ -28,5 +34,5 @@ export function getApiBaseUrl(): string {
   return `http://${host}/api`;
 }
 
-/** Resolved once at startup; use `EXPO_PUBLIC_API_BASE_URL` to override. */
+/** Resolved once at startup; use `EXPO_PUBLIC_API_BASE_URL` for local overrides. */
 export const API_BASE_URL = getApiBaseUrl();
