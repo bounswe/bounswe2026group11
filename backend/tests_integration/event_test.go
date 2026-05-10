@@ -13,6 +13,7 @@ import (
 	invitationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/invitation"
 	joinrequestapp "github.com/bounswe/bounswe2026group11/backend/internal/application/join_request"
 	notificationapp "github.com/bounswe/bounswe2026group11/backend/internal/application/notification"
+	ratingapp "github.com/bounswe/bounswe2026group11/backend/internal/application/rating"
 	"github.com/bounswe/bounswe2026group11/backend/internal/domain"
 	"github.com/bounswe/bounswe2026group11/backend/tests_integration/common"
 	"github.com/google/uuid"
@@ -944,6 +945,136 @@ func TestDiscoverEventsReflectsFavoriteStateForCurrentUser(t *testing.T) {
 	}
 	if favoriteState[plainID.String()] {
 		t.Fatalf("expected event %s to not be favorited", plainID)
+	}
+}
+
+// TestDiscoverEventsHostScoreReflectsHostRatingCountAndScore proves that the
+// discovery card payload (DiscoverableEventItem.HostScore) surfaces the
+// host's cached aggregate from user_score with no drift as ratings accrue.
+// The other discovery tests cover routing/sorting/filtering shape; this one
+// is the per-issue value-assertion gap called out by #498.
+//
+// Setup: the host owns one ACTIVE event used as the discoverable card, plus
+// a parallel COMPLETED event that participants rate. Discovery must surface
+// the host's aggregated count on the ACTIVE card after each rating cycle:
+//
+//	0 ratings → HostedEventRatingCount = 0, FinalScore = nil
+//	1 rating  → HostedEventRatingCount = 1, FinalScore != nil
+//	3 ratings → HostedEventRatingCount = 3, FinalScore != nil
+func TestDiscoverEventsHostScoreReflectsHostRatingCountAndScore(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("host_for_count_assertion"))
+	rater1 := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("rater_one"))
+	rater2 := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("rater_two"))
+	rater3 := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("rater_three"))
+	categoryID := common.GivenEventCategory(t)
+	// Pick coordinates far from the other discovery tests' origins so the
+	// shared testcontainers DB does not bleed our seed events into their
+	// result sets when run with t.Parallel(). Izmir Konak square — well
+	// outside any other test's radius.
+	originLat := 38.4189
+	originLon := 27.1287
+
+	// Discoverable event: stays ACTIVE (not rateable, but rendered on the card).
+	discoverableID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Host Score Card Subject",
+		Description:  "active event whose card should reflect host_score updates",
+		CategoryID:   categoryID,
+		Lat:          38.4192,
+		Lon:          27.1290,
+		StartTime:    time.Now().UTC().Add(24 * time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+
+	// Rateable event: completed, hosted by the same host. Each rater submits
+	// against this one to drive the host's cached aggregate counts upward.
+	rateableID := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID:       host.ID,
+		Title:        "Completed Event for Rating",
+		Description:  "completed so participants can rate the host",
+		CategoryID:   categoryID,
+		Lat:          38.4195,
+		Lon:          27.1294,
+		StartTime:    time.Now().UTC().Add(-2 * time.Hour),
+		PrivacyLevel: domain.PrivacyPublic,
+	})
+	for _, rater := range []*domain.User{rater1, rater2, rater3} {
+		insertParticipation(t, rateableID, rater.ID, domain.ParticipationStatusApproved)
+	}
+	updateEventStatus(t, rateableID, string(domain.EventStatusCompleted))
+
+	// helper: discover and pluck the discoverable card so each phase can
+	// re-assert the host_score values without re-stating the input shape.
+	requireCard := func(t *testing.T, viewerID uuid.UUID) eventapp.DiscoverableEventItem {
+		t.Helper()
+		result, err := harness.Service.DiscoverEvents(context.Background(), viewerID, eventapp.DiscoverEventsInput{
+			Lat: &originLat,
+			Lon: &originLon,
+		})
+		if err != nil {
+			t.Fatalf("DiscoverEvents() error = %v", err)
+		}
+		for _, item := range result.Items {
+			if item.ID == discoverableID.String() {
+				return item
+			}
+		}
+		t.Fatalf("discoverable event %s not found in result (%d items)", discoverableID, len(result.Items))
+		return eventapp.DiscoverableEventItem{}
+	}
+
+	// when / then — phase 1: zero ratings
+	card := requireCard(t, rater1.ID)
+	if card.HostScore.HostedEventRatingCount != 0 {
+		t.Fatalf("phase 1: expected hosted_event_rating_count=0, got %d", card.HostScore.HostedEventRatingCount)
+	}
+	if card.HostScore.FinalScore != nil {
+		t.Fatalf("phase 1: expected final_score=nil with no ratings, got %v", *card.HostScore.FinalScore)
+	}
+
+	// when / then — phase 2: single rating
+	// Rating message validation enforces 10–100 chars when present; keep all
+	// strings comfortably above the lower bound.
+	rating1Msg := "Excellent host, recommended."
+	if _, err := harness.RatingService.UpsertEventRating(
+		context.Background(), rater1.ID, rateableID,
+		ratingapp.UpsertRatingInput{Rating: 5, Message: &rating1Msg},
+	); err != nil {
+		t.Fatalf("UpsertEventRating(rater1): %v", err)
+	}
+	card = requireCard(t, rater1.ID)
+	if card.HostScore.HostedEventRatingCount != 1 {
+		t.Fatalf("phase 2: expected hosted_event_rating_count=1, got %d", card.HostScore.HostedEventRatingCount)
+	}
+	if card.HostScore.FinalScore == nil {
+		t.Fatalf("phase 2: expected final_score!=nil after first rating")
+	}
+
+	// when / then — phase 3: three ratings
+	rating2Msg := "Solid hosting, would recommend."
+	rating3Msg := "Reasonable but had some issues."
+	if _, err := harness.RatingService.UpsertEventRating(
+		context.Background(), rater2.ID, rateableID,
+		ratingapp.UpsertRatingInput{Rating: 4, Message: &rating2Msg},
+	); err != nil {
+		t.Fatalf("UpsertEventRating(rater2): %v", err)
+	}
+	if _, err := harness.RatingService.UpsertEventRating(
+		context.Background(), rater3.ID, rateableID,
+		ratingapp.UpsertRatingInput{Rating: 3, Message: &rating3Msg},
+	); err != nil {
+		t.Fatalf("UpsertEventRating(rater3): %v", err)
+	}
+	card = requireCard(t, rater1.ID)
+	if card.HostScore.HostedEventRatingCount != 3 {
+		t.Fatalf("phase 3: expected hosted_event_rating_count=3, got %d", card.HostScore.HostedEventRatingCount)
+	}
+	if card.HostScore.FinalScore == nil {
+		t.Fatalf("phase 3: expected final_score!=nil with three ratings")
 	}
 }
 
