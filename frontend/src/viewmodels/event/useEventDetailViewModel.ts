@@ -253,6 +253,27 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     fetchDetail();
   }, [fetchDetail]);
 
+  const markViewerJoined = useCallback(() => {
+    setEvent((prev) => {
+      if (!prev) return prev;
+
+      const wasJoined = prev.viewer_context.participation_status === 'JOINED' ||
+        prev.viewer_context.participation_status === 'APPROVED';
+
+      return {
+        ...prev,
+        approved_participant_count: wasJoined
+          ? prev.approved_participant_count
+          : prev.approved_participant_count + 1,
+        viewer_context: {
+          ...prev.viewer_context,
+          participation_status: 'JOINED',
+          join_request_status: null,
+        },
+      };
+    });
+  }, []);
+
   const handleJoin = useCallback(async () => {
     if (!eventId || !token) return;
     setJoinLoading(true);
@@ -260,7 +281,12 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
 
     try {
       await joinEvent(eventId, token);
-      await refreshEventDetail();
+      try {
+        await refreshEventDetail();
+      } catch {
+        // Keep the optimistic joined state if the follow-up detail fetch is stale or fails.
+      }
+      markViewerJoined();
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
@@ -276,7 +302,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } finally {
       setJoinLoading(false);
     }
-  }, [eventId, token, refreshEventDetail]);
+  }, [eventId, token, markViewerJoined, refreshEventDetail]);
 
   const handleLeave = useCallback(async () => {
     if (!eventId || !token) return;
