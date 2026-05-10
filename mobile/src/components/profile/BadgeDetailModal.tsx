@@ -290,7 +290,7 @@ const makeStyles = (t: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   closeButtonText: {
-    color: '#FFF',
+    color: t.textOnPrimary,
     fontSize: 16,
     fontWeight: '700',
   },

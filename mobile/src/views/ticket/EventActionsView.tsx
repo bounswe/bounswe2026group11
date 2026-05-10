@@ -26,6 +26,15 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const vm = useEventActionsViewModel(eventId);
 
+  const isSameDay = useMemo(() => {
+    if (!vm.event?.start_time || !vm.event?.end_time) return true;
+    const start = new Date(vm.event.start_time);
+    const end = new Date(vm.event.end_time);
+    return start.getFullYear() === end.getFullYear() &&
+           start.getMonth() === end.getMonth() &&
+           start.getDate() === end.getDate();
+  }, [vm.event?.start_time, vm.event?.end_time]);
+
   const handlePrimaryAction = React.useCallback(() => {
     if (vm.canScanTicket) {
       router.push(`/event/${eventId}/scan-ticket` as Href);
@@ -123,9 +132,16 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
           <View style={styles.metaGroup}>
             <View style={styles.metaRow}>
               <Feather name="calendar" size={21} color={theme.textSecondary} />
-              <Text style={styles.metaText}>
-                {formatEventDateLabel(event.start_time, event.end_time)}
-              </Text>
+              <View style={styles.dateCol}>
+                <Text style={styles.metaText}>
+                  {formatEventDateLabel(event.start_time, isSameDay ? event.end_time : null)}
+                </Text>
+                {!isSameDay && event.end_time && (
+                  <Text style={styles.metaTextSecondary}>
+                    • {formatEventDateLabel(event.end_time, null)}
+                  </Text>
+                )}
+              </View>
             </View>
             <View style={styles.metaRow}>
               <Feather name="map-pin" size={21} color={theme.textSecondary} />
@@ -158,6 +174,7 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
               <Text style={styles.hostName}>{hostName}</Text>
               <Text style={styles.hostLabel}>Event host</Text>
             </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
           </TouchableOpacity>
 
           {vm.primaryActionLabel ? (
@@ -273,8 +290,18 @@ function makeStyles(t: Theme) {
       flex: 1,
       fontSize: 17,
       lineHeight: 24,
+      fontWeight: '600',
+      color: t.text,
+    },
+    metaTextSecondary: {
+      fontSize: 15,
+      lineHeight: 20,
       fontWeight: '500',
       color: t.textSecondary,
+      marginTop: 2,
+    },
+    dateCol: {
+      flex: 1,
     },
     descriptionText: {
       marginTop: 26,
