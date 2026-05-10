@@ -2964,16 +2964,320 @@ func TestRequestJoinReactivatesRejectedRequestAfterCooldown(t *testing.T) {
 	}
 }
 
+// genderPtr returns a heap-allocated EventParticipantGender for use in test
+// fixtures that take *domain.EventParticipantGender pointers.
+func genderPtr(g domain.EventParticipantGender) *domain.EventParticipantGender { return &g }
+
+// TestDiscoverEventsAnonymousHidesAgeRestrictedEvents asserts the anonymous
+// (uuid.Nil) discovery path applies the strict eligibility policy from #501:
+// only events with no age/gender restriction at all are returned.
+func TestDiscoverEventsAnonymousHidesAgeRestrictedEvents(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("host_eli_anon_age"))
+	categoryID := common.GivenEventCategory(t)
+	originLat := 36.8969 // Antalya Konyaalti
+	originLon := 30.7133
+
+	openEvent := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID: host.ID, Title: "Eli Anon Age Open", Description: "no age restriction",
+		CategoryID: categoryID, Lat: 36.8975, Lon: 30.7140,
+		StartTime: time.Now().UTC().Add(24 * time.Hour), PrivacyLevel: domain.PrivacyPublic,
+	})
+	restrictedEvent := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID: host.ID, Title: "Eli Anon Age 21+", Description: "age 21 restriction",
+		CategoryID: categoryID, Lat: 36.8980, Lon: 30.7145,
+		StartTime: time.Now().UTC().Add(25 * time.Hour), PrivacyLevel: domain.PrivacyPublic,
+		MinimumAge: common.IntPtr(21),
+	})
+
+	// when — anonymous discovery (uuid.Nil)
+	result, err := harness.Service.DiscoverEvents(context.Background(), uuid.Nil, eventapp.DiscoverEventsInput{
+		Lat: &originLat, Lon: &originLon,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	gotIDs := discoverEventIDs(result.Items)
+	if !contains(gotIDs, openEvent.String()) {
+		t.Errorf("expected open event %s in anonymous result, got %v", openEvent, gotIDs)
+	}
+	if contains(gotIDs, restrictedEvent.String()) {
+		t.Errorf("anonymous result should hide age-restricted event %s, got %v", restrictedEvent, gotIDs)
+	}
+}
+
+// TestDiscoverEventsAnonymousHidesGenderRestrictedEvents mirrors the age
+// case for preferred_gender — same strict policy.
+func TestDiscoverEventsAnonymousHidesGenderRestrictedEvents(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("host_eli_anon_gender"))
+	categoryID := common.GivenEventCategory(t)
+	originLat := 36.8969
+	originLon := 30.7250
+
+	openEvent := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID: host.ID, Title: "Eli Anon Gender Open", Description: "no gender restriction",
+		CategoryID: categoryID, Lat: 36.8975, Lon: 30.7258,
+		StartTime: time.Now().UTC().Add(24 * time.Hour), PrivacyLevel: domain.PrivacyPublic,
+	})
+	restrictedEvent := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID: host.ID, Title: "Eli Anon Female Only", Description: "female-only",
+		CategoryID: categoryID, Lat: 36.8980, Lon: 30.7265,
+		StartTime: time.Now().UTC().Add(25 * time.Hour), PrivacyLevel: domain.PrivacyPublic,
+		PreferredGender: genderPtr(domain.GenderFemale),
+	})
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), uuid.Nil, eventapp.DiscoverEventsInput{
+		Lat: &originLat, Lon: &originLon,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	gotIDs := discoverEventIDs(result.Items)
+	if !contains(gotIDs, openEvent.String()) {
+		t.Errorf("expected open event %s in anonymous result, got %v", openEvent, gotIDs)
+	}
+	if contains(gotIDs, restrictedEvent.String()) {
+		t.Errorf("anonymous result should hide gender-restricted event %s, got %v", restrictedEvent, gotIDs)
+	}
+}
+
+// TestDiscoverEventsAuthedAdultSeesAgeRestrictedEvent verifies that an
+// authenticated viewer who satisfies the minimum age sees the restricted
+// event in their result set.
+func TestDiscoverEventsAuthedAdultSeesAgeRestrictedEvent(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("host_eli_adult"))
+	adult := common.GivenUser(t, harness.AuthRepo,
+		common.WithUserUsername("viewer_adult"),
+		common.WithUserBirthDate(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
+	)
+	categoryID := common.GivenEventCategory(t)
+	originLat := 40.1885 // Bursa Osmangazi
+	originLon := 29.0610
+
+	restrictedEvent := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID: host.ID, Title: "Eli Adult 21+", Description: "age 21 restriction",
+		CategoryID: categoryID, Lat: 40.1890, Lon: 29.0615,
+		StartTime: time.Now().UTC().Add(24 * time.Hour), PrivacyLevel: domain.PrivacyPublic,
+		MinimumAge: common.IntPtr(21),
+	})
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), adult.ID, eventapp.DiscoverEventsInput{
+		Lat: &originLat, Lon: &originLon,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	if !contains(discoverEventIDs(result.Items), restrictedEvent.String()) {
+		t.Errorf("adult viewer should see age-restricted event %s, got %v", restrictedEvent, discoverEventIDs(result.Items))
+	}
+}
+
+// TestDiscoverEventsAuthedMinorHidesAgeRestrictedEvent verifies that an
+// authenticated viewer who does NOT meet minimum_age has the event hidden.
+func TestDiscoverEventsAuthedMinorHidesAgeRestrictedEvent(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("host_eli_minor"))
+	minor := common.GivenUser(t, harness.AuthRepo,
+		common.WithUserUsername("viewer_minor"),
+		common.WithUserBirthDate(time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC)),
+	)
+	categoryID := common.GivenEventCategory(t)
+	originLat := 40.1885
+	originLon := 29.0750
+
+	restrictedEvent := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID: host.ID, Title: "Eli Minor 21+", Description: "age 21 restriction",
+		CategoryID: categoryID, Lat: 40.1890, Lon: 29.0755,
+		StartTime: time.Now().UTC().Add(24 * time.Hour), PrivacyLevel: domain.PrivacyPublic,
+		MinimumAge: common.IntPtr(21),
+	})
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), minor.ID, eventapp.DiscoverEventsInput{
+		Lat: &originLat, Lon: &originLon,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	if contains(discoverEventIDs(result.Items), restrictedEvent.String()) {
+		t.Errorf("minor viewer should NOT see age-restricted event %s, got %v", restrictedEvent, discoverEventIDs(result.Items))
+	}
+}
+
+// TestDiscoverEventsAuthedGenderMatchSeesAndMismatchHides covers the two
+// gender outcomes in one fixture: a FEMALE viewer sees the female-only
+// event and not the male-only event.
+func TestDiscoverEventsAuthedGenderMatchSeesAndMismatchHides(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("host_eli_gender_match"))
+	female := common.GivenUser(t, harness.AuthRepo,
+		common.WithUserUsername("viewer_female"),
+		common.WithUserGender("FEMALE"),
+	)
+	categoryID := common.GivenEventCategory(t)
+	originLat := 40.1885
+	originLon := 29.0900
+
+	femaleOnly := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID: host.ID, Title: "Eli Female Only", Description: "female only",
+		CategoryID: categoryID, Lat: 40.1890, Lon: 29.0905,
+		StartTime: time.Now().UTC().Add(24 * time.Hour), PrivacyLevel: domain.PrivacyPublic,
+		PreferredGender: genderPtr(domain.GenderFemale),
+	})
+	maleOnly := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID: host.ID, Title: "Eli Male Only", Description: "male only",
+		CategoryID: categoryID, Lat: 40.1895, Lon: 29.0910,
+		StartTime: time.Now().UTC().Add(25 * time.Hour), PrivacyLevel: domain.PrivacyPublic,
+		PreferredGender: genderPtr(domain.GenderMale),
+	})
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), female.ID, eventapp.DiscoverEventsInput{
+		Lat: &originLat, Lon: &originLon,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	gotIDs := discoverEventIDs(result.Items)
+	if !contains(gotIDs, femaleOnly.String()) {
+		t.Errorf("FEMALE viewer should see female-only event %s, got %v", femaleOnly, gotIDs)
+	}
+	if contains(gotIDs, maleOnly.String()) {
+		t.Errorf("FEMALE viewer should NOT see male-only event %s, got %v", maleOnly, gotIDs)
+	}
+}
+
+// TestDiscoverEventsAuthedMissingBirthDateSeesAgeRestrictedEvent documents
+// the generous policy for incomplete profiles: events whose restriction is
+// on a dimension the viewer hasn't filled in are still returned. The user
+// will hit profile_incomplete on join attempt — better UX than silent hide.
+func TestDiscoverEventsAuthedMissingBirthDateSeesAgeRestrictedEvent(t *testing.T) {
+	t.Parallel()
+
+	// given — viewer has no birth_date
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("host_eli_no_dob"))
+	viewer := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("viewer_no_dob"))
+	categoryID := common.GivenEventCategory(t)
+	originLat := 40.1885
+	originLon := 29.1050
+
+	restrictedEvent := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID: host.ID, Title: "Eli No DOB 21+", Description: "age 21 restriction",
+		CategoryID: categoryID, Lat: 40.1890, Lon: 29.1055,
+		StartTime: time.Now().UTC().Add(24 * time.Hour), PrivacyLevel: domain.PrivacyPublic,
+		MinimumAge: common.IntPtr(21),
+	})
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat: &originLat, Lon: &originLon,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	if !contains(discoverEventIDs(result.Items), restrictedEvent.String()) {
+		t.Errorf("viewer with no birth_date should still see age-restricted event %s (generous policy), got %v", restrictedEvent, discoverEventIDs(result.Items))
+	}
+}
+
+// TestDiscoverEventsAuthedMissingGenderSeesGenderRestrictedEvent — same
+// generous policy for viewers without a stored gender.
+func TestDiscoverEventsAuthedMissingGenderSeesGenderRestrictedEvent(t *testing.T) {
+	t.Parallel()
+
+	// given — viewer has no gender
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("host_eli_no_gender"))
+	viewer := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("viewer_no_gender"))
+	categoryID := common.GivenEventCategory(t)
+	originLat := 40.1885
+	originLon := 29.1200
+
+	restrictedEvent := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID: host.ID, Title: "Eli No Gender Female Only", Description: "female only",
+		CategoryID: categoryID, Lat: 40.1890, Lon: 29.1205,
+		StartTime: time.Now().UTC().Add(24 * time.Hour), PrivacyLevel: domain.PrivacyPublic,
+		PreferredGender: genderPtr(domain.GenderFemale),
+	})
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), viewer.ID, eventapp.DiscoverEventsInput{
+		Lat: &originLat, Lon: &originLon,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	if !contains(discoverEventIDs(result.Items), restrictedEvent.String()) {
+		t.Errorf("viewer with no gender should still see gender-restricted event %s (generous policy), got %v", restrictedEvent, discoverEventIDs(result.Items))
+	}
+}
+
+// discoverEventIDs and contains are tiny helpers used by the eligibility
+// tests above to assert presence/absence of specific event ids in a
+// discovery result without caring about ordering or other items.
+func discoverEventIDs(items []eventapp.DiscoverableEventItem) []string {
+	out := make([]string, len(items))
+	for i, it := range items {
+		out[i] = it.ID
+	}
+	return out
+}
+
+func contains(haystack []string, needle string) bool {
+	for _, s := range haystack {
+		if s == needle {
+			return true
+		}
+	}
+	return false
+}
+
 type discoveryEventSeed struct {
-	HostID       uuid.UUID
-	Title        string
-	Description  string
-	CategoryID   int
-	Lat          float64
-	Lon          float64
-	StartTime    time.Time
-	PrivacyLevel domain.EventPrivacyLevel
-	Tags         []string
+	HostID          uuid.UUID
+	Title           string
+	Description     string
+	CategoryID      int
+	Lat             float64
+	Lon             float64
+	StartTime       time.Time
+	PrivacyLevel    domain.EventPrivacyLevel
+	Tags            []string
+	MinimumAge      *int
+	PreferredGender *domain.EventParticipantGender
 }
 
 type routeDiscoveryEventSeed struct {
@@ -2996,15 +3300,17 @@ func createDiscoveryEvent(t *testing.T, harness *common.EventHarness, seed disco
 	}
 
 	result, err := harness.Service.CreateEvent(context.Background(), seed.HostID, eventapp.CreateEventInput{
-		Title:        seed.Title,
-		Description:  common.StringPtr(seed.Description),
-		CategoryID:   &seed.CategoryID,
-		LocationType: domain.LocationPoint,
-		Lat:          &seed.Lat,
-		Lon:          &seed.Lon,
-		StartTime:    createStartTime,
-		PrivacyLevel: seed.PrivacyLevel,
-		Tags:         seed.Tags,
+		Title:           seed.Title,
+		Description:     common.StringPtr(seed.Description),
+		CategoryID:      &seed.CategoryID,
+		LocationType:    domain.LocationPoint,
+		Lat:             &seed.Lat,
+		Lon:             &seed.Lon,
+		StartTime:       createStartTime,
+		PrivacyLevel:    seed.PrivacyLevel,
+		Tags:            seed.Tags,
+		MinimumAge:      seed.MinimumAge,
+		PreferredGender: seed.PreferredGender,
 	})
 	if err != nil {
 		t.Fatalf("CreateEvent() discovery seed error = %v", err)

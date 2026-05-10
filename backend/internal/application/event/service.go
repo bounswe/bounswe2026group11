@@ -242,6 +242,12 @@ func (s *Service) DiscoverEvents(ctx context.Context, userID uuid.UUID, input Di
 	}
 	params.FilterFingerprint = fingerprint
 	params.RepositoryFetchLimit = params.Limit + 1
+	// Eligibility filtering is derived from the viewer (anonymous vs auth'd
+	// + their stored age/gender), not from query input, so it deliberately
+	// does NOT enter FilterFingerprint. Two viewers with different profiles
+	// see different result sets but each one paginates consistently.
+	params.AnonymousViewer = userID == uuid.Nil
+	params.Now = s.now().UTC()
 
 	if params.CursorToken != "" {
 		cursor, err := decodeDiscoverEventsCursor(params.CursorToken)

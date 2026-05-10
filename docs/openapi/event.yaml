@@ -2290,6 +2290,16 @@ paths:
         - `is_favorited` is resolved for the authenticated caller; unauthenticated callers always
           receive `is_favorited: false`.
 
+        Eligibility filtering (issue #501):
+        - **Anonymous callers** see only events with no `minimum_age` or `preferred_gender` restriction.
+          Events with any audience restriction are completely hidden until the caller authenticates.
+        - **Authenticated callers** see events whose restrictions they satisfy (age computed from
+          `birth_date`; gender matched directly), AND — generously — events whose restriction is on a
+          dimension the viewer hasn't filled in (e.g. `minimum_age=21` with `birth_date IS NULL`). The
+          join attempt for those events will then return `400 profile_incomplete`, surfacing the gap to
+          the user instead of silently hiding the event.
+        - Filtering happens in SQL before pagination, so cursors and page sizes remain consistent.
+
         Sorting defaults:
         - If `q` is omitted and `sort_by` is omitted, sorting defaults to `START_TIME`.
         - If `q` is present and `sort_by` is omitted, sorting defaults to `RELEVANCE`.
