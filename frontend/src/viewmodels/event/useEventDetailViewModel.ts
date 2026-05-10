@@ -21,6 +21,7 @@ import {
   upsertEventRating,
   upsertParticipantRating,
   leaveEvent,
+  reconfirmEventParticipation,
   createEventReport,
 } from '@/services/eventService';
 import type {
@@ -48,6 +49,10 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   const [approvedParticipantsLoading, setApprovedParticipantsLoading] = useState(false);
   const [approvedParticipantsNextCursor, setApprovedParticipantsNextCursor] = useState<string | null>(null);
   const [approvedParticipantsHasNext, setApprovedParticipantsHasNext] = useState(false);
+  const [pendingParticipants, setPendingParticipants] = useState<EventDetailApprovedParticipant[]>([]);
+  const [pendingParticipantsLoading, setPendingParticipantsLoading] = useState(false);
+  const [pendingParticipantsNextCursor, setPendingParticipantsNextCursor] = useState<string | null>(null);
+  const [pendingParticipantsHasNext, setPendingParticipantsHasNext] = useState(false);
   const [pendingJoinRequests, setPendingJoinRequests] = useState<EventDetailPendingJoinRequest[]>([]);
   const [pendingJoinRequestsLoading, setPendingJoinRequestsLoading] = useState(false);
   const [pendingJoinRequestsNextCursor, setPendingJoinRequestsNextCursor] = useState<string | null>(null);
@@ -77,6 +82,9 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportSuccessMessage, setReportSuccessMessage] = useState<string | null>(null);
+  const [reconfirmLoading, setReconfirmLoading] = useState(false);
+  const [reconfirmError, setReconfirmError] = useState<string | null>(null);
+  const [reconfirmSuccessMessage, setReconfirmSuccessMessage] = useState<string | null>(null);
 
   useEffect(
     () => () => {
@@ -100,6 +108,9 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     setApprovedParticipants([]);
     setApprovedParticipantsNextCursor(null);
     setApprovedParticipantsHasNext(false);
+    setPendingParticipants([]);
+    setPendingParticipantsNextCursor(null);
+    setPendingParticipantsHasNext(false);
     setPendingJoinRequests([]);
     setPendingJoinRequestsNextCursor(null);
     setPendingJoinRequestsHasNext(false);
@@ -133,6 +144,23 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
       setApprovedParticipantsHasNext(response.page_info.has_next);
     } finally {
       setApprovedParticipantsLoading(false);
+    }
+  }, [eventId, token]);
+
+  const refreshPendingParticipants = useCallback(async (cursor?: string | null, append = false) => {
+    if (!eventId || !token) return;
+    setPendingParticipantsLoading(true);
+    try {
+      const response = await listEventApprovedParticipants(eventId, token, {
+        limit: hostCollectionPageSize,
+        cursor,
+        status: 'PENDING',
+      });
+      setPendingParticipants((prev) => append ? [...prev, ...response.items] : response.items);
+      setPendingParticipantsNextCursor(response.page_info.next_cursor);
+      setPendingParticipantsHasNext(response.page_info.has_next);
+    } finally {
+      setPendingParticipantsLoading(false);
     }
   }, [eventId, token]);
 
@@ -172,6 +200,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     await Promise.all([
       refreshHostContextSummary(),
       refreshApprovedParticipants(undefined, false),
+      refreshPendingParticipants(undefined, false),
       refreshPendingJoinRequests(undefined, false),
       refreshInvitations(undefined, false),
     ]);
@@ -179,6 +208,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     refreshApprovedParticipants,
     refreshHostContextSummary,
     refreshInvitations,
+    refreshPendingParticipants,
     refreshPendingJoinRequests,
   ]);
 
@@ -267,6 +297,47 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     }
   }, [eventId, token, refreshEventDetail]);
 
+  const handleReconfirmParticipation = useCallback(async () => {
+    if (!eventId || !token) return;
+    setReconfirmLoading(true);
+    setReconfirmError(null);
+    setReconfirmSuccessMessage(null);
+
+    try {
+      const response = await reconfirmEventParticipation(eventId, token);
+      await refreshEventDetail();
+      setEvent((prev) => prev
+        ? {
+            ...prev,
+            viewer_context: {
+              ...prev.viewer_context,
+              participation_status: 'JOINED',
+              join_request_status: null,
+              needs_reconfirmation: false,
+              last_confirmed_event_version: response.last_confirmed_event_version,
+              latest_event_version: response.latest_event_version,
+              event_diff: null,
+            },
+          }
+        : prev);
+      setReconfirmSuccessMessage('Attendance reconfirmed.');
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const errorMap: Record<string, string> = {
+          participation_reconfirm_not_allowed:
+            'This attendance update can no longer be reconfirmed. Please review the latest event status.',
+          event_not_joinable: 'This event is no longer accepting attendance reconfirmations.',
+          host_cannot_join: 'Hosts do not need to reconfirm their own event.',
+        };
+        setReconfirmError(errorMap[err.code] ?? err.message);
+      } else {
+        setReconfirmError('Failed to reconfirm your attendance. Please try again.');
+      }
+    } finally {
+      setReconfirmLoading(false);
+    }
+  }, [eventId, token, refreshEventDetail]);
+
   const markViewerPendingJoinRequest = useCallback(() => {
     setEvent((prev) => {
       if (!prev) return prev;
@@ -275,7 +346,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         ...prev,
         viewer_context: {
           ...prev.viewer_context,
-          participation_status: 'PENDING',
+          join_request_status: 'PENDING',
         },
       };
     });
@@ -310,12 +381,12 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
           message,
           image_confirm_token: imageConfirmToken,
         });
-        markViewerPendingJoinRequest();
         try {
           await refreshEventDetail();
         } catch {
           // Keep the optimistic pending state if the follow-up detail fetch is stale or fails.
         }
+        markViewerPendingJoinRequest();
       } catch (err) {
         if (err instanceof ApiError) {
           const errorMap: Record<string, string> = {
@@ -351,23 +422,22 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
 
     try {
       await cancelMyJoinRequest(eventId, token);
-      // Optimistically flip viewer state back to NONE so the join CTA reappears.
-      setEvent((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          viewer_context: {
-            ...prev.viewer_context,
-            participation_status: 'NONE',
-          },
-        };
-      });
       // Best-effort refresh — server is authoritative for any drift.
       try {
         await refreshEventDetail();
       } catch {
         // Keep optimistic NONE state if the follow-up fetch fails.
       }
+      setEvent((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          viewer_context: {
+            ...prev.viewer_context,
+            join_request_status: null,
+          },
+        };
+      });
     } catch (err) {
       if (err instanceof ApiError) {
         // 409 typically means the request was already handled (approved/rejected) — refetch
@@ -721,6 +791,16 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     refreshApprovedParticipants,
   ]);
 
+  const loadMorePendingParticipants = useCallback(async () => {
+    if (!pendingParticipantsHasNext || !pendingParticipantsNextCursor || pendingParticipantsLoading) return;
+    await refreshPendingParticipants(pendingParticipantsNextCursor, true);
+  }, [
+    pendingParticipantsHasNext,
+    pendingParticipantsLoading,
+    pendingParticipantsNextCursor,
+    refreshPendingParticipants,
+  ]);
+
   const loadMorePendingJoinRequests = useCallback(async () => {
     if (!pendingJoinRequestsHasNext || !pendingJoinRequestsNextCursor || pendingJoinRequestsLoading) return;
     await refreshPendingJoinRequests(pendingJoinRequestsNextCursor, true);
@@ -781,6 +861,9 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     approvedParticipants,
     approvedParticipantsLoading,
     approvedParticipantsHasNext,
+    pendingParticipants,
+    pendingParticipantsLoading,
+    pendingParticipantsHasNext,
     pendingJoinRequests,
     pendingJoinRequestsLoading,
     pendingJoinRequestsHasNext,
@@ -811,11 +894,15 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     reportLoading,
     reportError,
     reportSuccessMessage,
+    reconfirmLoading,
+    reconfirmError,
+    reconfirmSuccessMessage,
     handleFavoriteToggle,
     handleReportEvent,
     retry: fetchDetail,
     handleJoin,
     handleLeave,
+    handleReconfirmParticipation,
     handleRequestJoin,
     cancelJoinRequestLoading,
     cancelJoinRequestError,
@@ -829,6 +916,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     handleComplete,
     dismissJoinError,
     dismissLeaveError,
+    dismissReconfirmError: () => setReconfirmError(null),
+    dismissReconfirmSuccess: () => setReconfirmSuccessMessage(null),
     dismissViewerRatingError,
     dismissParticipantRatingError,
     dismissModerateError,
@@ -843,6 +932,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     dismissReportError,
     dismissReportSuccess,
     loadMoreApprovedParticipants,
+    loadMorePendingParticipants,
     loadMorePendingJoinRequests,
     loadMoreInvitations,
   };

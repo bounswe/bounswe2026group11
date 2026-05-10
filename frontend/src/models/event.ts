@@ -47,6 +47,35 @@ export interface CreateEventResponse {
   created_at: string;
 }
 
+export interface UpdateEventRequest {
+  title?: string;
+  description?: string | null;
+  category_id?: number | null;
+  address?: string | null;
+  lat?: number;
+  lon?: number;
+  location_type?: LocationType;
+  route_points?: RoutePoint[];
+  start_time?: string;
+  end_time?: string | null;
+  capacity?: number | null;
+  constraints?: EventConstraint[];
+}
+
+export interface UpdateEventResponse {
+  id: string;
+  title: string;
+  privacy_level: PrivacyLevel;
+  status: 'ACTIVE';
+  start_time: string;
+  end_time?: string | null;
+  version_no: number;
+  reconfirmation_required: boolean;
+  reconfirmation_triggered_fields: string[];
+  participants_marked_pending: number;
+  updated_at: string;
+}
+
 export interface CategoryItem {
   id: number;
   name: string;
@@ -163,7 +192,26 @@ export interface EventDetailEmbeddedRating {
 export interface EventDetailViewerContext {
   is_host: boolean;
   is_favorited: boolean;
-  participation_status: 'JOINED' | 'PENDING' | 'INVITED' | 'NONE' | 'LEAVED' | 'CANCELED';
+  participation_status: 'APPROVED' | 'JOINED' | 'PENDING' | 'INVITED' | 'NONE' | 'LEAVED' | 'CANCELED' | null;
+  join_request_status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED' | null;
+  invitation_status?: string | null;
+  needs_reconfirmation?: boolean;
+  last_confirmed_event_version?: number | null;
+  latest_event_version?: number;
+  event_diff?: EventVersionDiff | null;
+}
+
+export interface EventVersionChange {
+  field: string;
+  old_value: unknown;
+  new_value: unknown;
+}
+
+export interface EventVersionDiff {
+  from_version_no: number;
+  to_version_no: number;
+  changed_fields: string[];
+  changes: EventVersionChange[];
 }
 
 export interface EventDetailHostContextUser {
@@ -223,6 +271,7 @@ export interface EventCollectionPageInfo {
 
 export interface EventDetailResponse {
   id: string;
+  version_no?: number;
   title: string;
   description: string | null;
   image_url: string | null;
@@ -309,6 +358,15 @@ export interface RejectJoinRequestResponse {
   status: string;
   updated_at: string;
   cooldown_ends_at: string;
+}
+
+export interface ReconfirmParticipationResponse {
+  participation_id: string;
+  event_id: string;
+  status: string;
+  reconfirmed_at: string;
+  last_confirmed_event_version: number;
+  latest_event_version: number;
 }
 
 export interface FavoriteEventItem {
