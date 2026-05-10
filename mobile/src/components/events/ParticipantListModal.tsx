@@ -15,6 +15,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
 import { EventDetailApprovedParticipant } from '@/models/event';
+import { useTheme, type Theme } from '@/theme';
 
 const FEEDBACK_MIN_LENGTH = 10;
 const FEEDBACK_MAX_LENGTH = 100;
@@ -53,10 +54,12 @@ function StarRatingInput({
   value,
   onChange,
   disabled,
+  styles,
 }: {
   value: number;
   onChange: (value: number) => void;
   disabled?: boolean;
+  styles: ReturnType<typeof makeStyles>;
 }) {
   return (
     <View style={styles.starRow}>
@@ -86,6 +89,8 @@ function ParticipantRow({
   onSubmitRating,
   onDismissRatingError,
   onCloseModal,
+  theme,
+  styles,
 }: {
   participant: EventDetailApprovedParticipant;
   canRateParticipants: boolean;
@@ -94,6 +99,8 @@ function ParticipantRow({
   onSubmitRating: (participantUserId: string, rating: number, message?: string) => void;
   onDismissRatingError: () => void;
   onCloseModal: () => void;
+  theme: Theme;
+  styles: ReturnType<typeof makeStyles>;
 }) {
   const existingRating = participant.host_rating;
   const [isEditing, setIsEditing] = React.useState(false);
@@ -147,7 +154,7 @@ function ParticipantRow({
           />
         ) : (
           <View style={styles.avatarFallback}>
-            <Feather name="user" size={20} color="#9CA3AF" />
+            <Feather name="user" size={20} color={theme.textTertiary} />
           </View>
         )}
 
@@ -207,7 +214,12 @@ function ParticipantRow({
           </Text>
           <Text style={styles.inlineEditorSubtitle}>1 to 5 stars</Text>
 
-          <StarRatingInput value={rating} onChange={setRating} disabled={isLoading} />
+          <StarRatingInput
+            value={rating}
+            onChange={setRating}
+            disabled={isLoading}
+            styles={styles}
+          />
 
           <TextInput
             style={[
@@ -218,7 +230,7 @@ function ParticipantRow({
             value={message}
             onChangeText={setMessage}
             placeholder="Optional note about reliability, communication, or overall experience."
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.placeholder}
             maxLength={FEEDBACK_MAX_LENGTH}
             multiline
             numberOfLines={3}
@@ -256,7 +268,7 @@ function ParticipantRow({
               activeOpacity={0.85}
             >
               {isLoading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={theme.textOnPrimary} />
               ) : (
                 <Text style={styles.submitButtonText}>
                   {existingRating ? 'Save Changes' : 'Submit Rating'}
@@ -312,6 +324,8 @@ export default function ParticipantListModal({
   onDismissRatingError,
   onClose,
 }: ParticipantListModalProps) {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => makeStyles(theme), [theme]);
   const panY = React.useRef(new Animated.Value(0)).current;
 
   const resetPositionAnim = Animated.spring(panY, {
@@ -381,7 +395,7 @@ export default function ParticipantListModal({
             </View>
 
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Feather name="x" size={24} color="#111827" />
+              <Feather name="x" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
 
@@ -400,6 +414,8 @@ export default function ParticipantListModal({
                 }}
                 onDismissRatingError={() => onDismissRatingError?.()}
                 onCloseModal={onClose}
+                theme={theme}
+                styles={styles}
               />
             )}
             ListEmptyComponent={
@@ -419,14 +435,15 @@ export default function ParticipantListModal({
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    backgroundColor: t.overlay,
     justifyContent: 'flex-end',
   },
   container: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
@@ -438,7 +455,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: t.borderStrong,
     alignSelf: 'center',
     marginBottom: 20,
   },
@@ -452,13 +469,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: t.text,
   },
   subtitle: {
     marginTop: 4,
     fontSize: 13,
     lineHeight: 18,
-    color: '#6B7280',
+    color: t.textSecondary,
     maxWidth: 280,
   },
   closeBtn: {
@@ -470,7 +487,7 @@ const styles = StyleSheet.create({
   participantCard: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: t.border,
   },
   participantRow: {
     flexDirection: 'row',
@@ -480,13 +497,13 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.surfaceVariant,
   },
   avatarFallback: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.surfaceVariant,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -503,16 +520,16 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: t.text,
   },
   userScore: {
     fontSize: 12,
-    color: '#F59E0B',
+    color: t.warningText,
     fontWeight: '500',
   },
   username: {
     fontSize: 14,
-    color: '#6B7280',
+    color: t.textSecondary,
     marginTop: 2,
   },
   ratingSummaryBlock: {
@@ -524,10 +541,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: t.warningBg,
     borderWidth: 1,
-    borderColor: '#FDE68A',
-    color: '#A16207',
+    borderColor: t.warningBorder,
+    color: t.warningText,
     fontSize: 12,
     fontWeight: '700',
     overflow: 'hidden',
@@ -537,21 +554,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.surfaceAlt,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    color: '#64748B',
+    borderColor: t.border,
+    color: t.textMuted,
     fontSize: 12,
     fontWeight: '700',
     overflow: 'hidden',
   },
   ratingMessage: {
-    color: '#475569',
+    color: t.textSecondary,
     fontSize: 13,
     lineHeight: 20,
   },
   ratingUpdatedAt: {
-    color: '#9CA3AF',
+    color: t.textTertiary,
     fontSize: 12,
   },
   rateButton: {
@@ -561,11 +578,11 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#111827',
-    backgroundColor: '#FFFFFF',
+    borderColor: t.borderStrong,
+    backgroundColor: t.surface,
   },
   rateButtonText: {
-    color: '#111827',
+    color: t.text,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -574,19 +591,19 @@ const styles = StyleSheet.create({
     marginLeft: 60,
     padding: 14,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surfaceAlt,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: t.border,
     gap: 12,
   },
   inlineEditorTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: t.text,
   },
   inlineEditorSubtitle: {
     fontSize: 13,
-    color: '#475569',
+    color: t.textSecondary,
   },
   starRow: {
     flexDirection: 'row',
@@ -599,18 +616,18 @@ const styles = StyleSheet.create({
   },
   starIcon: {
     fontSize: 28,
-    color: '#D1D5DB',
+    color: t.borderStrong,
   },
   starIconActive: {
-    color: '#F59E0B',
+    color: t.warningText,
   },
   ratingTextArea: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: t.borderStrong,
     borderRadius: 12,
     padding: 12,
-    backgroundColor: '#FFFFFF',
-    color: '#111827',
+    backgroundColor: t.surface,
+    color: t.text,
     fontSize: 14,
     lineHeight: 22,
   },
@@ -618,7 +635,7 @@ const styles = StyleSheet.create({
     minHeight: 84,
   },
   ratingTextAreaError: {
-    borderColor: '#FCA5A5',
+    borderColor: t.errorBorder,
   },
   ratingMeta: {
     flexDirection: 'row',
@@ -629,28 +646,28 @@ const styles = StyleSheet.create({
   ratingCharCount: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
+    color: t.textMuted,
   },
   ratingHelper: {
     fontSize: 12,
     lineHeight: 18,
-    color: '#64748B',
+    color: t.textMuted,
     flex: 1,
   },
   ratingValidationText: {
     fontSize: 13,
-    color: '#DC2626',
+    color: t.errorText,
   },
   errorBanner: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: t.errorBg,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: t.errorBorder,
     borderRadius: 10,
     padding: 12,
     marginTop: 12,
   },
   errorBannerText: {
-    color: '#DC2626',
+    color: t.errorText,
     fontSize: 14,
   },
   inlineActions: {
@@ -666,13 +683,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#111827',
+    backgroundColor: t.primary,
   },
   submitButtonDisabled: {
     opacity: 0.55,
   },
   submitButtonText: {
-    color: '#FFFFFF',
+    color: t.textOnPrimary,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -681,17 +698,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: t.borderStrong,
     backgroundColor: 'transparent',
   },
   cancelInlineButtonText: {
-    color: '#475569',
+    color: t.textSecondary,
     fontSize: 14,
     fontWeight: '600',
   },
   empty: {
     textAlign: 'center',
-    color: '#6B7280',
+    color: t.textSecondary,
     marginTop: 32,
     fontSize: 15,
   },
@@ -701,10 +718,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: t.infoBg,
   },
   loadMoreText: {
-    color: '#2563EB',
+    color: t.infoText,
     fontWeight: '600',
   },
-});
+  });
+}

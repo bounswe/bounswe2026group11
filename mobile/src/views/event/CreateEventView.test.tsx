@@ -5,6 +5,7 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { Platform } from 'react-native';
 import CreateEventView from './CreateEventView';
+import { jest } from '@jest/globals';
 import {
   formatDateForForm,
   type CreateEventViewModel,
@@ -44,6 +45,9 @@ jest.mock('@react-native-community/datetimepicker', () => {
   return function MockDateTimePicker(props: {
     mode: 'date' | 'time';
     minimumDate?: Date;
+    themeVariant?: 'dark' | 'light';
+    textColor?: string;
+    accentColor?: string;
     onChange?: unknown;
     onValueChange?: unknown;
     onDismiss?: unknown;
@@ -51,6 +55,9 @@ jest.mock('@react-native-community/datetimepicker', () => {
     return ReactLocal.createElement('div', {
       'data-testid': `datetimepicker-${props.mode}`,
       'data-minimum-date': props.minimumDate?.toISOString() ?? '',
+      'data-theme-variant': props.themeVariant ?? '',
+      'data-text-color': props.textColor ?? '',
+      'data-accent-color': props.accentColor ?? '',
       'data-has-on-change': String(Boolean(props.onChange)),
       'data-has-on-value-change': String(Boolean(props.onValueChange)),
       'data-has-on-dismiss': String(Boolean(props.onDismiss)),
@@ -73,7 +80,7 @@ jest.mock('@/contexts/AuthContext', () => ({
 }));
 
 jest.mock('@/viewmodels/event/useCreateEventViewModel', () => {
-  const actual = jest.requireActual('@/viewmodels/event/useCreateEventViewModel');
+  const actual = jest.requireActual('@/viewmodels/event/useCreateEventViewModel') as Record<string, unknown>;
   return {
     ...actual,
     useCreateEventViewModel: jest.fn(),
@@ -143,7 +150,7 @@ function buildViewModel(
     addGenderConstraint: jest.fn(),
     addConstraint: jest.fn(),
     removeConstraint: jest.fn(),
-    pickImage: jest.fn(),
+    pickImage: jest.fn<CreateEventViewModel['pickImage']>().mockResolvedValue(undefined),
     removeImage: jest.fn(),
     invitedUsers: [],
     userSearchQuery: '',
@@ -152,8 +159,10 @@ function buildViewModel(
     addInvitedUser: jest.fn(),
     removeInvitedUser: jest.fn(),
     handleUserSearch: jest.fn(),
-    pickAndParseUserFile: jest.fn(),
-    handleSubmit: jest.fn(),
+    pickAndParseUserFile: jest
+      .fn<CreateEventViewModel['pickAndParseUserFile']>()
+      .mockResolvedValue(undefined),
+    handleSubmit: jest.fn<CreateEventViewModel['handleSubmit']>().mockResolvedValue(null),
     ...partial,
   };
 }
@@ -215,6 +224,9 @@ describe('CreateEventView', () => {
     expected.setHours(0, 0, 0, 0);
 
     expect(minimumDate.getTime()).toBe(expected.getTime());
+    expect(datePicker.getAttribute('data-theme-variant')).toBe('light');
+    expect(datePicker.getAttribute('data-text-color')).toBe('#0F172A');
+    expect(datePicker.getAttribute('data-accent-color')).toBe('#2563EB');
     expect(datePicker.getAttribute('data-has-on-change')).toBe('true');
     expect(datePicker.getAttribute('data-has-on-value-change')).toBe('false');
     expect(datePicker.getAttribute('data-has-on-dismiss')).toBe('false');

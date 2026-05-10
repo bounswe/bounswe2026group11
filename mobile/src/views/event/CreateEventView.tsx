@@ -36,8 +36,9 @@ import type { Theme } from '@/theme';
 export default function CreateEventView() {
   const vm = useCreateEventViewModel();
   const { token } = useAuth();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const pickerThemeVariant = isDark ? 'dark' : 'light';
 
   const handleCreate = async () => {
     await vm.handleSubmit(token ?? '');
@@ -542,6 +543,10 @@ export default function CreateEventView() {
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
                 minimumDate={getMinimumDatePickerDate()}
+                themeVariant={pickerThemeVariant}
+                textColor={theme.text}
+                accentColor={theme.infoText}
+                style={styles.dateTimePicker}
                 onChange={handleDateValueChange}
               />
             </View>
@@ -553,6 +558,10 @@ export default function CreateEventView() {
                 mode="time"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 is24Hour={true}
+                themeVariant={pickerThemeVariant}
+                textColor={theme.text}
+                accentColor={theme.infoText}
+                style={styles.dateTimePicker}
                 onChange={handleTimeValueChange}
               />
             </View>
@@ -629,6 +638,10 @@ export default function CreateEventView() {
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
                 minimumDate={getMinimumDatePickerDate()}
+                themeVariant={pickerThemeVariant}
+                textColor={theme.text}
+                accentColor={theme.infoText}
+                style={styles.dateTimePicker}
                 onChange={handleDateValueChange}
               />
             </View>
@@ -640,6 +653,10 @@ export default function CreateEventView() {
                 mode="time"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 is24Hour={true}
+                themeVariant={pickerThemeVariant}
+                textColor={theme.text}
+                accentColor={theme.infoText}
+                style={styles.dateTimePicker}
                 onChange={handleTimeValueChange}
               />
             </View>
@@ -1336,6 +1353,13 @@ function makeStyles(t: Theme) {
       marginTop: 12,
       backgroundColor: t.surface,
       borderRadius: 12,
+      borderWidth: 1,
+      borderColor: t.border,
+      overflow: 'hidden',
+    },
+    dateTimePicker: {
+      width: '100%',
+      backgroundColor: t.surface,
     },
     privacyRow: {
       flexDirection: 'row',
