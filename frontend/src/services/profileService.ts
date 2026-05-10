@@ -1,17 +1,23 @@
-import { apiGetAuth, apiPatchAuth, apiPostAuth, apiDeleteAuth } from './api';
+import { apiDeleteAuth, apiGet, apiGetAuth, apiPatchAuth, apiPostAuth } from './api';
 import {
-  UserProfile,
-  EventSummary,
-  UpdateProfileRequest,
+  BadgeCatalogResponse,
   ChangePasswordRequest,
-  ImageUploadInitResponse,
-  ImageUploadConfirmRequest,
+  CreateEquipmentRequest,
+  EventSummary,
+  EquipmentListResponse,
   FavoriteLocation,
   FavoriteLocationsResponse,
-  CreateFavoriteLocationRequest,
+  ImageUploadConfirmRequest,
+  ImageUploadInitResponse,
+  PublicProfile,
+  ShowcaseImageItem,
+  UpdateEquipmentRequest,
   UpdateFavoriteLocationRequest,
+  UserProfile,
+  UpdateProfileRequest,
+  CreateFavoriteLocationRequest,
+  ProfileEquipmentItem,
   UserBadgesResponse,
-  BadgeCatalogResponse,
 } from '../models/profile';
 
 interface EventListResponse {
@@ -24,6 +30,10 @@ interface EventListResponse {
 export const profileService = {
   async getMyProfile(token: string): Promise<UserProfile> {
     return apiGetAuth<UserProfile>('/me', token);
+  },
+
+  async getPublicProfile(userId: string): Promise<PublicProfile> {
+    return apiGet<PublicProfile>(`/users/${userId}/profile`);
   },
 
   async updateMyProfile(data: UpdateProfileRequest, token: string): Promise<void> {
@@ -60,6 +70,35 @@ export const profileService = {
 
   async confirmAvatarUpload(body: ImageUploadConfirmRequest, token: string): Promise<void> {
     return apiPostAuth<void>('/me/avatar/confirm', body, token);
+  },
+
+  async getMyEquipment(token: string): Promise<ProfileEquipmentItem[]> {
+    const res = await apiGetAuth<EquipmentListResponse>('/me/equipment', token);
+    return res.items ?? [];
+  },
+
+  async createEquipment(data: CreateEquipmentRequest, token: string): Promise<ProfileEquipmentItem> {
+    return apiPostAuth<ProfileEquipmentItem>('/me/equipment', data, token);
+  },
+
+  async updateEquipment(id: string, data: UpdateEquipmentRequest, token: string): Promise<ProfileEquipmentItem> {
+    return apiPatchAuth<ProfileEquipmentItem>(`/me/equipment/${id}`, data, token);
+  },
+
+  async deleteEquipment(id: string, token: string): Promise<void> {
+    return apiDeleteAuth<void>(`/me/equipment/${id}`, token);
+  },
+
+  async getShowcaseUploadUrl(token: string): Promise<ImageUploadInitResponse> {
+    return apiPostAuth<ImageUploadInitResponse>('/me/showcase-images/upload-url', {}, token);
+  },
+
+  async confirmShowcaseUpload(body: ImageUploadConfirmRequest, token: string): Promise<ShowcaseImageItem> {
+    return apiPostAuth<ShowcaseImageItem>('/me/showcase-images/confirm', body, token);
+  },
+
+  async deleteShowcaseImage(id: string, token: string): Promise<void> {
+    return apiDeleteAuth<void>(`/me/showcase-images/${id}`, token);
   },
 
   async getFavoriteLocations(token: string): Promise<FavoriteLocation[]> {

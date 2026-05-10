@@ -19,6 +19,7 @@ import TicketsPage from './views/tickets/TicketsPage';
 import TicketDetailPage from './views/tickets/TicketDetailPage';
 import FavoritesPage from './views/favorites/FavoritesPage';
 import ProfilePage from './views/profile/ProfilePage';
+import PublicProfilePage from './views/profile/PublicProfilePage';
 import NotFoundView from './views/fallback/NotFoundView';
 import BackofficeLayout from './views/backoffice/BackofficeLayout';
 import UsersAdminPage from './views/backoffice/UsersAdminPage';
@@ -64,6 +65,7 @@ export default function App() {
             <Route path="/tickets/:ticketId" element={<ProtectedRoute><TicketDetailPage /></ProtectedRoute>} />
             <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/users/:userId" element={<PublicProfilePage />} />
             <Route
               path="/backoffice"
               element={<AdminRoute><BackofficeLayout /></AdminRoute>}

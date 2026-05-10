@@ -404,6 +404,31 @@
   border: 1px solid #e5e7eb;
 }
 
+.ed-host-avatar-link,
+.ed-host-link,
+.ed-mgmt-avatar-link,
+.ed-mgmt-user-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ed-host-avatar-link,
+.ed-mgmt-avatar-link {
+  flex-shrink: 0;
+}
+
+.ed-host-link,
+.ed-mgmt-user-link {
+  min-width: 0;
+}
+
+.ed-host-link:hover .ed-host-name,
+.ed-host-link:hover .ed-host-username,
+.ed-mgmt-user-link:hover .ed-mgmt-name,
+.ed-mgmt-user-link:hover .ed-mgmt-username {
+  color: #2563eb;
+}
+
 .ed-host-info {
   flex: 1;
   min-width: 0;
@@ -975,6 +1000,10 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+.ed-mgmt-user-link {
+  flex: 1;
 }
 
 .ed-mgmt-name {

@@ -170,6 +170,7 @@ describe('EventDetailPage ratings', () => {
     event.viewer_context.is_host = true;
 
     const vm = makeReadyViewModel(event);
+
     mockUseEventDetailViewModel.mockReturnValue(vm);
 
     renderPage();
@@ -179,6 +180,50 @@ describe('EventDetailPage ratings', () => {
 
     await waitFor(() => {
       expect(vm.handleComplete).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('links the host name block to the public profile page', () => {
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(makeBaseEvent()));
+
+    renderPage();
+
+    const hostLinks = screen.getAllByRole('link', { name: /host user/i });
+    expect(hostLinks).toHaveLength(2);
+    hostLinks.forEach((link) => {
+      expect(link.getAttribute('href')).toBe('/users/host-1');
+    });
+  });
+
+  it('links approved participants to the public profile page from the management list', () => {
+    const event = makeBaseEvent();
+    event.viewer_context.is_host = true;
+
+    const vm = makeReadyViewModel(event);
+    vm.approvedParticipants = [{
+      participation_id: 'participation-1',
+      status: 'APPROVED',
+      created_at: '2026-04-01T17:00:00Z',
+      updated_at: '2026-04-01T17:00:00Z',
+      host_rating: null,
+      user: {
+        id: 'participant-1',
+        username: 'walker1',
+        display_name: 'Walker One',
+        avatar_url: null,
+        final_score: 4.2,
+        rating_count: 6,
+      },
+    }];
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+
+    renderPage();
+
+    const participantLinks = screen.getAllByRole('link', { name: /walker one/i });
+    expect(participantLinks).toHaveLength(2);
+    participantLinks.forEach((link) => {
+      expect(link.getAttribute('href')).toBe('/users/participant-1');
     });
   });
 

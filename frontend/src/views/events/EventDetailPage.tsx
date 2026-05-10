@@ -1208,34 +1208,45 @@ function HostParticipantRatingItem({
 
   return (
     <li className="ed-mgmt-item ed-mgmt-item-participant">
-      <UserAvatar
-        username={participant.user.username}
-        displayName={participant.user.display_name}
-        avatarUrl={participant.user.avatar_url}
-        size="sm"
-        variant="muted"
-      />
+      <Link
+        to={`/users/${participant.user.id}`}
+        className="ed-mgmt-avatar-link"
+        aria-label={`View ${getDisplayName(participant.user)}'s profile`}
+      >
+        <UserAvatar
+          username={participant.user.username}
+          displayName={participant.user.display_name}
+          avatarUrl={participant.user.avatar_url}
+          size="sm"
+          variant="muted"
+        />
+      </Link>
 
-      <div className="ed-mgmt-user-info">
-        <div className="ed-mgmt-user-topline">
-          <span className="ed-mgmt-name">{getDisplayName(participant.user)}</span>
-          {participant.user.final_score != null && (
-            <span className="ed-mgmt-user-score">{'★'} {participant.user.final_score.toFixed(1)} ({participant.user.rating_count})</span>
-          )}
-        </div>
-        <span className="ed-mgmt-username">@{participant.user.username}</span>
+      <Link
+        to={`/users/${participant.user.id}`}
+        className="ed-mgmt-user-link"
+      >
+        <div className="ed-mgmt-user-info">
+          <div className="ed-mgmt-user-topline">
+            <span className="ed-mgmt-name">{getDisplayName(participant.user)}</span>
+            {participant.user.final_score != null && (
+              <span className="ed-mgmt-user-score">{'★'} {participant.user.final_score.toFixed(1)} ({participant.user.rating_count})</span>
+            )}
+          </div>
+          <span className="ed-mgmt-username">@{participant.user.username}</span>
 
-        <div className="ed-participant-rating-summary">
-          {existingRating ? (
-            <>
-              <span className="ed-participant-rating-badge">{renderStars(existingRating.rating)} {existingRating.rating}/5</span>
-              {existingRating.message && (
-                <span className="ed-participant-rating-message">"{existingRating.message}"</span>
-              )}
-            </>
-          ) : null}
+          <div className="ed-participant-rating-summary">
+            {existingRating ? (
+              <>
+                <span className="ed-participant-rating-badge">{renderStars(existingRating.rating)} {existingRating.rating}/5</span>
+                {existingRating.message && (
+                  <span className="ed-participant-rating-message">"{existingRating.message}"</span>
+                )}
+              </>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </Link>
 
       {canEdit && (
         <button
@@ -1933,17 +1944,25 @@ function EventContent({
         <div className="ed-section">
           <h2 className="ed-section-title">Host</h2>
           <div className="ed-host">
-            <UserAvatar
-              username={event.host.username}
-              displayName={event.host.display_name}
-              avatarUrl={event.host.avatar_url}
-              size="md"
-              variant="accent"
-            />
-            <div className="ed-host-info">
-              <p className="ed-host-name">{event.host.display_name ?? event.host.username}</p>
-              <p className="ed-host-username">@{event.host.username}</p>
-            </div>
+            <Link
+              to={`/users/${event.host.id}`}
+              className="ed-host-avatar-link"
+              aria-label={`View ${event.host.display_name ?? event.host.username}'s profile`}
+            >
+              <UserAvatar
+                username={event.host.username}
+                displayName={event.host.display_name}
+                avatarUrl={event.host.avatar_url}
+                size="md"
+                variant="accent"
+              />
+            </Link>
+            <Link to={`/users/${event.host.id}`} className="ed-host-link">
+              <div className="ed-host-info">
+                <p className="ed-host-name">{event.host.display_name ?? event.host.username}</p>
+                <p className="ed-host-username">@{event.host.username}</p>
+              </div>
+            </Link>
             {event.host_score.final_score != null && (
               <span className="ed-host-score">
                 {'★'} {event.host_score.final_score.toFixed(1)}
