@@ -13,6 +13,7 @@ import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
 import DiscoverMapView from './DiscoverMapView';
 import DiscoverEventSidePanel from './DiscoverEventSidePanel';
+import { useTranslation } from 'react-i18next';
 import '@/styles/discover.css';
 
 const SORT_OPTIONS: { label: string; value: DiscoverSortBy; icon: 'time' | 'distance' }[] = [
@@ -281,9 +282,10 @@ function MapEventListItem({
 }
 
 export default function DiscoverPage() {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const vm = useDiscoverViewModel(token);
-  const { viewMode } = useDiscoverViewMode();
+  const { viewMode, setViewMode } = useDiscoverViewMode();
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [overlayCollapsed, setOverlayCollapsed] = useState(false);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
@@ -390,6 +392,32 @@ export default function DiscoverPage() {
       >
         <FilterIcon className="dc-filter-toggle-icon" />
         <span>Filters</span>
+      </button>
+      <span className="dc-search-bar-divider" />
+      <button
+        type="button"
+        className={`dc-view-toggle-btn ${viewMode === 'map' ? 'active' : ''}`}
+        onClick={() => setViewMode('map')}
+        aria-pressed={viewMode === 'map'}
+      >
+        <MapPinIcon />
+        <span>{t('discover.mapView')}</span>
+      </button>
+      <button
+        type="button"
+        className={`dc-view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+        onClick={() => setViewMode('list')}
+        aria-pressed={viewMode === 'list'}
+      >
+        <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <line x1="3" y1="6" x2="3.01" y2="6" />
+          <line x1="3" y1="12" x2="3.01" y2="12" />
+          <line x1="3" y1="18" x2="3.01" y2="18" />
+        </svg>
+        <span>{t('discover.listView')}</span>
       </button>
       {isMapMode && (
         <button
@@ -778,7 +806,7 @@ export default function DiscoverPage() {
           <input
             type="text"
             className="dc-loc-modal-input field-input"
-            placeholder="Search for a location"
+            placeholder={t('discover.searchPlaceholder')}
             value={vm.modalLocationQuery}
             onChange={(e) => vm.updateModalLocationQuery(e.target.value)}
             autoComplete="off"

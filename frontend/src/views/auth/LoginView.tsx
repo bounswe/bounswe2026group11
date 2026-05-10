@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useLoginViewModel } from '@/viewmodels/auth/useLoginViewModel';
 import { useAuth } from '@/contexts/AuthContext';
 import SemLogo from '@/components/SemLogo';
+import { useTranslation } from 'react-i18next';
 import '@/styles/auth.css';
 
 export default function LoginView() {
+  const { t } = useTranslation();
   const vm = useLoginViewModel();
   const { setSession } = useAuth();
   const navigate = useNavigate();
@@ -25,8 +27,8 @@ export default function LoginView() {
         <div className="auth-brand">
           <SemLogo height={76} color="#111827" />
         </div>
-        <h1 className="auth-title">Welcome Back</h1>
-        <p className="auth-subtitle">Sign in to continue to your account</p>
+        <h1 className="auth-title">{t('auth.loginTitle')}</h1>
+        <p className="auth-subtitle">{t('auth.loginSubtitle')}</p>
 
         {vm.apiError && (
           <div className="error-banner">{vm.apiError}</div>
@@ -35,13 +37,13 @@ export default function LoginView() {
         <form onSubmit={handleSubmit}>
           <div className="field-group">
             <label className="field-label" htmlFor="username">
-              Username
+              {t('auth.usernameLabel')}
             </label>
             <input
               id="username"
               className={`field-input ${vm.errors.username ? 'has-error' : ''}`}
               type="text"
-              placeholder="maplover"
+              placeholder={t('auth.usernamePlaceholder')}
               value={vm.formData.username}
               onChange={(e) => vm.updateField('username', e.target.value)}
               autoComplete="username"
@@ -54,13 +56,13 @@ export default function LoginView() {
 
           <div className="field-group">
             <label className="field-label" htmlFor="password">
-              Password
+              {t('auth.passwordLabel')}
             </label>
             <input
               id="password"
               className={`field-input ${vm.errors.password ? 'has-error' : ''}`}
               type="password"
-              placeholder="Your password"
+              placeholder={t('auth.passwordPlaceholder')}
               value={vm.formData.password}
               onChange={(e) => vm.updateField('password', e.target.value)}
               autoComplete="current-password"
@@ -71,7 +73,7 @@ export default function LoginView() {
             )}
             <div style={{ textAlign: 'right', marginTop: '0.5rem', marginBottom: '1rem' }}>
               <a onClick={() => navigate('/forgot-password')} className="link" style={{ fontSize: '0.875rem' }}>
-                Forgot Password?
+                {t('auth.forgotPassword')}
               </a>
             </div>
           </div>
@@ -81,14 +83,14 @@ export default function LoginView() {
             className="btn-primary"
             disabled={vm.isLoading}
           >
-            {vm.isLoading ? <span className="spinner" /> : 'Sign In'}
+            {vm.isLoading ? <span className="spinner" /> : t('auth.loginBtn')}
           </button>
         </form>
 
         <div className="auth-footer">
-          <span>Don&apos;t have an account?</span>
+          <span>{t('auth.noAccount')}</span>
           <a onClick={() => navigate('/register')} className="link">
-            Sign Up
+            {t('auth.registerBtn')}
           </a>
         </div>
       </div>

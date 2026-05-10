@@ -15,6 +15,7 @@ import { searchLocation } from '@/services/eventService';
 import type { LocationSuggestion } from '@/models/event';
 import { shouldShowProfileEvent } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
+import { useTranslation } from 'react-i18next';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const MIN_PASSWORD_LENGTH = 8;
@@ -48,6 +49,7 @@ function getBackendValidationMessage(err: ApiError): string {
 
 export function useProfileViewModel(token: string | null) {
   const { setProfileSummary } = useAuth();
+  const { i18n } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [publicProfile, setPublicProfile] = useState<PublicProfile | null>(null);
   const [hostedEvents, setHostedEvents] = useState<EventSummary[]>([]);
@@ -68,6 +70,7 @@ export function useProfileViewModel(token: string | null) {
 
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
+  const [locale, setLocale] = useState(i18n.language || 'en');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
@@ -127,6 +130,13 @@ export function useProfileViewModel(token: string | null) {
       setProfile(data);
       setDisplayName(data.display_name || '');
       setBio(data.bio || '');
+      
+      const userLocale = data.locale || 'en';
+      setLocale(userLocale);
+      if (i18n.language !== userLocale && data.locale) {
+        void i18n.changeLanguage(userLocale);
+      }
+
       setSelectedLocation(
         data.default_location_address
           ? {
@@ -251,6 +261,7 @@ export function useProfileViewModel(token: string | null) {
     if (isEditing) {
       setDisplayName(profile?.display_name || '');
       setBio(profile?.bio || '');
+      setLocale(profile?.locale || i18n.language || 'en');
       setAvatarFile(null);
       if (avatarPreview) URL.revokeObjectURL(avatarPreview);
       setAvatarPreview(null);
@@ -306,6 +317,7 @@ export function useProfileViewModel(token: string | null) {
       const updatePayload: UpdateProfileRequest = {
         display_name: displayName.trim() || null,
         bio: bio.trim() || null,
+        locale: locale,
       };
 
       if (locationCleared) {
@@ -320,6 +332,10 @@ export function useProfileViewModel(token: string | null) {
 
       await profileService.updateMyProfile(updatePayload, token);
       await fetchProfile();
+
+      if (locale !== i18n.language) {
+        void i18n.changeLanguage(locale);
+      }
 
       setAvatarFile(null);
       if (avatarPreview) URL.revokeObjectURL(avatarPreview);
@@ -588,6 +604,8 @@ export function useProfileViewModel(token: string | null) {
     setDisplayName,
     bio,
     setBio,
+    locale,
+    setLocale,
     avatarPreview,
     handleFileChange,
     handleEditToggle,

@@ -1,0 +1,44 @@
+{
+  "auth": {
+    "loginTitle": "Sign in to your account",
+    "loginSubtitle": "Welcome back! Please enter your details.",
+    "registerTitle": "Create an account",
+    "registerSubtitle": "Join us and discover amazing events around you.",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "you@example.com",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "••••••••",
+    "usernameLabel": "Username",
+    "usernamePlaceholder": "johndoe",
+    "rememberMe": "Remember me",
+    "forgotPassword": "Forgot password?",
+    "loginBtn": "Sign in",
+    "registerBtn": "Sign up",
+    "signingIn": "Signing in...",
+    "signingUp": "Signing up...",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?"
+  },
+  "profile": {
+    "title": "Profile",
+    "language": "Language",
+    "languageOptions": {
+      "en": "English",
+      "tr": "Türkçe"
+    }
+  },
+  "discover": {
+    "searchPlaceholder": "Search events by title, description...",
+    "mapView": "Map",
+    "listView": "List",
+    "filters": "Filters",
+    "searchArea": "Search this area"
+  },
+  "event": {
+    "createTitle": "Create Event",
+    "editTitle": "Edit Event",
+    "join": "Join Event",
+    "leave": "Leave Event",
+    "details": "Event Details"
+  }
+}

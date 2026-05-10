@@ -8,6 +8,7 @@ import {
 } from '@/viewmodels/event/useCreateEventViewModel';
 import type { PreferredGender, LocationType } from '@/models/event';
 import RoutePointsEditor from '@/components/RoutePointsEditor';
+import { useTranslation } from 'react-i18next';
 import '@/styles/create-event.css';
 
 const GENDER_OPTIONS: { label: string; value: PreferredGender }[] = [
@@ -807,6 +808,7 @@ function CreateEventForm() {
 }
 
 export default function CreateEventPage() {
+  const { t } = useTranslation();
   const [hasError, setHasError] = useState(false);
 
   if (hasError) {
@@ -822,10 +824,12 @@ export default function CreateEventPage() {
 
   return (
     <div className="create-event-page">
-      <h1 className="create-event-title">Create a New Event</h1>
-      <p className="create-event-subtitle">
-        Fill in the details below to set up your event.
-      </p>
+      <div className="create-event-header">
+        <h1 className="create-event-title">{t('event.createTitle')}</h1>
+        <p className="create-event-subtitle">
+          Fill out the details below to publish a new event.
+        </p>
+      </div>
       <ErrorBoundary onError={() => setHasError(true)}>
         <CreateEventForm />
       </ErrorBoundary>

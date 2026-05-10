@@ -9,6 +9,7 @@ import type { BadgeCategory, CatalogBadge, EarnedBadge, EventSummary } from '../
 import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { ProfileEquipmentSection, ProfileShowcaseSection } from './ProfilePublicSections';
+import { useTranslation } from 'react-i18next';
 
 const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp';
 const MAX_SIZE_MB = 10;
@@ -528,6 +529,7 @@ function ChangePasswordSection({
 }
 
 export default function ProfilePage() {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const {
     profile,
@@ -551,6 +553,8 @@ export default function ProfilePage() {
     setDisplayName,
     bio,
     setBio,
+    locale,
+    setLocale,
     avatarPreview,
     handleFileChange,
     handleEditToggle,
@@ -1057,6 +1061,19 @@ export default function ProfilePage() {
               )}
             </div>
 
+            <div className="form-group">
+              <label>{t('profile.language')}</label>
+              <select
+                value={locale}
+                onChange={(e) => setLocale(e.target.value)}
+                disabled={isSaving}
+                style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #d1d5db' }}
+              >
+                <option value="en">{t('profile.languageOptions.en')}</option>
+                <option value="tr">{t('profile.languageOptions.tr')}</option>
+              </select>
+            </div>
+
             <div className="form-actions">
               <button
                 type="button"
@@ -1074,7 +1091,8 @@ export default function ProfilePage() {
                   displayName === (profile.display_name ?? '') &&
                   bio === (profile.bio ?? '') &&
                   !locationCleared &&
-                  (selectedLocation?.address ?? '') === (profile.default_location_address ?? '')
+                  (selectedLocation?.address ?? '') === (profile.default_location_address ?? '') &&
+                  locale === (profile.locale || 'en')
                 )}
               >
                 {isSaving ? 'Saving...' : 'Save Profile'}

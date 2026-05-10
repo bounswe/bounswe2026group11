@@ -5,6 +5,7 @@ import {
   type RegisterStep,
 } from '@/viewmodels/auth/useRegisterViewModel';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 import '@/styles/auth.css';
 
 const GENDER_OPTIONS: { label: string; value: Gender }[] = [
@@ -22,6 +23,7 @@ const STEP_SUBTITLES: Record<RegisterStep, string> = {
 };
 
 export default function RegisterView() {
+  const { t } = useTranslation();
   const vm = useRegisterViewModel();
   const { setSession } = useAuth();
   const navigate = useNavigate();
@@ -39,12 +41,10 @@ export default function RegisterView() {
     }
   };
 
-  const buttonLabel = vm.step === 'details' ? 'Continue' : 'Create Account';
-
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h1 className="auth-title">Create Account</h1>
+        <h1 className="auth-title">{t('auth.registerTitle')}</h1>
         <p className="auth-subtitle">{STEP_SUBTITLES[vm.step]}</p>
 
         <div className="step-indicator">
@@ -65,13 +65,13 @@ export default function RegisterView() {
             <>
               <div className="field-group">
                 <label className="field-label" htmlFor="email">
-                  Email
+                  {t('auth.emailLabel')}
                 </label>
                 <input
                   id="email"
                   className={`field-input ${vm.errors.email ? 'has-error' : ''}`}
                   type="email"
-                  placeholder="user@example.com"
+                  placeholder={t('auth.emailPlaceholder')}
                   value={vm.formData.email}
                   onChange={(e) => vm.updateField('email', e.target.value)}
                   autoComplete="email"
@@ -84,13 +84,13 @@ export default function RegisterView() {
 
               <div className="field-group">
                 <label className="field-label" htmlFor="reg-username">
-                  Username
+                  {t('auth.usernameLabel')}
                 </label>
                 <input
                   id="reg-username"
                   className={`field-input ${vm.errors.username ? 'has-error' : ''}`}
                   type="text"
-                  placeholder="maplover"
+                  placeholder={t('auth.usernamePlaceholder')}
                   value={vm.formData.username}
                   onChange={(e) => vm.updateField('username', e.target.value)}
                   autoComplete="username"
@@ -103,7 +103,7 @@ export default function RegisterView() {
 
               <div className="field-group">
                 <label className="field-label" htmlFor="reg-password">
-                  Password
+                  {t('auth.passwordLabel')}
                 </label>
                 <input
                   id="reg-password"
@@ -212,7 +212,7 @@ export default function RegisterView() {
             className="btn-primary"
             disabled={vm.isLoading}
           >
-            {vm.isLoading ? <span className="spinner" /> : buttonLabel}
+            {vm.isLoading ? <span className="spinner" /> : (vm.step === 'details' ? t('auth.loginBtn') : t('auth.registerBtn'))}
           </button>
         </form>
 
@@ -229,9 +229,9 @@ export default function RegisterView() {
 
         {vm.step === 'details' && (
           <div className="auth-footer">
-            <span>Already have an account?</span>
+            <span>{t('auth.hasAccount')}</span>
             <a onClick={() => navigate('/login')} className="link">
-              Sign In
+              {t('auth.loginBtn')}
             </a>
           </div>
         )}

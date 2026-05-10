@@ -1,0 +1,44 @@
+{
+  "auth": {
+    "loginTitle": "Hesabınıza giriş yapın",
+    "loginSubtitle": "Tekrar hoş geldiniz! Lütfen bilgilerinizi girin.",
+    "registerTitle": "Hesap oluştur",
+    "registerSubtitle": "Bize katılın ve etrafınızdaki harika etkinlikleri keşfedin.",
+    "emailLabel": "E-posta adresi",
+    "emailPlaceholder": "siz@ornek.com",
+    "passwordLabel": "Şifre",
+    "passwordPlaceholder": "••••••••",
+    "usernameLabel": "Kullanıcı adı",
+    "usernamePlaceholder": "kullanici_adi",
+    "rememberMe": "Beni hatırla",
+    "forgotPassword": "Şifrenizi mi unuttunuz?",
+    "loginBtn": "Giriş yap",
+    "registerBtn": "Kayıt ol",
+    "signingIn": "Giriş yapılıyor...",
+    "signingUp": "Kayıt olunuyor...",
+    "noAccount": "Hesabınız yok mu?",
+    "hasAccount": "Zaten bir hesabınız var mı?"
+  },
+  "profile": {
+    "title": "Profil",
+    "language": "Dil",
+    "languageOptions": {
+      "en": "English",
+      "tr": "Türkçe"
+    }
+  },
+  "discover": {
+    "searchPlaceholder": "Etkinlikleri ara...",
+    "mapView": "Harita",
+    "listView": "Liste",
+    "filters": "Filtreler",
+    "searchArea": "Bu alanda ara"
+  },
+  "event": {
+    "createTitle": "Etkinlik Oluştur",
+    "editTitle": "Etkinliği Düzenle",
+    "join": "Etkinliğe Katıl",
+    "leave": "Etkinlikten Ayrıl",
+    "details": "Etkinlik Detayları"
+  }
+}

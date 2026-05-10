@@ -25,6 +25,7 @@ import { formatEventLocation } from '@/utils/eventLocation';
 import NotFoundView from '../fallback/NotFoundView';
 import AccessDeniedView from '../fallback/AccessDeniedView';
 import EventInteractionPanel from './EventInteractionPanel';
+import { useTranslation } from 'react-i18next';
 import '@/styles/event-detail.css';
 import '@/styles/event-detail-attachment.css';
 
@@ -2126,6 +2127,7 @@ function EventContent({
   onCancelJoinRequest: () => void | Promise<void>;
   onDismissCancelJoinRequestError: () => void;
 }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const coverFileInputRef = useRef<HTMLInputElement>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -2386,7 +2388,7 @@ function EventContent({
 
         {/* Details grid */}
         <div className="ed-section">
-          <h2 className="ed-section-title">Details</h2>
+          <h2 className="ed-section-title">{t('event.details')}</h2>
           <div className="ed-details-grid">
             {event.capacity != null && (
               <div className="ed-detail-item">

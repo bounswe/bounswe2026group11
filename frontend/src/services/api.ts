@@ -80,9 +80,13 @@ async function attemptTokenRefresh(): Promise<string> {
 // --- Public API helpers ---
 
 export async function apiPost<T>(endpoint: string, body: unknown): Promise<T> {
+  const lang = localStorage.getItem('i18nextLng') || 'en';
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept-Language': lang,
+    },
     body: JSON.stringify(body),
   });
 
@@ -98,9 +102,13 @@ export async function apiPost<T>(endpoint: string, body: unknown): Promise<T> {
 }
 
 export async function apiGet<T>(endpoint: string): Promise<T> {
+  const lang = localStorage.getItem('i18nextLng') || 'en';
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept-Language': lang,
+    },
     cache: 'no-store',
   });
 
@@ -119,9 +127,11 @@ async function fetchWithAuth(
   token: string,
   body?: unknown,
 ): Promise<Response> {
+  const lang = localStorage.getItem('i18nextLng') || 'en';
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
+    'Accept-Language': lang,
   };
 
   const init: RequestInit = { method, headers };
