@@ -33,6 +33,31 @@ export interface UserProfile {
   avatar_url?: string;
 }
 
+export interface ProfileEquipmentItem {
+  id: string;
+  name: string;
+  description?: string | null;
+  image_url?: string | null;
+}
+
+export interface ShowcaseImageItem {
+  id: string;
+  image_url: string;
+}
+
+export interface PublicProfile {
+  user_id: string;
+  username: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  bio?: string | null;
+  final_score?: number | null;
+  host_rating_count: number;
+  participant_rating_count: number;
+  equipment: ProfileEquipmentItem[];
+  showcase_images: ShowcaseImageItem[];
+}
+
 export interface UpdateProfileRequest {
   display_name?: string | null;
   bio?: string | null;
@@ -91,6 +116,22 @@ export interface ImageUploadInitResponse {
 
 export interface ImageUploadConfirmRequest {
   confirm_token: string;
+}
+
+export interface EquipmentListResponse {
+  items: ProfileEquipmentItem[];
+}
+
+export interface CreateEquipmentRequest {
+  name: string;
+  description?: string | null;
+  image_url?: string | null;
+}
+
+export interface UpdateEquipmentRequest {
+  name?: string | null;
+  description?: string | null;
+  image_url?: string | null;
 }
 
 export type BadgeCategory = 'HOSTING' | 'PARTICIPATION' | 'SOCIAL';

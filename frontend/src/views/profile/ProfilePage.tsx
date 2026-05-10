@@ -8,6 +8,7 @@ import { useProfileViewModel } from '../../viewmodels/profile/useProfileViewMode
 import type { BadgeCategory, CatalogBadge, EarnedBadge, EventSummary } from '../../models/profile';
 import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
+import { ProfileEquipmentSection, ProfileShowcaseSection } from './ProfilePublicSections';
 
 const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp';
 const MAX_SIZE_MB = 10;
@@ -530,6 +531,10 @@ export default function ProfilePage() {
   const { token } = useAuth();
   const {
     profile,
+    publicProfile,
+    publicProfileLoading,
+    publicProfileError,
+    refreshPublicProfile,
     hostedEvents,
     attendedEvents,
     earnedBadges,
@@ -571,10 +576,27 @@ export default function ProfilePage() {
     passwordSuccess,
     isChangingPassword,
     handleChangePassword,
+    isEquipmentEditorOpen,
+    equipmentDraft,
+    updateEquipmentDraft,
+    equipmentSubmitting,
+    equipmentDeletingId,
+    equipmentError,
+    startCreatingEquipment,
+    startEditingEquipment,
+    cancelEquipmentEditor,
+    handleEquipmentSubmit,
+    handleDeleteEquipment,
+    showcaseUploading,
+    showcaseRemovingId,
+    showcaseError,
+    handleShowcaseUpload,
+    handleDeleteShowcaseImage,
   } = useProfileViewModel(token);
   const [activeHistoryTab, setActiveHistoryTab] = useState<ProfileHistoryTab>('hosted');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const showcaseInputRef = useRef<HTMLInputElement>(null);
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -585,6 +607,18 @@ export default function ProfilePage() {
       return;
     }
     handleFileChange(file);
+  };
+
+  const onShowcaseFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) return;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      alert(`File must be smaller than ${MAX_SIZE_MB} MB.`);
+      e.target.value = '';
+      return;
+    }
+    void handleShowcaseUpload(file);
+    e.target.value = '';
   };
 
   if (isLoading) {
@@ -623,8 +657,176 @@ export default function ProfilePage() {
     />
   );
 
+  const publicProfileSections = publicProfileLoading && !publicProfile ? (
+    <section className="profile-public-section">
+      <div className="profile-public-state inline">
+        <p>Loading equipment and showcase...</p>
+      </div>
+    </section>
+  ) : publicProfile ? (
+    <>
+      <ProfileEquipmentSection
+        items={publicProfile.equipment}
+        actions={(
+          <button
+            type="button"
+            className="edit-toggle-btn profile-inline-action-btn"
+            onClick={startCreatingEquipment}
+            disabled={equipmentSubmitting || equipmentDeletingId !== null}
+          >
+            Add Equipment
+          </button>
+        )}
+        itemActions={(item) => (
+          <>
+            <button
+              type="button"
+              className="profile-inline-btn"
+              onClick={() => startEditingEquipment(item)}
+              disabled={equipmentSubmitting || equipmentDeletingId === item.id}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              className="profile-inline-btn danger"
+              onClick={() => {
+                if (window.confirm('Delete this equipment item?')) {
+                  void handleDeleteEquipment(item.id);
+                }
+              }}
+              disabled={equipmentSubmitting || equipmentDeletingId === item.id}
+            >
+              {equipmentDeletingId === item.id ? 'Deleting...' : 'Delete'}
+            </button>
+          </>
+        )}
+        emptyMessage="You have not added any equipment yet."
+      />
+
+      {equipmentError ? (
+        <div className="profile-section-feedback error" role="alert">
+          {equipmentError}
+        </div>
+      ) : null}
+
+      {isEquipmentEditorOpen ? (
+        <form className="profile-inline-form" onSubmit={handleEquipmentSubmit}>
+          <div className="profile-inline-form-header">
+            <h3>{equipmentDraft.id ? 'Edit equipment' : 'Add equipment'}</h3>
+            <p>Share the gear you want other members to see on your profile.</p>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="equipment-name">Name</label>
+            <input
+              id="equipment-name"
+              type="text"
+              value={equipmentDraft.name}
+              onChange={(e) => updateEquipmentDraft('name', e.target.value)}
+              maxLength={64}
+              placeholder="Trail shoes, hydration pack, climbing rope..."
+              disabled={equipmentSubmitting}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="equipment-description">Description</label>
+            <textarea
+              id="equipment-description"
+              value={equipmentDraft.description}
+              onChange={(e) => updateEquipmentDraft('description', e.target.value)}
+              maxLength={512}
+              placeholder="Add a short note about fit, terrain, or why this item matters to you."
+              disabled={equipmentSubmitting}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="equipment-image">Image URL</label>
+            <input
+              id="equipment-image"
+              type="url"
+              value={equipmentDraft.imageUrl}
+              onChange={(e) => updateEquipmentDraft('imageUrl', e.target.value)}
+              placeholder="https://example.com/gear.jpg"
+              disabled={equipmentSubmitting}
+            />
+          </div>
+
+          <div className="form-actions">
+            <button
+              type="button"
+              className="cancel-btn"
+              onClick={cancelEquipmentEditor}
+              disabled={equipmentSubmitting}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="save-btn" disabled={equipmentSubmitting}>
+              {equipmentSubmitting ? 'Saving...' : equipmentDraft.id ? 'Save Changes' : 'Add Equipment'}
+            </button>
+          </div>
+        </form>
+      ) : null}
+
+      <input
+        ref={showcaseInputRef}
+        type="file"
+        accept={ACCEPTED_TYPES}
+        onChange={onShowcaseFileChange}
+        style={{ display: 'none' }}
+      />
+
+      <ProfileShowcaseSection
+        items={publicProfile.showcase_images}
+        actions={(
+          <button
+            type="button"
+            className="edit-toggle-btn profile-inline-action-btn"
+            onClick={() => showcaseInputRef.current?.click()}
+            disabled={showcaseUploading}
+          >
+            {showcaseUploading ? 'Uploading...' : 'Upload Image'}
+          </button>
+        )}
+        imageActions={(image) => (
+          <button
+            type="button"
+            className="profile-showcase-remove"
+            onClick={() => {
+              if (window.confirm('Remove this showcase image?')) {
+                void handleDeleteShowcaseImage(image.id);
+              }
+            }}
+            disabled={showcaseRemovingId === image.id}
+            aria-label="Remove showcase image"
+          >
+            {showcaseRemovingId === image.id ? 'Removing...' : 'Remove'}
+          </button>
+        )}
+        emptyMessage="You have not uploaded any showcase images yet."
+      />
+
+      {showcaseError ? (
+        <div className="profile-section-feedback error" role="alert">
+          {showcaseError}
+        </div>
+      ) : null}
+    </>
+  ) : (
+    <section className="profile-public-section">
+      <div className="profile-public-state inline">
+        <p>{publicProfileError ?? 'Public profile sections are unavailable right now.'}</p>
+        <button type="button" className="save-btn profile-public-retry" onClick={() => void refreshPublicProfile()}>
+          Retry
+        </button>
+      </div>
+    </section>
+  );
+
   return (
-    <div className="profile-container">
+    <div className="profile-container profile-container-wide">
       <div className="profile-header">
         <h1>Your Profile</h1>
         <button
@@ -704,6 +906,8 @@ export default function ProfilePage() {
           badgeError={badgeError}
           onRetry={refreshBadges}
         />
+
+        {publicProfileSections}
 
         {changePasswordSection}
 
@@ -877,6 +1081,8 @@ export default function ProfilePage() {
               </button>
             </div>
           </form>
+
+          {publicProfileSections}
 
           {changePasswordSection}
         </div>
