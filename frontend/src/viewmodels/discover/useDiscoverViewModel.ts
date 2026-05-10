@@ -12,6 +12,21 @@ import type {
 import { ApiError } from '@/services/api';
 import { formatEventLocation } from '@/utils/eventLocation';
 
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3; // metres
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
 // Fallback when browser geolocation is unavailable and profile has no default (Beşiktaş, Istanbul)
 const DEFAULT_LAT = 41.0422;
 const DEFAULT_LON = 29.0083;
@@ -239,6 +254,10 @@ export function useDiscoverViewModel(token: string | null) {
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
   const modalLocationTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const [showMapSearchCTA, setShowMapSearchCTA] = useState(false);
+  const [mapDraftCenter, setMapDraftCenter] = useState<{ lat: number; lon: number } | null>(null);
+  const [mapDraftRadius, setMapDraftRadius] = useState<number | null>(null);
 
   useEffect(() => {
     listCategories()
@@ -608,7 +627,54 @@ export function useDiscoverViewModel(token: string | null) {
     setSelectedLocation(defaultProfileLocation ?? browserLocation.current ?? null);
     setModalLocationQuery('');
     setModalLocationResults([]);
+    setShowMapSearchCTA(false);
   }, [defaultProfileLocation]);
+
+  const handleMapCameraChanged = useCallback(
+    (
+      center: { lat: number; lng: number },
+      bounds: { north: number; east: number; south: number; west: number } | null,
+    ) => {
+      const currentLat = selectedLocation ? Number(selectedLocation.lat) : DEFAULT_LAT;
+      const currentLon = selectedLocation ? Number(selectedLocation.lon) : DEFAULT_LON;
+
+      const dist = calculateDistance(currentLat, currentLon, center.lat, center.lng);
+
+      let radius = filters.radiusMeters;
+      if (bounds) {
+        radius = calculateDistance(center.lat, center.lng, bounds.north, bounds.east);
+      }
+
+      // If map moves more than 20% of current search radius, show CTA
+      const threshold = Math.max(filters.radiusMeters * 0.2, 500);
+
+      if (dist > threshold) {
+        setShowMapSearchCTA(true);
+        setMapDraftCenter({ lat: center.lat, lon: center.lng });
+        setMapDraftRadius(radius);
+      } else {
+        // If they pan back to the origin, hide it
+        setShowMapSearchCTA(false);
+      }
+    },
+    [selectedLocation, filters.radiusMeters],
+  );
+
+  const applyMapSearchArea = useCallback(() => {
+    if (!mapDraftCenter || !mapDraftRadius) return;
+
+    const snapRadius = RADIUS_OPTIONS.find((r) => r.value >= mapDraftRadius)?.value ?? 50000;
+
+    setSelectedLocation({
+      display_name: 'Map Area',
+      lat: String(mapDraftCenter.lat),
+      lon: String(mapDraftCenter.lon),
+    });
+    setFilters((prev) => ({ ...prev, radiusMeters: snapRadius }));
+    setShowMapSearchCTA(false);
+    setMapDraftCenter(null);
+    setMapDraftRadius(null);
+  }, [mapDraftCenter, mapDraftRadius]);
 
   const locationShortLabelText = locationShortLabel(selectedLocation);
   const hasCustomLocationFilter = isDiscoverLocationFilterActive(
@@ -663,5 +729,8 @@ export function useDiscoverViewModel(token: string | null) {
     browserLocationRequestPending,
     browserLocationError,
     mapCenter,
+    showMapSearchCTA,
+    handleMapCameraChanged,
+    applyMapSearchArea,
   };
 }

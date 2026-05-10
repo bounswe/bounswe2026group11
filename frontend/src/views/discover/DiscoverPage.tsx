@@ -836,6 +836,7 @@ export default function DiscoverPage() {
           selectedEventId={selectedEventId}
           onSelectEvent={setSelectedEventId}
           onRetry={vm.refresh}
+          onCameraChanged={vm.handleMapCameraChanged}
         />
 
         <div
@@ -849,8 +850,21 @@ export default function DiscoverPage() {
           {!overlayCollapsed && eventsListUnderSearch}
         </div>
 
-        {categoriesBlock && (
-          <div className="dc-overlay dc-overlay-top-center">{categoriesBlock}</div>
+        {(categoriesBlock || vm.showMapSearchCTA) && (
+          <div className="dc-overlay dc-overlay-top-center">
+            {vm.showMapSearchCTA && (
+              <div className="dc-map-search-cta-wrapper">
+                <button
+                  type="button"
+                  className="dc-map-search-cta"
+                  onClick={vm.applyMapSearchArea}
+                >
+                  Search this area
+                </button>
+              </div>
+            )}
+            {categoriesBlock}
+          </div>
         )}
 
         <div className="dc-overlay dc-overlay-top-right">{locationButton}</div>

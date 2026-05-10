@@ -18,6 +18,10 @@ interface DiscoverMapViewProps {
   selectedEventId: string | null;
   onSelectEvent: (eventId: string | null) => void;
   onRetry: () => void;
+  onCameraChanged?: (
+    center: { lat: number; lng: number },
+    bounds: { north: number; east: number; south: number; west: number } | null,
+  ) => void;
 }
 
 interface MappableEvent {
@@ -99,6 +103,7 @@ export default function DiscoverMapView({
   selectedEventId,
   onSelectEvent,
   onRetry,
+  onCameraChanged,
 }: DiscoverMapViewProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -128,8 +133,10 @@ export default function DiscoverMapView({
           fullscreenControl={false}
           clickableIcons={false}
           onClick={() => onSelectEvent(null)}
-          onCameraChanged={(_e: MapCameraChangedEvent) => {
-            /* keep camera in user control */
+          onCameraChanged={(e: MapCameraChangedEvent) => {
+            if (onCameraChanged) {
+              onCameraChanged(e.detail.center, e.detail.bounds ?? null);
+            }
           }}
           className="dc-map-surface"
         >
