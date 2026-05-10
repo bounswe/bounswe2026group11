@@ -1169,9 +1169,9 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
   const { event } = vm;
   const ratingLabel =
-    event.host_score.final_score != null
+    event.host_score.final_score != null && event.host_score.hosted_event_rating_count > 0
       ? `${event.host_score.final_score.toFixed(1)} (${event.host_score.hosted_event_rating_count})`
-      : 'New host';
+      : 'No ratings yet';
   const hostDisplayName = event.host.display_name ?? event.host.username;
   const capacityLabel =
     event.capacity != null

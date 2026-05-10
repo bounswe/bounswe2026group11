@@ -316,19 +316,20 @@ export function useProfileViewModel(): ProfileViewModel {
         ).filter((event) => shouldShowProfileEvent(event.status));
         setHostedEvents(visibleHostedEvents);
         setAttendedEvents(mergedAttendedEvents);
+        const totalCount = (profileResult.host_score?.rating_count || 0) + (profileResult.participant_score?.rating_count || 0);
         setOverallRatingLabel(
-          profileResult.final_score != null
-            ? profileResult.final_score.toFixed(1)
+          profileResult.final_score != null && totalCount > 0
+            ? `${profileResult.final_score.toFixed(1)} (${totalCount})`
             : 'New',
         );
         setHostRatingLabel(
-          profileResult.host_score?.score != null
-            ? profileResult.host_score.score.toFixed(1)
+          profileResult.host_score?.score != null && profileResult.host_score.rating_count > 0
+            ? `${profileResult.host_score.score.toFixed(1)} (${profileResult.host_score.rating_count})`
             : 'New',
         );
         setParticipantRatingLabel(
-          profileResult.participant_score?.score != null
-            ? profileResult.participant_score.score.toFixed(1)
+          profileResult.participant_score?.score != null && profileResult.participant_score.rating_count > 0
+            ? `${profileResult.participant_score.score.toFixed(1)} (${profileResult.participant_score.rating_count})`
             : 'New',
         );
       } catch (err) {

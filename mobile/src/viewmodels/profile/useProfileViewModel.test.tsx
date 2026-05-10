@@ -251,9 +251,9 @@ describe('useProfileViewModel', () => {
     expect(result.current.primaryName).toBe('John Doe');
     expect(result.current.secondaryName).toBe('john_doe');
     expect(result.current.avatarInitial).toBe('J');
-    expect(result.current.overallRatingLabel).toBe('4.2');
-    expect(result.current.hostRatingLabel).toBe('4.7');
-    expect(result.current.participantRatingLabel).toBe('3.8');
+    expect(result.current.overallRatingLabel).toBe('4.2 (21)');
+    expect(result.current.hostRatingLabel).toBe('4.7 (12)');
+    expect(result.current.participantRatingLabel).toBe('3.8 (9)');
   });
 
   it('derives primaryName from username when display_name is null', async () => {
@@ -331,8 +331,8 @@ describe('useProfileViewModel', () => {
     const { result } = await renderProfileViewModel();
 
     expect(result.current.overallRatingLabel).toBe('New');
-    expect(result.current.hostRatingLabel).toBe('4.7');
-    expect(result.current.participantRatingLabel).toBe('3.8');
+    expect(result.current.hostRatingLabel).toBe('4.7 (12)');
+    expect(result.current.participantRatingLabel).toBe('3.8 (9)');
   });
 
   it('deduplicates attended events returned by multiple endpoints', async () => {
