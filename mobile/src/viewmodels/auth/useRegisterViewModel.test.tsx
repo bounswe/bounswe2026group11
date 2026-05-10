@@ -21,7 +21,8 @@ const validDetails = {
   username: 'newuser',
   password: 'Password1x',
   phone_number: '',
-  birth_date: '',
+  gender: 'FEMALE' as const,
+  birth_date: '1998-05-14',
 };
 
 async function fillDetailsForm(vm: RegisterViewModel) {
@@ -30,6 +31,7 @@ async function fillDetailsForm(vm: RegisterViewModel) {
     vm.updateField('username', validDetails.username);
     vm.updateField('password', validDetails.password);
     vm.updateField('phone_number', validDetails.phone_number);
+    vm.updateField('gender', validDetails.gender);
     vm.updateField('birth_date', validDetails.birth_date);
   });
 }
@@ -81,6 +83,22 @@ describe('useRegisterViewModel', () => {
     expect(mockRequestOtp).not.toHaveBeenCalled();
     expect(result.current.step).toBe('details');
     expect(result.current.errors.email).toBeTruthy();
+  });
+
+  it('requires gender and birth date before requesting OTP', async () => {
+    const { result } = renderHook(() => useRegisterViewModel());
+
+    await act(async () => {
+      result.current.updateField('email', validDetails.email);
+      result.current.updateField('username', validDetails.username);
+      result.current.updateField('password', validDetails.password);
+      await result.current.handleSubmitDetails();
+    });
+
+    expect(mockCheck).not.toHaveBeenCalled();
+    expect(mockRequestOtp).not.toHaveBeenCalled();
+    expect(result.current.errors.gender).toBe('Gender is required.');
+    expect(result.current.errors.birth_date).toBe('Birth date is required.');
   });
 
   it('sets email and username errors when check-availability returns TAKEN', async () => {
@@ -158,8 +176,8 @@ describe('useRegisterViewModel', () => {
       username: validDetails.username,
       password: validDetails.password,
       phone_number: null,
-      gender: null,
-      birth_date: null,
+      gender: validDetails.gender,
+      birth_date: validDetails.birth_date,
     });
     expect(verifyResult).toEqual(sessionFixture);
   });

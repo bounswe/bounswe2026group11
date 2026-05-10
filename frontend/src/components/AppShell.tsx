@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -17,6 +18,8 @@ const AUTH_NAV = [
   { to: '/invitations', label: 'Invitations' },
 ];
 
+const LOGIN_REQUIRED_MESSAGE = 'You must sign in';
+
 export default function AppShell() {
   const { token, username, role, avatarUrl, displayName, refreshToken, clearAuth } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -27,7 +30,7 @@ export default function AppShell() {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isLoggedIn = !!token;
-  const navItems = isLoggedIn ? AUTH_NAV : [];
+  const navItems = AUTH_NAV;
   const isAdminPanel = location.pathname.startsWith('/backoffice') || location.pathname.startsWith('/admin-panel');
   const isDiscoverRoute = location.pathname === '/discover';
   const isDarkMode = theme === 'dark';
@@ -57,6 +60,9 @@ export default function AppShell() {
   };
 
   const closeMobileMenu = () => setMenuOpen(false);
+  const handleLockedAction = (event: ReactMouseEvent<HTMLElement>) => {
+    event.preventDefault();
+  };
 
   return (
     <div className="shell">
@@ -66,22 +72,29 @@ export default function AppShell() {
             <SemLogo height={56} color={isDarkMode ? '#f9fafb' : '#111827'} />
           </NavLink>
 
-          {navItems.length > 0 && (
-            <nav className={`shell-nav ${menuOpen ? 'open' : ''}`}>
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `shell-nav-link ${isActive ? 'active' : ''}`
-                  }
-                  onClick={closeMobileMenu}
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-          )}
+          <nav className={`shell-nav ${menuOpen ? 'open' : ''}`}>
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  `shell-nav-link ${isActive && isLoggedIn ? 'active' : ''} ${
+                    !isLoggedIn ? 'locked shell-locked-item' : ''
+                  }`
+                }
+                onClick={isLoggedIn ? closeMobileMenu : handleLockedAction}
+                aria-disabled={!isLoggedIn}
+                title={!isLoggedIn ? LOGIN_REQUIRED_MESSAGE : undefined}
+              >
+                {item.label}
+                {!isLoggedIn && (
+                  <span className="shell-lock-tooltip" aria-hidden="true">
+                    {LOGIN_REQUIRED_MESSAGE}
+                  </span>
+                )}
+              </NavLink>
+            ))}
+          </nav>
 
           <div className="shell-header-right">
             {isDiscoverRoute && (
@@ -155,51 +168,69 @@ export default function AppShell() {
                 </svg>
               )}
             </button>
+            <NavLink
+              to="/notifications"
+              className={`shell-bell-btn ${!isLoggedIn ? 'locked shell-locked-item' : ''}`}
+              aria-label={
+                unreadCount > 0
+                  ? `Notifications, ${unreadCount} unread`
+                  : 'Notifications'
+              }
+              aria-disabled={!isLoggedIn}
+              title={isLoggedIn ? 'Notifications' : LOGIN_REQUIRED_MESSAGE}
+              onClick={!isLoggedIn ? handleLockedAction : undefined}
+            >
+              <svg
+                className="shell-bell-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="shell-bell-badge" aria-hidden>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+              {!isLoggedIn && (
+                <span className="shell-lock-tooltip" aria-hidden="true">
+                  {LOGIN_REQUIRED_MESSAGE}
+                </span>
+              )}
+            </NavLink>
+            <NavLink
+              to="/events/create"
+              className={({ isActive }) =>
+                `shell-create-btn ${isActive && isLoggedIn ? 'active' : ''} ${
+                  !isLoggedIn ? 'locked shell-locked-item' : ''
+                }`
+              }
+              onClick={!isLoggedIn ? handleLockedAction : undefined}
+              aria-disabled={!isLoggedIn}
+              title={!isLoggedIn ? LOGIN_REQUIRED_MESSAGE : undefined}
+            >
+              + Create Event
+              {!isLoggedIn && (
+                <span className="shell-lock-tooltip" aria-hidden="true">
+                  {LOGIN_REQUIRED_MESSAGE}
+                </span>
+              )}
+            </NavLink>
+            {role === 'ADMIN' && (
+              <NavLink to="/backoffice" className="shell-admin-btn">
+                <svg className="shell-admin-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3.5 18 6v5.2c0 3.9-2.4 7.4-6 8.8-3.6-1.4-6-4.9-6-8.8V6l6-2.5Z" />
+                </svg>
+                <span>Admin Panel</span>
+              </NavLink>
+            )}
             {isLoggedIn ? (
-              <>
-                <NavLink
-                  to="/notifications"
-                  className="shell-bell-btn"
-                  aria-label={
-                    unreadCount > 0
-                      ? `Notifications, ${unreadCount} unread`
-                      : 'Notifications'
-                  }
-                  title="Notifications"
-                >
-                  <svg
-                    className="shell-bell-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-                    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-                  </svg>
-                  {unreadCount > 0 && (
-                    <span className="shell-bell-badge" aria-hidden>
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
-                </NavLink>
-                <NavLink
-                  to="/events/create"
-                  className={({ isActive }) => `shell-create-btn ${isActive ? 'active' : ''}`}
-                >
-                  + Create Event
-                </NavLink>
-                {role === 'ADMIN' && (
-                  <NavLink to="/backoffice" className="shell-admin-btn">
-                    <svg className="shell-admin-icon" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 3.5 18 6v5.2c0 3.9-2.4 7.4-6 8.8-3.6-1.4-6-4.9-6-8.8V6l6-2.5Z" />
-                    </svg>
-                    <span>Admin Panel</span>
-                  </NavLink>
-                )}
                 <div className="shell-user-menu" ref={userMenuRef}>
                   <button
                     className="shell-user-btn"
@@ -255,7 +286,6 @@ export default function AppShell() {
                     </div>
                   )}
                 </div>
-              </>
             ) : (
               <div className="shell-auth-buttons">
                 <NavLink to="/login" className="shell-signin-btn">
@@ -267,27 +297,23 @@ export default function AppShell() {
               </div>
             )}
 
-            {navItems.length > 0 && (
-              <button
-                className="shell-hamburger"
-                onClick={() => setMenuOpen((prev) => !prev)}
-                aria-label="Toggle navigation"
-              >
-                <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
-                <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
-                <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
-              </button>
-            )}
+            <button
+              className="shell-hamburger"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              aria-label="Toggle navigation"
+            >
+              <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
+              <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
+              <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
+            </button>
           </div>
         </div>
       </header>
 
-      {navItems.length > 0 && (
-        <div
-          className={`shell-overlay ${menuOpen ? 'visible' : ''}`}
-          onClick={closeMobileMenu}
-        />
-      )}
+      <div
+        className={`shell-overlay ${menuOpen ? 'visible' : ''}`}
+        onClick={closeMobileMenu}
+      />
 
       <main
         className={`shell-main ${isAdminPanel ? 'admin-panel-main' : ''} ${

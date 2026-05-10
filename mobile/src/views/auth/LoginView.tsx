@@ -17,6 +17,7 @@ import { useLoginViewModel } from '@/viewmodels/auth/useLoginViewModel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+import SemLogo from '@/components/common/SemLogo';
 
 export default function LoginView() {
   const vm = useLoginViewModel();
@@ -42,20 +43,23 @@ export default function LoginView() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>
-          Sign in to continue to your account
-        </Text>
-
-        {vm.apiError && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{vm.apiError}</Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.brand}>
+            <SemLogo height={76} color={theme.text} />
           </View>
-        )}
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>
+            Sign in to continue to your account
+          </Text>
+
+          {vm.apiError && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{vm.apiError}</Text>
+            </View>
+          )}
 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Username</Text>
@@ -141,6 +145,10 @@ function makeStyles(t: Theme) {
       flexGrow: 1,
       padding: 24,
       paddingTop: 72,
+    },
+    brand: {
+      alignItems: 'center',
+      marginBottom: 20,
     },
     title: {
       fontSize: 28,
