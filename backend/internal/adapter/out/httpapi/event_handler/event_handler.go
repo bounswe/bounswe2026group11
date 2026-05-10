@@ -1113,6 +1113,22 @@ func parseDiscoverEventsInput(c *fiber.Ctx) (event.DiscoverEventsInput, map[stri
 		input.CategoryIDs = categoryIDs
 	}
 
+	// Backward-compat: the discovery endpoint historically accepted a
+	// singular `category_id=N` parameter. We keep it as an alias for a
+	// one-element `category_ids`. When both are present, the richer
+	// plural form wins so clients that adopted the new contract are
+	// unaffected by stray legacy params.
+	if len(input.CategoryIDs) == 0 {
+		if rawSingle := strings.TrimSpace(c.Query("category_id")); rawSingle != "" {
+			value, err := strconv.Atoi(rawSingle)
+			if err != nil {
+				errs["category_id"] = "category_id must be an integer"
+			} else {
+				input.CategoryIDs = []int{value}
+			}
+		}
+	}
+
 	tagNames := parseListQueryValues(values, "tag_names")
 	if len(tagNames) > 0 {
 		input.TagNames = tagNames

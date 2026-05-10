@@ -138,6 +138,16 @@ type DiscoverEventsParams struct {
 	FilterFingerprint    string
 	DecodedCursor        *DiscoverEventsCursor
 	RepositoryFetchLimit int
+	// AnonymousViewer is true when the discovery request has no
+	// authenticated user. The repo uses this to skip the viewer JOIN and
+	// apply a strict eligibility filter (only events with no age/gender
+	// restriction are returned for anonymous callers).
+	AnonymousViewer bool
+	// Now is the reference timestamp used to compute the viewer's age in
+	// the eligibility WHERE clause. Set by the service so query results are
+	// deterministic with respect to the service's clock (also useful for
+	// tests that override `service.now`).
+	Now time.Time
 }
 
 // DiscoverableEventRecord is the repository-level projection used for discovery responses.

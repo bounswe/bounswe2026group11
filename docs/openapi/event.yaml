@@ -2290,6 +2290,16 @@ paths:
         - `is_favorited` is resolved for the authenticated caller; unauthenticated callers always
           receive `is_favorited: false`.
 
+        Eligibility filtering (issue #501):
+        - **Anonymous callers** see only events with no `minimum_age` or `preferred_gender` restriction.
+          Events with any audience restriction are completely hidden until the caller authenticates.
+        - **Authenticated callers** see events whose restrictions they satisfy (age computed from
+          `birth_date`; gender matched directly), AND — generously — events whose restriction is on a
+          dimension the viewer hasn't filled in (e.g. `minimum_age=21` with `birth_date IS NULL`). The
+          join attempt for those events will then return `400 profile_incomplete`, surfacing the gap to
+          the user instead of silently hiding the event.
+        - Filtering happens in SQL before pagination, so cursors and page sizes remain consistent.
+
         Sorting defaults:
         - If `q` is omitted and `sort_by` is omitted, sorting defaults to `START_TIME`.
         - If `q` is present and `sort_by` is omitted, sorting defaults to `RELEVANCE`.
@@ -2359,7 +2369,18 @@ paths:
             items:
               type: integer
               minimum: 1
-          description: Optional comma-separated category ids. Matches events whose `category_id` is in the provided set.
+          description: |
+            Optional comma-separated category ids. Matches events whose `category_id` is in the provided set.
+
+            For backward compatibility with the legacy single-category contract, the `category_id` (singular, integer) query parameter is also accepted and treated as a one-element list. When both `category_ids` and `category_id` are present, `category_ids` takes precedence and the singular value is ignored. Non-integer values in either parameter return `400` with the offending field name in `error.details`.
+        - name: category_id
+          in: query
+          required: false
+          deprecated: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Legacy alias for a one-element `category_ids`. Prefer `category_ids` for new clients.
         - name: start_from
           in: query
           required: false
