@@ -114,6 +114,8 @@ function makeReadyViewModel(event: EventDetailResponse) {
     moderateError: null,
     cancelLoading: false,
     cancelError: null,
+    completeLoading: false,
+    completeError: null,
     favoriteLoading: false,
     reportLoading: false,
     reportError: null,
@@ -127,6 +129,7 @@ function makeReadyViewModel(event: EventDetailResponse) {
     handleApprove: vi.fn(),
     handleReject: vi.fn(),
     handleCancel: vi.fn(),
+    handleComplete: vi.fn(),
     handleFavoriteToggle: vi.fn(),
     handleReportEvent: vi.fn(),
     dismissJoinError: vi.fn(),
@@ -135,6 +138,7 @@ function makeReadyViewModel(event: EventDetailResponse) {
     dismissParticipantRatingError: vi.fn(),
     dismissModerateError: vi.fn(),
     dismissCancelError: vi.fn(),
+    dismissCompleteError: vi.fn(),
     dismissReportError: vi.fn(),
     dismissReportSuccess: vi.fn(),
     coverImageUploading: false,
@@ -160,6 +164,24 @@ function makeReadyViewModel(event: EventDetailResponse) {
 }
 
 describe('EventDetailPage ratings', () => {
+  it('lets the host end an in-progress event from the management section', async () => {
+    const event = makeBaseEvent();
+    event.status = 'IN_PROGRESS';
+    event.viewer_context.is_host = true;
+
+    const vm = makeReadyViewModel(event);
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /end event/i }));
+    fireEvent.click(screen.getByRole('button', { name: /yes, end event/i }));
+
+    await waitFor(() => {
+      expect(vm.handleComplete).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('opens the report modal from the flag button and submits the selected reason', async () => {
     const event = makeBaseEvent();
     const vm = makeReadyViewModel(event);
