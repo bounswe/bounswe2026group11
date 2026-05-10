@@ -1407,7 +1407,11 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         {/* Host */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Host</Text>
-          <View style={styles.hostRow}>
+          <TouchableOpacity
+            style={styles.hostRow}
+            onPress={() => router.push(`/user/${event.host.id}` as Href)}
+            activeOpacity={0.7}
+          >
             {event.host.avatar_url ? (
               <Image source={{ uri: event.host.avatar_url }} style={styles.avatar} />
             ) : (
@@ -1423,7 +1427,8 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               <Feather name="star" size={14} color="#F59E0B" />
               <Text style={styles.hostRatingText}>{ratingLabel}</Text>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+          </TouchableOpacity>
         </View>
 
         {/* Host Management */}

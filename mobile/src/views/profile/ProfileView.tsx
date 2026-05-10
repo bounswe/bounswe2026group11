@@ -20,6 +20,11 @@ import { useProfileViewModel } from '@/viewmodels/profile/useProfileViewModel';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+import BadgeList from '@/components/profile/BadgeList';
+import EquipmentList from '@/components/profile/EquipmentList';
+import ShowcaseImageGrid from '@/components/profile/ShowcaseImageGrid';
+import { EquipmentItem } from '@/models/profile';
+import { Modal, TextInput } from 'react-native';
 
 type ProfileEventTab = 'hosted' | 'attended';
 
@@ -30,6 +35,11 @@ export default function ProfileView() {
   const [activeTab, setActiveTab] = useState<ProfileEventTab>('hosted');
   const { theme, isDark, setThemePreference } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+
+  const [equipmentModalVisible, setEquipmentModalVisible] = useState(false);
+  const [editingEquipment, setEditingEquipment] = useState<EquipmentItem | null>(null);
+  const [eqName, setEqName] = useState('');
+  const [eqDesc, setEqDesc] = useState('');
 
   const { isLoggingOut, logoutError, handleLogout } = useLogoutViewModel(
     refreshToken,
@@ -50,17 +60,44 @@ export default function ProfileView() {
     [activeTab, vm.attendedEvents, vm.hostedEvents],
   );
 
-  const genderLabel = vm.profile?.gender
-    ? vm.profile.gender.charAt(0) +
-      vm.profile.gender.slice(1).toLowerCase().replace(/_/g, ' ')
+  const gender = vm.profile?.gender;
+  const genderLabel = gender
+    ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase().replace(/_/g, ' ')
     : 'Gender not set';
-  const birthDateLabel = vm.profile?.birth_date
-    ? vm.profile.birth_date.split('-').reverse().join('.')
+
+  const birthDate = vm.profile?.birth_date;
+  const birthDateLabel = birthDate
+    ? birthDate.split('-').reverse().join('.')
     : 'Birth date not set';
+
   const phoneLabel = vm.profile?.phone_number || 'Phone not set';
   const locationLabel = vm.profile?.default_location_address
     ? formatEventLocation(vm.profile.default_location_address)
     : 'Location not set';
+
+  const openAddEquipment = () => {
+    setEditingEquipment(null);
+    setEqName('');
+    setEqDesc('');
+    setEquipmentModalVisible(true);
+  };
+
+  const openEditEquipment = (item: EquipmentItem) => {
+    setEditingEquipment(item);
+    setEqName(item.name);
+    setEqDesc(item.description || '');
+    setEquipmentModalVisible(true);
+  };
+
+  const handleSaveEquipment = async () => {
+    if (!eqName.trim()) return;
+    if (editingEquipment) {
+      await vm.editEquipment(editingEquipment.id, eqName, eqDesc);
+    } else {
+      await vm.addEquipment(eqName, eqDesc);
+    }
+    setEquipmentModalVisible(false);
+  };
 
   const renderHeader = () => (
     <View>
@@ -211,6 +248,58 @@ export default function ProfileView() {
                 </View>
               </View>
             </View>
+          </View>
+
+          <View style={styles.section}>
+            <View style={[styles.sectionHeader, { alignItems: 'flex-start' }]}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.sectionTitle}>Badges</Text>
+                <Text style={styles.sectionSubtitle}>Achievements earned through hosting, participation, and social activity</Text>
+              </View>
+              <TouchableOpacity onPress={() => vm.setCatalogVisible(true)} style={{ marginTop: 2 }}>
+                <Text style={styles.viewAllActionText}>View All Badges</Text>
+              </TouchableOpacity>
+            </View>
+            <BadgeList 
+              badges={vm.badges} 
+              catalogVisible={vm.catalogVisible}
+              onToggleCatalog={vm.setCatalogVisible}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Equipment</Text>
+                <Text style={styles.sectionSubtitle}>Gear and essentials this member wants to highlight</Text>
+              </View>
+              <TouchableOpacity onPress={openAddEquipment}>
+                <Ionicons name="add-circle-outline" size={24} color={theme.primaryAlt} />
+              </TouchableOpacity>
+            </View>
+            <EquipmentList 
+              equipment={vm.equipment} 
+              isOwner 
+              onEdit={openEditEquipment} 
+              onDelete={vm.removeEquipment} 
+            />
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Showcase</Text>
+                <Text style={styles.sectionSubtitle}>Moments, snapshots, and visual highlights shared on the profile</Text>
+              </View>
+              <TouchableOpacity onPress={vm.uploadShowcaseImage}>
+                <Ionicons name="add-circle-outline" size={24} color={theme.primaryAlt} />
+              </TouchableOpacity>
+            </View>
+            <ShowcaseImageGrid 
+              images={vm.showcaseImages} 
+              isOwner 
+              onDelete={vm.removeShowcaseImage} 
+            />
           </View>
 
           <View style={styles.menuCard}>
@@ -438,6 +527,61 @@ export default function ProfileView() {
           />
         )}
       </View>
+
+      <Modal
+        visible={equipmentModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEquipmentModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {editingEquipment ? 'Edit Equipment' : 'Add Equipment'}
+            </Text>
+            
+            <Text style={styles.label}>Name</Text>
+            <TextInput
+              style={styles.input}
+              value={eqName}
+              onChangeText={setEqName}
+              placeholder="e.g. Mountain Bike"
+              placeholderTextColor={theme.textMuted}
+            />
+
+            <Text style={styles.label}>Description (Optional)</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={eqDesc}
+              onChangeText={setEqDesc}
+              placeholder="Brief details about the item..."
+              placeholderTextColor={theme.textMuted}
+              multiline
+              numberOfLines={3}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity 
+                style={styles.modalCancel} 
+                onPress={() => setEquipmentModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalSave, !eqName.trim() && styles.modalSaveDisabled]} 
+                onPress={handleSaveEquipment}
+                disabled={!eqName.trim() || vm.isActionLoading}
+              >
+                {vm.isActionLoading ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.modalSaveText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -748,10 +892,102 @@ function makeStyles(t: Theme) {
     },
     emptySubtitle: {
       marginTop: 8,
-      fontSize: 14,
       color: t.textSecondary,
       textAlign: 'center',
       paddingHorizontal: 28,
+    },
+    section: {
+      marginBottom: 20,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: t.text,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
+    sectionSubtitle: {
+      fontSize: 12,
+      color: t.textSecondary,
+      marginTop: 2,
+    },
+    viewAllActionText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: t.primaryAlt,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      padding: 20,
+    },
+    modalContent: {
+      backgroundColor: t.surface,
+      borderRadius: 20,
+      padding: 20,
+      gap: 16,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: t.text,
+      marginBottom: 8,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textSecondary,
+    },
+    input: {
+      backgroundColor: t.background,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 12,
+      padding: 12,
+      color: t.text,
+      fontSize: 16,
+    },
+    textArea: {
+      height: 80,
+      textAlignVertical: 'top',
+    },
+    modalActions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 12,
+      marginTop: 8,
+    },
+    modalCancel: {
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+    },
+    modalCancelText: {
+      color: t.textSecondary,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    modalSave: {
+      backgroundColor: t.primaryAlt,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 12,
+      minWidth: 80,
+      alignItems: 'center',
+    },
+    modalSaveDisabled: {
+      opacity: 0.5,
+    },
+    modalSaveText: {
+      color: '#FFF',
+      fontSize: 16,
+      fontWeight: '700',
     },
   });
 }

@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { router, type Href } from 'expo-router';
 import { EventDetailApprovedParticipant } from '@/models/event';
 
 const FEEDBACK_MIN_LENGTH = 10;
@@ -84,6 +85,7 @@ function ParticipantRow({
   ratingError,
   onSubmitRating,
   onDismissRatingError,
+  onCloseModal,
 }: {
   participant: EventDetailApprovedParticipant;
   canRateParticipants: boolean;
@@ -91,6 +93,7 @@ function ParticipantRow({
   ratingError: { participantUserId: string; message: string } | null;
   onSubmitRating: (participantUserId: string, rating: number, message?: string) => void;
   onDismissRatingError: () => void;
+  onCloseModal: () => void;
 }) {
   const existingRating = participant.host_rating;
   const [isEditing, setIsEditing] = React.useState(false);
@@ -129,7 +132,14 @@ function ParticipantRow({
 
   return (
     <View style={styles.participantCard}>
-      <View style={styles.participantRow}>
+      <TouchableOpacity 
+        style={styles.participantRow}
+        onPress={() => {
+          onCloseModal();
+          router.push(`/user/${participant.user.id}` as Href);
+        }}
+        activeOpacity={0.7}
+      >
         {participant.user.avatar_url ? (
           <Image
             source={{ uri: participant.user.avatar_url }}
@@ -188,7 +198,7 @@ function ParticipantRow({
             </Text>
           </TouchableOpacity>
         ) : null}
-      </View>
+      </TouchableOpacity>
 
       {isEditing ? (
         <View style={styles.inlineEditor}>
@@ -389,6 +399,7 @@ export default function ParticipantListModal({
                   onSubmitRating?.(participantUserId, rating, message);
                 }}
                 onDismissRatingError={() => onDismissRatingError?.()}
+                onCloseModal={onClose}
               />
             )}
             ListEmptyComponent={
