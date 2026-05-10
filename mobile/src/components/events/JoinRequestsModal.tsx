@@ -15,6 +15,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
 import { EventDetailPendingJoinRequest } from '@/models/event';
+import { useTheme, type Theme } from '@/theme';
 
 interface JoinRequestsModalProps {
   visible: boolean;
@@ -39,6 +40,8 @@ export default function JoinRequestsModal({
   onApprove,
   onReject,
 }: JoinRequestsModalProps) {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => makeStyles(theme), [theme]);
   const [previewImage, setPreviewImage] = React.useState<string | null>(null);
   const panY = React.useRef(new Animated.Value(0)).current;
 
@@ -98,7 +101,7 @@ export default function JoinRequestsModal({
           <View style={styles.header}>
             <Text style={styles.title}>Pending Requests ({requests.length})</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Feather name="x" size={24} color="#111827" />
+              <Feather name="x" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
 
@@ -122,7 +125,7 @@ export default function JoinRequestsModal({
                     />
                   ) : (
                     <View style={styles.avatarFallback}>
-                      <Feather name="user" size={20} color="#9CA3AF" />
+                      <Feather name="user" size={20} color={theme.textTertiary} />
                     </View>
                   )}
 
@@ -142,7 +145,7 @@ export default function JoinRequestsModal({
                         style={styles.attachmentLink}
                         onPress={() => item.image_url && setPreviewImage(item.image_url)}
                       >
-                        <Feather name="image" size={14} color="#2563EB" />
+                        <Feather name="image" size={14} color={theme.infoText} />
                         <Text style={styles.attachmentLinkText}>View Attachment</Text>
                       </TouchableOpacity>
                     ) : null}
@@ -154,14 +157,14 @@ export default function JoinRequestsModal({
                     style={[styles.actionBtn, styles.rejectBtn]}
                     onPress={() => onReject(item.join_request_id)}
                   >
-                    <Feather name="x" size={20} color="#DC2626" />
+                    <Feather name="x" size={20} color={theme.errorText} />
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.approveBtn]}
                     onPress={() => onApprove(item.join_request_id)}
                   >
-                    <Feather name="check" size={20} color="#16A34A" />
+                    <Feather name="check" size={20} color={theme.successText} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -212,14 +215,15 @@ export default function JoinRequestsModal({
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    backgroundColor: t.overlay,
     justifyContent: 'flex-end',
   },
   container: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
@@ -231,7 +235,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: t.borderStrong,
     alignSelf: 'center',
     marginBottom: 20,
   },
@@ -244,7 +248,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: t.text,
   },
   closeBtn: {
     padding: 4,
@@ -257,7 +261,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: t.border,
   },
   userInfoTouchable: {
     flexDirection: 'row',
@@ -268,13 +272,13 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.surfaceVariant,
   },
   avatarFallback: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.surfaceVariant,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -285,16 +289,17 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: t.text,
   },
   username: {
     fontSize: 14,
-    color: '#6B7280',
+    color: t.textSecondary,
     marginTop: 2,
   },
   message: {
     marginTop: 4,
     fontStyle: 'italic',
+    color: t.textSecondary,
   },
   attachmentLink: {
     flexDirection: 'row',
@@ -303,14 +308,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingVertical: 4,
     paddingHorizontal: 8,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: t.infoBg,
     borderRadius: 6,
     alignSelf: 'flex-start',
   },
   attachmentLinkText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#2563EB',
+    color: t.infoText,
   },
   actions: {
     flexDirection: 'row',
@@ -325,14 +330,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rejectBtn: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.errorBg,
   },
   approveBtn: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: t.successBg,
   },
   empty: {
     textAlign: 'center',
-    color: '#6B7280',
+    color: t.textSecondary,
     marginTop: 32,
     fontSize: 15,
   },
@@ -342,10 +347,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: t.infoBg,
   },
   loadMoreText: {
-    color: '#2563EB',
+    color: t.infoText,
     fontWeight: '600',
   },
   previewOverlay: {
@@ -375,4 +380,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-});
+  });
+}

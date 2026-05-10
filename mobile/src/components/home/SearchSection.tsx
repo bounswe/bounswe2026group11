@@ -9,6 +9,7 @@ interface SearchSectionProps {
   onChangeQuery: (value: string) => void;
   onSubmitSearch: () => void;
   onPressFilter: () => void;
+  onPressMapView?: () => void;
 }
 
 export default function SearchSection({
@@ -16,6 +17,7 @@ export default function SearchSection({
   onChangeQuery,
   onSubmitSearch,
   onPressFilter,
+  onPressMapView,
 }: SearchSectionProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -51,6 +53,19 @@ export default function SearchSection({
       >
         <Feather name="sliders" size={22} color={theme.textOnPrimary} />
       </TouchableOpacity>
+
+      {onPressMapView ? (
+        <TouchableOpacity
+          style={styles.mapButton}
+          onPress={onPressMapView}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Switch to map view"
+          testID="toggle-map"
+        >
+          <Feather name="map" size={22} color={theme.text} />
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -60,6 +75,7 @@ function makeStyles(t: Theme) {
     row: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: 10,
       marginBottom: 14,
     },
     searchContainer: {
@@ -72,7 +88,6 @@ function makeStyles(t: Theme) {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
-      marginRight: 12,
     },
     searchIcon: {
       marginRight: 10,
@@ -88,6 +103,16 @@ function makeStyles(t: Theme) {
       height: 56,
       borderRadius: 18,
       backgroundColor: t.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    mapButton: {
+      width: 56,
+      height: 56,
+      borderRadius: 18,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
       alignItems: 'center',
       justifyContent: 'center',
     },

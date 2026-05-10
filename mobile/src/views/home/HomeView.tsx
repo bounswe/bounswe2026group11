@@ -94,27 +94,12 @@ export default function HomeView() {
 
           {/* Floating overlay — search, location and list toggle above the map */}
           <View
-            style={[styles.mapOverlay, { top: insets.top + 12 }]}
+            style={[styles.mapOverlay, { top: insets.top + 8 }]}
             pointerEvents="box-none"
           >
-            {/* Row 1: logo + location pill + bell + theme toggle + list toggle */}
+            {/* Row 1: logo + bell + theme toggle */}
             <View style={styles.mapOverlayRow}>
-              <SemLogo height={36} color={theme.text} />
-
-              <View ref={locationButtonRef} collapsable={false}>
-                <TouchableOpacity
-                  style={styles.mapLocationPill}
-                  onPress={handleOpenLocationPicker}
-                  accessibilityRole="button"
-                  accessibilityLabel="Select location"
-                >
-                  <Feather name="map-pin" size={14} color={styles.mapLocationIconColor.color} />
-                  <Text style={styles.mapLocationText} numberOfLines={1}>
-                    {vm.locationLabel}
-                  </Text>
-                  <Feather name="chevron-down" size={14} color={styles.mapLocationIconColor.color} />
-                </TouchableOpacity>
-              </View>
+              <SemLogo height={46} color={theme.text} />
 
               <View style={styles.mapOverlayRowSpacer} />
 
@@ -136,19 +121,24 @@ export default function HomeView() {
               >
                 <Feather name={isDark ? 'sun' : 'moon'} size={18} color={theme.text} />
               </TouchableOpacity>
+            </View>
 
+            <View ref={locationButtonRef} collapsable={false}>
               <TouchableOpacity
-                style={styles.mapIconBtn}
-                onPress={vm.toggleViewMode}
+                style={styles.mapLocationPill}
+                onPress={handleOpenLocationPicker}
                 accessibilityRole="button"
-                accessibilityLabel="Switch to list view"
-                testID="toggle-list"
+                accessibilityLabel="Select location"
               >
-                <Feather name="list" size={20} color={theme.text} />
+                <Feather name="map-pin" size={16} color={styles.mapLocationIconColor.color} />
+                <Text style={styles.mapLocationText} numberOfLines={1}>
+                  {vm.locationLabel}
+                </Text>
+                <Feather name="chevron-down" size={16} color={styles.mapLocationIconColor.color} />
               </TouchableOpacity>
             </View>
 
-            {/* Row 2: search bar + filter button */}
+            {/* Row 2: search bar + filter + list button */}
             <View style={styles.mapSearchRow}>
               <View style={styles.mapSearchContainer}>
                 <Feather
@@ -177,7 +167,17 @@ export default function HomeView() {
                 accessibilityLabel="Open filters"
                 testID="map-filter-btn"
               >
-                <Feather name="sliders" size={20} color={styles.mapLocationIconColor.color} />
+                <Feather name="sliders" size={19} color={styles.mapLocationIconColor.color} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.mapFilterBtn}
+                onPress={vm.toggleViewMode}
+                accessibilityRole="button"
+                accessibilityLabel="Switch to list view"
+                testID="toggle-list"
+              >
+                <Feather name="list" size={20} color={styles.mapLocationIconColor.color} />
               </TouchableOpacity>
             </View>
           </View>
@@ -201,11 +201,11 @@ export default function HomeView() {
                 accessibilityRole="button"
                 accessibilityLabel="Select location"
               >
-                <Feather name="map-pin" size={14} color={isDark ? theme.text : theme.textOnPrimary} />
+                <Feather name="map-pin" size={18} color={isDark ? theme.text : theme.textOnPrimary} />
                 <Text style={styles.locationPillText} numberOfLines={1}>
                   {vm.locationLabel}
                 </Text>
-                <Feather name="chevron-down" size={14} color={isDark ? theme.text : theme.textOnPrimary} />
+                <Feather name="chevron-down" size={18} color={isDark ? theme.text : theme.textOnPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -214,53 +214,10 @@ export default function HomeView() {
               onChangeQuery={vm.updateSearchText}
               onSubmitSearch={vm.submitSearch}
               onPressFilter={vm.openFilterModal}
+              onPressMapView={() => {
+                if (vm.viewMode !== 'MAP') vm.toggleViewMode();
+              }}
             />
-
-            <View style={styles.viewToggleRow}>
-              <TouchableOpacity
-                style={[
-                  styles.viewToggleButton,
-                  styles.viewToggleLeft,
-                  vm.viewMode === 'LIST' && styles.viewToggleActive,
-                ]}
-                onPress={() => vm.viewMode !== 'LIST' && vm.toggleViewMode()}
-                accessibilityRole="button"
-                accessibilityLabel="List view"
-                accessibilityState={{ selected: vm.viewMode === 'LIST' }}
-                testID="toggle-list"
-              >
-                <Text
-                  style={[
-                    styles.viewToggleText,
-                    vm.viewMode === 'LIST' && styles.viewToggleTextActive,
-                  ]}
-                >
-                  List
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.viewToggleButton,
-                  styles.viewToggleRight,
-                  vm.viewMode === 'MAP' && styles.viewToggleActive,
-                ]}
-                onPress={() => vm.viewMode !== 'MAP' && vm.toggleViewMode()}
-                accessibilityRole="button"
-                accessibilityLabel="Map view"
-                accessibilityState={{ selected: vm.viewMode === 'MAP' }}
-                testID="toggle-map"
-              >
-                <Text
-                  style={[
-                    styles.viewToggleText,
-                    vm.viewMode === 'MAP' && styles.viewToggleTextActive,
-                  ]}
-                >
-                  Map
-                </Text>
-              </TouchableOpacity>
-            </View>
 
             {vm.apiError ? (
               <View style={styles.errorBanner}>
@@ -355,27 +312,28 @@ function makeStyles(t: Theme, isDark: boolean) {
       paddingTop: 8,
     },
     locationRow: {
-      marginBottom: 10,
+      marginBottom: 14,
     },
     locationPill: {
-      alignSelf: 'flex-start',
+      alignSelf: 'stretch',
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 999,
+      gap: 10,
+      minHeight: 52,
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+      borderRadius: 26,
       backgroundColor: isDark ? t.surface : t.primary,
-      borderWidth: isDark ? 1 : 0,
+      borderWidth: 1,
       borderColor: t.border,
-      maxWidth: '80%',
+      width: '100%',
     },
     locationPillText: {
       color: isDark ? t.text : t.textOnPrimary,
-      fontSize: 13,
+      fontSize: 16,
       fontWeight: '700',
       fontStyle: 'italic',
-      flexShrink: 1,
+      flex: 1,
     },
     listWrapper: {
       flex: 1,
@@ -400,47 +358,13 @@ function makeStyles(t: Theme, isDark: boolean) {
       color: t.errorText,
       fontSize: 14,
     },
-    viewToggleRow: {
-      flexDirection: 'row',
-      marginTop: 10,
-      marginBottom: 2,
-      alignSelf: 'center',
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: t.border,
-      overflow: 'hidden',
-    },
-    viewToggleButton: {
-      paddingHorizontal: 24,
-      paddingVertical: 8,
-      backgroundColor: t.surface,
-    },
-    viewToggleLeft: {
-      borderTopLeftRadius: 999,
-      borderBottomLeftRadius: 999,
-    },
-    viewToggleRight: {
-      borderTopRightRadius: 999,
-      borderBottomRightRadius: 999,
-    },
-    viewToggleActive: {
-      backgroundColor: t.primary,
-    },
-    viewToggleText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: t.textSecondary,
-    },
-    viewToggleTextActive: {
-      color: t.textOnPrimary,
-    },
     // ── full-screen map floating overlay ─────────────────────────────────────
     mapOverlay: {
       position: 'absolute',
       left: 14,
       right: 14,
       zIndex: 20,
-      gap: 8,
+      gap: 6,
     },
     mapOverlayRow: {
       flexDirection: 'row',
@@ -453,25 +377,27 @@ function makeStyles(t: Theme, isDark: boolean) {
     mapLocationPill: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 14,
+      gap: 8,
+      minHeight: 46,
+      paddingHorizontal: 16,
       paddingVertical: 9,
-      borderRadius: 999,
+      borderRadius: 23,
       backgroundColor: isDark ? t.surface : t.primary,
-      borderWidth: isDark ? 1 : 0,
+      borderWidth: 1,
       borderColor: t.border,
-      maxWidth: 150,
+      width: '100%',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.18,
-      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.15,
+      shadowRadius: 5,
       elevation: 4,
     },
     mapLocationText: {
       color: isDark ? t.text : t.textOnPrimary,
-      fontSize: 13,
+      fontSize: 15,
       fontWeight: '700',
-      flexShrink: 1,
+      fontStyle: 'italic',
+      flex: 1,
     },
     mapLocationIconColor: {
       color: isDark ? t.text : t.textOnPrimary,
@@ -500,27 +426,6 @@ function makeStyles(t: Theme, isDark: boolean) {
       borderRadius: 4,
       backgroundColor: t.notificationBadge,
     },
-    mapFloatingBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 14,
-      paddingVertical: 9,
-      borderRadius: 999,
-      backgroundColor: t.surface,
-      borderWidth: 1,
-      borderColor: t.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 6,
-      elevation: 4,
-    },
-    mapFloatingBtnText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: t.text,
-    },
     mapSearchRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -528,18 +433,18 @@ function makeStyles(t: Theme, isDark: boolean) {
     },
     mapSearchContainer: {
       flex: 1,
-      height: 50,
+      height: 46,
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 14,
-      borderRadius: 16,
+      paddingHorizontal: 13,
+      borderRadius: 15,
       backgroundColor: t.surface,
       borderWidth: 1,
       borderColor: t.border,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.12,
-      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.11,
+      shadowRadius: 5,
       elevation: 4,
     },
     mapSearchIcon: {
@@ -547,23 +452,23 @@ function makeStyles(t: Theme, isDark: boolean) {
     },
     mapSearchInput: {
       flex: 1,
-      fontSize: 15,
+      fontSize: 14,
       color: t.text,
       paddingVertical: 0,
     },
     mapFilterBtn: {
-      width: 50,
-      height: 50,
-      borderRadius: 16,
+      width: 46,
+      height: 46,
+      borderRadius: 15,
       backgroundColor: isDark ? t.surface : t.primary,
       borderWidth: isDark ? 1 : 0,
       borderColor: t.border,
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.18,
-      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.15,
+      shadowRadius: 5,
       elevation: 4,
     },
   });

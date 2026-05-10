@@ -18,6 +18,7 @@ import {
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { EventDetailInvitation } from '@/models/event';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme, type Theme } from '@/theme';
 
 interface InvitationsModalProps {
   visible: boolean;
@@ -51,6 +52,8 @@ export default function InvitationsModal({
   isSearchingUsers,
 }: InvitationsModalProps) {
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => makeStyles(theme), [theme]);
   const [error, setError] = useState<string | null>(null);
   const [inviteMessage, setInviteMessage] = useState('');
 
@@ -131,13 +134,13 @@ export default function InvitationsModal({
   const getStatusStyle = (status: string) => {
     switch (status) {
       case 'ACCEPTED':
-        return { bg: '#DCFCE7', text: '#16A34A', label: 'Accepted' };
+        return { bg: theme.successBg, text: theme.successText, label: 'Accepted' };
       case 'DECLINED':
-        return { bg: '#FEE2E2', text: '#DC2626', label: 'Declined' };
+        return { bg: theme.errorBg, text: theme.errorText, label: 'Declined' };
       case 'CANCELED':
-        return { bg: '#F3F4F6', text: '#6B7280', label: 'Revoked' };
+        return { bg: theme.surfaceAlt, text: theme.textSecondary, label: 'Revoked' };
       default:
-        return { bg: '#FEF3C7', text: '#D97706', label: 'Pending' };
+        return { bg: theme.warningBg, text: theme.warningText, label: 'Pending' };
     }
   };
 
@@ -170,7 +173,7 @@ export default function InvitationsModal({
             <View style={styles.header}>
               <Text style={styles.title}>Manage Invitations</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                <Feather name="x" size={24} color="#111827" />
+                <Feather name="x" size={24} color={theme.text} />
               </TouchableOpacity>
             </View>
 
@@ -184,7 +187,7 @@ export default function InvitationsModal({
                   <TextInput
                     style={[styles.input, !!error && styles.inputError]}
                     placeholder="e.g. janesmith, bob"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.placeholder}
                     value={userSearchQuery}
                     onChangeText={(val) => {
                       setUserSearchQuery(val);
@@ -217,7 +220,7 @@ export default function InvitationsModal({
                   disabled={selectedUsers.length === 0 && !userSearchQuery.trim() || isInviting}
                 >
                   {isInviting ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator size="small" color={theme.textOnPrimary} />
                   ) : (
                     <Text style={styles.inviteBtnText}>Invite</Text>
                   )}
@@ -233,7 +236,7 @@ export default function InvitationsModal({
                         style={styles.chipRemoveBtn}
                         onPress={() => removeSelectedUser(username)}
                       >
-                        <MaterialIcons name="close" size={14} color="#6B7280" />
+                        <MaterialIcons name="close" size={14} color={theme.textSecondary} />
                       </TouchableOpacity>
                     </View>
                   ))}
@@ -247,7 +250,7 @@ export default function InvitationsModal({
                 <TextInput
                   style={styles.messageInput}
                   placeholder="e.g. Hope to see you there!"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={theme.placeholder}
                   value={inviteMessage}
                   onChangeText={setInviteMessage}
                   multiline
@@ -279,7 +282,7 @@ export default function InvitationsModal({
                       />
                     ) : (
                       <View style={styles.avatarFallback}>
-                        <Feather name="user" size={20} color="#9CA3AF" />
+                        <Feather name="user" size={20} color={theme.textTertiary} />
                       </View>
                     )}
 
@@ -314,7 +317,7 @@ export default function InvitationsModal({
                           );
                         }}
                       >
-                        <Feather name="trash-2" size={18} color="#DC2626" />
+                        <Feather name="trash-2" size={18} color={theme.errorText} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -322,7 +325,7 @@ export default function InvitationsModal({
               }}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
-                  <MaterialIcons name="mail-outline" size={40} color="#D1D5DB" />
+                  <MaterialIcons name="mail-outline" size={40} color={theme.textTertiary} />
                   <Text style={styles.emptyText}>
                     {loading ? 'Loading invitations...' : 'No invitations sent yet.'}
                   </Text>
@@ -332,7 +335,7 @@ export default function InvitationsModal({
                 hasMore ? (
                   <TouchableOpacity style={styles.loadMoreBtn} onPress={onLoadMore}>
                     {loading ? (
-                      <ActivityIndicator size="small" color="#6366F1" />
+                      <ActivityIndicator size="small" color={theme.infoText} />
                     ) : (
                       <Text style={styles.loadMoreText}>Load more</Text>
                     )}
@@ -347,14 +350,15 @@ export default function InvitationsModal({
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    backgroundColor: t.overlay,
     justifyContent: 'flex-end',
   },
   container: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
@@ -366,7 +370,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: t.borderStrong,
     alignSelf: 'center',
     marginBottom: 20,
   },
@@ -379,12 +383,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#111827',
+    color: t.text,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#374151',
+    color: t.text,
     marginBottom: 12,
   },
   closeBtn: {
@@ -396,7 +400,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: t.textSecondary,
     marginBottom: 8,
   },
   labelRow: {
@@ -419,13 +423,13 @@ const styles = StyleSheet.create({
     paddingRight: 6,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.surfaceAlt,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: t.borderStrong,
   },
   userChipText: {
     fontSize: 13,
-    color: '#111827',
+    color: t.text,
   },
   chipRemoveBtn: {
     padding: 2,
@@ -437,20 +441,20 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: 56,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.surfaceVariant,
     borderRadius: 16,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: '#111827',
+    color: t.text,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: t.border,
   },
   inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
+    borderColor: t.errorBorder,
+    backgroundColor: t.errorBg,
   },
   inviteBtn: {
-    backgroundColor: '#111827',
+    backgroundColor: t.primary,
     borderRadius: 16,
     paddingHorizontal: 24,
     height: 56,
@@ -458,30 +462,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   inviteBtnDisabled: {
-    backgroundColor: '#9CA3AF',
+    opacity: 0.55,
   },
   inviteBtnText: {
-    color: '#FFFFFF',
+    color: t.textOnPrimary,
     fontWeight: '600',
     fontSize: 16,
   },
   hint: {
     fontSize: 12,
-    color: '#6B7280',
+    color: t.textMuted,
     marginTop: 8,
   },
   messageInputContainer: {
     marginTop: 16,
   },
   messageInput: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.surfaceVariant,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#111827',
+    color: t.text,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: t.border,
     textAlignVertical: 'top',
     minHeight: 60,
   },
@@ -490,10 +494,10 @@ const styles = StyleSheet.create({
     top: 60,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: t.border,
     zIndex: 1000,
     elevation: 5,
     maxHeight: 200,
@@ -503,7 +507,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: t.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -511,20 +515,20 @@ const styles = StyleSheet.create({
   suggestionText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: t.text,
   },
   suggestionSubtext: {
     fontSize: 13,
-    color: '#6B7280',
+    color: t.textSecondary,
   },
   errorText: {
     fontSize: 13,
-    color: '#DC2626',
+    color: t.errorText,
     marginTop: 6,
   },
   divider: {
     height: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.border,
     marginBottom: 10,
   },
   list: {
@@ -535,19 +539,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: t.border,
   },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.surfaceVariant,
   },
   avatarFallback: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.surfaceVariant,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -558,11 +562,11 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: t.text,
   },
   username: {
     fontSize: 13,
-    color: '#6B7280',
+    color: t.textSecondary,
     marginTop: 1,
   },
   statusBadge: {
@@ -580,7 +584,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    color: '#6B7280',
+    color: t.textSecondary,
     marginTop: 12,
     fontSize: 15,
   },
@@ -590,10 +594,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: t.infoBg,
   },
   loadMoreText: {
-    color: '#7C3AED',
+    color: t.infoText,
     fontWeight: '600',
   },
   revokeBtn: {
@@ -601,8 +605,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: t.errorBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+  });
+}
