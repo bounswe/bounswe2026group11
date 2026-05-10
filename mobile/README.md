@@ -40,6 +40,15 @@ EXPO_PUBLIC_API_BASE_URL=http://192.168.1.42/api
 
 Restart Metro after editing `.env`.
 
+### Android Google Maps key
+
+Android uses `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY` during Expo prebuild. The
+key must have Maps SDK for Android enabled and should be restricted in Google
+Cloud Console by:
+
+- package name: `com.bounswe2026group11.socialeventmapper`
+- certificate SHA-1: the release keystore certificate SHA-1 used for APK signing
+
 ## Android APK
 
 The repository includes a GitHub Actions workflow at [`../.github/workflows/mobile-apk.yml`](../.github/workflows/mobile-apk.yml) that builds an Android APK:
@@ -53,7 +62,18 @@ Behavior:
 - matching `main` pushes upload the APK as a workflow artifact
 - release runs also attach the APK to the GitHub Release page
 
-The workflow builds an installable Android release APK by generating the Android project in CI with Expo prebuild, creating a signing keystore in CI, and then running Gradle `assembleRelease`.
+The workflow builds an installable Android release APK by generating the Android project in CI with Expo prebuild, restoring the release signing keystore from GitHub Secrets, and then running Gradle `assembleRelease`.
+
+Required GitHub Secrets:
+
+- `MOBILE_GOOGLE_MAPS_ANDROID_API_KEY`
+- `ANDROID_RELEASE_KEYSTORE_BASE64`
+- `ANDROID_RELEASE_KEYSTORE_PASSWORD`
+- `ANDROID_RELEASE_KEY_ALIAS`
+- `ANDROID_RELEASE_KEY_PASSWORD`
+
+The workflow sets `EXPO_PUBLIC_APP_ENV=production`, so the APK uses the
+production API URL defined in `src/config/apiBaseUrl.ts`.
 
 ### Local APK build
 
@@ -77,6 +97,19 @@ cd android
 ```
 
 On Linux, use `sed -i` without the empty `''` argument.
+
+For a locally signed release build, append these values to
+`android/gradle.properties` after prebuild:
+
+```properties
+SEM_RELEASE_STORE_FILE=release.keystore
+SEM_RELEASE_STORE_PASSWORD=...
+SEM_RELEASE_KEY_ALIAS=...
+SEM_RELEASE_KEY_PASSWORD=...
+```
+
+Place `release.keystore` in `mobile/android/app/`. Without those properties,
+the local release build falls back to the generated debug keystore.
 
 The `android/` folder (including `local.properties`) is gitignored; do not commit machine-specific SDK paths.
 

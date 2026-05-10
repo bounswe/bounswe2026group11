@@ -86,7 +86,7 @@ function MapNotConfigured() {
   return (
     <div className="dc-map-overlay" role="status">
       <h3>Map unavailable</h3>
-      <p>Set <code>VITE_GOOGLE_MAPS_API_KEY</code> in your local environment to enable the Google Maps view.</p>
+      <p>Set <code>VITE_GOOGLE_MAPS_WEB_API_KEY</code> in your local environment to enable the Google Maps view.</p>
     </div>
   );
 }

@@ -83,8 +83,8 @@ describe('NotificationsAdminPage', () => {
       event_id: null,
       data: { source: 'test' },
     }));
-    expect(screen.getByText('Created: 2')).toBeDefined();
-    expect(screen.getByText('Push failed: 1')).toBeDefined();
+    expect(await screen.findByText('Created: 2')).toBeDefined();
+    expect(await screen.findByText('Push failed: 1')).toBeDefined();
   });
 
   it('loads sent notifications and filters by user', async () => {
