@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { UserAvatar } from '@/components/UserAvatar';
-import type { EventComment, EventDetailResponse } from '@/models/event';
+import { isActiveEventParticipantStatus, type EventComment, type EventDetailResponse } from '@/models/event';
 import { useEventCommentsViewModel } from '@/viewmodels/event/useEventCommentsViewModel';
 
 const COMMENT_MAX_LENGTH = 1000;
@@ -322,7 +322,8 @@ function DiscussionSection({ event, vm, isAuthenticated }: DiscussionSectionProp
     if (event.privacy_level === 'PRIVATE') return false;
     if (event.status === 'ACTIVE') return true;
     if (event.status === 'IN_PROGRESS') {
-      return event.viewer_context.is_host || event.viewer_context.participation_status === 'JOINED';
+      return event.viewer_context.is_host
+        || isActiveEventParticipantStatus(event.viewer_context.participation_status);
     }
     return false;
   })();
@@ -484,7 +485,7 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
 
   const isVerifiedAttendee =
     !event.viewer_context.is_host
-    && event.viewer_context.participation_status === 'JOINED'
+    && isActiveEventParticipantStatus(event.viewer_context.participation_status)
     && event.status === 'COMPLETED'
     && event.privacy_level !== 'PRIVATE';
 

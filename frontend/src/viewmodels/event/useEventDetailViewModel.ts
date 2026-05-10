@@ -30,6 +30,7 @@ import type {
   EventDetailPendingJoinRequest,
   EventDetailResponse,
   EventHostContextSummary,
+  EventDetailViewerContext,
 } from '@/models/event';
 import type { CreateEventInvitationsResponse } from '@/models/invitation';
 import { ApiError } from '@/services/api';
@@ -87,6 +88,23 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     },
     [],
   );
+
+  const clearJoinSuccess = useCallback(() => {
+    if (joinSuccessTimerRef.current) {
+      clearTimeout(joinSuccessTimerRef.current);
+      joinSuccessTimerRef.current = null;
+    }
+    setJoinSuccess(null);
+  }, []);
+
+  const showJoinSuccess = useCallback((message: string) => {
+    clearJoinSuccess();
+    setJoinSuccess(message);
+    joinSuccessTimerRef.current = setTimeout(() => {
+      setJoinSuccess(null);
+      joinSuccessTimerRef.current = null;
+    }, 5000);
+  }, [clearJoinSuccess]);
 
   const refreshEventDetail = useCallback(async () => {
     if (!eventId) {
@@ -230,10 +248,26 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     if (!eventId || !token) return;
     setJoinLoading(true);
     setJoinError(null);
+    clearJoinSuccess();
 
     try {
       await joinEvent(eventId, token);
-      await refreshEventDetail();
+      setEvent((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          viewer_context: {
+            ...prev.viewer_context,
+            participation_status: 'APPROVED' as EventDetailViewerContext['participation_status'],
+          },
+        };
+      });
+      try {
+        await refreshEventDetail();
+      } catch {
+        // Keep the optimistic approved state if the follow-up detail fetch is stale or fails.
+      }
+      showJoinSuccess('You joined the event successfully.');
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
@@ -249,7 +283,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } finally {
       setJoinLoading(false);
     }
-  }, [eventId, token, refreshEventDetail]);
+  }, [clearJoinSuccess, eventId, token, refreshEventDetail, showJoinSuccess]);
 
   const handleLeave = useCallback(async () => {
     if (!eventId || !token) return;
@@ -289,11 +323,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
       if (!eventId || !token) return false;
       setJoinLoading(true);
       setJoinError(null);
-      if (joinSuccessTimerRef.current) {
-        clearTimeout(joinSuccessTimerRef.current);
-        joinSuccessTimerRef.current = null;
-      }
-      setJoinSuccess(null);
+      clearJoinSuccess();
 
       try {
         let imageConfirmToken: string | undefined;
@@ -324,11 +354,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         } catch {
           // Keep the optimistic pending state if the follow-up detail fetch is stale or fails.
         }
-        setJoinSuccess('Request sent successfully. The host will review it.');
-        joinSuccessTimerRef.current = setTimeout(() => {
-          setJoinSuccess(null);
-          joinSuccessTimerRef.current = null;
-        }, 5000);
+        showJoinSuccess('Request sent successfully. The host will review it.');
         return true;
       } catch (err) {
         if (err instanceof ApiError) {
@@ -351,7 +377,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         setJoinLoading(false);
       }
     },
-    [eventId, token, markViewerPendingJoinRequest, refreshEventDetail],
+    [clearJoinSuccess, eventId, token, markViewerPendingJoinRequest, refreshEventDetail, showJoinSuccess],
   );
 
   const [cancelJoinRequestLoading, setCancelJoinRequestLoading] = useState(false);
@@ -629,13 +655,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   }, [eventId, token, refreshEventDetail, mapRatingError, refreshApprovedParticipants]);
 
   const dismissJoinError = useCallback(() => setJoinError(null), []);
-  const dismissJoinSuccess = useCallback(() => {
-    if (joinSuccessTimerRef.current) {
-      clearTimeout(joinSuccessTimerRef.current);
-      joinSuccessTimerRef.current = null;
-    }
-    setJoinSuccess(null);
-  }, []);
+  const dismissJoinSuccess = clearJoinSuccess;
   const dismissLeaveError = useCallback(() => setLeaveError(null), []);
   const dismissModerateError = useCallback(() => setModerateError(null), []);
   const dismissCancelError = useCallback(() => setCancelError(null), []);

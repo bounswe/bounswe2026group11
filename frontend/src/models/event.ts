@@ -163,7 +163,11 @@ export interface EventDetailEmbeddedRating {
 export interface EventDetailViewerContext {
   is_host: boolean;
   is_favorited: boolean;
-  participation_status: 'JOINED' | 'PENDING' | 'INVITED' | 'NONE' | 'LEAVED' | 'CANCELED';
+  participation_status: 'APPROVED' | 'JOINED' | 'PENDING' | 'INVITED' | 'NONE' | 'LEAVED' | 'CANCELED';
+}
+
+export function isActiveEventParticipantStatus(status: string | null | undefined): boolean {
+  return status === 'JOINED' || status === 'APPROVED';
 }
 
 export interface EventDetailHostContextUser {

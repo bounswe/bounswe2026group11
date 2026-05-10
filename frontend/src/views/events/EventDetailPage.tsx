@@ -11,6 +11,7 @@ import type {
   EventDetailResponse,
   EventHostContextSummary,
 } from '@/models/event';
+import { isActiveEventParticipantStatus } from '@/models/event';
 import type {
   CreateEventInvitationsResponse,
   EventInvitationFailure,
@@ -612,12 +613,13 @@ function JoinActionSection({
   const requestImageInputRef = useRef<HTMLInputElement>(null);
   const [showCancelRequestModal, setShowCancelRequestModal] = useState(false);
   const ctx = event.viewer_context;
+  const isActiveParticipant = isActiveEventParticipantStatus(ctx.participation_status);
 
   // Host doesn't see join actions
   if (ctx.is_host) return null;
 
   // Already participating states
-  if (ctx.participation_status === 'JOINED') {
+  if (isActiveParticipant) {
     const isCompletedOrCanceled = event.status === 'COMPLETED' || event.status === 'CANCELED';
     const joinedBannerClass = event.status === 'COMPLETED'
       ? 'ed-participation-attended'
@@ -628,6 +630,19 @@ function JoinActionSection({
 
     return (
       <div className="ed-section">
+        {joinSuccess && (
+          <div className="ed-join-success" role="status">
+            <span>{joinSuccess}</span>
+            <button
+              type="button"
+              className="ed-join-success-dismiss"
+              onClick={onDismissJoinSuccess}
+              aria-label="Dismiss message"
+            >
+              &times;
+            </button>
+          </div>
+        )}
         <div className={`ed-participation-banner ${joinedBannerClass}`}>
           {joinedBannerText}
         </div>
@@ -1042,7 +1057,7 @@ function ParticipantRatingSection({
   const trimmedLength = message.trim().length;
   const isEligibleParticipant = (
     !event.viewer_context.is_host
-    && event.viewer_context.participation_status === 'JOINED'
+    && isActiveEventParticipantStatus(event.viewer_context.participation_status)
     && event.status === 'COMPLETED'
     && event.rating_window.is_active
   );

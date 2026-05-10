@@ -1,4 +1,4 @@
-import type { PrivacyLevel } from '@/models/event';
+import { isActiveEventParticipantStatus, type PrivacyLevel } from '@/models/event';
 
 interface ApproximateLocationContext {
   privacyLevel: PrivacyLevel;
@@ -18,7 +18,7 @@ export function shouldShowApproximateLocationIndicator({
   if (!isLocationApproximate) return false;
   if (privacyLevel !== 'PROTECTED') return false;
   if (isHost) return false;
-  return participationStatus !== 'JOINED';
+  return !isActiveEventParticipantStatus(participationStatus);
 }
 
 export function getApproximateLocationText(hasAddress: boolean): string {

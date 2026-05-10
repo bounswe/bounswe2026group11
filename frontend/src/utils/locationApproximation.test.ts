@@ -28,11 +28,19 @@ describe('shouldShowApproximateLocationIndicator', () => {
       expected: true,
     },
     {
-      name: 'protected approved participant with exact backend location',
+      name: 'protected joined participant with exact backend location',
       privacyLevel: 'PROTECTED' as const,
       isLocationApproximate: false,
       isHost: false,
       participationStatus: 'JOINED',
+      expected: false,
+    },
+    {
+      name: 'protected approved participant with exact backend location',
+      privacyLevel: 'PROTECTED' as const,
+      isLocationApproximate: false,
+      isHost: false,
+      participationStatus: 'APPROVED',
       expected: false,
     },
     {

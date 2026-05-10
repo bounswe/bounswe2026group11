@@ -8,6 +8,7 @@ const mockGetEventDetail = vi.fn();
 const mockGetEventHostContextSummary = vi.fn();
 const mockAddFavorite = vi.fn();
 const mockRemoveFavorite = vi.fn();
+const mockJoinEvent = vi.fn();
 const mockRequestJoinEvent = vi.fn();
 const mockCreateEventReport = vi.fn();
 
@@ -17,7 +18,7 @@ vi.mock('@/services/eventService', () => ({
   getEventImageUploadUrl: vi.fn(),
   getJoinRequestImageUploadUrl: vi.fn(),
   confirmEventImageUpload: vi.fn(),
-  joinEvent: vi.fn(),
+  joinEvent: (...args: unknown[]) => mockJoinEvent(...args),
   requestJoinEvent: (...args: unknown[]) => mockRequestJoinEvent(...args),
   listEventApprovedParticipants: vi.fn(),
   listEventPendingJoinRequests: vi.fn(),
@@ -99,6 +100,7 @@ describe('useEventDetailViewModel favorites', () => {
     });
     mockAddFavorite.mockResolvedValue(undefined);
     mockRemoveFavorite.mockResolvedValue(undefined);
+    mockJoinEvent.mockResolvedValue(undefined);
     mockRequestJoinEvent.mockResolvedValue({
       join_request_id: 'join-request-1',
       event_id: 'event-1',
@@ -205,6 +207,35 @@ describe('useEventDetailViewModel favorites', () => {
       image_confirm_token: undefined,
     });
     expect(result.current.event?.viewer_context.participation_status).toBe('PENDING');
+    expect(result.current.joinError).toBeNull();
+  });
+
+  it('marks the viewer as approved and shows success after a successful direct join', async () => {
+    mockGetEventDetail
+      .mockResolvedValueOnce(
+        makeEvent({
+          privacy_level: 'PUBLIC',
+          status: 'ACTIVE',
+          viewer_context: {
+            is_host: false,
+            is_favorited: false,
+            participation_status: 'NONE',
+          },
+        }),
+      )
+      .mockRejectedValueOnce(new Error('stale detail fetch'));
+
+    const { result } = renderHook(() => useEventDetailViewModel('event-1', 'token'));
+
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    await act(async () => {
+      await result.current.handleJoin();
+    });
+
+    expect(mockJoinEvent).toHaveBeenCalledWith('event-1', 'token');
+    expect(result.current.event?.viewer_context.participation_status).toBe('APPROVED');
+    expect(result.current.joinSuccess).toBe('You joined the event successfully.');
     expect(result.current.joinError).toBeNull();
   });
 });

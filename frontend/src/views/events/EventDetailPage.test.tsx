@@ -485,6 +485,21 @@ describe('EventDetailPage ratings', () => {
     expect(screen.queryByRole('button', { name: /join event/i })).toBeNull();
   });
 
+  it('shows leave controls for approved participants as well as legacy joined participants', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PUBLIC';
+    event.viewer_context.participation_status = 'APPROVED';
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.getByText(/you are participating in this event/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /leave event/i })).toBeDefined();
+    expect(screen.getByTestId('ed-view-ticket-cta')).toBeDefined();
+  });
+
   it('keeps the request form open when sending a join request fails', async () => {
     const event = makeBaseEvent();
     event.status = 'ACTIVE';
@@ -552,6 +567,23 @@ describe('EventDetailPage ratings', () => {
     renderPage();
 
     expect(screen.getByText(/request sent successfully\./i)).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: /dismiss message/i }));
+    expect(vm.dismissJoinSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the join success message in the active participant state when provided by the view model', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PUBLIC';
+    event.viewer_context.participation_status = 'APPROVED';
+    const vm = makeReadyViewModel(event);
+    vm.joinSuccess = 'You joined the event successfully.';
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+
+    renderPage();
+
+    expect(screen.getByText(/you joined the event successfully\./i)).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: /dismiss message/i }));
     expect(vm.dismissJoinSuccess).toHaveBeenCalledTimes(1);
   });
@@ -722,6 +754,19 @@ describe('EventDetailPage ratings', () => {
     event.status = 'ACTIVE';
     event.privacy_level = 'PUBLIC';
     event.viewer_context.participation_status = 'JOINED';
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.getByTestId('ed-view-ticket-cta')).toBeDefined();
+  });
+
+  it('shows the View Ticket CTA for approved participants on public events', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PUBLIC';
+    event.viewer_context.participation_status = 'APPROVED';
 
     mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
 
