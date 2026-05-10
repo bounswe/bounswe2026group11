@@ -22,6 +22,12 @@ const mockGetMyHostedEvents = jest.mocked(profileService.getMyHostedEvents);
 const mockGetMyUpcomingEvents = jest.mocked(profileService.getMyUpcomingEvents);
 const mockGetMyCompletedEvents = jest.mocked(profileService.getMyCompletedEvents);
 const mockGetMyCanceledEvents = jest.mocked(profileService.getMyCanceledEvents);
+const mockGetMyEquipment = jest.mocked(profileService.getMyEquipment);
+const mockGetMyBadges = jest.mocked(profileService.getMyBadges);
+const mockGetBadgeCatalog = jest.mocked(profileService.getBadgeCatalog);
+const mockGetShowcaseImageUploadUrl = jest.mocked(profileService.getShowcaseImageUploadUrl);
+const mockConfirmShowcaseImageUpload = jest.mocked(profileService.confirmShowcaseImageUpload);
+const mockDeleteShowcaseImage = jest.mocked(profileService.deleteShowcaseImage);
 const mockUseAuth = jest.mocked(useAuth);
 
 function createDeferred<T>() {
@@ -106,6 +112,10 @@ const profileFixture: UserProfile = {
     score: 3.8,
     rating_count: 9,
   },
+  equipment: [],
+  showcase_images: [],
+  badges: [],
+  locale: 'en',
 };
 
 describe('useProfileViewModel', () => {
@@ -130,6 +140,38 @@ describe('useProfileViewModel', () => {
     });
     mockGetMyCanceledEvents.mockResolvedValue({
       events: [{ ...attendedCanceledFixture, privacy_level: 'PUBLIC' }],
+    });
+    mockGetMyEquipment.mockResolvedValue({
+      items: [{ id: 'eq-1', name: 'Tent', description: '2-person', image_url: null }],
+    });
+    mockGetMyBadges.mockResolvedValue({
+      items: [
+        { 
+          id: 'badge-1', 
+          name: 'Super Host', 
+          slug: 'SUPER_HOST', 
+          earned: true, 
+          earned_at: '2026-02-01T12:00:00Z',
+          description: 'Excellent hosting',
+          category: 'HOSTING',
+          icon_url: null
+        }
+      ]
+    });
+    mockGetBadgeCatalog.mockResolvedValue({
+      items: [
+        { 
+          id: 'badge-1', 
+          name: 'Super Host', 
+          slug: 'SUPER_HOST', 
+          earned: false, 
+          earned_at: null,
+          description: 'Excellent hosting',
+          category: 'HOSTING',
+          icon_url: null,
+          progress_hint: 'Earned by participating in one event'
+        }
+      ]
     });
   });
 
@@ -160,6 +202,8 @@ describe('useProfileViewModel', () => {
     expect(mockGetMyCompletedEvents).toHaveBeenCalledWith('test-token');
     expect(mockGetMyCanceledEvents).toHaveBeenCalledWith('test-token');
     expect(result.current.profile).toEqual(profileFixture);
+    expect(result.current.equipment).toHaveLength(1);
+    expect(result.current.badges).toHaveLength(1);
     expect(result.current.apiError).toBeNull();
   });
 
@@ -398,5 +442,57 @@ describe('useProfileViewModel', () => {
     expect(mockGetMyProfile).toHaveBeenCalledTimes(2);
     expect(result.current.profile?.display_name).toBe('Jane Doe');
     expect(result.current.primaryName).toBe('Jane Doe');
+  });
+
+  it('handles equipment addition', async () => {
+    const { result } = await renderProfileViewModel();
+    const mockCreate = jest.mocked(profileService.createEquipment);
+    mockCreate.mockResolvedValue({ id: 'eq-2', name: 'Boots', description: 'Hiking boots', image_url: null });
+
+    await act(async () => {
+      await result.current.addEquipment('Boots', 'Hiking boots');
+    });
+
+    expect(mockCreate).toHaveBeenCalledWith({ name: 'Boots', description: 'Hiking boots' }, 'test-token');
+    expect(mockGetMyEquipment).toHaveBeenCalledTimes(2);
+  });
+
+  it('handles equipment editing', async () => {
+    const { result } = await renderProfileViewModel();
+    const mockUpdate = jest.mocked(profileService.updateEquipment);
+    mockUpdate.mockResolvedValue({ id: 'eq-1', name: 'Tent Updated', description: '3-person', image_url: null });
+
+    await act(async () => {
+      await result.current.editEquipment('eq-1', 'Tent Updated', '3-person');
+    });
+
+    expect(mockUpdate).toHaveBeenCalledWith('eq-1', { name: 'Tent Updated', description: '3-person' }, 'test-token');
+    expect(mockGetMyEquipment).toHaveBeenCalledTimes(2);
+  });
+
+  it('handles equipment deletion', async () => {
+    const { result } = await renderProfileViewModel();
+    const mockDelete = jest.mocked(profileService.deleteEquipment);
+    mockDelete.mockResolvedValue(undefined);
+
+    await act(async () => {
+      await result.current.removeEquipment('eq-1');
+    });
+
+    expect(mockDelete).toHaveBeenCalledWith('eq-1', 'test-token');
+    expect(mockGetMyEquipment).toHaveBeenCalledTimes(2);
+  });
+
+  it('handles showcase image deletion', async () => {
+    const { result } = await renderProfileViewModel();
+    mockDeleteShowcaseImage.mockResolvedValue(undefined);
+
+    await act(async () => {
+      await result.current.removeShowcaseImage('img-1');
+    });
+
+    expect(mockDeleteShowcaseImage).toHaveBeenCalledWith('img-1', 'test-token');
+    // It should refresh profile which currently loads showcase images
+    expect(mockGetMyProfile).toHaveBeenCalledTimes(2);
   });
 });

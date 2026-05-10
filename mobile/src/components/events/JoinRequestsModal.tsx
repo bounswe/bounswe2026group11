@@ -13,6 +13,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { router, type Href } from 'expo-router';
 import { EventDetailPendingJoinRequest } from '@/models/event';
 
 interface JoinRequestsModalProps {
@@ -107,38 +108,46 @@ export default function JoinRequestsModal({
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
               <View style={styles.requestRow}>
-                {item.user.avatar_url ? (
-                  <Image
-                    source={{ uri: item.user.avatar_url }}
-                    style={styles.avatar}
-                  />
-                ) : (
-                  <View style={styles.avatarFallback}>
-                    <Feather name="user" size={20} color="#9CA3AF" />
-                  </View>
-                )}
+                <TouchableOpacity 
+                  style={styles.userInfoTouchable}
+                  onPress={() => {
+                    onClose();
+                    router.push(`/user/${item.user.id}` as Href);
+                  }}
+                >
+                  {item.user.avatar_url ? (
+                    <Image
+                      source={{ uri: item.user.avatar_url }}
+                      style={styles.avatar}
+                    />
+                  ) : (
+                    <View style={styles.avatarFallback}>
+                      <Feather name="user" size={20} color="#9CA3AF" />
+                    </View>
+                  )}
 
-                <View style={styles.info}>
-                  <Text style={styles.name}>
-                    {item.user.display_name || item.user.username}
-                  </Text>
-                  <Text style={styles.username}>@{item.user.username}</Text>
-                  {item.message ? (
-                    <Text style={styles.message}>
-                      "{item.message}"
+                  <View style={styles.info}>
+                    <Text style={styles.name}>
+                      {item.user.display_name || item.user.username}
                     </Text>
-                  ) : null}
+                    <Text style={styles.username}>@{item.user.username}</Text>
+                    {item.message ? (
+                      <Text style={styles.message}>
+                        "{item.message}"
+                      </Text>
+                    ) : null}
 
-                  {item.image_url ? (
-                    <TouchableOpacity
-                      style={styles.attachmentLink}
-                      onPress={() => item.image_url && setPreviewImage(item.image_url)}
-                    >
-                      <Feather name="image" size={14} color="#2563EB" />
-                      <Text style={styles.attachmentLinkText}>View Attachment</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
+                    {item.image_url ? (
+                      <TouchableOpacity
+                        style={styles.attachmentLink}
+                        onPress={() => item.image_url && setPreviewImage(item.image_url)}
+                      >
+                        <Feather name="image" size={14} color="#2563EB" />
+                        <Text style={styles.attachmentLinkText}>View Attachment</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
 
                 <View style={styles.actions}>
                   <TouchableOpacity
@@ -249,6 +258,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
+  },
+  userInfoTouchable: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flex: 1,
   },
   avatar: {
     width: 48,

@@ -146,7 +146,11 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
             <Text style={styles.descriptionText}>{event.description}</Text>
           ) : null}
 
-          <View style={styles.hostCard}>
+          <TouchableOpacity 
+            style={styles.hostCard}
+            activeOpacity={0.8}
+            onPress={() => router.push(`/user/${event.host.id}` as Href)}
+          >
             <View style={styles.hostAvatar}>
               <Text style={styles.hostAvatarText}>{hostName.charAt(0).toUpperCase()}</Text>
             </View>
@@ -154,7 +158,7 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
               <Text style={styles.hostName}>{hostName}</Text>
               <Text style={styles.hostLabel}>Event host</Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
           {vm.primaryActionLabel ? (
             <TouchableOpacity
