@@ -25,6 +25,7 @@ import {
   upsertParticipantRating,
   listEventInvitations,
   createEventInvitations,
+  reconfirmEventParticipation,
   withdrawJoinRequest,
 } from '@/services/eventService';
 import {
@@ -52,6 +53,7 @@ export type ActionState =
   | 'joining'
   | 'leaving'
   | 'requesting'
+  | 'reconfirming'
   | 'accepting_invitation'
   | 'declining_invitation'
   | 'reporting'
@@ -59,6 +61,7 @@ export type ActionState =
   | 'success_joined'
   | 'success_left'
   | 'success_requested'
+  | 'success_reconfirmed'
   | 'success_saved'
   | 'canceling_request'
   | 'revoking_invitation'
@@ -111,6 +114,7 @@ export interface EventDetailViewModel {
   handleJoin: () => Promise<void>;
   handleLeaveEvent: () => Promise<void>;
   handleRequestJoin: () => Promise<void>;
+  handleReconfirmParticipation: () => Promise<void>;
   handleAcceptInvitation: () => Promise<void>;
   handleDeclineInvitation: () => Promise<void>;
   handleToggleFavorite: () => Promise<void>;
@@ -244,13 +248,26 @@ function normalizeEventDetailParticipation(event: EventDetail): EventDetail {
     is_host: boolean;
     is_favorited: boolean;
     participation_status?: string | null;
+    join_request_status?: string | null;
+    invitation_status?: string | null;
   };
+  const directParticipationStatus = normalizeParticipationStatus(
+    rawViewerContext.participation_status,
+  );
+  const participationStatus =
+    directParticipationStatus !== 'NONE'
+      ? directParticipationStatus
+      : rawViewerContext.join_request_status === 'PENDING'
+        ? 'PENDING'
+        : rawViewerContext.invitation_status === 'PENDING'
+          ? 'INVITED'
+          : directParticipationStatus;
 
   return {
     ...event,
     viewer_context: {
       ...event.viewer_context,
-      participation_status: normalizeParticipationStatus(rawViewerContext.participation_status),
+      participation_status: participationStatus,
     },
   };
 }
@@ -747,6 +764,52 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       }
     }
   }, [token, event, fetchEvent]);
+
+  const handleReconfirmParticipation = useCallback(async () => {
+    if (!token || !event) return;
+
+    setActionError(null);
+    setActionState('reconfirming');
+
+    try {
+      const response = await reconfirmEventParticipation(event.id, token);
+      setParticipationStatus('JOINED');
+      setEvent((prev) =>
+        prev
+          ? {
+              ...prev,
+              viewer_context: {
+                ...prev.viewer_context,
+                participation_status: 'JOINED',
+                needs_reconfirmation: false,
+                last_confirmed_event_version: response.last_confirmed_event_version,
+                latest_event_version: response.latest_event_version,
+                event_diff: null,
+              },
+            }
+          : prev,
+      );
+      await fetchEvent(true);
+      setActionState('success_reconfirmed');
+    } catch (err: unknown) {
+      setActionState('idle');
+      if (err instanceof ApiError) {
+        const errorMap: Record<string, string> = {
+          participation_reconfirm_not_allowed:
+            'This attendance update can no longer be reconfirmed. Please review the latest event status.',
+          event_not_joinable:
+            'This event is no longer accepting attendance reconfirmations.',
+          host_cannot_join:
+            'Hosts do not need to reconfirm their own event.',
+        };
+        setActionError(errorMap[err.code] ?? err.message);
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        setActionError((err as { message: string }).message);
+      } else {
+        setActionError('Failed to reconfirm your attendance. Please try again.');
+      }
+    }
+  }, [token, event, fetchEvent]);
  
   const uploadReportImage = useCallback(
     async (eventId: string, imageUri: string, token: string): Promise<string> => {
@@ -1237,6 +1300,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     handleJoin,
     handleLeaveEvent,
     handleRequestJoin,
+    handleReconfirmParticipation,
     handleAcceptInvitation,
     handleDeclineInvitation,
     handleToggleFavorite,

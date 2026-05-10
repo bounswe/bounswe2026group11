@@ -2,8 +2,10 @@ import * as FileSystem from 'expo-file-system/legacy';
 import {
   fetchRoutedGeometry,
   listMyEvents,
+  reconfirmEventParticipation,
   reverseGeocode,
   searchLocation,
+  updateEvent,
   uploadFileToPresignedUrl,
 } from './eventService';
 
@@ -82,6 +84,39 @@ describe('uploadFileToPresignedUrl', () => {
     ).rejects.toThrow('Unsupported upload method: DELETE');
 
     expect(mockUploadAsync).not.toHaveBeenCalled();
+  });
+
+  it('patches event updates through the versioned update endpoint', async () => {
+    const response = {
+      id: 'event-1',
+      title: 'Updated Event Title',
+      privacy_level: 'PUBLIC',
+      status: 'ACTIVE',
+      start_time: '2035-06-01T08:00:00+03:00',
+      end_time: null,
+      version_no: 4,
+      reconfirmation_required: true,
+      reconfirmation_triggered_fields: ['title'],
+      participants_marked_pending: 2,
+      updated_at: '2026-04-03T12:00:00+03:00',
+    };
+    mockFetch.mockResolvedValueOnce(jsonResponse(response));
+
+    await expect(
+      updateEvent('event-1', { title: 'Updated Event Title' }, 'mock-token'),
+    ).resolves.toEqual(response);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/events/event-1'),
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ title: 'Updated Event Title' }),
+        headers: expect.objectContaining({
+          Authorization: 'Bearer mock-token',
+          'Content-Type': 'application/json',
+        }),
+      }),
+    );
   });
 
   it('builds my events from the four backend event-management endpoints', async () => {
@@ -275,6 +310,47 @@ describe('uploadFileToPresignedUrl', () => {
       hosted_events: [],
       attended_events: [],
     });
+  });
+});
+
+describe('reconfirmEventParticipation', () => {
+  beforeEach(() => {
+    global.fetch = mockFetch as any;
+    mockFetch.mockReset();
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('posts to the reconfirm endpoint with bearer auth', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        participation_id: 'part-1',
+        event_id: 'event-1',
+        status: 'APPROVED',
+        reconfirmed_at: '2026-05-02T18:00:00+03:00',
+        updated_at: '2026-05-02T18:00:00+03:00',
+        last_confirmed_event_version: 5,
+        latest_event_version: 5,
+        ticket_status: 'ACTIVE',
+      }),
+    );
+
+    const result = await reconfirmEventParticipation('event-1', 'mock-token');
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/events/event-1/participation/reconfirm'),
+      expect.objectContaining({
+        method: 'POST',
+        body: '{}',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer mock-token',
+        }),
+      }),
+    );
+    expect(result.status).toBe('APPROVED');
+    expect(result.latest_event_version).toBe(5);
   });
 });
 

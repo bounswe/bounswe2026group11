@@ -172,6 +172,18 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
             </TouchableOpacity>
           ) : null}
 
+          {vm.canEditEvent ? (
+            <TouchableOpacity
+              accessibilityLabel="Edit event"
+              activeOpacity={0.9}
+              onPress={() => router.push(`/event/${eventId}/edit` as Href)}
+              style={styles.editButton}
+            >
+              <Feather name="edit-3" size={20} color={theme.textOnPrimary} />
+              <Text style={styles.editButtonText}>Edit Event</Text>
+            </TouchableOpacity>
+          ) : null}
+
           <TouchableOpacity
             accessibilityLabel="View full event"
             activeOpacity={0.9}
@@ -317,6 +329,21 @@ function makeStyles(t: Theme) {
     },
     primaryButtonText: {
       fontSize: 18,
+      fontWeight: '800',
+      color: t.textOnPrimary,
+    },
+    editButton: {
+      marginTop: 14,
+      minHeight: 58,
+      borderRadius: 18,
+      backgroundColor: t.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+    },
+    editButtonText: {
+      fontSize: 17,
       fontWeight: '800',
       color: t.textOnPrimary,
     },

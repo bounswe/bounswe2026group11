@@ -88,6 +88,7 @@ const mockGetEventReportImageUploadUrl = jest.mocked(eventService.getEventReport
 const mockReportEvent = jest.mocked(eventService.reportEvent);
 const mockUploadFileToPresignedUrl = jest.mocked(eventService.uploadFileToPresignedUrl);
 const mockWithdrawJoinRequest = jest.mocked(eventService.withdrawJoinRequest);
+const mockReconfirmEventParticipation = jest.mocked(eventService.reconfirmEventParticipation);
 const mockRevokeInvitation = jest.mocked(invitationService.revokeInvitation);
 
 const mockImagePicker = jest.mocked(ImagePicker);
@@ -215,6 +216,48 @@ const joinedEventFixture: EventDetail = {
   viewer_context: {
     ...publicEventFixture.viewer_context,
     participation_status: 'JOINED',
+  },
+};
+
+const reconfirmationRequiredEventFixture: EventDetail = {
+  ...publicEventFixture,
+  version_no: 5,
+  viewer_context: {
+    ...publicEventFixture.viewer_context,
+    participation_status: 'PENDING',
+    needs_reconfirmation: true,
+    last_confirmed_event_version: 3,
+    latest_event_version: 5,
+    event_diff: {
+      from_version_no: 3,
+      to_version_no: 5,
+      changed_fields: ['start_time', 'location'],
+      changes: [
+        {
+          field: 'start_time',
+          old_value: '2026-06-01T08:00:00+03:00',
+          new_value: '2026-06-01T09:00:00+03:00',
+        },
+        {
+          field: 'location',
+          old_value: { type: 'POINT', address: 'Belgrad Forest, Istanbul' },
+          new_value: { type: 'ROUTE', address: 'Belgrad Forest Route', route_points: [] },
+        },
+      ],
+    },
+  },
+};
+
+const reconfirmedEventFixture: EventDetail = {
+  ...publicEventFixture,
+  version_no: 5,
+  viewer_context: {
+    ...publicEventFixture.viewer_context,
+    participation_status: 'JOINED',
+    needs_reconfirmation: false,
+    last_confirmed_event_version: 5,
+    latest_event_version: 5,
+    event_diff: null,
   },
 };
 
@@ -444,6 +487,16 @@ describe('useEventDetailViewModel', () => {
       message: 'Invitation declined',
     });
     mockWithdrawJoinRequest.mockResolvedValue(undefined);
+    mockReconfirmEventParticipation.mockResolvedValue({
+      participation_id: 'part-uuid-001',
+      event_id: 'event-uuid-001',
+      status: 'APPROVED',
+      reconfirmed_at: '2026-06-01T07:00:00+03:00',
+      updated_at: '2026-06-01T07:00:00+03:00',
+      last_confirmed_event_version: 5,
+      latest_event_version: 5,
+      ticket_status: 'ACTIVE',
+    });
     mockRevokeInvitation.mockResolvedValue(undefined);
   });
 
@@ -954,6 +1007,83 @@ describe('useEventDetailViewModel', () => {
       expect(result.current.event).toBeNull();
       expect(result.current.apiError).toContain('declined this private event invitation');
       expect(result.current.actionState).toBe('idle');
+    });
+  });
+
+  describe('reconfirmation actions', () => {
+    it('reconfirms pending participation and refreshes event detail', async () => {
+      mockGetEventDetail
+        .mockResolvedValueOnce(reconfirmationRequiredEventFixture)
+        .mockResolvedValueOnce(reconfirmedEventFixture);
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.participationStatus).toBe('PENDING');
+      expect(result.current.event?.viewer_context.needs_reconfirmation).toBe(true);
+
+      await act(async () => {
+        await result.current.handleReconfirmParticipation();
+      });
+
+      expect(mockReconfirmEventParticipation).toHaveBeenCalledWith(
+        'event-uuid-001',
+        'mock-token',
+      );
+      expect(mockGetEventDetail).toHaveBeenCalledTimes(2);
+      expect(result.current.participationStatus).toBe('JOINED');
+      expect(result.current.event?.viewer_context.needs_reconfirmation).toBe(false);
+      expect(result.current.actionState).toBe('success_reconfirmed');
+      expect(result.current.actionError).toBeNull();
+    });
+
+    it('shows API errors when reconfirmation fails', async () => {
+      mockGetEventDetail.mockResolvedValueOnce(reconfirmationRequiredEventFixture);
+      mockReconfirmEventParticipation.mockRejectedValueOnce(
+        new ApiError(409, {
+          error: {
+            code: 'participation_reconfirm_not_allowed',
+            message: 'Only pending participants can reconfirm.',
+          },
+        }),
+      );
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-001'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.handleReconfirmParticipation();
+      });
+
+      expect(result.current.actionState).toBe('idle');
+      expect(result.current.participationStatus).toBe('PENDING');
+      expect(result.current.actionError).toContain('attendance update');
+    });
+
+    it('maps backend pending join-request status into the mobile pending state', async () => {
+      mockGetEventDetail.mockResolvedValueOnce({
+        ...protectedEventFixture,
+        viewer_context: {
+          ...protectedEventFixture.viewer_context,
+          participation_status: 'NONE',
+          join_request_status: 'PENDING',
+        },
+      });
+
+      const { result } = renderHook(() =>
+        useEventDetailViewModel('event-uuid-002'),
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.participationStatus).toBe('PENDING');
+      expect(result.current.event?.viewer_context.participation_status).toBe('PENDING');
     });
   });
 
