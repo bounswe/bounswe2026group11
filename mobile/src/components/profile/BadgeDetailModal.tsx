@@ -18,41 +18,46 @@ export default function BadgeDetailModal({ badge, visible, onClose }: BadgeDetai
   const styles = makeStyles(theme);
   
   const panY = useRef(new Animated.Value(0)).current;
-  const scrollY = useRef(0);
+
+  const resetPositionAnim = Animated.spring(panY, {
+    toValue: 0,
+    useNativeDriver: false,
+  });
+
+  const closeAnim = Animated.timing(panY, {
+    toValue: 1000,
+    duration: 200,
+    useNativeDriver: false,
+  });
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dy > 5; // Swipe down to close
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          panY.setValue(gestureState.dy);
-        }
-      },
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 10,
+      onPanResponderMove: Animated.event([null, { dy: panY }], {
+        useNativeDriver: false,
+      }),
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dy > 100 || gestureState.vy > 0.5) {
-          Animated.timing(panY, {
-            toValue: height,
-            duration: 200,
-            useNativeDriver: false,
-          }).start(() => {
+          closeAnim.start(() => {
             onClose();
-            panY.setValue(0);
+            // Reset after a tiny delay so it doesn't flash back up before the modal unmounts
+            setTimeout(() => panY.setValue(0), 100);
           });
         } else {
-          Animated.spring(panY, {
-            toValue: 0,
-            useNativeDriver: false,
-          }).start();
+          resetPositionAnim.start();
         }
       },
     })
   ).current;
 
-  if (!badge) return null;
+  React.useEffect(() => {
+    if (visible) {
+      panY.setValue(0);
+    }
+  }, [visible, panY]);
 
-  const earnedDate = badge.earned_at 
+  const earnedDate = badge?.earned_at 
     ? new Date(badge.earned_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
     : 'Not yet earned';
 
@@ -74,58 +79,61 @@ export default function BadgeDetailModal({ badge, visible, onClose }: BadgeDetai
             styles.content,
             { transform: [{ translateY: panY }] }
           ]}
-          {...panResponder.panHandlers}
         >
-          <View style={styles.handleWrapper}>
+          <View style={styles.handleWrapper} {...panResponder.panHandlers}>
             <View style={styles.handle} />
           </View>
           
           <View style={styles.scrollContent}>
-            <View style={styles.iconContainer}>
-              <View style={[styles.iconWrapper, !badge.earned && styles.lockedIcon]}>
-                {badge.icon_url ? (
-                  <Image source={{ uri: badge.icon_url }} style={styles.icon} />
-                ) : (
-                  <Text style={styles.emojiIcon}>{getEmojiForBadge(badge.slug)}</Text>
-                )}
-                {!badge.earned && (
-                  <View style={styles.lockOverlay}>
-                    <Ionicons name="lock-closed" size={32} color="rgba(255,255,255,0.8)" />
+            {badge ? (
+              <>
+                <View style={styles.iconContainer}>
+                  <View style={[styles.iconWrapper, !badge.earned && styles.lockedIcon]}>
+                    {badge.icon_url ? (
+                      <Image source={{ uri: badge.icon_url }} style={styles.icon} />
+                    ) : (
+                      <Text style={styles.emojiIcon}>{getEmojiForBadge(badge.slug)}</Text>
+                    )}
+                    {!badge.earned && (
+                      <View style={styles.lockOverlay}>
+                        <Ionicons name="lock-closed" size={32} color="rgba(255,255,255,0.8)" />
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                <Text style={styles.name}>{badge.name}</Text>
+                <View style={styles.categoryBadge}>
+                  <Text style={styles.categoryText}>{badge.category || 'Achievement'}</Text>
+                </View>
+
+                <Text style={styles.description}>{badge.description}</Text>
+
+                <View style={styles.earnedSection}>
+                  <Ionicons 
+                    name={badge.earned ? "checkmark-circle" : "time-outline"} 
+                    size={20} 
+                    color={badge.earned ? theme.successText : theme.textMuted} 
+                  />
+                  <Text style={[styles.earnedText, !badge.earned && styles.notEarnedText]}>
+                    {badge.earned 
+                      ? (badge.earned_at ? `Earned on ${earnedDate}` : 'Earned') 
+                      : 'Not yet earned'}
+                  </Text>
+                </View>
+
+                {!badge.earned && !!badge.progress_hint && (
+                  <View style={styles.progressHintBox}>
+                    <Text style={styles.progressHintTitle}>How to earn:</Text>
+                    <Text style={styles.progressHintText}>{badge.progress_hint}</Text>
                   </View>
                 )}
-              </View>
-            </View>
 
-            <Text style={styles.name}>{badge.name}</Text>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{badge.category || 'Achievement'}</Text>
-            </View>
-
-            <Text style={styles.description}>{badge.description}</Text>
-
-            <View style={styles.earnedSection}>
-              <Ionicons 
-                name={badge.earned ? "checkmark-circle" : "time-outline"} 
-                size={20} 
-                color={badge.earned ? theme.successText : theme.textMuted} 
-              />
-              <Text style={[styles.earnedText, !badge.earned && styles.notEarnedText]}>
-                {badge.earned 
-                  ? (badge.earned_at ? `Earned on ${earnedDate}` : 'Earned') 
-                  : 'Not yet earned'}
-              </Text>
-            </View>
-
-            {!badge.earned && !!badge.progress_hint && (
-              <View style={styles.progressHintBox}>
-                <Text style={styles.progressHintTitle}>How to earn:</Text>
-                <Text style={styles.progressHintText}>{badge.progress_hint}</Text>
-              </View>
-            )}
-
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
+                <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                  <Text style={styles.closeButtonText}>Close</Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
           </View>
         </Animated.View>
       </View>

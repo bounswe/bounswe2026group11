@@ -103,7 +103,7 @@ export default function UserProfileScreen() {
                 {profile.host_rating_count + profile.participant_rating_count} ratings collected
               </Text>
               <Text style={styles.ratingBreakdown}>
-                Host: {profile.host_rating_count} · Part: {profile.participant_rating_count}
+                Host: {profile.host_rating_count} · Participant: {profile.participant_rating_count}
               </Text>
             </View>
           </View>
