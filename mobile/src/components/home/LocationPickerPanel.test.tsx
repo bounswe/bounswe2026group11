@@ -191,7 +191,7 @@ describe('LocationPickerPanel', () => {
     expect(screen.getByText('Gym')).toBeTruthy();
     expect(screen.getAllByText('Kadikoy, Istanbul, Turkiye').length).toBeGreaterThan(0);
     expect(
-      (screen.getByText('Apply Location').closest('button') as HTMLButtonElement)
+      (screen.getByText('Apply').closest('button') as HTMLButtonElement)
         .disabled,
     ).toBe(true);
   });
@@ -207,7 +207,7 @@ describe('LocationPickerPanel', () => {
       />,
     );
 
-    expect(screen.getByText('Loading favorite locations...')).toBeTruthy();
+    expect(screen.getByText('Loading favorite locations...')).toBeTruthy(); // i18n key: home.locationPicker.loadingFavoriteLocations
     expect(screen.queryByText('No favorite locations saved yet.')).toBeNull();
   });
 
@@ -237,7 +237,7 @@ describe('LocationPickerPanel', () => {
 
     fireEvent.click(screen.getByText('Retry'));
 
-    expect(screen.getByText('Unable to load favorite locations')).toBeTruthy();
+    expect(screen.getByText('Unable to load favorite locations')).toBeTruthy(); // i18n key: home.locationPicker.unableToLoadFavoriteLocations
     expect(props.onRetryFavoriteLocations).toHaveBeenCalledTimes(1);
   });
 

@@ -111,7 +111,9 @@
       "default": "Varsayılan konum",
       "apply": "Uygula",
       "noFavoriteLocations": "Henüz kayıtlı favori konum yok.",
-      "favoriteLocationsError": "Favori konumların yüklenemedi."
+      "favoriteLocationsError": "Favori konumların yüklenemedi.",
+      "loadingFavoriteLocations": "Favori konumlar yükleniyor...",
+      "unableToLoadFavoriteLocations": "Favori konumlar yüklenemedi"
     },
     "viewMode": {
       "list": "Liste",

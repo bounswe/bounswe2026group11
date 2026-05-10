@@ -261,13 +261,13 @@ export default function LocationPickerPanel({
                     <View style={styles.inlineStatusRow}>
                       <ActivityIndicator size="small" color={theme.text} />
                       <Text style={styles.inlineStatusText}>
-                        Loading favorite locations...
+                        {t('home.locationPicker.loadingFavoriteLocations')}
                       </Text>
                     </View>
                   ) : favoriteLocationsError ? (
                     <View style={styles.messageCard}>
                       <Text style={styles.messageTitle}>
-                        Unable to load favorite locations
+                        {t('home.locationPicker.unableToLoadFavoriteLocations')}
                       </Text>
                       <Text style={styles.messageText}>{favoriteLocationsError}</Text>
                       <TouchableOpacity

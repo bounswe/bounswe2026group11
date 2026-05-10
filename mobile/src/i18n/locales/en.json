@@ -111,7 +111,9 @@
       "default": "Default location",
       "apply": "Apply",
       "noFavoriteLocations": "No favorite locations saved yet.",
-      "favoriteLocationsError": "Couldn't load your favorite locations."
+      "favoriteLocationsError": "Couldn't load your favorite locations.",
+      "loadingFavoriteLocations": "Loading favorite locations...",
+      "unableToLoadFavoriteLocations": "Unable to load favorite locations"
     },
     "viewMode": {
       "list": "List",
