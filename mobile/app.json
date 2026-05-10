@@ -4,6 +4,7 @@
     "slug": "social-event-mapper",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "scheme": "social-event-mapper",
     "userInterfaceStyle": "automatic",
     "plugins": [
@@ -28,6 +29,7 @@
     "ios": {
       "bundleIdentifier": "com.bounswe2026group11.socialeventmapper",
       "deploymentTarget": "15.1",
+      "icon": "./assets/icon.png",
       "googleServicesFile": "./firebase/GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": [
@@ -38,6 +40,7 @@
     "android": {
       "package": "com.bounswe2026group11.socialeventmapper",
       "versionCode": 1,
+      "icon": "./assets/icon.png",
       "googleServicesFile": "./firebase/google-services.json",
       "permissions": [
         "android.permission.POST_NOTIFICATIONS"

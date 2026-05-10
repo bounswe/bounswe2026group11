@@ -8,10 +8,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import '@/styles/auth.css';
 
 const GENDER_OPTIONS: { label: string; value: Gender }[] = [
-  { label: 'Male', value: 'male' },
-  { label: 'Female', value: 'female' },
-  { label: 'Other', value: 'other' },
-  { label: 'Prefer not to say', value: 'prefer_not_to_say' },
+  { label: 'Male', value: 'MALE' },
+  { label: 'Female', value: 'FEMALE' },
+  { label: 'Other', value: 'OTHER' },
+  { label: 'Prefer not to say', value: 'PREFER_NOT_TO_SAY' },
 ];
 
 const STEPS: RegisterStep[] = ['details', 'otp'];
@@ -141,7 +141,7 @@ export default function RegisterView() {
 
               <div className="field-group">
                 <label className="field-label">
-                  Gender <span className="optional">(optional)</span>
+                  Gender
                 </label>
                 <div className="gender-row">
                   {GENDER_OPTIONS.map((opt) => (
@@ -152,7 +152,7 @@ export default function RegisterView() {
                       onClick={() =>
                         vm.updateField(
                           'gender',
-                          vm.formData.gender === opt.value ? '' : opt.value,
+                          opt.value,
                         )
                       }
                       disabled={vm.isLoading}
@@ -161,11 +161,14 @@ export default function RegisterView() {
                     </button>
                   ))}
                 </div>
+                {vm.errors.gender && (
+                  <p className="field-error">{vm.errors.gender}</p>
+                )}
               </div>
 
               <div className="field-group">
                 <label className="field-label" htmlFor="birth-date">
-                  Birth Date <span className="optional">(optional)</span>
+                  Birth Date
                 </label>
                 <input
                   id="birth-date"

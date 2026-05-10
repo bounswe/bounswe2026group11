@@ -20,12 +20,13 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+import SemLogo from '@/components/common/SemLogo';
 
 const GENDER_OPTIONS: { label: string; value: Gender }[] = [
-  { label: 'Male', value: 'male' },
-  { label: 'Female', value: 'female' },
-  { label: 'Other', value: 'other' },
-  { label: 'Prefer not to say', value: 'prefer_not_to_say' },
+  { label: 'Male', value: 'MALE' },
+  { label: 'Female', value: 'FEMALE' },
+  { label: 'Other', value: 'OTHER' },
+  { label: 'Prefer not to say', value: 'PREFER_NOT_TO_SAY' },
 ];
 
 const STEPS: RegisterStep[] = ['details', 'otp'];
@@ -66,30 +67,33 @@ export default function RegisterView() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>{STEP_SUBTITLES[vm.step]}</Text>
-
-        <View style={styles.stepIndicator}>
-          {STEPS.map((s, i) => (
-            <View
-              key={s}
-              style={[
-                styles.stepDot,
-                STEPS.indexOf(vm.step) >= i && styles.stepDotActive,
-              ]}
-            />
-          ))}
-        </View>
-
-        {vm.apiError && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{vm.apiError}</Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.brand}>
+            <SemLogo height={76} color={theme.text} />
           </View>
-        )}
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>{STEP_SUBTITLES[vm.step]}</Text>
+
+          <View style={styles.stepIndicator}>
+            {STEPS.map((s, i) => (
+              <View
+                key={s}
+                style={[
+                  styles.stepDot,
+                  STEPS.indexOf(vm.step) >= i && styles.stepDotActive,
+                ]}
+              />
+            ))}
+          </View>
+
+          {vm.apiError && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{vm.apiError}</Text>
+            </View>
+          )}
 
         {vm.step === 'details' && (
           <>
@@ -168,9 +172,7 @@ export default function RegisterView() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>
-                Gender <Text style={styles.optional}>(optional)</Text>
-              </Text>
+              <Text style={styles.label}>Gender</Text>
               <View style={styles.genderRow}>
                 {GENDER_OPTIONS.map((opt) => (
                   <TouchableOpacity
@@ -183,7 +185,7 @@ export default function RegisterView() {
                     onPress={() =>
                       vm.updateField(
                         'gender',
-                        vm.formData.gender === opt.value ? '' : opt.value,
+                        opt.value,
                       )
                     }
                     disabled={vm.isLoading}
@@ -200,12 +202,13 @@ export default function RegisterView() {
                   </TouchableOpacity>
                 ))}
               </View>
+              {vm.errors.gender && (
+                <Text style={styles.fieldError}>{vm.errors.gender}</Text>
+              )}
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>
-                Birth Date <Text style={styles.optional}>(optional)</Text>
-              </Text>
+              <Text style={styles.label}>Birth Date</Text>
               <TextInput
                 style={[
                   styles.input,
@@ -298,6 +301,10 @@ function makeStyles(t: Theme) {
       flexGrow: 1,
       padding: 24,
       paddingTop: 60,
+    },
+    brand: {
+      alignItems: 'center',
+      marginBottom: 20,
     },
     title: {
       fontSize: 28,
