@@ -67,8 +67,11 @@ const profileFixture: UserProfile = {
   display_name: 'John Doe',
   bio: 'Software developer based in Istanbul.',
   avatar_url: 'https://example.com/avatars/john.jpg',
+  locale: 'en',
   created_events: [],
   attended_events: [],
+  showcase_images: [],
+  badges: [],
 };
 
 describe('useEditProfileViewModel', () => {

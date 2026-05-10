@@ -165,6 +165,10 @@ describe('useHomeViewModel', () => {
       display_name: null,
       bio: null,
       avatar_url: null,
+      locale: 'en',
+      showcase_images: [],
+      badges: [],
+      equipment: [],
     });
     mockGetCurrentLocationSuggestion.mockResolvedValue(null);
     mockSearchLocation.mockResolvedValue([
@@ -222,6 +226,10 @@ describe('useHomeViewModel', () => {
       display_name: null,
       bio: null,
       avatar_url: null,
+      locale: 'en',
+      showcase_images: [],
+      badges: [],
+      equipment: [],
     });
 
     const { result } = renderHook(() => useHomeViewModel());
@@ -260,6 +268,10 @@ describe('useHomeViewModel', () => {
       display_name: null,
       bio: null,
       avatar_url: null,
+      locale: 'en',
+      showcase_images: [],
+      badges: [],
+      equipment: [],
     });
 
     const { result } = renderHook(() => useHomeViewModel());
@@ -299,6 +311,10 @@ describe('useHomeViewModel', () => {
       display_name: null,
       bio: null,
       avatar_url: null,
+      locale: 'en',
+      showcase_images: [],
+      badges: [],
+      equipment: [],
     };
 
     mockGetMyProfile
@@ -1342,6 +1358,7 @@ describe('useHomeViewModel', () => {
         display_name: null,
         bio: null,
         avatar_url: null,
+        locale: 'en',
       });
 
       const { result } = renderHook(() => useHomeViewModel());

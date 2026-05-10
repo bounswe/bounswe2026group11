@@ -13,7 +13,20 @@ import {
   getMyProfile,
   getProfileAvatarUploadUrl,
   getMyUpcomingEvents,
+  getMyEquipment,
+  getMyBadges,
+  createEquipment,
+  updateEquipment,
+  deleteEquipment,
+  getShowcaseImageUploadUrl,
+  confirmShowcaseImageUpload,
+  deleteShowcaseImage,
+  updateMyProfile,
+  getBadgeCatalog,
+  getPublicProfile,
+  getUserBadges,
 } from '@/services/profileService';
+import { BadgeItem, EquipmentItem, ShowcaseImageItem } from '@/models/profile';
 import { ApiError } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadFileToPresignedUrl } from '@/services/eventService';
@@ -47,8 +60,19 @@ export interface ProfileViewModel {
   attendedEvents: ProfileEventItem[];
   hostedCount: number;
   attendedCount: number;
+  equipment: EquipmentItem[];
+  badges: BadgeItem[];
+  showcaseImages: ShowcaseImageItem[];
+  isActionLoading: boolean;
+  catalogVisible: boolean;
+  setCatalogVisible: (visible: boolean) => void;
   pickAvatar: () => Promise<void>;
   refresh: () => Promise<void>;
+  addEquipment: (name: string, description?: string) => Promise<void>;
+  editEquipment: (id: string, name: string, description?: string) => Promise<void>;
+  removeEquipment: (id: string) => Promise<void>;
+  uploadShowcaseImage: () => Promise<void>;
+  removeShowcaseImage: (id: string) => Promise<void>;
 }
 
 function decodeFileUriOnce(uri: string): string {
@@ -103,6 +127,14 @@ async function selectAvatarImage(): Promise<ImagePicker.ImagePickerResult> {
     mediaTypes: ['images'],
     allowsEditing: true,
     aspect: [1, 1],
+    quality: 0.8,
+  });
+}
+
+async function selectGeneralImage(): Promise<ImagePicker.ImagePickerResult> {
+  return ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: true,
     quality: 0.8,
   });
 }
@@ -170,6 +202,11 @@ export function useProfileViewModel(): ProfileViewModel {
   const [overallRatingLabel, setOverallRatingLabel] = useState('New');
   const [hostRatingLabel, setHostRatingLabel] = useState('New');
   const [participantRatingLabel, setParticipantRatingLabel] = useState('New');
+  const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
+  const [badges, setBadges] = useState<BadgeItem[]>([]);
+  const [showcaseImages, setShowcaseImages] = useState<ShowcaseImageItem[]>([]);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [catalogVisible, setCatalogVisible] = useState(false);
 
   const fetchProfile = useCallback(
     async (mode: 'initial' | 'refresh') => {
@@ -195,17 +232,45 @@ export function useProfileViewModel(): ProfileViewModel {
           upcomingResult,
           completedResult,
           canceledResult,
+          equipmentResult,
+          earnedBadgesResult,
+          catalogResult,
         ] = await Promise.all([
           getMyProfile(token),
           getMyHostedEvents(token),
           getMyUpcomingEvents(token),
           getMyCompletedEvents(token),
           getMyCanceledEvents(token),
+          getMyEquipment(token),
+          getMyBadges(token),
+          getBadgeCatalog(token),
         ]);
         setProfile(profileResult);
-        const allHostedEvents = hostedResult.events.map(mapProfileEvent);
-        const visibleHostedEvents = allHostedEvents.filter((event) =>
-          shouldShowProfileEvent(event.status),
+        setEquipment(equipmentResult.items);
+
+        // Workaround: Showcase images are currently only returned by the public profile endpoint.
+        // We fetch our own public profile to get the showcase images.
+        try {
+          const publicData = await getPublicProfile(profileResult.id, token);
+          setShowcaseImages(publicData?.showcase_images || []);
+        } catch (err) {
+          console.error('Failed to fetch self public profile for showcase images:', err);
+          setShowcaseImages([]);
+        }
+        
+        // Merge earned status
+        const mergedBadges = (catalogResult.items || []).map((b: BadgeItem) => {
+          const earned = (earnedBadgesResult.items || []).find((eb: BadgeItem) => eb.slug === b.slug);
+          return {
+            ...b,
+            earned: !!earned,
+            earned_at: earned?.earned_at || null,
+          };
+        });
+        setBadges(mergedBadges);
+        const allHostedEvents = (hostedResult.events || []).map(mapProfileEvent);
+        const visibleHostedEvents = allHostedEvents.filter((event: any) =>
+          ['IN_PROGRESS', 'COMPLETED', 'CANCELED'].includes(event.status),
         );
         const mergedAttendedEvents = excludeHostedEvents(
           mergeEventsById(
@@ -360,6 +425,125 @@ export function useProfileViewModel(): ProfileViewModel {
     }
   }, [refresh, token]);
 
+  const addEquipment = useCallback(async (name: string, description?: string) => {
+    if (!token) return;
+    setIsActionLoading(true);
+    setApiError(null);
+    try {
+      await createEquipment({ name, description }, token);
+      await refresh();
+    } catch (err) {
+      setApiError(err instanceof ApiError ? err.message : 'Failed to add equipment.');
+    } finally {
+      setIsActionLoading(false);
+    }
+  }, [token, refresh]);
+
+  const editEquipment = useCallback(async (id: string, name: string, description?: string) => {
+    if (!token) return;
+    setIsActionLoading(true);
+    setApiError(null);
+    try {
+      await updateEquipment(id, { name, description }, token);
+      await refresh();
+    } catch (err) {
+      setApiError(err instanceof ApiError ? err.message : 'Failed to update equipment.');
+    } finally {
+      setIsActionLoading(false);
+    }
+  }, [token, refresh]);
+
+  const removeEquipment = useCallback(async (id: string) => {
+    if (!token) return;
+    setIsActionLoading(true);
+    setApiError(null);
+    try {
+      await deleteEquipment(id, token);
+      await refresh();
+    } catch (err) {
+      setApiError(err instanceof ApiError ? err.message : 'Failed to delete equipment.');
+    } finally {
+      setIsActionLoading(false);
+    }
+  }, [token, refresh]);
+
+  const uploadShowcaseImage = useCallback(async () => {
+    if (!token) return;
+    setIsActionLoading(true);
+    setImageError(null);
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert('Permission required', 'Please allow access to your photo library.');
+        return;
+      }
+
+      const result = await selectGeneralImage(); // Allow flexible cropping for showcase
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      if (!asset?.uri) return;
+
+      const preparedImageUri = await preparePickedImageUri(asset.uri);
+      
+      // Showcase images also require both variants (similar to avatar)
+      const [original, small] = await Promise.all([
+        ImageManipulator.manipulateAsync(
+          preparedImageUri,
+          [{ resize: { width: 1600 } }], // High quality for showcase
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+        ),
+        ImageManipulator.manipulateAsync(
+          preparedImageUri,
+          [{ resize: { width: 400 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+        ),
+      ]);
+
+      const uploadInit = await getShowcaseImageUploadUrl(token);
+      const originalUpload = uploadInit.uploads.find((u) => u.variant === 'ORIGINAL');
+      const smallUpload = uploadInit.uploads.find((u) => u.variant === 'SMALL');
+      
+      if (!originalUpload || !smallUpload) throw new Error('Server error');
+
+      await Promise.all([
+        uploadFileToPresignedUrl(
+          originalUpload.method,
+          originalUpload.url,
+          originalUpload.headers,
+          original.uri,
+        ),
+        uploadFileToPresignedUrl(
+          smallUpload.method,
+          smallUpload.url,
+          smallUpload.headers,
+          small.uri,
+        ),
+      ]);
+
+      await confirmShowcaseImageUpload(uploadInit.confirm_token, token);
+      await refresh();
+    } catch (err) {
+      setImageError(err instanceof ApiError ? err.message : 'Failed to upload image.');
+    } finally {
+      setIsActionLoading(false);
+    }
+  }, [token, refresh]);
+
+  const removeShowcaseImage = useCallback(async (id: string) => {
+    if (!token) return;
+    setIsActionLoading(true);
+    setApiError(null);
+    try {
+      await deleteShowcaseImage(id, token);
+      await refresh();
+    } catch (err) {
+      setApiError(err instanceof ApiError ? err.message : 'Failed to delete image.');
+    } finally {
+      setIsActionLoading(false);
+    }
+  }, [token, refresh]);
+
   const primaryName = profile?.display_name ?? profile?.username ?? '';
   const secondaryName = profile?.display_name ? profile.username : null;
   const avatarInitial = primaryName.trim().charAt(0).toUpperCase() || '?';
@@ -381,7 +565,18 @@ export function useProfileViewModel(): ProfileViewModel {
     attendedEvents,
     hostedCount: hostedEvents.length,
     attendedCount: attendedEvents.length,
+    equipment,
+    badges,
+    showcaseImages,
+    isActionLoading,
+    catalogVisible,
+    setCatalogVisible,
     pickAvatar,
     refresh,
+    addEquipment,
+    editEquipment,
+    removeEquipment,
+    uploadShowcaseImage,
+    removeShowcaseImage,
   };
 }
