@@ -15,6 +15,7 @@ import {
   approveJoinRequest,
   rejectJoinRequest,
   cancelEvent,
+  completeEvent,
   addFavorite,
   removeFavorite,
   upsertEventRating,
@@ -493,6 +494,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
 
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [completeLoading, setCompleteLoading] = useState(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
 
   const handleCancel = useCallback(async () => {
     if (!eventId || !token) return;
@@ -514,6 +517,29 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
       }
     } finally {
       setCancelLoading(false);
+    }
+  }, [eventId, token, refreshEventDetail, refreshHostManagement]);
+
+  const handleComplete = useCallback(async () => {
+    if (!eventId || !token) return;
+    setCompleteLoading(true);
+    setCompleteError(null);
+
+    try {
+      await completeEvent(eventId, token);
+      await Promise.all([refreshEventDetail(), refreshHostManagement()]);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const errorMap: Record<string, string> = {
+          event_complete_not_allowed: 'Only the event host can end this event.',
+          event_not_completable: 'This event cannot be ended right now.',
+        };
+        setCompleteError(errorMap[err.code] ?? err.message);
+      } else {
+        setCompleteError('Failed to end event. Please try again.');
+      }
+    } finally {
+      setCompleteLoading(false);
     }
   }, [eventId, token, refreshEventDetail, refreshHostManagement]);
 
@@ -591,6 +617,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   const dismissLeaveError = useCallback(() => setLeaveError(null), []);
   const dismissModerateError = useCallback(() => setModerateError(null), []);
   const dismissCancelError = useCallback(() => setCancelError(null), []);
+  const dismissCompleteError = useCallback(() => setCompleteError(null), []);
   const dismissViewerRatingError = useCallback(() => setViewerRatingError(null), []);
   const dismissParticipantRatingError = useCallback(() => setParticipantRatingError(null), []);
   const dismissCoverImageError = useCallback(() => setCoverImageError(null), []);
@@ -778,6 +805,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     moderateError,
     cancelLoading,
     cancelError,
+    completeLoading,
+    completeError,
     favoriteLoading,
     reportLoading,
     reportError,
@@ -797,12 +826,14 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     handleApprove,
     handleReject,
     handleCancel,
+    handleComplete,
     dismissJoinError,
     dismissLeaveError,
     dismissViewerRatingError,
     dismissParticipantRatingError,
     dismissModerateError,
     dismissCancelError,
+    dismissCompleteError,
     coverImageUploading,
     coverImageError,
     coverImageSuccessMessage,

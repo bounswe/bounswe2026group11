@@ -280,6 +280,13 @@ export function cancelEvent(
   return apiPatchAuth<void>(`/events/${eventId}/cancel`, {}, token);
 }
 
+export function completeEvent(
+  eventId: string,
+  token: string,
+): Promise<void> {
+  return apiPatchAuth<void>(`/events/${eventId}/complete`, {}, token);
+}
+
 export function upsertEventRating(
   eventId: string,
   request: RatingWriteRequest,
