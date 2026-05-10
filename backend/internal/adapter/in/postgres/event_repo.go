@@ -889,6 +889,39 @@ func (r *EventRepository) ListDiscoverableEvents(
 		filters = append(filters, "e.family_oriented = true")
 	}
 
+	// Eligibility filter (issue #501).
+	//
+	// Anonymous viewer: strict — only events with NO age/gender restriction
+	// are returned. We don't know who the caller is, so we cannot claim
+	// they satisfy any restriction.
+	//
+	// Authenticated viewer: generous — events whose restriction the viewer
+	// satisfies are returned, AND events whose restriction is on a
+	// dimension the viewer hasn't filled in (e.g. event requires age 18+
+	// but viewer's birth_date is NULL) are still returned. Joining will
+	// reject with profile_incomplete (existing #467 behavior); we don't
+	// silently hide the event from incomplete profiles. The age check uses
+	// EXTRACT(YEAR FROM AGE($now, viewer.birth_date)) which matches the
+	// year-floor + month/day adjustment of domain.HasMinimumAge so SQL and
+	// the join-flow Go path can never drift apart.
+	viewerJoinClause := ""
+	if params.AnonymousViewer {
+		filters = append(filters,
+			"e.minimum_age IS NULL",
+			"e.preferred_gender IS NULL",
+		)
+	} else {
+		viewerJoinClause = fmt.Sprintf("LEFT JOIN app_user viewer ON viewer.id = %s", userPlaceholder)
+		nowPlaceholder := addArg(params.Now)
+		filters = append(filters, fmt.Sprintf(
+			"(e.minimum_age IS NULL OR viewer.birth_date IS NULL OR EXTRACT(YEAR FROM AGE(%s, viewer.birth_date)) >= e.minimum_age)",
+			nowPlaceholder,
+		))
+		filters = append(filters,
+			"(e.preferred_gender IS NULL OR viewer.gender IS NULL OR e.preferred_gender = viewer.gender)",
+		)
+	}
+
 	paginationClause, orderByClause := buildDiscoverEventsPagination(params, addArg)
 	limitPlaceholder := addArg(params.RepositoryFetchLimit)
 
@@ -919,6 +952,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 			LEFT JOIN event_category ec ON ec.id = e.category_id
 			LEFT JOIN favorite_event fav ON fav.event_id = e.id AND fav.user_id = %s
 			LEFT JOIN user_score us ON us.user_id = e.host_id
+			%s
 			WHERE %s
 		)
 		SELECT
@@ -945,7 +979,7 @@ func (r *EventRepository) ListDiscoverableEvents(
 		%s
 		ORDER BY %s
 		LIMIT %s
-	`, distanceExpr, relevanceExpr, userPlaceholder, strings.Join(filters, "\n			AND "), paginationClause, orderByClause, limitPlaceholder)
+	`, distanceExpr, relevanceExpr, userPlaceholder, viewerJoinClause, strings.Join(filters, "\n			AND "), paginationClause, orderByClause, limitPlaceholder)
 
 	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
