@@ -588,6 +588,121 @@ func TestDiscoverEventsIgnoresEmptyOptionalListParams(t *testing.T) {
 	}
 }
 
+// TestDiscoverEventsAcceptsSingularCategoryIDAlias proves the legacy
+// `?category_id=N` form still works as a one-element category_ids list,
+// fulfilling the backward-compat acceptance criterion of #483.
+func TestDiscoverEventsAcceptsSingularCategoryIDAlias(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodGet, "/events/?lat=41.01&lon=29.02&category_id=5", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if svc.discoverCallCount != 1 {
+		t.Fatalf("expected discover service to be called once, got %d", svc.discoverCallCount)
+	}
+	if len(svc.lastDiscoverInput.CategoryIDs) != 1 || svc.lastDiscoverInput.CategoryIDs[0] != 5 {
+		t.Fatalf("expected singular alias to land as [5], got %v", svc.lastDiscoverInput.CategoryIDs)
+	}
+}
+
+// TestDiscoverEventsCategoryIdsInvalidReturns400 pins the 400 contract
+// for non-integer values in the plural form (#483 acceptance criterion).
+func TestDiscoverEventsCategoryIdsInvalidReturns400(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodGet, "/events/?lat=41.01&lon=29.02&category_ids=foo", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+	if svc.discoverCallCount != 0 {
+		t.Fatalf("expected discover service not to be called, got %d", svc.discoverCallCount)
+	}
+}
+
+// TestDiscoverEventsSingularCategoryIDInvalidReturns400 mirrors the
+// invalid-input check for the legacy alias path. Same 400 contract.
+func TestDiscoverEventsSingularCategoryIDInvalidReturns400(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodGet, "/events/?lat=41.01&lon=29.02&category_id=foo", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
+	}
+	if svc.discoverCallCount != 0 {
+		t.Fatalf("expected discover service not to be called, got %d", svc.discoverCallCount)
+	}
+}
+
+// TestDiscoverEventsBothCategoryIDAndCategoryIDsPrefersPlural defends the
+// precedence rule documented in OpenAPI: when a stale client sends both
+// the legacy alias and the new plural form, the richer plural value wins
+// and the singular one is silently dropped (no 400 noise).
+func TestDiscoverEventsBothCategoryIDAndCategoryIDsPrefersPlural(t *testing.T) {
+	// given
+	svc := &stubEventService{}
+	app := newEventTestApp(svc, authedVerifier())
+
+	req := httptest.NewRequest(fiber.MethodGet, "/events/?lat=41.01&lon=29.02&category_ids=1,2&category_id=99", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
+
+	// when
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("application.Test() error = %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// then
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
+	}
+	if svc.discoverCallCount != 1 {
+		t.Fatalf("expected discover service to be called once, got %d", svc.discoverCallCount)
+	}
+	if len(svc.lastDiscoverInput.CategoryIDs) != 2 ||
+		svc.lastDiscoverInput.CategoryIDs[0] != 1 ||
+		svc.lastDiscoverInput.CategoryIDs[1] != 2 {
+		t.Fatalf("expected plural to win with [1 2], got %v", svc.lastDiscoverInput.CategoryIDs)
+	}
+}
+
 func TestGetEventDetailReturns200(t *testing.T) {
 	// given
 	svc := &stubEventService{}
