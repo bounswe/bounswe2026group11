@@ -14,6 +14,7 @@ import MapView, {
   type MapMarker,
 } from 'react-native-maps';
 import { useFocusEffect } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 import { DARK_MAP_STYLE } from '@/theme/mapStyle';
@@ -368,6 +369,8 @@ export default function EventMapView({
   headerTopInset = 0,
 }: EventMapViewProps) {
   const { theme, isDark } = useTheme();
+  // Subscribe to language so category presentation labels re-render on locale change.
+  useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const mapRef = useRef<MapView | null>(null);
   const [visibleRegion, setVisibleRegion] = useState<MapRegion>(region);

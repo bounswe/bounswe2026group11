@@ -13,7 +13,10 @@ import { router, type Href, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ProfileEventCard from '@/components/profile/ProfileEventCard';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocale } from '@/contexts/LocaleContext';
+import { type Locale } from '@/i18n';
 import { useLogoutViewModel } from '@/viewmodels/auth/useLogoutViewModel';
 import { usePushNotificationPreference } from '@/viewmodels/notifications/usePushNotificationPreference';
 import { useProfileViewModel } from '@/viewmodels/profile/useProfileViewModel';
@@ -34,12 +37,19 @@ export default function ProfileView() {
   const notificationSettings = usePushNotificationPreference();
   const [activeTab, setActiveTab] = useState<ProfileEventTab>('hosted');
   const { theme, isDark, setThemePreference } = useTheme();
+  const { t } = useTranslation();
+  const { locale, setLocale } = useLocale();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [equipmentModalVisible, setEquipmentModalVisible] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<EquipmentItem | null>(null);
   const [eqName, setEqName] = useState('');
   const [eqDesc, setEqDesc] = useState('');
+
+  const handleToggleLocale = useCallback(() => {
+    const next: Locale = locale === 'tr' ? 'en' : 'tr';
+    void setLocale(next);
+  }, [locale, setLocale]);
 
   const { isLoggingOut, logoutError, handleLogout } = useLogoutViewModel(
     refreshToken,
@@ -101,7 +111,7 @@ export default function ProfileView() {
 
   const renderHeader = () => (
     <View>
-      <Text style={styles.screenTitle}>Profile</Text>
+      <Text style={styles.screenTitle}>{t('profile.title')}</Text>
 
       {vm.apiError ? (
         <View style={styles.errorBanner}>
@@ -112,7 +122,7 @@ export default function ProfileView() {
             accessibilityRole="button"
             accessibilityLabel="Retry loading profile"
           >
-            <Text style={styles.retryButtonText}>Retry</Text>
+            <Text style={styles.retryButtonText}>{t('profile.menu.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -232,19 +242,19 @@ export default function ProfileView() {
             </View>
 
             <View style={styles.statsSection}>
-              <Text style={styles.statsSectionTitle}>Ratings</Text>
+              <Text style={styles.statsSectionTitle}>{t('profile.ratings')}</Text>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>{vm.overallRatingLabel}</Text>
-                  <Text style={styles.statLabel}>Overall</Text>
+                  <Text style={styles.statLabel}>{t('profile.ratingOverall')}</Text>
                 </View>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>{vm.hostRatingLabel}</Text>
-                  <Text style={styles.statLabel}>Host</Text>
+                  <Text style={styles.statLabel}>{t('profile.ratingHost')}</Text>
                 </View>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>{vm.participantRatingLabel}</Text>
-                  <Text style={styles.statLabel}>Participant</Text>
+                  <Text style={styles.statLabel}>{t('profile.ratingParticipant')}</Text>
                 </View>
               </View>
             </View>
@@ -311,7 +321,7 @@ export default function ProfileView() {
             >
               <View style={styles.menuRowLeft}>
                 <Ionicons name="create-outline" size={20} color={theme.text} />
-                <Text style={styles.menuRowText}>Edit Profile</Text>
+                <Text style={styles.menuRowText}>{t('profile.menu.editProfile')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
             </TouchableOpacity>
@@ -326,7 +336,7 @@ export default function ProfileView() {
             >
               <View style={styles.menuRowLeft}>
                 <Ionicons name="notifications-outline" size={20} color={theme.text} />
-                <Text style={styles.menuRowText}>Notifications</Text>
+                <Text style={styles.menuRowText}>{t('profile.menu.notifications')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
             </TouchableOpacity>
@@ -337,9 +347,9 @@ export default function ProfileView() {
               <View style={styles.menuRowLeft}>
                 <Ionicons name="phone-portrait-outline" size={20} color={theme.text} />
                 <View style={styles.settingTextBlock}>
-                  <Text style={styles.menuRowText}>Push Notifications</Text>
+                  <Text style={styles.menuRowText}>{t('profile.menu.pushNotifications')}</Text>
                   <Text style={styles.settingSubtitle}>
-                    Receive alerts on this device
+                    {t('profile.menu.pushNotificationsDesc')}
                   </Text>
                 </View>
               </View>
@@ -379,9 +389,11 @@ export default function ProfileView() {
                   color={theme.text}
                 />
                 <View style={styles.settingTextBlock}>
-                  <Text style={styles.menuRowText}>Dark Mode</Text>
+                  <Text style={styles.menuRowText}>{t('profile.menu.darkMode')}</Text>
                   <Text style={styles.settingSubtitle}>
-                    {isDark ? 'Dark theme is on' : 'Light theme is on'}
+                    {isDark
+                      ? t('profile.menu.darkModeOn')
+                      : t('profile.menu.darkModeOff')}
                   </Text>
                 </View>
               </View>
@@ -401,13 +413,33 @@ export default function ProfileView() {
 
             <TouchableOpacity
               style={styles.menuRow}
+              onPress={handleToggleLocale}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.menu.language')}
+              testID="profile-language-toggle"
+            >
+              <View style={styles.menuRowLeft}>
+                <Ionicons name="language-outline" size={20} color={theme.text} />
+                <Text style={styles.menuRowText}>{t('profile.menu.language')}</Text>
+              </View>
+              <Text style={styles.settingSubtitle}>
+                {locale === 'tr'
+                  ? t('profile.languagePicker.turkish')
+                  : t('profile.languagePicker.english')}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.menuDivider} />
+
+            <TouchableOpacity
+              style={styles.menuRow}
               onPress={() => router.push('/profile/change-password' as Href)}
               accessibilityRole="button"
               accessibilityLabel="Change password"
             >
               <View style={styles.menuRowLeft}>
                 <Ionicons name="key-outline" size={20} color={theme.text} />
-                <Text style={styles.menuRowText}>Change Password</Text>
+                <Text style={styles.menuRowText}>{t('profile.menu.changePassword')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
             </TouchableOpacity>
@@ -423,7 +455,7 @@ export default function ProfileView() {
             >
               <View style={styles.menuRowLeft}>
                 <Ionicons name="log-out-outline" size={20} color={theme.errorText} />
-                <Text style={styles.signOutText}>Sign Out</Text>
+                <Text style={styles.signOutText}>{t('profile.menu.signOut')}</Text>
               </View>
               {isLoggingOut ? (
                 <ActivityIndicator size="small" color={theme.errorText} />
@@ -446,7 +478,7 @@ export default function ProfileView() {
                   activeTab === 'hosted' && styles.tabTextActive,
                 ]}
               >
-                Hosted ({vm.hostedCount})
+                {t('profile.hostedTab')} ({vm.hostedCount})
               </Text>
               <View
                 style={[
@@ -468,7 +500,7 @@ export default function ProfileView() {
                   activeTab === 'attended' && styles.tabTextActive,
                 ]}
               >
-                Attended ({vm.attendedCount})
+                {t('profile.attendedTab')} ({vm.attendedCount})
               </Text>
               <View
                 style={[

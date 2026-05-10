@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import {
   useRegisterViewModel,
   Gender,
@@ -21,24 +22,22 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
-const GENDER_OPTIONS: { label: string; value: Gender }[] = [
-  { label: 'Male', value: 'male' },
-  { label: 'Female', value: 'female' },
-  { label: 'Other', value: 'other' },
-  { label: 'Prefer not to say', value: 'prefer_not_to_say' },
-];
+type GenderChoice = Exclude<Gender, ''>;
+const GENDER_VALUES: GenderChoice[] = ['male', 'female', 'other', 'prefer_not_to_say'];
+const GENDER_LABEL_KEYS: Record<GenderChoice, string> = {
+  male: 'auth.register.genderMale',
+  female: 'auth.register.genderFemale',
+  other: 'auth.register.genderOther',
+  prefer_not_to_say: 'auth.register.genderPreferNotToSay',
+};
 
 const STEPS: RegisterStep[] = ['details', 'otp'];
-
-const STEP_SUBTITLES: Record<RegisterStep, string> = {
-  details: 'Fill in your details to get started',
-  otp: 'Enter the verification code sent to your email',
-};
 
 export default function RegisterView() {
   const vm = useRegisterViewModel();
   const { setSession } = useAuth();
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const handleNext = async () => {
@@ -58,7 +57,11 @@ export default function RegisterView() {
   };
 
   const buttonLabel =
-    vm.step === 'details' ? 'Continue' : 'Create Account';
+    vm.step === 'details' ? t('auth.register.continue') : t('auth.register.submit');
+  const subtitle =
+    vm.step === 'details'
+      ? t('auth.register.subtitleDetails')
+      : t('auth.register.subtitleOtp');
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
@@ -70,8 +73,8 @@ export default function RegisterView() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>{STEP_SUBTITLES[vm.step]}</Text>
+        <Text style={styles.title}>{t('auth.register.title')}</Text>
+        <Text style={styles.subtitle}>{subtitle}</Text>
 
         <View style={styles.stepIndicator}>
           {STEPS.map((s, i) => (
@@ -94,10 +97,10 @@ export default function RegisterView() {
         {vm.step === 'details' && (
           <>
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>{t('auth.register.email')}</Text>
               <TextInput
                 style={[styles.input, vm.errors.email && styles.inputError]}
-                placeholder="user@example.com"
+                placeholder={t('auth.register.emailPlaceholder')}
                 placeholderTextColor={theme.placeholder}
                 value={vm.formData.email}
                 onChangeText={(v) => vm.updateField('email', v)}
@@ -112,10 +115,10 @@ export default function RegisterView() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Username</Text>
+              <Text style={styles.label}>{t('auth.register.username')}</Text>
               <TextInput
                 style={[styles.input, vm.errors.username && styles.inputError]}
-                placeholder="maplover"
+                placeholder={t('auth.register.usernamePlaceholder')}
                 placeholderTextColor={theme.placeholder}
                 value={vm.formData.username}
                 onChangeText={(v) => vm.updateField('username', v)}
@@ -129,10 +132,10 @@ export default function RegisterView() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Password</Text>
+              <Text style={styles.label}>{t('auth.register.password')}</Text>
               <TextInput
                 style={[styles.input, vm.errors.password && styles.inputError]}
-                placeholder="At least 8 characters"
+                placeholder={t('auth.register.passwordPlaceholder')}
                 placeholderTextColor={theme.placeholder}
                 value={vm.formData.password}
                 onChangeText={(v) => vm.updateField('password', v)}
@@ -147,14 +150,14 @@ export default function RegisterView() {
 
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>
-                Phone Number <Text style={styles.optional}>(optional)</Text>
+                {t('auth.register.phoneNumber')} <Text style={styles.optional}>{t('auth.register.optional')}</Text>
               </Text>
               <TextInput
                 style={[
                   styles.input,
                   vm.errors.phone_number && styles.inputError,
                 ]}
-                placeholder="+905551112233"
+                placeholder={t('auth.register.phoneNumberPlaceholder')}
                 placeholderTextColor={theme.placeholder}
                 value={vm.formData.phone_number}
                 onChangeText={(v) => vm.updateField('phone_number', v)}
@@ -169,21 +172,20 @@ export default function RegisterView() {
 
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>
-                Gender <Text style={styles.optional}>(optional)</Text>
+                {t('auth.register.gender')} <Text style={styles.optional}>{t('auth.register.optional')}</Text>
               </Text>
               <View style={styles.genderRow}>
-                {GENDER_OPTIONS.map((opt) => (
+                {GENDER_VALUES.map((value) => (
                   <TouchableOpacity
-                    key={opt.value}
+                    key={value}
                     style={[
                       styles.genderOption,
-                      vm.formData.gender === opt.value &&
-                        styles.genderOptionSelected,
+                      vm.formData.gender === value && styles.genderOptionSelected,
                     ]}
                     onPress={() =>
                       vm.updateField(
                         'gender',
-                        vm.formData.gender === opt.value ? '' : opt.value,
+                        vm.formData.gender === value ? '' : value,
                       )
                     }
                     disabled={vm.isLoading}
@@ -191,11 +193,10 @@ export default function RegisterView() {
                     <Text
                       style={[
                         styles.genderOptionText,
-                        vm.formData.gender === opt.value &&
-                          styles.genderOptionTextSelected,
+                        vm.formData.gender === value && styles.genderOptionTextSelected,
                       ]}
                     >
-                      {opt.label}
+                      {t(GENDER_LABEL_KEYS[value])}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -204,14 +205,14 @@ export default function RegisterView() {
 
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>
-                Birth Date <Text style={styles.optional}>(optional)</Text>
+                {t('auth.register.birthDate')} <Text style={styles.optional}>{t('auth.register.optional')}</Text>
               </Text>
               <TextInput
                 style={[
                   styles.input,
                   vm.errors.birth_date && styles.inputError,
                 ]}
-                placeholder="YYYY-MM-DD"
+                placeholder={t('auth.register.birthDatePlaceholder')}
                 placeholderTextColor={theme.placeholder}
                 value={vm.formData.birth_date}
                 onChangeText={(v) => vm.updateField('birth_date', v)}
@@ -227,10 +228,10 @@ export default function RegisterView() {
 
         {vm.step === 'otp' && (
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Verification Code</Text>
+            <Text style={styles.label}>{t('auth.register.verificationCode')}</Text>
             <TextInput
               style={[styles.input, vm.errors.otp && styles.inputError]}
-              placeholder="123456"
+              placeholder={t('auth.register.verificationCodePlaceholder')}
               placeholderTextColor={theme.placeholder}
               value={vm.formData.otp}
               onChangeText={(v) => vm.updateField('otp', v)}
@@ -263,18 +264,18 @@ export default function RegisterView() {
             onPress={vm.goBack}
             disabled={vm.isLoading}
           >
-            <Text style={styles.backButtonText}>Go Back</Text>
+            <Text style={styles.backButtonText}>{t('auth.register.goBack')}</Text>
           </TouchableOpacity>
         )}
 
         {vm.step === 'details' && (
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
+            <Text style={styles.footerText}>{t('auth.register.haveAccount')}</Text>
             <TouchableOpacity
               onPress={() => router.push('/')}
               disabled={vm.isLoading}
             >
-              <Text style={styles.footerLink}>Sign In</Text>
+              <Text style={styles.footerLink}>{t('auth.register.signIn')}</Text>
             </TouchableOpacity>
           </View>
         )}

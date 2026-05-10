@@ -17,6 +17,7 @@ import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import { fetchRoutedGeometry } from '@/services/eventService';
 import { formatEventDateLabel, getAutoCompletionDaysLeft } from '@/utils/eventDate';
@@ -77,7 +78,8 @@ function getRouteRegion(
 
 function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
   const { theme } = useTheme();
-  const label = level ? level.charAt(0) + level.slice(1).toLowerCase() : '';
+  const { t } = useTranslation();
+  const label = level ? t(`events.privacy.${level}`) : '';
 
   let bg = theme.badgePublicBg;
   let color = theme.badgePublicText;
@@ -733,6 +735,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
   const vm = useEventDetailViewModel(eventId);
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const discussionVm = useEventDiscussionViewModel(eventId, vm.token ?? undefined);
   const styles = useMemo(() => makeStyles(theme, isDark), [theme, isDark]);
   const [isMapModalVisible, setIsMapModalVisible] = useState(false);
@@ -806,7 +809,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       return (
         <View style={styles.statusChip}>
           <Feather name="star" size={16} color="#7C3AED" />
-          <Text style={styles.statusChipTextPurple}>You are hosting this event</Text>
+          <Text style={styles.statusChipTextPurple}>{t('events.detail.youAreHosting')}</Text>
         </View>
       );
     }
@@ -817,7 +820,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         return (
           <View style={styles.statusChip}>
             <Ionicons name="log-out-outline" size={16} color={theme.textTertiary} />
-            <Text style={styles.statusChipTextGray}>You left this event</Text>
+            <Text style={styles.statusChipTextGray}>{t('events.detail.youLeft')}</Text>
           </View>
         );
       }
@@ -893,8 +896,10 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     ) {
       const attendedLabel =
         vm.actionState === 'success_reconfirmed'
-          ? "You're attending with latest details"
-          : vm.event.status === 'COMPLETED' ? 'You attended this event' : "You're attending";
+          ? t('events.detail.attendingReconfirmed')
+          : vm.event.status === 'COMPLETED'
+            ? t('events.detail.youAttended')
+            : t('events.detail.attending');
 
       return (
         <View>
@@ -923,7 +928,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               ) : (
                 <>
                   <Ionicons name="exit-outline" size={18} color="#DC2626" />
-                  <Text style={styles.leaveButtonText}>Leave Event</Text>
+                  <Text style={styles.leaveButtonText}>{t('events.detail.leaveEvent')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -937,7 +942,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         <View>
           <View style={styles.statusChip}>
             <Feather name="clock" size={16} color={theme.warningText} />
-            <Text style={styles.statusChipTextAmber}>Request sent — awaiting approval</Text>
+            <Text style={styles.statusChipTextAmber}>{t('events.detail.requestPending')}</Text>
           </View>
           <TouchableOpacity
             style={[
@@ -966,7 +971,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             ) : (
               <>
                 <Feather name="x-circle" size={18} color="#DC2626" />
-                <Text style={styles.leaveButtonText}>Cancel Request</Text>
+                <Text style={styles.leaveButtonText}>{t('events.detail.cancelRequest')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -979,7 +984,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         <View>
           <View style={styles.statusChip}>
             <Feather name="mail" size={16} color={theme.infoText} />
-            <Text style={styles.statusChipTextBlue}>You&apos;re invited</Text>
+            <Text style={styles.statusChipTextBlue}>{t('events.detail.youAreInvited')}</Text>
           </View>
 
           <View style={styles.invitationActionRow}>
@@ -1062,7 +1067,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         return (
           <View style={[styles.actionButton, styles.actionButtonDisabled]}>
             <Feather name="users" size={18} color={theme.textTertiary} />
-            <Text style={styles.actionButtonTextDisabled}>Event is Full</Text>
+            <Text style={styles.actionButtonTextDisabled}>{t('events.detail.eventFull')}</Text>
           </View>
         );
       }
@@ -1078,7 +1083,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           ) : (
             <>
               <Feather name="log-in" size={18} color={theme.textOnPrimary} />
-              <Text style={styles.actionButtonText}>Join Event</Text>
+              <Text style={styles.actionButtonText}>{t('events.detail.joinEvent')}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -1093,7 +1098,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           activeOpacity={0.8}
         >
           <Feather name="send" size={18} color={theme.textOnPrimary} />
-          <Text style={styles.actionButtonText}>Request to Join</Text>
+          <Text style={styles.actionButtonText}>{t('events.detail.requestToJoin')}</Text>
         </TouchableOpacity>
       );
     }
@@ -1127,16 +1132,18 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             />
           </View>
           <Text style={styles.errorTitle}>
-            {isPrivateOrMissing ? 'Event Inaccessible' : 'Something went wrong'}
+            {isPrivateOrMissing
+              ? t('events.detail.errorTitleInaccessible')
+              : t('events.detail.errorTitle')}
           </Text>
           <Text style={styles.errorMessage}>
             {vm.apiError ?? 'The event you are looking for could not be found.'}
           </Text>
           <TouchableOpacity style={styles.retryButton} onPress={vm.retry}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
+            <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.backLinkButton} onPress={() => router.back()}>
-            <Text style={styles.backLinkText}>Go Back to Discovery</Text>
+            <Text style={styles.backLinkText}>{t('events.detail.backToDiscovery')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -1161,7 +1168,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <Feather name="arrow-left" size={22} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          Event Details
+          {t('events.detail.headerTitle')}
         </Text>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.headerIconBtn} onPress={vm.handleToggleFavorite}>
@@ -1391,7 +1398,9 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   >
                     <MaterialIcons name="directions" size={20} color={theme.primary} />
                     <Text style={styles.directionsButtonText}>
-                      {isRoute ? 'Directions to Start' : 'Get Directions'}
+                      {isRoute
+                        ? t('events.detail.directionsToStart')
+                        : t('events.detail.directions')}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -1406,7 +1415,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
         {/* Host */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Host</Text>
+          <Text style={styles.sectionTitle}>{t('events.detail.host')}</Text>
           <TouchableOpacity
             style={styles.hostRow}
             onPress={() => router.push(`/user/${event.host.id}` as Href)}
@@ -1436,7 +1445,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <>
             <View style={styles.divider} />
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Host Management</Text>
+              <Text style={styles.sectionTitle}>{t('events.detail.hostManagement')}</Text>
               <View style={styles.hostActions}>
                 {canEditEvent(vm.event) ? (
                   <TouchableOpacity
@@ -1455,7 +1464,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 >
                   <Feather name="users" size={18} color={theme.text} />
                   <Text style={styles.hostActionText}>
-                    Attendees ({vm.hostContextSummary?.approved_participant_count ?? vm.approvedParticipants.length})
+                    {t('events.detail.participants')} ({vm.hostContextSummary?.approved_participant_count ?? vm.approvedParticipants.length})
                   </Text>
                 </TouchableOpacity>
                 {vm.event.status === 'COMPLETED' ? (
@@ -1473,7 +1482,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   >
                     <Feather name="mail" size={18} color={theme.textOnPrimary} />
                     <Text style={styles.hostActionTextWhite}>
-                      Pending Requests ({vm.hostContextSummary?.pending_join_request_count ?? vm.pendingJoinRequests.length})
+                      {t('events.detail.pendingRequests')} ({vm.hostContextSummary?.pending_join_request_count ?? vm.pendingJoinRequests.length})
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -1485,7 +1494,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   >
                     <Feather name="send" size={18} color={theme.textOnPrimary} />
                     <Text style={styles.hostActionTextWhite}>
-                      Invite & Manage ({vm.hostContextSummary?.invitation_count ?? vm.invitations.length})
+                      {t('events.detail.inviteAndManage')} ({vm.hostContextSummary?.invitation_count ?? vm.invitations.length})
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -1505,7 +1514,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                     }}
                   >
                     <Feather name="trash-2" size={18} color="#DC2626" />
-                    <Text style={styles.hostActionTextDanger}>Cancel Event</Text>
+                    <Text style={styles.hostActionTextDanger}>{t('events.detail.cancelEvent')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -1527,7 +1536,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <>
             <View style={styles.divider} />
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>About</Text>
+              <Text style={styles.sectionTitle}>{t('events.detail.about')}</Text>
               <Text style={styles.description}>{event.description}</Text>
             </View>
           </>
@@ -1538,7 +1547,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <>
             <View style={styles.divider} />
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Tags</Text>
+              <Text style={styles.sectionTitle}>{t('events.detail.tags')}</Text>
               <View style={styles.tagRow}>
                 {event.tags.map((tag) => (
                   <View key={tag} style={styles.tag}>
@@ -1555,7 +1564,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <>
             <View style={styles.divider} />
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Requirements</Text>
+              <Text style={styles.sectionTitle}>{t('events.detail.requirements')}</Text>
               {event.constraints.map((c, i) => (
                 <View key={i} style={styles.constraintRow}>
                   <MaterialIcons name="check-circle-outline" size={16} color={theme.textTertiary} />
@@ -1622,7 +1631,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <>
               <View style={styles.divider} />
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Discussions</Text>
+                <Text style={styles.sectionTitle}>{t('events.detail.discussions')}</Text>
               </View>
               <EventDiscussionSection
                 vm={discussionVm}

@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
+import { useTranslation } from 'react-i18next';
 import {
   useEditProfileViewModel,
   GENDER_OPTIONS,
@@ -28,6 +29,7 @@ export default function EditProfileView() {
   const vm = useEditProfileViewModel();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const getPickerDate = useCallback(() => {
@@ -97,7 +99,7 @@ export default function EditProfileView() {
             >
               <MaterialIcons name="arrow-back" size={28} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.screenTitle}>Edit Profile</Text>
+            <Text style={styles.screenTitle}>{t('profile.edit.title')}</Text>
             <View style={styles.headerSpacer} />
           </View>
 
@@ -121,7 +123,7 @@ export default function EditProfileView() {
         ) : (
           <View style={styles.formCard}>
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Display Name</Text>
+              <Text style={styles.fieldLabel}>{t('profile.edit.displayName')}</Text>
               <TextInput
                 style={[
                   styles.textInput,
@@ -143,7 +145,7 @@ export default function EditProfileView() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Bio</Text>
+              <Text style={styles.fieldLabel}>{t('profile.edit.bio')}</Text>
               <TextInput
                 style={[
                   styles.textInput,
@@ -169,7 +171,7 @@ export default function EditProfileView() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Phone Number</Text>
+              <Text style={styles.fieldLabel}>{t('profile.edit.phone')}</Text>
               <TextInput
                 style={[
                   styles.textInput,
@@ -190,7 +192,7 @@ export default function EditProfileView() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Default Location</Text>
+              <Text style={styles.fieldLabel}>{t('profile.edit.defaultLocation')}</Text>
               <View style={styles.locationInputRow}>
                 <TextInput
                   style={styles.textInput}
@@ -237,7 +239,7 @@ export default function EditProfileView() {
 
             {vm.canEditGender ? (
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Gender</Text>
+                <Text style={styles.fieldLabel}>{t('profile.edit.gender')}</Text>
                 <View style={styles.genderRow}>
                   {GENDER_OPTIONS.map((option) => {
                     const selected = vm.formData.gender === option.value;
@@ -274,7 +276,7 @@ export default function EditProfileView() {
 
             {vm.canEditBirthDate ? (
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Birth Date</Text>
+                <Text style={styles.fieldLabel}>{t('profile.edit.birthDate')}</Text>
                 <View style={styles.dateInputContainer}>
                   <TextInput
                     style={[
@@ -330,7 +332,7 @@ export default function EditProfileView() {
               ) : (
                 <>
                   <Ionicons name="checkmark-circle-outline" size={20} color={theme.textOnPrimary} />
-                  <Text style={styles.saveButtonText}>Save Changes</Text>
+                  <Text style={styles.saveButtonText}>{t('profile.edit.save')}</Text>
                 </>
               )}
             </TouchableOpacity>

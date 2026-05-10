@@ -17,6 +17,7 @@ import {
 } from '@/utils/notificationPresentation';
 import { resolveNotificationRoute } from '@/utils/notificationRouting';
 import { useNotificationsViewModel } from '@/viewmodels/notifications/useNotificationsViewModel';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -82,6 +83,7 @@ function NotificationRow({ item, onOpen, onDelete, theme }: NotificationRowProps
 
 export default function NotificationsView() {
   const vm = useNotificationsViewModel();
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const hasFocusedOnceRef = useRef(false);
@@ -95,15 +97,17 @@ export default function NotificationsView() {
     if (vm.notifications.length === 0) return [];
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const groups: { [key: string]: NotificationItem[] } = { Today: [], Earlier: [] };
+    const todayKey = t('notifications.today');
+    const earlierKey = t('notifications.earlier');
+    const groups: { [key: string]: NotificationItem[] } = { [todayKey]: [], [earlierKey]: [] };
     vm.notifications.forEach(item => {
       const d = new Date(item.created_at);
       const itemDate = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-      if (itemDate === today) groups.Today.push(item);
-      else groups.Earlier.push(item);
+      if (itemDate === today) groups[todayKey].push(item);
+      else groups[earlierKey].push(item);
     });
     return Object.entries(groups).filter(([_, items]) => items.length > 0).map(([title, data]) => ({ title, data }));
-  }, [vm.notifications]);
+  }, [vm.notifications, t]);
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
@@ -113,8 +117,12 @@ export default function NotificationsView() {
             <Ionicons name="chevron-back" size={24} color={theme.text} />
           </TouchableOpacity>
           <View style={styles.titleBlock}>
-            <Text style={styles.screenTitle}>Notifications</Text>
-            <Text style={styles.screenSubtitle}>{vm.unreadCount === 0 ? 'All caught up' : `${vm.unreadCount} unread`}</Text>
+            <Text style={styles.screenTitle}>{t('notifications.title')}</Text>
+            <Text style={styles.screenSubtitle}>
+              {vm.unreadCount === 0
+                ? t('notifications.allCaughtUp')
+                : t('notifications.unreadCount', { count: vm.unreadCount })}
+            </Text>
           </View>
           <TouchableOpacity
             style={[styles.markAllButton, vm.unreadCount === 0 && styles.markAllButtonDisabled]}
@@ -135,7 +143,7 @@ export default function NotificationsView() {
         {vm.isLoading && !vm.isRefreshing ? (
           <View style={styles.loadingPanel}>
             <ActivityIndicator size="large" color={theme.primary} />
-            <Text style={styles.loadingText}>Fetching your updates...</Text>
+            <Text style={styles.loadingText}>{t('notifications.loading')}</Text>
           </View>
         ) : (
           <SectionList
@@ -161,8 +169,8 @@ export default function NotificationsView() {
                 <View style={styles.emptyStateIconCircle}>
                   <Ionicons name="notifications-outline" size={48} color={theme.primary} />
                 </View>
-                <Text style={styles.emptyTitle}>All caught up!</Text>
-                <Text style={styles.emptySubtitle}>When you receive invitations or event updates, they will appear here.</Text>
+                <Text style={styles.emptyTitle}>{t('notifications.emptyTitle')}</Text>
+                <Text style={styles.emptySubtitle}>{t('notifications.emptySubtitle')}</Text>
               </View>
             }
           />

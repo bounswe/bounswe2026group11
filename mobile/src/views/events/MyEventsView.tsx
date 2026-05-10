@@ -12,6 +12,7 @@ import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import MyEventCard from '@/components/events/MyEventCard';
 import InvitationCard from '@/components/invitation/InvitationCard';
+import { useTranslation } from 'react-i18next';
 import { useMyEventsViewModel } from '@/viewmodels/event/useMyEventsViewModel';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
@@ -58,6 +59,7 @@ function StatePanel({
 export default function MyEventsView() {
   const vm = useMyEventsViewModel();
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   useFocusEffect(
@@ -70,17 +72,17 @@ export default function MyEventsView() {
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.headerSection}>
-          <Text style={styles.title}>My Events</Text>
+          <Text style={styles.title}>{t('myEvents.title')}</Text>
 
           <View style={styles.summaryRow}>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryValue}>{vm.hostedCount}</Text>
-              <Text style={styles.summaryLabel}>Hosting</Text>
+              <Text style={styles.summaryLabel}>{t('myEvents.hosting')}</Text>
             </View>
 
             <View style={styles.summaryCard}>
               <Text style={styles.summaryValue}>{vm.attendedCount}</Text>
-              <Text style={styles.summaryLabel}>Attending</Text>
+              <Text style={styles.summaryLabel}>{t('myEvents.attending')}</Text>
             </View>
           </View>
         </View>
@@ -112,7 +114,7 @@ export default function MyEventsView() {
           {vm.isLoading ? (
             <View style={styles.loadingPanel}>
               <ActivityIndicator size="large" color={theme.text} />
-              <Text style={styles.loadingText}>Loading your events...</Text>
+              <Text style={styles.loadingText}>{t('myEvents.loading')}</Text>
             </View>
           ) : vm.errorMessage ? (
             <StatePanel

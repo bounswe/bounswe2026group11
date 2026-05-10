@@ -3,6 +3,7 @@ import {
   MyEventStatus,
   MyEventSummary,
 } from '@/models/event';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { listMyEvents } from '@/services/eventService';
 import { listMyInvitations, acceptInvitation, declineInvitation } from '@/services/invitationService';
@@ -10,38 +11,24 @@ import { ReceivedInvitation } from '@/models/invitation';
 import { ApiError } from '@/services/api';
 import { listMyTickets } from '@/services/ticketService';
 import type { TicketListItem } from '@/models/ticket';
+import i18n from '@/i18n';
 
 type ExtendedStatus = MyEventStatus | 'INVITATIONS';
 
-const STATUS_OPTIONS: Array<{ value: ExtendedStatus; label: string }> = [
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'IN_PROGRESS', label: 'In Progress' },
-  { value: 'COMPLETED', label: 'Completed' },
-  { value: 'INVITATIONS', label: 'Invites' },
-  { value: 'CANCELED', label: 'Canceled' },
+const STATUS_OPTIONS: Array<{ value: ExtendedStatus; labelKey: string }> = [
+  { value: 'ACTIVE', labelKey: 'events.status.ACTIVE' },
+  { value: 'IN_PROGRESS', labelKey: 'events.status.IN_PROGRESS' },
+  { value: 'COMPLETED', labelKey: 'events.status.COMPLETED' },
+  { value: 'INVITATIONS', labelKey: 'myEvents.invitations' },
+  { value: 'CANCELED', labelKey: 'events.status.CANCELED' },
 ];
 
-const EMPTY_STATE_COPY: Record<
-  MyEventStatus,
-  { title: string; subtitle: string }
-> = {
-  ACTIVE: {
-    title: 'No active events right now',
-    subtitle: 'Hosted plans and upcoming participations will appear here.',
-  },
-  IN_PROGRESS: {
-    title: 'Nothing is in progress',
-    subtitle: 'Events that are currently happening will show up here.',
-  },
-  COMPLETED: {
-    title: 'No completed events yet',
-    subtitle: 'Your hosted wrap-ups and participation history will build here.',
-  },
-  CANCELED: {
-    title: 'No canceled events',
-    subtitle: 'Canceled hosted or attended events will appear here when needed.',
-  },
-};
+function getEmptyStateCopy(status: MyEventStatus): { title: string; subtitle: string } {
+  return {
+    title: i18n.t(`myEvents.empty.${status}.title`),
+    subtitle: i18n.t(`myEvents.empty.${status}.subtitle`),
+  };
+}
 
 export interface MyEventsStatusTab {
   value: ExtendedStatus;
@@ -114,6 +101,8 @@ function normalizeInvitationsResponse(
 
 export function useMyEventsViewModel(): MyEventsViewModel {
   const { token } = useAuth();
+  // Subscribe to locale so the tab labels and empty-state copy re-render on language change.
+  useTranslation();
 
   const [activeStatus, setActiveStatus] = useState<ExtendedStatus>('ACTIVE');
   const [hostedEvents, setHostedEvents] = useState<MyEventSummary[]>([]);
@@ -254,21 +243,26 @@ export function useMyEventsViewModel(): MyEventsViewModel {
     } else {
       count = allEvents.filter((event) => event.status === statusOption.value).length;
     }
-    return { ...statusOption, count };
+    return {
+      value: statusOption.value,
+      label: i18n.t(statusOption.labelKey),
+      count,
+    };
   });
 
   const hasAnyEvents = allEvents.length > 0 || invitations.length > 0;
 
-  let emptyTitle = 'No events to manage yet';
-  let emptySubtitle = 'Events you host or join will appear here once your plans start coming together.';
+  let emptyTitle = i18n.t('myEvents.noEventsTitle');
+  let emptySubtitle = i18n.t('myEvents.noEventsSubtitle');
 
   if (activeStatus === 'INVITATIONS') {
-    emptyTitle = 'No invitations yet';
-    emptySubtitle = 'Private event invites from your friends and hosts will appear here.';
+    emptyTitle = i18n.t('myEvents.noInvitationsTitle');
+    emptySubtitle = i18n.t('myEvents.noInvitationsSubtitle');
   } else if (hasAnyEvents) {
     const currentStatus = activeStatus as MyEventStatus;
-    emptyTitle = EMPTY_STATE_COPY[currentStatus].title;
-    emptySubtitle = EMPTY_STATE_COPY[currentStatus].subtitle;
+    const copy = getEmptyStateCopy(currentStatus);
+    emptyTitle = copy.title;
+    emptySubtitle = copy.subtitle;
   }
 
   return {

@@ -3,16 +3,17 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
-function buildTabMeta(t: Theme): Record<
-  string,
-  { label: string; icon: (active: boolean) => React.ReactNode }
-> {
+function buildTabMeta(
+  t: Theme,
+  translate: (key: string) => string,
+): Record<string, { label: string; icon: (active: boolean) => React.ReactNode }> {
   return {
     home: {
-      label: 'Explore',
+      label: translate('events.tabs.home'),
       icon: (active) => (
         <Feather
           name="compass"
@@ -22,7 +23,7 @@ function buildTabMeta(t: Theme): Record<
       ),
     },
     favorites: {
-      label: 'Favorites',
+      label: translate('events.tabs.favorites'),
       icon: (active) => (
         <MaterialIcons
           name={active ? 'favorite' : 'favorite-border'}
@@ -32,7 +33,7 @@ function buildTabMeta(t: Theme): Record<
       ),
     },
     events: {
-      label: 'My Events',
+      label: translate('events.tabs.events'),
       icon: (active) => (
         <Feather
           name="calendar"
@@ -42,7 +43,7 @@ function buildTabMeta(t: Theme): Record<
       ),
     },
     profile: {
-      label: 'Profile',
+      label: translate('events.tabs.profile'),
       icon: (active) => (
         <Feather
           name="user"
@@ -56,7 +57,11 @@ function buildTabMeta(t: Theme): Record<
 
 export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
   const { theme } = useTheme();
-  const tabMeta = useMemo(() => buildTabMeta(theme), [theme]);
+  const { t: translate, i18n } = useTranslation();
+  const tabMeta = useMemo(
+    () => buildTabMeta(theme, translate),
+    [theme, translate, i18n.language],
+  );
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const createIndex = 2;
 

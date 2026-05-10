@@ -30,6 +30,7 @@ import {
 } from '@/viewmodels/event/useCreateEventViewModel';
 import RoutePointsEditor from '@/components/events/RoutePointsEditor';
 import PointPickerMap from '@/components/events/PointPickerMap';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -37,6 +38,7 @@ export default function CreateEventView() {
   const vm = useCreateEventViewModel();
   const { token } = useAuth();
   const { theme, isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const pickerThemeVariant = isDark ? 'dark' : 'light';
 
@@ -217,7 +219,7 @@ export default function CreateEventView() {
             >
               <MaterialIcons name="arrow-back" size={28} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.title}>Create Event</Text>
+            <Text style={styles.title}>{t('events.create.title')}</Text>
             <View style={styles.headerSpacer} />
           </View>
 
@@ -258,7 +260,7 @@ export default function CreateEventView() {
               {vm.isUploadingImage && (
                 <View style={styles.imageUploadOverlay}>
                   <ActivityIndicator size="large" color="#FFFFFF" />
-                  <Text style={styles.imageUploadOverlayText}>Uploading...</Text>
+                  <Text style={styles.imageUploadOverlayText}>{t('events.create.fields.imageUploading')}</Text>
                 </View>
               )}
             </View>
@@ -269,7 +271,7 @@ export default function CreateEventView() {
               disabled={vm.isLoading}
             >
               <MaterialIcons name="add-photo-alternate" size={36} color={theme.textTertiary} />
-              <Text style={styles.imageUploadText}>Add Event Image</Text>
+              <Text style={styles.imageUploadText}>{t('events.create.fields.imageAdd')}</Text>
             </TouchableOpacity>
           )}
           {vm.imageError && <Text style={styles.fieldError}>{vm.imageError}</Text>}
@@ -278,11 +280,11 @@ export default function CreateEventView() {
         {/* Title */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>
-            Title <Text style={styles.required}>*</Text>
+            {t('events.create.fields.titleLabel')} <Text style={styles.required}>*</Text>
           </Text>
           <TextInput
             style={[styles.input, vm.errors.title && styles.inputError]}
-            placeholder="Event name"
+            placeholder={t('events.create.fields.titlePlaceholder')}
             placeholderTextColor={theme.placeholder}
             value={vm.formData.title}
             onChangeText={(v) => vm.updateField('title', v)}
@@ -297,11 +299,11 @@ export default function CreateEventView() {
         {/* Description */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>
-            Description <Text style={styles.required}>*</Text>
+            {t('events.create.fields.descriptionLabel')} <Text style={styles.required}>*</Text>
           </Text>
           <TextInput
             style={[styles.input, styles.textArea, vm.errors.description && styles.inputError]}
-            placeholder="What's this event about?"
+            placeholder={t('events.create.fields.descriptionPlaceholder')}
             placeholderTextColor={theme.placeholder}
             value={vm.formData.description}
             onChangeText={(v) => vm.updateField('description', v)}
@@ -319,7 +321,7 @@ export default function CreateEventView() {
         {/* Category */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>
-            Category <Text style={styles.required}>*</Text>
+            {t('events.create.fields.category')} <Text style={styles.required}>*</Text>
           </Text>
           <View style={styles.chipRow}>
             {visibleCategories.map((cat) => (
@@ -348,7 +350,9 @@ export default function CreateEventView() {
           {CATEGORIES.length > CATEGORY_PREVIEW_COUNT && (
             <TouchableOpacity style={styles.showMoreBtn} onPress={vm.toggleCategoriesExpanded}>
               <Text style={styles.showMoreText}>
-                {vm.categoriesExpanded ? 'Show less' : 'Show more'}
+                {vm.categoriesExpanded
+                  ? t('events.create.showLess')
+                  : t('events.create.showMore')}
               </Text>
             </TouchableOpacity>
           )}
@@ -360,7 +364,7 @@ export default function CreateEventView() {
         {/* Location */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>
-            Location <Text style={styles.required}>*</Text>
+            {t('events.create.fields.location')} <Text style={styles.required}>*</Text>
           </Text>
 
           {/* Point / Route toggle */}
@@ -387,7 +391,7 @@ export default function CreateEventView() {
                   vm.formData.locationType === 'POINT' && styles.locationTypeOptionTextActive,
                 ]}
               >
-                Single point
+                {t('events.create.fields.locationTypePoint')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -412,7 +416,7 @@ export default function CreateEventView() {
                   vm.formData.locationType === 'ROUTE' && styles.locationTypeOptionTextActive,
                 ]}
               >
-                Route
+                {t('events.create.fields.locationTypeRoute')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -422,7 +426,7 @@ export default function CreateEventView() {
               <View style={styles.locationInputRow}>
                 <TextInput
                   style={[styles.input, styles.locationInput, vm.errors.location && styles.inputError]}
-                  placeholder="Search for a place or tap the map below..."
+                  placeholder={t('events.create.fields.locationSearchPlaceholder')}
                   placeholderTextColor={theme.placeholder}
                   value={vm.formData.locationQuery}
                   onChangeText={(v) => vm.handleLocationSearch(v)}
@@ -487,7 +491,7 @@ export default function CreateEventView() {
           <View style={styles.dateTimeRow}>
             <View style={styles.dateTimeCol}>
               <Text style={styles.label}>
-                Start <Text style={styles.required}>*</Text>
+                {t('events.create.fields.start')} <Text style={styles.required}>*</Text>
               </Text>
               <TouchableOpacity
                 style={[styles.input, styles.pickerField, vm.errors.startDate && styles.inputError]}
@@ -503,7 +507,7 @@ export default function CreateEventView() {
                     !vm.formData.startDate && styles.pickerPlaceholderText,
                   ]}
                 >
-                  {vm.formData.startDate || 'Select date'}
+                  {vm.formData.startDate || t('events.create.fields.selectDate')}
                 </Text>
                 <MaterialIcons name="event" size={20} color={theme.textSecondary} />
               </TouchableOpacity>
@@ -527,7 +531,7 @@ export default function CreateEventView() {
                     !vm.formData.startTime && styles.pickerPlaceholderText,
                   ]}
                 >
-                  {vm.formData.startTime || 'Select time'}
+                  {vm.formData.startTime || t('events.create.fields.selectTime')}
                 </Text>
                 <MaterialIcons name="schedule" size={20} color={theme.textSecondary} />
               </TouchableOpacity>
@@ -571,7 +575,7 @@ export default function CreateEventView() {
         {/* End Date/Time */}
         <View style={styles.fieldGroup}>
           <View style={styles.inlineLabelRow}>
-            <Text style={styles.label}>End</Text>
+            <Text style={styles.label}>{t('events.create.fields.end')}</Text>
             {(vm.formData.endDate || vm.formData.endTime) && (
               <TouchableOpacity
                 onPress={clearEndDateTime}
@@ -599,7 +603,7 @@ export default function CreateEventView() {
                     !vm.formData.endDate && styles.pickerPlaceholderText,
                   ]}
                 >
-                  {vm.formData.endDate || 'Select date'}
+                  {vm.formData.endDate || t('events.create.fields.selectDate')}
                 </Text>
                 <MaterialIcons name="event" size={20} color={theme.textSecondary} />
               </TouchableOpacity>
@@ -622,7 +626,7 @@ export default function CreateEventView() {
                     !vm.formData.endTime && styles.pickerPlaceholderText,
                   ]}
                 >
-                  {vm.formData.endTime || 'Select time'}
+                  {vm.formData.endTime || t('events.create.fields.selectTime')}
                 </Text>
                 <MaterialIcons name="schedule" size={20} color={theme.textSecondary} />
               </TouchableOpacity>
@@ -666,7 +670,7 @@ export default function CreateEventView() {
         {/* Privacy Level */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>
-            Privacy Level <Text style={styles.required}>*</Text>
+            {t('events.create.fields.privacy')} <Text style={styles.required}>*</Text>
           </Text>
           <View style={styles.privacyRow}>
             {PRIVACY_OPTIONS.map((opt) => (
@@ -685,7 +689,7 @@ export default function CreateEventView() {
                     vm.formData.privacyLevel === opt.value && styles.privacyOptionTextSelected,
                   ]}
                 >
-                  {opt.label}
+                  {t(`events.privacy.${opt.value}`)}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -693,11 +697,11 @@ export default function CreateEventView() {
           <View style={styles.privacyDescriptionContainer}>
             <Text style={styles.privacyDescriptionText}>
               {vm.formData.privacyLevel === 'PUBLIC' &&
-                'Visible to everyone. Anyone can join without approval.'}
+                t('events.create.privacy.publicDesc')}
               {vm.formData.privacyLevel === 'PROTECTED' &&
-                'Visible to everyone, but people must send a join request and wait for your approval.'}
+                t('events.create.privacy.protectedDesc')}
               {vm.formData.privacyLevel === 'PRIVATE' &&
-                'Only visible to invited users. People can join only if you invite them.'}
+                t('events.create.privacy.privateDesc')}
             </Text>
           </View>
         </View>
@@ -705,12 +709,12 @@ export default function CreateEventView() {
         {/* Invite Guests (Private Only) */}
         {vm.formData.privacyLevel === 'PRIVATE' && (
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Invite Guests</Text>
+            <Text style={styles.label}>{t('events.create.fields.inviteGuests')}</Text>
             <View style={styles.tagInputRow}>
               <View style={{ flex: 1 }}>
                 <TextInput
                   style={[styles.input, styles.tagInput]}
-                  placeholder="Username"
+                  placeholder={t('events.create.fields.inviteUsername')}
                   placeholderTextColor={theme.placeholder}
                   value={vm.userSearchQuery}
                   onChangeText={(v) => vm.handleUserSearch(v, token ?? '')}
@@ -766,10 +770,10 @@ export default function CreateEventView() {
 
             {vm.invitedUsers.length > 0 && (
               <View style={[styles.fieldGroup, { marginTop: 16, marginBottom: 0 }]}>
-                <Text style={styles.label}>Invitation Message (Optional)</Text>
+                <Text style={styles.label}>{t('events.create.fields.invitationMessage')}</Text>
                 <TextInput
                   style={[styles.input, styles.textArea, { minHeight: 80 }]}
-                  placeholder="Personalize your invitation..."
+                  placeholder={t('events.create.fields.invitationMessagePlaceholder')}
                   placeholderTextColor={theme.placeholder}
                   value={vm.formData.invitationMessage}
                   onChangeText={(v) => vm.updateField('invitationMessage', v)}
@@ -788,11 +792,11 @@ export default function CreateEventView() {
 
         {/* Tags */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Tags (max 5)</Text>
+          <Text style={styles.label}>{t('events.create.fields.tags')}</Text>
           <View style={styles.tagInputRow}>
             <TextInput
               style={[styles.input, styles.tagInput]}
-              placeholder="Add tag"
+              placeholder={t('events.create.fields.tagInputPlaceholder')}
               placeholderTextColor={theme.placeholder}
               value={vm.formData.tagInput}
               onChangeText={(v) => vm.updateField('tagInput', v)}
@@ -832,7 +836,7 @@ export default function CreateEventView() {
 
         {/* Participation Constraints */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Participation Constraints</Text>
+          <Text style={styles.label}>{t('events.create.fields.constraints')}</Text>
           <View style={styles.chipRow}>
             {CONSTRAINT_TYPES.map((ct) => {
               const atLimit = isConstraintTypeAtLimit(ct);
@@ -855,7 +859,7 @@ export default function CreateEventView() {
                       atLimit && styles.chipTextUsed,
                     ]}
                   >
-                    {ct.charAt(0).toUpperCase() + ct.slice(1)}
+                    {t(`events.create.constraintTypes.${ct}`)}
                   </Text>
                 </TouchableOpacity>
               );
@@ -871,14 +875,14 @@ export default function CreateEventView() {
                     onPress={() => vm.addGenderConstraint('MALE')}
                     disabled={vm.isLoading}
                   >
-                    <Text style={styles.chipText}>Males only</Text>
+                    <Text style={styles.chipText}>{t('events.create.constraintActions.malesOnly')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.chip}
                     onPress={() => vm.addGenderConstraint('FEMALE')}
                     disabled={vm.isLoading}
                   >
-                    <Text style={styles.chipText}>Females only</Text>
+                    <Text style={styles.chipText}>{t('events.create.constraintActions.femalesOnly')}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -939,7 +943,7 @@ export default function CreateEventView() {
                       <View style={styles.dateTimeCol}>
                         <TextInput
                           style={styles.input}
-                          placeholder="Min age"
+                          placeholder={t('events.create.constraintActions.minAge')}
                           placeholderTextColor={theme.placeholder}
                           value={vm.formData.ageMinInput}
                           onChangeText={(v) => vm.updateField('ageMinInput', v)}
@@ -950,7 +954,7 @@ export default function CreateEventView() {
                       <View style={styles.dateTimeCol}>
                         <TextInput
                           style={styles.input}
-                          placeholder="Max age"
+                          placeholder={t('events.create.constraintActions.maxAge')}
                           placeholderTextColor={theme.placeholder}
                           value={vm.formData.ageMaxInput.trim() ? vm.formData.ageMaxInput : ''}
                           onChangeText={(v) => vm.updateField('ageMaxInput', v)}
@@ -974,7 +978,7 @@ export default function CreateEventView() {
                 <View style={styles.tagInputRow}>
                   <TextInput
                     style={[styles.input, styles.tagInput]}
-                    placeholder="Max participants"
+                    placeholder={t('events.create.constraintActions.maxParticipants')}
                     placeholderTextColor={theme.placeholder}
                     value={vm.formData.capacityInput}
                     onChangeText={(v) => vm.updateField('capacityInput', v)}
@@ -998,7 +1002,7 @@ export default function CreateEventView() {
                 <View style={styles.tagInputRow}>
                   <TextInput
                     style={[styles.input, styles.tagInput]}
-                    placeholder="Describe requirement"
+                    placeholder={t('events.create.constraintActions.describeRequirement')}
                     placeholderTextColor={theme.placeholder}
                     value={vm.formData.otherConstraintInput}
                     onChangeText={(v) => vm.updateField('otherConstraintInput', v)}
@@ -1050,7 +1054,7 @@ export default function CreateEventView() {
           {vm.isLoading ? (
             <ActivityIndicator color={theme.textOnPrimary} />
           ) : (
-            <Text style={styles.submitButtonText}>Create Event</Text>
+            <Text style={styles.submitButtonText}>{t('events.create.submit')}</Text>
           )}
         </TouchableOpacity>
         </ScrollView>

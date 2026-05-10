@@ -13,11 +13,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useChangePasswordViewModel } from '@/viewmodels/profile/useChangePasswordViewModel';
 import { useTheme, type Theme } from '@/theme';
 
 export default function ChangePasswordView() {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const vm = useChangePasswordViewModel();
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -94,7 +96,7 @@ export default function ChangePasswordView() {
             >
               <MaterialIcons name="arrow-back" size={28} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.screenTitle}>Change Password</Text>
+            <Text style={styles.screenTitle}>{t('auth.changePassword.title')}</Text>
             <View style={styles.headerSpacer} />
           </View>
 
@@ -114,28 +116,28 @@ export default function ChangePasswordView() {
 
           <View style={styles.formCard}>
             {renderPasswordField(
-              'Current Password',
+              t('auth.changePassword.currentPassword'),
               'currentPassword',
               showCurrentPassword,
               () => setShowCurrentPassword(!showCurrentPassword),
-              'Enter current password'
+              t('auth.changePassword.currentPasswordPlaceholder')
             )}
 
             {renderPasswordField(
-              'New Password',
+              t('auth.changePassword.newPassword'),
               'newPassword',
               showNewPassword,
               () => setShowNewPassword(!showNewPassword),
-              'Enter new password'
+              t('auth.changePassword.newPasswordPlaceholder')
             )}
-            <Text style={styles.fieldHint}>Must be at least 8 characters long.</Text>
+            <Text style={styles.fieldHint}>{t('auth.changePassword.newPasswordHint')}</Text>
 
             {renderPasswordField(
-              'Confirm New Password',
+              t('auth.changePassword.confirmPassword'),
               'confirmPassword',
               showConfirmPassword,
               () => setShowConfirmPassword(!showConfirmPassword),
-              'Confirm new password'
+              t('auth.changePassword.confirmPasswordPlaceholder')
             )}
 
             {/* Save Button */}
@@ -154,7 +156,7 @@ export default function ChangePasswordView() {
               ) : (
                 <>
                   <Ionicons name="lock-closed-outline" size={20} color={theme.textOnPrimary} />
-                  <Text style={styles.saveButtonText}>Change Password</Text>
+                  <Text style={styles.saveButtonText}>{t('auth.changePassword.submit')}</Text>
                 </>
               )}
             </TouchableOpacity>

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { EventSummary } from '@/models/event';
 import { getFavoriteCountForDisplay } from '@/utils/eventFavoriteCount';
 import { formatEventDateLabel } from '@/utils/eventDate';
@@ -14,12 +15,9 @@ interface EventCardProps {
   onPress?: (eventId: string) => void;
 }
 
-function formatPrivacyLabel(value: EventSummary['privacy_level']) {
-  return value.charAt(0) + value.slice(1).toLowerCase();
-}
-
 export default function EventCard({ event, onPress }: EventCardProps) {
   const { theme, isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const categoryPresentation = getEventCategoryPresentation(
     event.category_name,
@@ -79,7 +77,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
             <View style={[styles.visibilityBadge, { backgroundColor: badgeBg }]}>
               <Feather name={iconName} size={12} color={iconColor} />
               <Text style={[styles.visibilityBadgeText, { color: badgeText }]}>
-                {formatPrivacyLabel(level)}
+                {t(`events.privacy.${level}`)}
               </Text>
             </View>
           </View>

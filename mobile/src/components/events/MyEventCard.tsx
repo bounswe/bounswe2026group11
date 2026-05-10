@@ -8,6 +8,7 @@ import {
   formatEventStatusLabel,
   getEventStatusBadgeColors,
 } from '@/utils/eventStatus';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 import { getTicketStatusBadgeColors } from '@/utils/ticketStatus';
@@ -33,6 +34,8 @@ function getLocationLabel(address?: string | null) {
 
 export default function MyEventCard({ event, onPress }: MyEventCardProps) {
   const { theme } = useTheme();
+  // Subscribe to language so status/category labels re-render on locale change.
+  useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const statusColors = getEventStatusBadgeColors(event.status);

@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import {
   DiscoverEventsSortBy,
   EventCategory,
@@ -49,11 +50,11 @@ const CATEGORY_PREVIEW_COUNT = 6;
 const SWIPE_CLOSE_THRESHOLD = 80;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SORT_OPTIONS: Array<{
-  label: string;
+  labelKey: string;
   value: Extract<DiscoverEventsSortBy, 'START_TIME' | 'DISTANCE'>;
 }> = [
-  { label: 'Soonest', value: 'START_TIME' },
-  { label: 'Nearest', value: 'DISTANCE' },
+  { labelKey: 'home.filtersSheet.sortSoonest', value: 'START_TIME' },
+  { labelKey: 'home.filtersSheet.sortNearest', value: 'DISTANCE' },
 ];
 
 function formatDigitsToDate(digits: string): string {
@@ -93,6 +94,7 @@ export default function FiltersBottomSheet({
   onChangeSortBy,
 }: FiltersBottomSheetProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
@@ -277,7 +279,7 @@ export default function FiltersBottomSheet({
                 <Feather name="x" size={28} color={theme.text} />
               </TouchableOpacity>
 
-              <Text style={styles.title}>Filters</Text>
+              <Text style={styles.title}>{t('home.filtersSheet.title')}</Text>
 
               <TouchableOpacity
                 onPress={onReset}
@@ -287,7 +289,7 @@ export default function FiltersBottomSheet({
                 accessibilityLabel="Reset filters"
               >
                 <Feather name="rotate-ccw" size={18} color={theme.text} />
-                <Text style={styles.resetText}>Reset</Text>
+                <Text style={styles.resetText}>{t('home.filtersSheet.reset')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -297,7 +299,7 @@ export default function FiltersBottomSheet({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              <Text style={styles.sectionTitle}>Sort by</Text>
+              <Text style={styles.sectionTitle}>{t('home.filtersSheet.sortBy')}</Text>
               <View style={styles.row}>
                 {SORT_OPTIONS.map((option) => {
                   const isSelected = draftFilters.sortBy === option.value;
@@ -318,14 +320,14 @@ export default function FiltersBottomSheet({
                           isSelected && styles.selectedOptionButtonText,
                         ]}
                       >
-                        {option.label}
+                        {t(option.labelKey)}
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
-              <Text style={styles.sectionTitle}>Categories</Text>
+              <Text style={styles.sectionTitle}>{t('home.filtersSheet.categories')}</Text>
               <View style={styles.categoryWrap}>
                 {visibleCategories.map((category) => {
                   const isSelected = draftFilters.categoryIds.includes(category.id);
@@ -360,12 +362,14 @@ export default function FiltersBottomSheet({
                   style={styles.showMoreButton}
                 >
                   <Text style={styles.showMoreText}>
-                    {categoriesExpanded ? 'Show less' : 'Show more'}
+                    {categoriesExpanded
+                      ? t('home.filtersSheet.showLess')
+                      : t('home.filtersSheet.showMore')}
                   </Text>
                 </TouchableOpacity>
               ) : null}
 
-              <Text style={styles.sectionTitle}>Privacy Level</Text>
+              <Text style={styles.sectionTitle}>{t('home.filtersSheet.privacy')}</Text>
               <View style={styles.row}>
                 <TouchableOpacity
                   style={[
@@ -382,7 +386,7 @@ export default function FiltersBottomSheet({
                         styles.selectedOptionButtonText,
                     ]}
                   >
-                    Public
+                    {t('home.filtersSheet.privacyPublic')}
                   </Text>
                 </TouchableOpacity>
 
@@ -402,12 +406,12 @@ export default function FiltersBottomSheet({
                         styles.selectedOptionButtonText,
                     ]}
                   >
-                    Protected
+                    {t('home.filtersSheet.privacyProtected')}
                   </Text>
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.sectionTitle}>Date Range</Text>
+              <Text style={styles.sectionTitle}>{t('home.filtersSheet.dateRange')}</Text>
               <View style={styles.row}>
                 <View style={styles.dateColumn}>
                   <Text
@@ -416,7 +420,7 @@ export default function FiltersBottomSheet({
                       fromError && styles.inputLabelError,
                     ]}
                   >
-                    From
+                    {t('home.filtersSheet.from')}
                   </Text>
                   <View style={styles.dateInputContainer}>
                     <TextInput
@@ -424,7 +428,7 @@ export default function FiltersBottomSheet({
                         styles.dateInput,
                         fromError && styles.dateInputError,
                       ]}
-                      placeholder="dd.mm.yyyy"
+                      placeholder={t('home.filtersSheet.datePlaceholder')}
                       placeholderTextColor={theme.placeholder}
                       value={draftFilters.startDate}
                       onChangeText={(value) =>
@@ -460,7 +464,7 @@ export default function FiltersBottomSheet({
                       toError && styles.inputLabelError,
                     ]}
                   >
-                    To
+                    {t('home.filtersSheet.to')}
                   </Text>
                   <View style={styles.dateInputContainer}>
                     <TextInput
@@ -468,7 +472,7 @@ export default function FiltersBottomSheet({
                         styles.dateInput,
                         toError && styles.dateInputError,
                       ]}
-                      placeholder="dd.mm.yyyy"
+                      placeholder={t('home.filtersSheet.datePlaceholder')}
                       placeholderTextColor={theme.placeholder}
                       value={draftFilters.endDate}
                       onChangeText={(value) =>
@@ -511,7 +515,7 @@ export default function FiltersBottomSheet({
               ) : null}
 
               <View style={styles.radiusHeader}>
-                <Text style={styles.sectionTitle}>Distance Radius</Text>
+                <Text style={styles.sectionTitle}>{t('home.filtersSheet.distanceRadius')}</Text>
                 <Text style={styles.radiusValue}>{draftFilters.radiusKm} km</Text>
               </View>
 
@@ -541,7 +545,7 @@ export default function FiltersBottomSheet({
                 onPress={onApply}
                 activeOpacity={0.85}
               >
-                <Text style={styles.applyButtonText}>Apply Filters</Text>
+                <Text style={styles.applyButtonText}>{t('home.filtersSheet.apply')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </Animated.View>

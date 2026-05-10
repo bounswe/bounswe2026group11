@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -9,17 +10,20 @@ interface EmptyStateProps {
 }
 
 export default function EmptyState({
-  title = 'No events found',
-  subtitle = 'Try changing your search or category filter.',
+  title,
+  subtitle,
 }: EmptyStateProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t('home.noEvents');
+  const resolvedSubtitle = subtitle ?? t('home.noEventsHint');
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
     <View style={styles.container}>
       <Text style={styles.emoji}>🗺️</Text>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>{subtitle}</Text>
+      <Text style={styles.title}>{resolvedTitle}</Text>
+      <Text style={styles.subtitle}>{resolvedSubtitle}</Text>
     </View>
   );
 }
