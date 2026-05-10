@@ -273,6 +273,8 @@ export default function HomeView() {
         onChangeEndDate={vm.updateDraftEndDate}
         onChangeRadius={vm.updateDraftRadiusKm}
         onChangeSortBy={vm.updateDraftSortBy}
+        onToggleChildFriendly={vm.toggleDraftChildFriendly}
+        onToggleFamilyOriented={vm.toggleDraftFamilyOriented}
       />
 
       <LocationPickerPanel
