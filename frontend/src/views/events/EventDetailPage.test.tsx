@@ -104,6 +104,7 @@ function makeReadyViewModel(event: EventDetailResponse) {
     invitationsHasNext: false,
     joinLoading: false,
     joinError: null,
+    joinSuccess: null,
     leaveLoading: false,
     leaveError: null,
     viewerRatingLoading: false,
@@ -133,6 +134,7 @@ function makeReadyViewModel(event: EventDetailResponse) {
     handleFavoriteToggle: vi.fn(),
     handleReportEvent: vi.fn(),
     dismissJoinError: vi.fn(),
+    dismissJoinSuccess: vi.fn(),
     dismissLeaveError: vi.fn(),
     dismissViewerRatingError: vi.fn(),
     dismissParticipantRatingError: vi.fn(),
@@ -477,8 +479,81 @@ describe('EventDetailPage ratings', () => {
     renderPage();
 
     expect(screen.getByText(/your join request is pending approval/i)).toBeDefined();
+    expect((screen.getByTestId('ed-request-pending-btn') as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/request pending/i)).toBeDefined();
     expect(screen.queryByRole('button', { name: /request to join/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /join event/i })).toBeNull();
+  });
+
+  it('keeps the request form open when sending a join request fails', async () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PROTECTED';
+    event.viewer_context.participation_status = 'NONE';
+    const vm = makeReadyViewModel(event);
+    vm.handleRequestJoin.mockResolvedValue(false);
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /request to join/i }));
+    fireEvent.change(screen.getByPlaceholderText(/add a message \(optional\)\.\.\./i), {
+      target: { value: 'Please let me join.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /send request/i }));
+
+    await waitFor(() => {
+      expect(vm.handleRequestJoin).toHaveBeenCalledWith('Please let me join.', null);
+    });
+
+    expect(screen.getByPlaceholderText(/add a message \(optional\)\.\.\./i)).toBeDefined();
+    expect(screen.getByDisplayValue('Please let me join.')).toBeDefined();
+  });
+
+  it('closes the request form after a successful join request submission', async () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PROTECTED';
+    event.viewer_context.participation_status = 'NONE';
+    const vm = makeReadyViewModel(event);
+    vm.handleRequestJoin.mockResolvedValue(true);
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /request to join/i }));
+    fireEvent.change(screen.getByPlaceholderText(/add a message \(optional\)\.\.\./i), {
+      target: { value: 'Please let me join.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /send request/i }));
+
+    await waitFor(() => {
+      expect(vm.handleRequestJoin).toHaveBeenCalledWith('Please let me join.', null);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText(/add a message \(optional\)\.\.\./i)).toBeNull();
+    });
+    expect(screen.getByRole('button', { name: /request to join/i })).toBeDefined();
+  });
+
+  it('shows the join success message in the pending state when provided by the view model', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PROTECTED';
+    event.viewer_context.participation_status = 'PENDING';
+    const vm = makeReadyViewModel(event);
+    vm.joinSuccess = 'Request sent successfully. The host will review it.';
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+
+    renderPage();
+
+    expect(screen.getByText(/request sent successfully\./i)).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: /dismiss message/i }));
+    expect(vm.dismissJoinSuccess).toHaveBeenCalledTimes(1);
   });
 
   it('shows the proof image picker in the request form when expanded', () => {

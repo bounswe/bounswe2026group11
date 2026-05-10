@@ -58,6 +58,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   const [invitationsHasNext, setInvitationsHasNext] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [joinSuccess, setJoinSuccess] = useState<string | null>(null);
+  const joinSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [leaveLoading, setLeaveLoading] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [viewerRatingLoading, setViewerRatingLoading] = useState(false);
@@ -81,6 +83,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   useEffect(
     () => () => {
       if (coverImageSuccessTimerRef.current) clearTimeout(coverImageSuccessTimerRef.current);
+      if (joinSuccessTimerRef.current) clearTimeout(joinSuccessTimerRef.current);
     },
     [],
   );
@@ -282,10 +285,15 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   }, []);
 
   const handleRequestJoin = useCallback(
-    async (message?: string, imageFile?: File | null) => {
-      if (!eventId || !token) return;
+    async (message?: string, imageFile?: File | null): Promise<boolean> => {
+      if (!eventId || !token) return false;
       setJoinLoading(true);
       setJoinError(null);
+      if (joinSuccessTimerRef.current) {
+        clearTimeout(joinSuccessTimerRef.current);
+        joinSuccessTimerRef.current = null;
+      }
+      setJoinSuccess(null);
 
       try {
         let imageConfirmToken: string | undefined;
@@ -316,6 +324,12 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         } catch {
           // Keep the optimistic pending state if the follow-up detail fetch is stale or fails.
         }
+        setJoinSuccess('Request sent successfully. The host will review it.');
+        joinSuccessTimerRef.current = setTimeout(() => {
+          setJoinSuccess(null);
+          joinSuccessTimerRef.current = null;
+        }, 5000);
+        return true;
       } catch (err) {
         if (err instanceof ApiError) {
           const errorMap: Record<string, string> = {
@@ -332,6 +346,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         } else {
           setJoinError('Failed to send join request. Please try again.');
         }
+        return false;
       } finally {
         setJoinLoading(false);
       }
@@ -614,6 +629,13 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   }, [eventId, token, refreshEventDetail, mapRatingError, refreshApprovedParticipants]);
 
   const dismissJoinError = useCallback(() => setJoinError(null), []);
+  const dismissJoinSuccess = useCallback(() => {
+    if (joinSuccessTimerRef.current) {
+      clearTimeout(joinSuccessTimerRef.current);
+      joinSuccessTimerRef.current = null;
+    }
+    setJoinSuccess(null);
+  }, []);
   const dismissLeaveError = useCallback(() => setLeaveError(null), []);
   const dismissModerateError = useCallback(() => setModerateError(null), []);
   const dismissCancelError = useCallback(() => setCancelError(null), []);
@@ -795,6 +817,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     clearInviteResult,
     joinLoading,
     joinError,
+    joinSuccess,
     leaveLoading,
     leaveError,
     viewerRatingLoading,
@@ -828,6 +851,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     handleCancel,
     handleComplete,
     dismissJoinError,
+    dismissJoinSuccess,
     dismissLeaveError,
     dismissViewerRatingError,
     dismissParticipantRatingError,

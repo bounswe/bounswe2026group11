@@ -570,12 +570,14 @@ function JoinActionSection({
   event,
   joinLoading,
   joinError,
+  joinSuccess,
   leaveLoading,
   leaveError,
   onJoin,
   onLeave,
   onRequestJoin,
   onDismissError,
+  onDismissJoinSuccess,
   onDismissLeaveError,
   isAuthenticated,
   cancelJoinRequestLoading,
@@ -586,12 +588,14 @@ function JoinActionSection({
   event: EventDetailResponse;
   joinLoading: boolean;
   joinError: string | null;
+  joinSuccess: string | null;
   leaveLoading: boolean;
   leaveError: string | null;
   onJoin: () => void;
   onLeave: () => void;
-  onRequestJoin: (message?: string, imageFile?: File | null) => void;
+  onRequestJoin: (message?: string, imageFile?: File | null) => Promise<boolean>;
   onDismissError: () => void;
+  onDismissJoinSuccess: () => void;
   onDismissLeaveError: () => void;
   isAuthenticated: boolean;
   cancelJoinRequestLoading: boolean;
@@ -678,6 +682,19 @@ function JoinActionSection({
   if (ctx.participation_status === 'PENDING') {
     return (
       <div className="ed-section">
+        {joinSuccess && (
+          <div className="ed-join-success" role="status">
+            <span>{joinSuccess}</span>
+            <button
+              type="button"
+              className="ed-join-success-dismiss"
+              onClick={onDismissJoinSuccess}
+              aria-label="Dismiss message"
+            >
+              &times;
+            </button>
+          </div>
+        )}
         <div className="ed-participation-banner ed-participation-pending">
           Your join request is pending approval
         </div>
@@ -695,6 +712,14 @@ function JoinActionSection({
           </div>
         )}
         <div className="ed-leave-action">
+          <button
+            type="button"
+            className="btn-primary ed-join-btn ed-join-btn-protected"
+            disabled
+            data-testid="ed-request-pending-btn"
+          >
+            Request Pending
+          </button>
           <button
             type="button"
             className="ed-leave-btn"
@@ -804,7 +829,11 @@ function JoinActionSection({
                 onClick={() => setShowRequestForm(true)}
                 disabled={!isAuthenticated || joinLoading}
               >
-                Request to Join
+                {joinLoading ? (
+                  <>
+                    <span className="spinner" /> Sending...
+                  </>
+                ) : 'Request to Join'}
               </button>
             </>
           ) : (
@@ -887,11 +916,12 @@ function JoinActionSection({
                 <button
                   type="button"
                   className="btn-primary ed-join-btn"
-                  onClick={() => {
-                    onRequestJoin(
+                  onClick={async () => {
+                    const ok = await onRequestJoin(
                       requestMessage.trim() || undefined,
                       requestImageFile,
                     );
+                    if (!ok) return;
                     setShowRequestForm(false);
                     setRequestMessage('');
                     setRequestImageFile(null);
@@ -901,7 +931,11 @@ function JoinActionSection({
                   }}
                   disabled={joinLoading}
                 >
-                  {joinLoading ? <span className="spinner" /> : 'Send Request'}
+                  {joinLoading ? (
+                    <>
+                      <span className="spinner" /> Sending...
+                    </>
+                  ) : 'Send Request'}
                 </button>
                 <button
                   type="button"
@@ -1590,6 +1624,7 @@ function EventContent({
   event,
   joinLoading,
   joinError,
+  joinSuccess,
   leaveLoading,
   leaveError,
   viewerRatingLoading,
@@ -1602,6 +1637,7 @@ function EventContent({
   onViewerRatingSubmit,
   onParticipantRatingSubmit,
   onDismissError,
+  onDismissJoinSuccess,
   onDismissLeaveError,
   onDismissViewerRatingError,
   onDismissParticipantRatingError,
@@ -1661,6 +1697,7 @@ function EventContent({
   event: EventDetailResponse;
   joinLoading: boolean;
   joinError: string | null;
+  joinSuccess: string | null;
   leaveLoading: boolean;
   leaveError: string | null;
   viewerRatingLoading: boolean;
@@ -1669,10 +1706,11 @@ function EventContent({
   participantRatingError: { participantUserId: string; message: string } | null;
   onJoin: () => void;
   onLeave: () => void;
-  onRequestJoin: (message?: string, imageFile?: File | null) => void;
+  onRequestJoin: (message?: string, imageFile?: File | null) => Promise<boolean>;
   onViewerRatingSubmit: (rating: number, message?: string) => void;
   onParticipantRatingSubmit: (participantUserId: string, rating: number, message?: string) => void;
   onDismissError: () => void;
+  onDismissJoinSuccess: () => void;
   onDismissLeaveError: () => void;
   onDismissViewerRatingError: () => void;
   onDismissParticipantRatingError: () => void;
@@ -1890,12 +1928,14 @@ function EventContent({
         event={event}
         joinLoading={joinLoading}
         joinError={joinError}
+        joinSuccess={joinSuccess}
         leaveLoading={leaveLoading}
         leaveError={leaveError}
         onJoin={onJoin}
         onLeave={onLeave}
         onRequestJoin={onRequestJoin}
         onDismissError={onDismissError}
+        onDismissJoinSuccess={onDismissJoinSuccess}
         onDismissLeaveError={onDismissLeaveError}
         isAuthenticated={isAuthenticated}
         cancelJoinRequestLoading={cancelJoinRequestLoading}
@@ -2327,6 +2367,7 @@ export default function EventDetailPage() {
       onDismissCancelJoinRequestError={vm.dismissCancelJoinRequestError}
       joinLoading={vm.joinLoading}
       joinError={vm.joinError}
+      joinSuccess={vm.joinSuccess}
       leaveLoading={vm.leaveLoading}
       leaveError={vm.leaveError}
       viewerRatingLoading={vm.viewerRatingLoading}
@@ -2339,6 +2380,7 @@ export default function EventDetailPage() {
       onViewerRatingSubmit={vm.handleViewerRatingSubmit}
       onParticipantRatingSubmit={vm.handleParticipantRatingSubmit}
       onDismissError={vm.dismissJoinError}
+      onDismissJoinSuccess={vm.dismissJoinSuccess}
       onDismissLeaveError={vm.dismissLeaveError}
       onDismissViewerRatingError={vm.dismissViewerRatingError}
       onDismissParticipantRatingError={vm.dismissParticipantRatingError}
