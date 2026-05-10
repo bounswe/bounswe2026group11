@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { reverseGeocode, searchLocation, createEventReport } from './eventService';
+import {
+  createEventReport,
+  listEventApprovedParticipants,
+  reconfirmEventParticipation,
+  reverseGeocode,
+  searchLocation,
+  updateEvent,
+} from './eventService';
 
 vi.mock('@/config/api', () => ({
   API_BASE_URL: 'http://api.test',
@@ -300,5 +307,102 @@ describe('eventService.createEventReport', () => {
         message: 'This looks suspicious.',
       }),
     }));
+  });
+});
+
+describe('eventService.updateEvent', () => {
+  it('patches event updates through the versioned update endpoint', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        id: 'event-1',
+        title: 'Updated event title',
+        privacy_level: 'PROTECTED',
+        status: 'ACTIVE',
+        start_time: '2026-05-10T10:00:00Z',
+        end_time: null,
+        version_no: 4,
+        reconfirmation_required: true,
+        reconfirmation_triggered_fields: ['title'],
+        participants_marked_pending: 2,
+        updated_at: '2026-05-09T10:00:00Z',
+      }),
+    );
+
+    const result = await updateEvent(
+      'event-1',
+      { title: 'Updated event title' },
+      'access-token',
+    );
+
+    expect(fetch).toHaveBeenCalledWith('http://api.test/events/event-1', expect.objectContaining({
+      method: 'PATCH',
+      headers: expect.objectContaining({
+        Authorization: 'Bearer access-token',
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify({ title: 'Updated event title' }),
+    }));
+    expect(result.version_no).toBe(4);
+    expect(result.reconfirmation_required).toBe(true);
+  });
+});
+
+describe('eventService.listEventApprovedParticipants', () => {
+  it('passes participant status filters to the backend', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        items: [],
+        page_info: {
+          next_cursor: null,
+          has_next: false,
+        },
+      }),
+    );
+
+    await listEventApprovedParticipants('event-1', 'access-token', {
+      limit: 25,
+      cursor: 'next-page',
+      status: 'PENDING',
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://api.test/events/event-1/participants?limit=25&cursor=next-page&status=PENDING',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer access-token',
+        }),
+      }),
+    );
+  });
+});
+
+describe('eventService.reconfirmEventParticipation', () => {
+  it('posts to the reconfirm endpoint with bearer auth', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        participation_id: 'participation-1',
+        event_id: 'event-1',
+        status: 'APPROVED',
+        reconfirmed_at: '2026-05-10T10:00:00Z',
+        last_confirmed_event_version: 5,
+        latest_event_version: 5,
+      }),
+    );
+
+    const result = await reconfirmEventParticipation('event-1', 'access-token');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://api.test/events/event-1/participation/reconfirm',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer access-token',
+          'Content-Type': 'application/json',
+        }),
+        body: JSON.stringify({}),
+      }),
+    );
+    expect(result.latest_event_version).toBe(5);
   });
 });

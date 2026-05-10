@@ -28,6 +28,7 @@ function formatTime(iso: string): string {
 function EventCard({ event }: { event: EventSummary }) {
   const badge = getEventCardBadgePresentation(event.status);
   const category = event.category_name ?? event.category;
+  const participantCount = event.approved_participant_count ?? event.participants_count ?? 0;
 
   return (
     <Link to={`/events/${event.id}`} className="dc-card">
@@ -72,7 +73,7 @@ function EventCard({ event }: { event: EventSummary }) {
         )}
         <div className="dc-card-footer">
           <span className="dc-card-participants">
-            {event.approved_participant_count ?? 0} participant{event.approved_participant_count === 1 ? '' : 's'}
+            {participantCount} participant{participantCount === 1 ? '' : 's'}
           </span>
           {event.host_score?.final_score != null && (
             <span className="dc-card-score">
