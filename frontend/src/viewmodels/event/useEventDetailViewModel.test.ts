@@ -204,7 +204,8 @@ describe('useEventDetailViewModel favorites', () => {
       message: undefined,
       image_confirm_token: undefined,
     });
-    expect(result.current.event?.viewer_context.participation_status).toBe('PENDING');
+    expect(result.current.event?.viewer_context.participation_status).toBe('NONE');
+    expect(result.current.event?.viewer_context.join_request_status).toBe('PENDING');
     expect(result.current.joinError).toBeNull();
   });
 });
