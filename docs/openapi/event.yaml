@@ -2369,7 +2369,18 @@ paths:
             items:
               type: integer
               minimum: 1
-          description: Optional comma-separated category ids. Matches events whose `category_id` is in the provided set.
+          description: |
+            Optional comma-separated category ids. Matches events whose `category_id` is in the provided set.
+
+            For backward compatibility with the legacy single-category contract, the `category_id` (singular, integer) query parameter is also accepted and treated as a one-element list. When both `category_ids` and `category_id` are present, `category_ids` takes precedence and the singular value is ignored. Non-integer values in either parameter return `400` with the offending field name in `error.details`.
+        - name: category_id
+          in: query
+          required: false
+          deprecated: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Legacy alias for a one-element `category_ids`. Prefer `category_ids` for new clients.
         - name: start_from
           in: query
           required: false
