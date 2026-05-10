@@ -1,12 +1,13 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiError } from '@/services/api';
 import {
   CatalogBadge,
   EarnedBadge,
   EventSummary,
-  UserProfile,
+  PublicProfile,
   UpdateProfileRequest,
+  UserProfile,
 } from '../../models/profile';
 import { profileService } from '../../services/profileService';
 import { prepareAvatarBlobs } from '../../utils/imageResize';
@@ -24,6 +25,22 @@ type ChangePasswordErrors = {
   confirmPassword?: string;
 };
 
+type EquipmentDraft = {
+  id: string | null;
+  name: string;
+  description: string;
+  imageUrl: string;
+};
+
+function createEmptyEquipmentDraft(): EquipmentDraft {
+  return {
+    id: null,
+    name: '',
+    description: '',
+    imageUrl: '',
+  };
+}
+
 function getBackendValidationMessage(err: ApiError): string {
   const details = err.details ? Object.values(err.details).filter(Boolean) : [];
   return details.length > 0 ? details.join(' ') : err.message;
@@ -32,28 +49,28 @@ function getBackendValidationMessage(err: ApiError): string {
 export function useProfileViewModel(token: string | null) {
   const { setProfileSummary } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [publicProfile, setPublicProfile] = useState<PublicProfile | null>(null);
   const [hostedEvents, setHostedEvents] = useState<EventSummary[]>([]);
   const [attendedEvents, setAttendedEvents] = useState<EventSummary[]>([]);
   const [earnedBadges, setEarnedBadges] = useState<EarnedBadge[]>([]);
   const [badgeCatalog, setBadgeCatalog] = useState<CatalogBadge[]>([]);
 
-  // UI states
   const [isLoading, setIsLoading] = useState(true);
+  const [publicProfileLoading, setPublicProfileLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [publicProfileError, setPublicProfileError] = useState<string | null>(null);
   const [badgeError, setBadgeError] = useState<string | null>(null);
   const [badgesLoading, setBadgesLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Form Draft states
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
-  // Default location states
   const [locationQuery, setLocationQuery] = useState('');
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<{ address: string; lat: number; lon: number } | null>(null);
@@ -61,7 +78,6 @@ export function useProfileViewModel(token: string | null) {
   const [locationCleared, setLocationCleared] = useState(false);
   const locationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Change password states
   const [isPasswordFormOpen, setIsPasswordFormOpen] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -71,6 +87,30 @@ export function useProfileViewModel(token: string | null) {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const passwordSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [isEquipmentEditorOpen, setIsEquipmentEditorOpen] = useState(false);
+  const [equipmentDraft, setEquipmentDraft] = useState<EquipmentDraft>(createEmptyEquipmentDraft());
+  const [equipmentSubmitting, setEquipmentSubmitting] = useState(false);
+  const [equipmentDeletingId, setEquipmentDeletingId] = useState<string | null>(null);
+  const [equipmentError, setEquipmentError] = useState<string | null>(null);
+
+  const [showcaseUploading, setShowcaseUploading] = useState(false);
+  const [showcaseRemovingId, setShowcaseRemovingId] = useState<string | null>(null);
+  const [showcaseError, setShowcaseError] = useState<string | null>(null);
+
+  const fetchPublicProfile = useCallback(async (userId: string) => {
+    setPublicProfileLoading(true);
+    setPublicProfileError(null);
+    try {
+      const data = await profileService.getPublicProfile(userId);
+      setPublicProfile(data);
+    } catch (err: unknown) {
+      setPublicProfile(null);
+      setPublicProfileError(err instanceof Error ? err.message : 'Failed to load public profile sections.');
+    } finally {
+      setPublicProfileLoading(false);
+    }
+  }, []);
 
   const fetchProfile = useCallback(async () => {
     if (!token) return;
@@ -89,7 +129,11 @@ export function useProfileViewModel(token: string | null) {
       setBio(data.bio || '');
       setSelectedLocation(
         data.default_location_address
-          ? { address: formatEventLocation(data.default_location_address), lat: data.default_location_lat!, lon: data.default_location_lon! }
+          ? {
+              address: formatEventLocation(data.default_location_address),
+              lat: data.default_location_lat!,
+              lon: data.default_location_lon!,
+            }
           : null,
       );
       setLocationQuery('');
@@ -106,14 +150,17 @@ export function useProfileViewModel(token: string | null) {
         avatarUrl: data.avatar_url ?? null,
         displayName: data.display_name ?? null,
       });
+      void fetchPublicProfile(data.id);
     } catch (err: unknown) {
       setHostedEvents([]);
       setAttendedEvents([]);
+      setPublicProfile(null);
+      setPublicProfileLoading(false);
       setError(err instanceof Error ? err.message : 'Failed to load profile');
     } finally {
       setIsLoading(false);
     }
-  }, [token, setProfileSummary]);
+  }, [fetchPublicProfile, token, setProfileSummary]);
 
   const fetchBadges = useCallback(async () => {
     if (!token) return;
@@ -136,8 +183,8 @@ export function useProfileViewModel(token: string | null) {
   }, [token]);
 
   useEffect(() => {
-    fetchProfile();
-    fetchBadges();
+    void fetchProfile();
+    void fetchBadges();
   }, [fetchBadges, fetchProfile]);
 
   useEffect(
@@ -148,6 +195,11 @@ export function useProfileViewModel(token: string | null) {
     },
     [],
   );
+
+  const refreshPublicProfile = useCallback(async () => {
+    if (!profile?.id) return;
+    await fetchPublicProfile(profile.id);
+  }, [fetchPublicProfile, profile?.id]);
 
   const handleLocationSearch = useCallback((query: string) => {
     setLocationQuery(query);
@@ -204,7 +256,11 @@ export function useProfileViewModel(token: string | null) {
       setAvatarPreview(null);
       setSelectedLocation(
         profile?.default_location_address
-          ? { address: formatEventLocation(profile.default_location_address), lat: profile.default_location_lat!, lon: profile.default_location_lon! }
+          ? {
+              address: formatEventLocation(profile.default_location_address),
+              lat: profile.default_location_lat!,
+              lon: profile.default_location_lon!,
+            }
           : null,
       );
       setLocationQuery('');
@@ -252,7 +308,6 @@ export function useProfileViewModel(token: string | null) {
         bio: bio.trim() || null,
       };
 
-      // Include location if changed
       if (locationCleared) {
         updatePayload.default_location_address = null;
         updatePayload.default_location_lat = null;
@@ -373,8 +428,150 @@ export function useProfileViewModel(token: string | null) {
     }
   }, [currentPassword, newPassword, resetPasswordForm, token, validateChangePassword]);
 
+  const updateEquipmentDraft = useCallback((field: 'name' | 'description' | 'imageUrl', value: string) => {
+    setEquipmentDraft((current) => ({ ...current, [field]: value }));
+  }, []);
+
+  const startCreatingEquipment = useCallback(() => {
+    setEquipmentDraft(createEmptyEquipmentDraft());
+    setEquipmentError(null);
+    setIsEquipmentEditorOpen(true);
+  }, []);
+
+  const startEditingEquipment = useCallback((item: NonNullable<PublicProfile['equipment']>[number]) => {
+    setEquipmentDraft({
+      id: item.id,
+      name: item.name,
+      description: item.description ?? '',
+      imageUrl: item.image_url ?? '',
+    });
+    setEquipmentError(null);
+    setIsEquipmentEditorOpen(true);
+  }, []);
+
+  const cancelEquipmentEditor = useCallback(() => {
+    setEquipmentDraft(createEmptyEquipmentDraft());
+    setEquipmentError(null);
+    setIsEquipmentEditorOpen(false);
+  }, []);
+
+  const handleEquipmentSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEquipmentError(null);
+
+    if (!token) {
+      setEquipmentError('Authentication token is missing.');
+      return;
+    }
+
+    const trimmedName = equipmentDraft.name.trim();
+    if (!trimmedName) {
+      setEquipmentError('Equipment name is required.');
+      return;
+    }
+
+    setEquipmentSubmitting(true);
+    try {
+      const payload = {
+        name: trimmedName,
+        description: equipmentDraft.description.trim() || null,
+        image_url: equipmentDraft.imageUrl.trim() || null,
+      };
+
+      if (equipmentDraft.id) {
+        await profileService.updateEquipment(equipmentDraft.id, payload, token);
+      } else {
+        await profileService.createEquipment(payload, token);
+      }
+
+      await refreshPublicProfile();
+      cancelEquipmentEditor();
+    } catch (err: unknown) {
+      setEquipmentError(err instanceof Error ? err.message : 'Failed to save equipment.');
+    } finally {
+      setEquipmentSubmitting(false);
+    }
+  }, [cancelEquipmentEditor, equipmentDraft, refreshPublicProfile, token]);
+
+  const handleDeleteEquipment = useCallback(async (equipmentId: string) => {
+    if (!token) {
+      setEquipmentError('Authentication token is missing.');
+      return;
+    }
+
+    setEquipmentDeletingId(equipmentId);
+    setEquipmentError(null);
+
+    try {
+      await profileService.deleteEquipment(equipmentId, token);
+      await refreshPublicProfile();
+      if (equipmentDraft.id === equipmentId) {
+        cancelEquipmentEditor();
+      }
+    } catch (err: unknown) {
+      setEquipmentError(err instanceof Error ? err.message : 'Failed to delete equipment.');
+    } finally {
+      setEquipmentDeletingId(null);
+    }
+  }, [cancelEquipmentEditor, equipmentDraft.id, refreshPublicProfile, token]);
+
+  const handleShowcaseUpload = useCallback(async (file: File) => {
+    if (!token) {
+      setShowcaseError('Authentication token is missing.');
+      return;
+    }
+
+    setShowcaseUploading(true);
+    setShowcaseError(null);
+
+    try {
+      const { original, small } = await prepareAvatarBlobs(file);
+      const uploadInit = await profileService.getShowcaseUploadUrl(token);
+
+      for (const instruction of uploadInit.uploads) {
+        const blob = instruction.variant === 'ORIGINAL' ? original : small;
+        const res = await fetch(instruction.url, {
+          method: instruction.method,
+          headers: instruction.headers,
+          body: blob,
+        });
+        if (!res.ok) throw new Error(`Image upload failed (${instruction.variant})`);
+      }
+
+      await profileService.confirmShowcaseUpload({ confirm_token: uploadInit.confirm_token }, token);
+      await refreshPublicProfile();
+    } catch (err: unknown) {
+      setShowcaseError(err instanceof Error ? err.message : 'Failed to upload showcase image.');
+    } finally {
+      setShowcaseUploading(false);
+    }
+  }, [refreshPublicProfile, token]);
+
+  const handleDeleteShowcaseImage = useCallback(async (showcaseImageId: string) => {
+    if (!token) {
+      setShowcaseError('Authentication token is missing.');
+      return;
+    }
+
+    setShowcaseRemovingId(showcaseImageId);
+    setShowcaseError(null);
+
+    try {
+      await profileService.deleteShowcaseImage(showcaseImageId, token);
+      await refreshPublicProfile();
+    } catch (err: unknown) {
+      setShowcaseError(err instanceof Error ? err.message : 'Failed to remove showcase image.');
+    } finally {
+      setShowcaseRemovingId(null);
+    }
+  }, [refreshPublicProfile, token]);
+
   return {
     profile,
+    publicProfile,
+    publicProfileLoading,
+    publicProfileError,
+    refreshPublicProfile,
     hostedEvents,
     attendedEvents,
     earnedBadges,
@@ -395,7 +592,6 @@ export function useProfileViewModel(token: string | null) {
     handleFileChange,
     handleEditToggle,
     handleSave,
-    // Default location
     locationQuery,
     handleLocationSearch,
     locationSuggestions,
@@ -404,7 +600,6 @@ export function useProfileViewModel(token: string | null) {
     clearLocation,
     isSearchingLocation,
     locationCleared,
-    // Change password
     isPasswordFormOpen,
     togglePasswordForm,
     currentPassword,
@@ -418,5 +613,21 @@ export function useProfileViewModel(token: string | null) {
     passwordSuccess,
     isChangingPassword,
     handleChangePassword,
+    isEquipmentEditorOpen,
+    equipmentDraft,
+    updateEquipmentDraft,
+    equipmentSubmitting,
+    equipmentDeletingId,
+    equipmentError,
+    startCreatingEquipment,
+    startEditingEquipment,
+    cancelEquipmentEditor,
+    handleEquipmentSubmit,
+    handleDeleteEquipment,
+    showcaseUploading,
+    showcaseRemovingId,
+    showcaseError,
+    handleShowcaseUpload,
+    handleDeleteShowcaseImage,
   };
 }
