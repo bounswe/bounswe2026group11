@@ -1357,6 +1357,45 @@ function CancelConfirmModal({
   );
 }
 
+function CompleteConfirmModal({
+  onConfirm,
+  onClose,
+  loading,
+}: {
+  onConfirm: () => void;
+  onClose: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="ed-modal-overlay" onClick={onClose}>
+      <div className="ed-modal" onClick={(e) => e.stopPropagation()}>
+        <h3 className="ed-modal-title">End Event</h3>
+        <p className="ed-modal-text">
+          Are you sure you want to end this event now? The event will be marked as completed.
+        </p>
+        <div className="ed-modal-actions">
+          <button
+            type="button"
+            className="ed-modal-cancel-btn"
+            onClick={onClose}
+            disabled={loading}
+          >
+            Go Back
+          </button>
+          <button
+            type="button"
+            className="ed-modal-confirm-btn"
+            onClick={onConfirm}
+            disabled={loading}
+          >
+            {loading ? <span className="spinner" /> : 'Yes, End Event'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ReportEventModal({
   loading,
   error,
@@ -1575,6 +1614,10 @@ function EventContent({
   cancelError,
   onCancel,
   onDismissCancelError,
+  completeLoading,
+  completeError,
+  onComplete,
+  onDismissCompleteError,
   favoriteLoading,
   onFavoriteToggle,
   reportLoading,
@@ -1642,6 +1685,10 @@ function EventContent({
   cancelError: string | null;
   onCancel: () => void;
   onDismissCancelError: () => void;
+  completeLoading: boolean;
+  completeError: string | null;
+  onComplete: () => void;
+  onDismissCompleteError: () => void;
   favoriteLoading: boolean;
   onFavoriteToggle: () => void;
   reportLoading: boolean;
@@ -1685,6 +1732,7 @@ function EventContent({
   const navigate = useNavigate();
   const coverFileInputRef = useRef<HTMLInputElement>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [activeParticipantEditorId, setActiveParticipantEditorId] = useState<string | null>(null);
   const hostCanRateParticipants = (
@@ -2005,6 +2053,25 @@ function EventContent({
               </div>
             )}
 
+            {event.status === 'IN_PROGRESS' && (
+              <div className="ed-mgmt-group">
+                {completeError && (
+                  <div className="ed-join-error" style={{ marginBottom: 10 }}>
+                    <span>{completeError}</span>
+                    <button type="button" className="ed-join-error-dismiss" onClick={onDismissCompleteError}>&times;</button>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="ed-complete-event-btn"
+                  onClick={() => setShowCompleteModal(true)}
+                  disabled={completeLoading}
+                >
+                  End Event
+                </button>
+              </div>
+            )}
+
             {/* Approved participants */}
             <div className="ed-mgmt-group">
               <h3 className="ed-mgmt-title">
@@ -2174,6 +2241,17 @@ function EventContent({
         />
       )}
 
+      {showCompleteModal && (
+        <CompleteConfirmModal
+          loading={completeLoading}
+          onConfirm={() => {
+            onComplete();
+            setShowCompleteModal(false);
+          }}
+          onClose={() => setShowCompleteModal(false)}
+        />
+      )}
+
       {showReportModal && (
         <ReportEventModal
           loading={reportLoading}
@@ -2273,6 +2351,10 @@ export default function EventDetailPage() {
       cancelError={vm.cancelError}
       onCancel={vm.handleCancel}
       onDismissCancelError={vm.dismissCancelError}
+      completeLoading={vm.completeLoading}
+      completeError={vm.completeError}
+      onComplete={vm.handleComplete}
+      onDismissCompleteError={vm.dismissCompleteError}
       favoriteLoading={vm.favoriteLoading}
       onFavoriteToggle={vm.handleFavoriteToggle}
       reportLoading={vm.reportLoading}

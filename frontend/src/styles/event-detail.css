@@ -1121,6 +1121,28 @@
   cursor: not-allowed;
 }
 
+.ed-complete-event-btn {
+  width: 100%;
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: 1px solid #0f766e;
+  background: #ecfeff;
+  color: #115e59;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ed-complete-event-btn:hover:not(:disabled) {
+  background-color: #cffafe;
+}
+
+.ed-complete-event-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Confirmation modal */
 .ed-modal-overlay {
   position: fixed;
