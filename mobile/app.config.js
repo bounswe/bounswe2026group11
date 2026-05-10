@@ -2,7 +2,11 @@
 // Expo reads this file automatically when it is present alongside app.json.
 // @ts-check
 
-const { withPodfile, withPodfileProperties } = require('@expo/config-plugins');
+const {
+  withAppBuildGradle,
+  withPodfile,
+  withPodfileProperties,
+} = require('@expo/config-plugins');
 
 const rnFirebaseStaticFrameworkLine = '$RNFirebaseAsStaticFramework = true';
 const expoConstantsScriptPatchFunctionName =
@@ -96,13 +100,59 @@ const withRnFirebaseStaticFramework = (config) =>
     return config;
   });
 
+const releaseSigningGradleProperties = `def semReleaseStoreFile = findProperty('SEM_RELEASE_STORE_FILE')
+def semReleaseStorePassword = findProperty('SEM_RELEASE_STORE_PASSWORD')
+def semReleaseKeyAlias = findProperty('SEM_RELEASE_KEY_ALIAS')
+def semReleaseKeyPassword = findProperty('SEM_RELEASE_KEY_PASSWORD')
+def semHasReleaseSigning = semReleaseStoreFile && semReleaseStorePassword && semReleaseKeyAlias && semReleaseKeyPassword
+
+`;
+
+const releaseSigningConfig = `        release {
+            if (semHasReleaseSigning) {
+                storeFile file(semReleaseStoreFile)
+                storePassword semReleaseStorePassword
+                keyAlias semReleaseKeyAlias
+                keyPassword semReleaseKeyPassword
+            }
+        }
+`;
+
+const withAndroidReleaseSigning = (config) =>
+  withAppBuildGradle(config, (config) => {
+    let { contents } = config.modResults;
+
+    if (!contents.includes('semHasReleaseSigning')) {
+      contents = contents.replace(
+        'android {',
+        `${releaseSigningGradleProperties}android {`,
+      );
+    }
+
+    if (!contents.includes('storeFile file(semReleaseStoreFile)')) {
+      contents = contents.replace(
+        /(\s+debug\s+\{[\s\S]*?\n\s+\})\n\s+\}/,
+        `$1\n${releaseSigningConfig}    }`,
+      );
+    }
+
+    contents = contents.replace(
+      '            // see https://reactnative.dev/docs/signed-apk-android.\n            signingConfig signingConfigs.debug',
+      '            // see https://reactnative.dev/docs/signed-apk-android.\n            signingConfig semHasReleaseSigning ? signingConfigs.release : signingConfigs.debug',
+    );
+
+    config.modResults.contents = contents;
+    return config;
+  });
+
 /** @type {import('@expo/config').ConfigContext} */
 module.exports = ({ config }) => {
-  const androidMapsKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY ?? '';
+  const androidMapsKey =
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY ?? '';
 
   // Inject the react-native-maps plugin with the Android API key.
   // The plugin writes com.google.android.geo.API_KEY into AndroidManifest.xml
-  // at prebuild time. Set GOOGLE_MAPS_ANDROID_API_KEY in .env (never commit it).
+  // at prebuild time. Set EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY in .env (never commit it).
   // Create the key at: https://console.cloud.google.com/
   //   Enable: "Maps SDK for Android"
   //   Restrict by package name: com.bounswe2026group11.socialeventmapper
@@ -113,11 +163,11 @@ module.exports = ({ config }) => {
     },
   );
 
-  return withRnFirebaseStaticFramework(withIosPodBuildSettings({
+  return withAndroidReleaseSigning(withRnFirebaseStaticFramework(withIosPodBuildSettings({
     ...config,
     plugins: [
       ...existingPlugins,
       ['react-native-maps', { androidGoogleMapsApiKey: androidMapsKey }],
     ],
-  }));
+  })));
 };

@@ -73,7 +73,7 @@ jobs:
             ${{ secrets.DOCKERHUB_NAMESPACE }}/sem-frontend-dev:${{ github.sha }}
             ${{ secrets.DOCKERHUB_NAMESPACE }}/sem-frontend-dev:latest
           build-args: |
-            VITE_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+            VITE_GOOGLE_MAPS_WEB_API_KEY=${{ secrets.FRONTEND_GOOGLE_MAPS_API_KEY }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

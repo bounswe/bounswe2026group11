@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 
-const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_WEB_API_KEY;
 
 export const GOOGLE_MAPS_MAP_ID =
   import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'sem_discover_map';

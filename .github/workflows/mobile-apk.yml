@@ -23,9 +23,6 @@ defaults:
   run:
     working-directory: mobile
 
-env:
-  EXPO_PUBLIC_API_BASE_URL: https://www.socialeventmapper.com/api
-
 jobs:
   build-apk:
     name: Build Android APK
@@ -50,10 +47,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate mobile build secrets
+        env:
+          EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY: ${{ secrets.MOBILE_GOOGLE_MAPS_ANDROID_API_KEY }}
+        run: |
+          set -eu
+          for name in EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY; do
+            if [ -z "$(printenv "$name")" ]; then
+              echo "$name secret is required for the release APK" >&2
+              exit 1
+            fi
+          done
+
       - name: Generate Android project
         env:
           CI: true
           EXPO_NO_DOCTOR: 1
+          EXPO_PUBLIC_APP_ENV: production
+          EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY: ${{ secrets.MOBILE_GOOGLE_MAPS_ANDROID_API_KEY }}
         run: npx expo prebuild --platform android --non-interactive --clean
 
       # Expo/RN templates may ship Gradle 9.x; AGP + RN Gradle plugin can hit JvmVendorSpec errors on 9.x.
@@ -76,27 +87,36 @@ jobs:
           fi
           printf 'sdk.dir=%s\n' "$sdk" > android/local.properties
 
-      - name: Create Android signing keystore
+      - name: Configure Android release signing
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
         run: |
           set -eu
-          ks="android/app/debug.keystore"
-          if [ -f "$ks" ]; then
-            echo "Keystore already exists at $ks — skipping generation"
-          else
-            keytool -genkeypair \
-              -v \
-              -storetype PKCS12 \
-              -keystore "$ks" \
-              -alias androiddebugkey \
-              -storepass android \
-              -keypass android \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-          fi
+          for name in ANDROID_RELEASE_KEYSTORE_BASE64 ANDROID_RELEASE_KEYSTORE_PASSWORD ANDROID_RELEASE_KEY_ALIAS ANDROID_RELEASE_KEY_PASSWORD; do
+            if [ -z "$(printenv "$name")" ]; then
+              echo "$name secret is required for release APK signing" >&2
+              exit 1
+            fi
+          done
+
+          ks="android/app/release.keystore"
+          printf '%s' "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$ks"
+          chmod 600 "$ks"
+
+          {
+            printf 'SEM_RELEASE_STORE_FILE=release.keystore\n'
+            printf 'SEM_RELEASE_STORE_PASSWORD=%s\n' "$ANDROID_RELEASE_KEYSTORE_PASSWORD"
+            printf 'SEM_RELEASE_KEY_ALIAS=%s\n' "$ANDROID_RELEASE_KEY_ALIAS"
+            printf 'SEM_RELEASE_KEY_PASSWORD=%s\n' "$ANDROID_RELEASE_KEY_PASSWORD"
+          } >> android/gradle.properties
 
       - name: Build release APK
+        env:
+          EXPO_PUBLIC_APP_ENV: production
+          EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY: ${{ secrets.MOBILE_GOOGLE_MAPS_ANDROID_API_KEY }}
         run: cd android && ./gradlew assembleRelease
 
       - name: Prepare APK artifact
