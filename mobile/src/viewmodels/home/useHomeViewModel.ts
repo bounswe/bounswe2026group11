@@ -355,7 +355,7 @@ export interface HomeViewModel {
   isLoadingFavoriteLocations: boolean;
   favoriteLocationsError: string | null;
   categories: readonly EventCategory[];
-  selectedCategoryId: number | null;
+  selectedCategoryIds: readonly number[];
   searchText: string;
   events: EventSummary[];
   isLoading: boolean;
@@ -372,7 +372,8 @@ export interface HomeViewModel {
   toggleViewMode: () => void;
   updateSearchText: (value: string) => void;
   submitSearch: () => void;
-  selectCategory: (categoryId: number | null) => void;
+  toggleCategory: (categoryId: number) => void;
+  clearSelectedCategories: () => void;
   openFilterModal: () => void;
   closeFilterModal: () => void;
   resetFilterDraft: () => void;
@@ -432,7 +433,7 @@ export function useHomeViewModel(): HomeViewModel {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [filterError, setFilterError] = useState<string | null>(null);
   const [appliedSearchText, setAppliedSearchText] = useState('');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
 
   const [appliedFilters, setAppliedFilters] =
     useState<HomeFiltersDraft>(DEFAULT_FILTERS);
@@ -608,12 +609,9 @@ export function useHomeViewModel(): HomeViewModel {
 
         setApiError(null);
 
-        const combinedCategoryIds =
-          selectedCategoryId != null
-            ? Array.from(
-              new Set([selectedCategoryId, ...appliedFilters.categoryIds]),
-            )
-            : appliedFilters.categoryIds;
+        const combinedCategoryIds = Array.from(
+          new Set([...selectedCategoryIds, ...appliedFilters.categoryIds]),
+        );
 
         const response = await listEvents(
           {
@@ -656,7 +654,14 @@ export function useHomeViewModel(): HomeViewModel {
         if (mode === 'loadMore') setIsLoadingMore(false);
       }
     },
-    [token, selectedLocation, defaultLocation, appliedSearchText, selectedCategoryId, appliedFilters],
+    [
+      token,
+      selectedLocation,
+      defaultLocation,
+      appliedSearchText,
+      selectedCategoryIds,
+      appliedFilters,
+    ],
   );
 
   useEffect(() => {
@@ -723,8 +728,16 @@ export function useHomeViewModel(): HomeViewModel {
     setAppliedSearchText(searchText.trim());
   }, [searchText]);
 
-  const selectCategory = useCallback((categoryId: number | null) => {
-    setSelectedCategoryId(categoryId);
+  const toggleCategory = useCallback((categoryId: number) => {
+    setSelectedCategoryIds((prev) => (
+      prev.includes(categoryId)
+        ? prev.filter((id) => id !== categoryId)
+        : [...prev, categoryId]
+    ));
+  }, []);
+
+  const clearSelectedCategories = useCallback(() => {
+    setSelectedCategoryIds([]);
   }, []);
 
   const openLocationModal = useCallback(() => {
@@ -983,12 +996,9 @@ export function useHomeViewModel(): HomeViewModel {
           ? persistedSelection.location
           : refreshedDefaultLocation;
 
-      const combinedCategoryIds =
-        selectedCategoryId != null
-          ? Array.from(
-            new Set([selectedCategoryId, ...appliedFilters.categoryIds]),
-          )
-          : appliedFilters.categoryIds;
+      const combinedCategoryIds = Array.from(
+        new Set([...selectedCategoryIds, ...appliedFilters.categoryIds]),
+      );
 
       const response = await listEvents(
         {
@@ -1024,7 +1034,7 @@ export function useHomeViewModel(): HomeViewModel {
     resolveDefaultLocation,
     locationSelectionScope,
     appliedSearchText,
-    selectedCategoryId,
+    selectedCategoryIds,
     appliedFilters,
   ]);
 
@@ -1045,7 +1055,7 @@ export function useHomeViewModel(): HomeViewModel {
         : DEFAULT_LOCATION_LABEL,
     locationQuery,
     categories,
-    selectedCategoryId,
+    selectedCategoryIds,
     searchText,
     events,
     isLoading,
@@ -1087,7 +1097,8 @@ export function useHomeViewModel(): HomeViewModel {
     favoriteLocationsError,
     updateSearchText,
     submitSearch,
-    selectCategory,
+    toggleCategory,
+    clearSelectedCategories,
     openFilterModal,
     closeFilterModal,
     resetFilterDraft,
