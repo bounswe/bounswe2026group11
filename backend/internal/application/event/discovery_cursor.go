@@ -15,6 +15,7 @@ type discoverEventsFingerprintPayload struct {
 	Lat                float64  `json:"lat"`
 	Lon                float64  `json:"lon"`
 	RadiusMeters       int      `json:"radius_meters"`
+	MinimumAge         *int     `json:"minimum_age,omitempty"`
 	Query              string   `json:"query"`
 	PrivacyLevels      []string `json:"privacy_levels,omitempty"`
 	CategoryIDs        []int    `json:"category_ids,omitempty"`
@@ -33,6 +34,7 @@ func buildDiscoverEventsFilterFingerprint(params DiscoverEventsParams) (string, 
 		Lat:                params.Origin.Lat,
 		Lon:                params.Origin.Lon,
 		RadiusMeters:       params.RadiusMeters,
+		MinimumAge:         params.MinimumAge,
 		Query:              params.Query,
 		PrivacyLevels:      toPrivacyLevelStrings(params.PrivacyLevels),
 		CategoryIDs:        params.CategoryIDs,

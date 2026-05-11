@@ -943,6 +943,7 @@ func summarizeDiscoverEventsInput(input event.DiscoverEventsInput) string {
 		fmt.Sprintf("lat_set=%t", input.Lat != nil),
 		fmt.Sprintf("lon_set=%t", input.Lon != nil),
 		fmt.Sprintf("radius_meters=%s", optionalIntSummaryValue(input.RadiusMeters)),
+		fmt.Sprintf("minimum_age=%s", optionalIntSummaryValue(input.MinimumAge)),
 		fmt.Sprintf("limit=%s", optionalIntSummaryValue(input.Limit)),
 		fmt.Sprintf("q=%s", optionalStringSummaryValue(input.Query)),
 		fmt.Sprintf("privacy_levels=%d", len(input.PrivacyLevels)),
@@ -1089,6 +1090,12 @@ func parseDiscoverEventsInput(c *fiber.Ctx) (event.DiscoverEventsInput, map[stri
 		errs["radius_meters"] = msg
 	} else if ok {
 		input.RadiusMeters = &radius
+	}
+
+	if minimumAge, ok, msg := parseOptionalIntQuery(c, "minimum_age"); msg != "" {
+		errs["minimum_age"] = msg
+	} else if ok {
+		input.MinimumAge = &minimumAge
 	}
 
 	if limit, ok, msg := parseOptionalIntQuery(c, "limit"); msg != "" {

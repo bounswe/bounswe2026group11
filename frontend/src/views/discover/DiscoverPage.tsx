@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDiscoverViewMode } from '@/contexts/DiscoverViewModeContext';
 import {
   useDiscoverViewModel,
+  MINIMUM_AGE_OPTIONS,
   RADIUS_OPTIONS,
   type PrivacyFilter,
 } from '@/viewmodels/discover/useDiscoverViewModel';
@@ -309,6 +310,7 @@ export default function DiscoverPage() {
     vm.filters.startFrom !== '' ||
     vm.filters.startTo !== '' ||
     vm.filters.radiusMeters !== 50000 ||
+    vm.filters.minimumAge !== null ||
     vm.filters.categoryId !== null;
 
   useEffect(() => {
@@ -464,6 +466,22 @@ export default function DiscoverPage() {
                   type="button"
                   className={`dc-filter-chip ${vm.filters.radiusMeters === opt.value ? 'selected' : ''}`}
                   onClick={() => vm.updateFilter('radiusMeters', opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="dc-filter-group">
+            <label className="dc-filter-label">Event age restriction</label>
+            <div className="dc-chip-row">
+              {MINIMUM_AGE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.label}
+                  type="button"
+                  className={`dc-filter-chip ${vm.filters.minimumAge === opt.value ? 'selected' : ''}`}
+                  onClick={() => vm.updateFilter('minimumAge', opt.value)}
                 >
                   {opt.label}
                 </button>

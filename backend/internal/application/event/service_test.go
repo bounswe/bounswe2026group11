@@ -1276,6 +1276,9 @@ func TestDiscoverEventsAppliesDefaultsAndMapsResults(t *testing.T) {
 	if eventRepo.lastDiscoverParams.RadiusMeters != defaultDiscoverRadiusMeters {
 		t.Fatalf("expected default radius %d, got %d", defaultDiscoverRadiusMeters, eventRepo.lastDiscoverParams.RadiusMeters)
 	}
+	if eventRepo.lastDiscoverParams.MinimumAge != nil {
+		t.Fatalf("expected default minimum_age filter nil, got %v", eventRepo.lastDiscoverParams.MinimumAge)
+	}
 	if eventRepo.lastDiscoverParams.Limit != defaultDiscoverLimit {
 		t.Fatalf("expected default limit %d, got %d", defaultDiscoverLimit, eventRepo.lastDiscoverParams.Limit)
 	}
@@ -1457,18 +1460,44 @@ func TestDiscoverEventsRejectsOutOfRangeRadiusAndLimit(t *testing.T) {
 	lon := 28.9784
 	radius := 50001
 	limit := 0
+	minimumAge := 121
 
 	// when
 	_, err := svc.DiscoverEvents(context.Background(), uuid.New(), DiscoverEventsInput{
 		Lat:          &lat,
 		Lon:          &lon,
 		RadiusMeters: &radius,
+		MinimumAge:   &minimumAge,
 		Limit:        &limit,
 	})
 
 	// then
 	assertValidationDetail(t, err, "radius_meters")
+	assertValidationDetail(t, err, "minimum_age")
 	assertValidationDetail(t, err, "limit")
+}
+
+func TestDiscoverEventsPassesMinimumAgeFilterToRepo(t *testing.T) {
+	// given
+	svc, eventRepo, _, _ := newTestEventService()
+	lat := 41.0082
+	lon := 28.9784
+	minimumAge := 18
+
+	// when
+	_, err := svc.DiscoverEvents(context.Background(), uuid.New(), DiscoverEventsInput{
+		Lat:        &lat,
+		Lon:        &lon,
+		MinimumAge: &minimumAge,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	if eventRepo.lastDiscoverParams.MinimumAge == nil || *eventRepo.lastDiscoverParams.MinimumAge != minimumAge {
+		t.Fatalf("expected repo minimum_age filter %d, got %v", minimumAge, eventRepo.lastDiscoverParams.MinimumAge)
+	}
 }
 
 func TestDiscoverEventsRejectsPrivateVisibilityFilter(t *testing.T) {

@@ -3128,6 +3128,66 @@ func TestDiscoverEventsAuthedMinorHidesAgeRestrictedEvent(t *testing.T) {
 	}
 }
 
+// TestDiscoverEventsMinimumAgeFilterReturnsOnlyEventsAtOrAboveTheRequestedThreshold
+// verifies the explicit discovery filter on event.minimum_age itself. This is
+// separate from viewer eligibility: an adult viewer can see all three seeded
+// events, but the query should keep only stricter age-restricted ones.
+func TestDiscoverEventsMinimumAgeFilterReturnsOnlyEventsAtOrAboveTheRequestedThreshold(t *testing.T) {
+	t.Parallel()
+
+	// given
+	harness := common.NewEventHarness(t)
+	host := common.GivenUser(t, harness.AuthRepo, common.WithUserUsername("host_age_filter"))
+	adult := common.GivenUser(t, harness.AuthRepo,
+		common.WithUserUsername("viewer_age_filter"),
+		common.WithUserBirthDate(time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)),
+	)
+	categoryID := common.GivenEventCategory(t)
+	originLat := 40.1885
+	originLon := 29.0810
+	filterMinimumAge := 18
+
+	openEvent := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID: host.ID, Title: "Age Filter Open", Description: "no age restriction",
+		CategoryID: categoryID, Lat: 40.1890, Lon: 29.0815,
+		StartTime: time.Now().UTC().Add(24 * time.Hour), PrivacyLevel: domain.PrivacyPublic,
+	})
+	teenEvent := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID: host.ID, Title: "Age Filter 16+", Description: "age 16 restriction",
+		CategoryID: categoryID, Lat: 40.1895, Lon: 29.0820,
+		StartTime: time.Now().UTC().Add(25 * time.Hour), PrivacyLevel: domain.PrivacyPublic,
+		MinimumAge: common.IntPtr(16),
+	})
+	adultEvent := createDiscoveryEvent(t, harness, discoveryEventSeed{
+		HostID: host.ID, Title: "Age Filter 21+", Description: "age 21 restriction",
+		CategoryID: categoryID, Lat: 40.1900, Lon: 29.0825,
+		StartTime: time.Now().UTC().Add(26 * time.Hour), PrivacyLevel: domain.PrivacyPublic,
+		MinimumAge: common.IntPtr(21),
+	})
+
+	// when
+	result, err := harness.Service.DiscoverEvents(context.Background(), adult.ID, eventapp.DiscoverEventsInput{
+		Lat:        &originLat,
+		Lon:        &originLon,
+		MinimumAge: &filterMinimumAge,
+	})
+
+	// then
+	if err != nil {
+		t.Fatalf("DiscoverEvents() error = %v", err)
+	}
+	gotIDs := discoverEventIDs(result.Items)
+	if contains(gotIDs, openEvent.String()) {
+		t.Errorf("unrestricted event %s should be filtered out, got %v", openEvent, gotIDs)
+	}
+	if contains(gotIDs, teenEvent.String()) {
+		t.Errorf("minimum_age 16 event %s should be filtered out by minimum_age=18, got %v", teenEvent, gotIDs)
+	}
+	if !contains(gotIDs, adultEvent.String()) {
+		t.Errorf("minimum_age 21 event %s should be included by minimum_age=18, got %v", adultEvent, gotIDs)
+	}
+}
+
 // TestDiscoverEventsAuthedGenderMatchSeesAndMismatchHides covers the two
 // gender outcomes in one fixture: a FEMALE viewer sees the female-only
 // event and not the male-only event.

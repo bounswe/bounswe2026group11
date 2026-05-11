@@ -2342,6 +2342,19 @@ paths:
             minimum: 1
             maximum: 50000
           description: Radius around (`lat`, `lon`) in meters. Defaults to `10000` when omitted.
+        - name: minimum_age
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 120
+          description: |
+            Optional filter on the event's configured `minimum_age` restriction.
+
+            When provided, only events whose stored `minimum_age` is greater than or equal to the
+            requested value are returned. Events with no `minimum_age` restriction are excluded while
+            this filter is active.
         - name: q
           in: query
           required: false

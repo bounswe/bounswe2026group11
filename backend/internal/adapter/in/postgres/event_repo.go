@@ -878,6 +878,14 @@ func (r *EventRepository) ListDiscoverableEvents(
 		))
 	}
 
+	// Discover-side age filter applies to the event's configured minimum
+	// participant age itself. This lets clients intentionally narrow to
+	// adult-only / stricter events without changing the viewer-eligibility
+	// policy that still applies below.
+	if params.MinimumAge != nil {
+		filters = append(filters, fmt.Sprintf("e.minimum_age IS NOT NULL AND e.minimum_age >= %s", addArg(*params.MinimumAge)))
+	}
+
 	if params.OnlyFavorited {
 		filters = append(filters, "fav.event_id IS NOT NULL")
 	}

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDiscoverViewModel } from './useDiscoverViewModel';
 
@@ -42,6 +42,7 @@ describe('useDiscoverViewModel persistence', () => {
           categoryId: 3,
           sortBy: 'DISTANCE',
           radiusMeters: 10000,
+          minimumAge: 18,
           privacy: 'PROTECTED',
           startFrom: '2026-05-10',
           startTo: '',
@@ -63,6 +64,7 @@ describe('useDiscoverViewModel persistence', () => {
     expect(result.current.filters.categoryId).toBe(3);
     expect(result.current.filters.sortBy).toBe('DISTANCE');
     expect(result.current.filters.radiusMeters).toBe(10000);
+    expect(result.current.filters.minimumAge).toBe(18);
     expect(result.current.filters.privacy).toBe('PROTECTED');
     expect(result.current.mapCenter).toEqual({ lat: 40.9919, lon: 29.0278 });
     expect(mockDiscoverEvents).toHaveBeenCalledWith(
@@ -73,10 +75,30 @@ describe('useDiscoverViewModel persistence', () => {
         category_ids: '3',
         sort_by: 'DISTANCE',
         radius_meters: 10000,
+        minimum_age: 18,
         privacy_levels: 'PROTECTED',
         start_from: new Date('2026-05-10').toISOString(),
       }),
       null,
+    );
+  });
+
+  it('refetches discover results with the selected minimum age filter', async () => {
+    const { result } = renderHook(() => useDiscoverViewModel(null));
+
+    await waitFor(() => expect(mockDiscoverEvents).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      result.current.updateFilter('minimumAge', 21);
+    });
+
+    await waitFor(() =>
+      expect(mockDiscoverEvents).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          minimum_age: 21,
+        }),
+        null,
+      ),
     );
   });
 });

@@ -57,6 +57,7 @@ export interface DiscoverFilters {
   categoryId: number | null;
   sortBy: DiscoverSortBy;
   radiusMeters: number;
+  minimumAge: number | null;
   privacy: PrivacyFilter;
   startFrom: string;
   startTo: string;
@@ -67,6 +68,7 @@ const INITIAL_FILTERS: DiscoverFilters = {
   categoryId: null,
   sortBy: 'START_TIME',
   radiusMeters: DEFAULT_RADIUS,
+  minimumAge: null,
   privacy: 'ALL',
   startFrom: '',
   startTo: '',
@@ -84,6 +86,13 @@ export const RADIUS_OPTIONS = [
   { label: '10 km', value: 10000 },
   { label: '25 km', value: 25000 },
   { label: '50 km', value: 50000 },
+];
+
+export const MINIMUM_AGE_OPTIONS: Array<{ label: string; value: number | null }> = [
+  { label: 'Any', value: null },
+  { label: '16+', value: 16 },
+  { label: '18+', value: 18 },
+  { label: '21+', value: 21 },
 ];
 
 function profileToSelectedLocation(profile: {
@@ -145,6 +154,7 @@ function readStoredDiscoverState(): StoredDiscoverState | null {
         typeof filters.radiusMeters === 'number'
           ? filters.radiusMeters
           : INITIAL_FILTERS.radiusMeters,
+      minimumAge: typeof filters.minimumAge === 'number' ? filters.minimumAge : null,
       privacy:
         filters.privacy === 'PUBLIC' || filters.privacy === 'PROTECTED'
           ? filters.privacy
@@ -401,6 +411,7 @@ export function useDiscoverViewModel(token: string | null) {
         limit: PAGE_SIZE,
         sort_by: filters.sortBy,
       };
+      if (filters.minimumAge != null) params.minimum_age = filters.minimumAge;
       if (debouncedQ.trim()) params.q = debouncedQ.trim();
       if (filters.categoryId) params.category_ids = String(filters.categoryId);
       if (filters.privacy !== 'ALL') params.privacy_levels = filters.privacy;
@@ -414,6 +425,7 @@ export function useDiscoverViewModel(token: string | null) {
       filters.sortBy,
       filters.categoryId,
       filters.radiusMeters,
+      filters.minimumAge,
       filters.privacy,
       filters.startFrom,
       filters.startTo,

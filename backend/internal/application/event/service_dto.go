@@ -114,6 +114,7 @@ type DiscoverEventsInput struct {
 	Lat                *float64
 	Lon                *float64
 	RadiusMeters       *int
+	MinimumAge         *int
 	Query              *string
 	PrivacyLevels      []domain.EventPrivacyLevel
 	CategoryIDs        []int
