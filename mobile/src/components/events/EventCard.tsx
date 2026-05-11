@@ -15,6 +15,10 @@ interface EventCardProps {
   onPress?: (eventId: string) => void;
 }
 
+function formatPrivacyLabel(value: EventSummary['privacy_level']) {
+  return value.charAt(0) + value.slice(1).toLowerCase();
+}
+
 export default function EventCard({ event, onPress }: EventCardProps) {
   const { theme, isDark } = useTheme();
   const { t } = useTranslation();

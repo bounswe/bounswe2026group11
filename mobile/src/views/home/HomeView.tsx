@@ -19,6 +19,7 @@ import LoadingState from '@/components/home/LoadingState';
 import EventCard from '@/components/events/EventCard';
 import FiltersBottomSheet from '@/components/home/FiltersBottomSheet';
 import EventMapView from '@/components/home/EventMapView';
+import CategoryChips from '@/components/home/CategoryChips';
 import { useHomeViewModel } from '@/viewmodels/home/useHomeViewModel';
 import LocationPickerPanel from '@/components/home/LocationPickerPanel';
 import { useUnreadNotificationCount } from '@/viewmodels/notifications/useUnreadNotificationCount';
@@ -222,6 +223,13 @@ export default function HomeView() {
               onPressMapView={() => {
                 if (vm.viewMode !== 'MAP') vm.toggleViewMode();
               }}
+            />
+
+            <CategoryChips
+              categories={vm.categories}
+              selectedCategoryIds={vm.selectedCategoryIds}
+              onToggleCategory={vm.toggleCategory}
+              onClearCategories={vm.clearSelectedCategories}
             />
 
             {vm.apiError ? (
