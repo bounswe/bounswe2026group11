@@ -109,6 +109,8 @@ export default function RegisterView() {
                 autoCapitalize="none"
                 autoComplete="email"
                 editable={!vm.isLoading}
+                accessibilityLabel="Email"
+                accessibilityState={{ disabled: vm.isLoading }}
               />
               {vm.errors.email && (
                 <Text style={styles.fieldError}>{vm.errors.email}</Text>
@@ -126,6 +128,8 @@ export default function RegisterView() {
                 autoCapitalize="none"
                 autoComplete="username"
                 editable={!vm.isLoading}
+                accessibilityLabel="Username"
+                accessibilityState={{ disabled: vm.isLoading }}
               />
               {vm.errors.username && (
                 <Text style={styles.fieldError}>{vm.errors.username}</Text>
@@ -143,6 +147,8 @@ export default function RegisterView() {
                 secureTextEntry
                 autoComplete="new-password"
                 editable={!vm.isLoading}
+                accessibilityLabel="Password"
+                accessibilityState={{ disabled: vm.isLoading }}
               />
               {vm.errors.password && (
                 <Text style={styles.fieldError}>{vm.errors.password}</Text>
@@ -165,6 +171,8 @@ export default function RegisterView() {
                 keyboardType="phone-pad"
                 autoComplete="tel"
                 editable={!vm.isLoading}
+                accessibilityLabel="Phone number"
+                accessibilityState={{ disabled: vm.isLoading }}
               />
               {vm.errors.phone_number && (
                 <Text style={styles.fieldError}>{vm.errors.phone_number}</Text>
@@ -189,6 +197,12 @@ export default function RegisterView() {
                       )
                     }
                     disabled={vm.isLoading}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Gender ${opt.label}`}
+                    accessibilityState={{
+                      selected: vm.formData.gender === opt.value,
+                      disabled: vm.isLoading,
+                    }}
                   >
                     <Text
                       style={[
@@ -220,6 +234,8 @@ export default function RegisterView() {
                 onChangeText={(v) => vm.updateField('birth_date', v)}
                 keyboardType="numbers-and-punctuation"
                 editable={!vm.isLoading}
+                accessibilityLabel="Birth date"
+                accessibilityState={{ disabled: vm.isLoading }}
               />
               {vm.errors.birth_date && (
                 <Text style={styles.fieldError}>{vm.errors.birth_date}</Text>
@@ -240,6 +256,8 @@ export default function RegisterView() {
               keyboardType="number-pad"
               maxLength={6}
               editable={!vm.isLoading}
+              accessibilityLabel="Verification code"
+              accessibilityState={{ disabled: vm.isLoading }}
             />
             {vm.errors.otp && (
               <Text style={styles.fieldError}>{vm.errors.otp}</Text>
@@ -252,6 +270,9 @@ export default function RegisterView() {
           onPress={handleNext}
           disabled={vm.isLoading}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={vm.isLoading ? `${buttonLabel} in progress` : buttonLabel}
+          accessibilityState={{ disabled: vm.isLoading, busy: vm.isLoading }}
         >
           {vm.isLoading ? (
             <ActivityIndicator color={theme.textOnPrimary} />
@@ -265,6 +286,9 @@ export default function RegisterView() {
             style={styles.backButton}
             onPress={vm.goBack}
             disabled={vm.isLoading}
+            accessibilityRole="button"
+            accessibilityLabel="Go back to account details"
+            accessibilityState={{ disabled: vm.isLoading }}
           >
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
@@ -276,6 +300,9 @@ export default function RegisterView() {
             <TouchableOpacity
               onPress={() => router.push('/')}
               disabled={vm.isLoading}
+              accessibilityRole="link"
+              accessibilityLabel="Sign in"
+              accessibilityState={{ disabled: vm.isLoading }}
             >
               <Text style={styles.footerLink}>Sign In</Text>
             </TouchableOpacity>

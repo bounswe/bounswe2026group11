@@ -1,6 +1,8 @@
 package server
 
 import (
+	"strings"
+
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler"
@@ -17,13 +19,34 @@ import (
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/ticket_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/user_handler"
 	"github.com/bounswe/bounswe2026group11/backend/internal/bootstrap"
+	"github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config"
 	"github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 )
+
+const (
+	defaultMaxRequestBodyBytes = 4 * 1024 * 1024
+	apiContentSecurityPolicy   = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+)
+
+var defaultCORSAllowedOrigins = []string{
+	"http://localhost:5173",
+	"http://127.0.0.1:5173",
+	"http://localhost:8081",
+	"http://127.0.0.1:8081",
+	"exp://localhost:8081",
+	"https://socialeventmapper.com",
+	"https://www.socialeventmapper.com",
+	"https://*.socialeventmapper.com",
+}
 
 // NewHTTP builds a Fiber application with all registered route groups and middleware.
 func NewHTTP(container *bootstrap.Container) *fiber.App {
+	cfg := container.Config
 	app := fiber.New(fiber.Config{
+		BodyLimit:               maxRequestBodyBytes(cfg),
 		ProxyHeader:             "X-Real-IP",
 		EnableTrustedProxyCheck: true,
 		TrustedProxies: []string{
@@ -34,6 +57,8 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 			"192.168.0.0/16",
 		},
 	})
+
+	installGlobalSecurityMiddleware(app, cfg)
 
 	// otelfiber emits request traces and HTTP metrics; application logs stay
 	// focused on high-signal business actions inside handlers.
@@ -109,6 +134,50 @@ func NewHTTP(container *bootstrap.Container) *fiber.App {
 	badge_handler.RegisterRoutes(app, badgeHandler, auth)
 
 	return app
+}
+
+func installGlobalSecurityMiddleware(app *fiber.App, cfg *config.Config) {
+	app.Use(recover.New())
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: strings.Join(corsAllowedOrigins(cfg), ","),
+		AllowMethods: strings.Join([]string{
+			fiber.MethodGet,
+			fiber.MethodPost,
+			fiber.MethodPut,
+			fiber.MethodPatch,
+			fiber.MethodDelete,
+			fiber.MethodOptions,
+		}, ","),
+		AllowHeaders: strings.Join([]string{
+			fiber.HeaderAuthorization,
+			fiber.HeaderContentType,
+			fiber.HeaderAccept,
+			fiber.HeaderAcceptLanguage,
+			"X-Requested-With",
+		}, ","),
+	}))
+	app.Use(func(c *fiber.Ctx) error {
+		c.Set(fiber.HeaderXContentTypeOptions, "nosniff")
+		c.Set(fiber.HeaderXFrameOptions, "DENY")
+		c.Set(fiber.HeaderReferrerPolicy, "no-referrer")
+		c.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		c.Set(fiber.HeaderContentSecurityPolicy, apiContentSecurityPolicy)
+		return c.Next()
+	})
+}
+
+func maxRequestBodyBytes(cfg *config.Config) int {
+	if cfg != nil && cfg.MaxRequestBodyBytes > 0 {
+		return cfg.MaxRequestBodyBytes
+	}
+	return defaultMaxRequestBodyBytes
+}
+
+func corsAllowedOrigins(cfg *config.Config) []string {
+	if cfg != nil && len(cfg.CORSAllowedOrigins) > 0 {
+		return cfg.CORSAllowedOrigins
+	}
+	return defaultCORSAllowedOrigins
 }
 
 // registerHealthRoute adds GET /health, used by load balancers and container
