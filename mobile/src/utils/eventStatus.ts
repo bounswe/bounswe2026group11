@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import type { MyEventStatus } from '@/models/event';
 
 export interface EventStatusBadgeColors {
@@ -5,12 +6,7 @@ export interface EventStatusBadgeColors {
   textColor: string;
 }
 
-const STATUS_LABELS: Record<MyEventStatus, string> = {
-  ACTIVE: 'Active',
-  IN_PROGRESS: 'In Progress',
-  COMPLETED: 'Completed',
-  CANCELED: 'Canceled',
-};
+const KNOWN_STATUSES: MyEventStatus[] = ['ACTIVE', 'IN_PROGRESS', 'COMPLETED', 'CANCELED'];
 
 const STATUS_BADGE_COLORS: Record<MyEventStatus, EventStatusBadgeColors> = {
   ACTIVE: {
@@ -38,10 +34,11 @@ const DEFAULT_STATUS_BADGE_COLORS: EventStatusBadgeColors = {
 
 export function formatEventStatusLabel(status: string): string {
   const normalized = status.trim();
-  if (!normalized) return 'Unknown';
+  if (!normalized) return i18n.t('events.status.Unknown');
 
-  const knownLabel = STATUS_LABELS[normalized as MyEventStatus];
-  if (knownLabel) return knownLabel;
+  if (KNOWN_STATUSES.includes(normalized as MyEventStatus)) {
+    return i18n.t(`events.status.${normalized}`);
+  }
 
   const formatted = normalized
     .toLowerCase()
@@ -50,7 +47,7 @@ export function formatEventStatusLabel(status: string): string {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
-  return formatted || 'Unknown';
+  return formatted || i18n.t('events.status.Unknown');
 }
 
 export function getEventStatusBadgeColors(status: string): EventStatusBadgeColors {

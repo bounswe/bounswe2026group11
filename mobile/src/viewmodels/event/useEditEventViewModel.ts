@@ -28,6 +28,7 @@ import {
   validateLiveDateInput,
   validateLiveTimeInput,
 } from '@/viewmodels/event/useCreateEventViewModel';
+import i18n from '@/i18n';
 
 export interface EditEventChangePreview {
   request: UpdateEventRequest;
@@ -196,25 +197,25 @@ function buildUpdateRequest(
   const title = formData.title.trim();
   if (title !== event.title) {
     request.title = title;
-    addField(changedFields, criticalChangeLabels, 'title', 'Title');
+    addField(changedFields, criticalChangeLabels, 'title', i18n.t('events.edit.fields.titleLabel'));
   }
 
   const description = normalizeOptionalString(formData.description);
   const previousDescription = normalizeOptionalString(event.description ?? '');
   if (description !== previousDescription) {
     request.description = description;
-    addField(changedFields, criticalChangeLabels, 'description', 'Description');
+    addField(changedFields, criticalChangeLabels, 'description', i18n.t('events.edit.fields.descriptionLabel'));
   }
 
   if (formData.categoryId !== (event.category?.id ?? null)) {
     request.category_id = formData.categoryId;
-    addField(changedFields, criticalChangeLabels, 'category_id', 'Category');
+    addField(changedFields, criticalChangeLabels, 'category_id', i18n.t('events.edit.fields.category'));
   }
 
   const startTime = parseDateTime(formData.startDate, formData.startTime);
   if (startTime && !sameInstant(startTime, event.start_time)) {
     request.start_time = startTime;
-    addField(changedFields, criticalChangeLabels, 'start_time', 'Start time');
+    addField(changedFields, criticalChangeLabels, 'start_time', i18n.t('events.edit.fields.startTime'));
   }
 
   const endTime =
@@ -223,13 +224,13 @@ function buildUpdateRequest(
       : null;
   if (!sameInstant(endTime, event.end_time)) {
     request.end_time = endTime;
-    addField(changedFields, criticalChangeLabels, 'end_time', 'End time');
+    addField(changedFields, criticalChangeLabels, 'end_time', i18n.t('events.edit.fields.endTime'));
   }
 
   const capacity = getCapacityValue(formData.capacityInput);
   if (capacity !== (event.capacity ?? null)) {
     request.capacity = capacity;
-    addField(changedFields, criticalChangeLabels, 'capacity', 'Capacity', false);
+    addField(changedFields, criticalChangeLabels, 'capacity', i18n.t('events.edit.fields.capacity'), false);
   }
 
   const previousAddress = normalizeOptionalString(event.location.address ?? '');
@@ -259,7 +260,7 @@ function buildUpdateRequest(
         lon: point.lon,
       }));
     }
-    addField(changedFields, criticalChangeLabels, 'location', 'Location or route');
+    addField(changedFields, criticalChangeLabels, 'location', i18n.t('events.edit.fields.locationOrRoute'));
   }
 
   const constraints = normalizeConstraints(formData.constraints);
@@ -269,7 +270,7 @@ function buildUpdateRequest(
       changedFields,
       criticalChangeLabels,
       'constraints',
-      'Participation requirements',
+      i18n.t('events.edit.fields.requirements'),
       hasAddedConstraint(event.constraints ?? [], constraints),
     );
   }
@@ -328,7 +329,7 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
 
   const loadEvent = useCallback(async () => {
     if (!token) {
-      setApiError('You must be logged in to edit this event.');
+      setApiError(i18n.t('events.edit.errors.loginRequired'));
       setIsLoading(false);
       return;
     }
@@ -347,7 +348,7 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
       if (err instanceof ApiError) {
         setApiError(err.message);
       } else {
-        setApiError('Failed to load event details. Please try again.');
+        setApiError(i18n.t('events.edit.errors.loadFailed'));
       }
     } finally {
       setIsLoading(false);
@@ -364,41 +365,41 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
     const description = formData.description.trim();
 
     if (!title) {
-      nextErrors.title = 'Title is required';
+      nextErrors.title = i18n.t('events.edit.errors.titleRequired');
     } else if (title.length < TITLE_MIN_LENGTH) {
-      nextErrors.title = `Title must be at least ${TITLE_MIN_LENGTH} characters`;
+      nextErrors.title = i18n.t('events.edit.errors.titleMin', { count: TITLE_MIN_LENGTH });
     } else if (title.length > TITLE_MAX_LENGTH) {
-      nextErrors.title = `Title must be at most ${TITLE_MAX_LENGTH} characters`;
+      nextErrors.title = i18n.t('events.edit.errors.titleMax', { count: TITLE_MAX_LENGTH });
     }
 
     if (description.length > 0 && description.length < DESCRIPTION_MIN_LENGTH) {
-      nextErrors.description = `Description must be at least ${DESCRIPTION_MIN_LENGTH} characters`;
+      nextErrors.description = i18n.t('events.edit.errors.descriptionMin', { count: DESCRIPTION_MIN_LENGTH });
     } else if (description.length > DESCRIPTION_MAX_LENGTH) {
-      nextErrors.description = `Description must be at most ${DESCRIPTION_MAX_LENGTH} characters`;
+      nextErrors.description = i18n.t('events.edit.errors.descriptionMax', { count: DESCRIPTION_MAX_LENGTH });
     }
 
     if (formData.categoryId == null) {
-      nextErrors.categoryId = 'Please select a category';
+      nextErrors.categoryId = i18n.t('events.edit.errors.categoryRequired');
     }
 
     if (formData.locationType === 'POINT') {
       if (formData.lat == null || formData.lon == null) {
-        nextErrors.location = 'Please select a location';
+        nextErrors.location = i18n.t('events.edit.errors.locationRequired');
       }
     } else if (formData.routePoints.length < ROUTE_MIN_POINTS) {
-      nextErrors.location = `Add at least ${ROUTE_MIN_POINTS} waypoints to create a route`;
+      nextErrors.location = i18n.t('events.edit.errors.routeMin', { count: ROUTE_MIN_POINTS });
     } else if (formData.routePoints.length > ROUTE_MAX_POINTS) {
-      nextErrors.location = `A route can have at most ${ROUTE_MAX_POINTS} waypoints`;
+      nextErrors.location = i18n.t('events.edit.errors.routeMax', { count: ROUTE_MAX_POINTS });
     }
 
     if (!formData.startDate) {
-      nextErrors.startDate = 'Start date is required';
+      nextErrors.startDate = i18n.t('events.edit.errors.startDateRequired');
     } else {
       nextErrors.startDate = validateLiveDateInput(formData.startDate);
     }
 
     if (!formData.startTime) {
-      nextErrors.startTime = 'Start time is required';
+      nextErrors.startTime = i18n.t('events.edit.errors.startTimeRequired');
     } else {
       nextErrors.startTime = validateLiveTimeInput(formData.startTime);
     }
@@ -406,22 +407,22 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
     const startIso = parseDateTime(formData.startDate, formData.startTime);
     if (!nextErrors.startDate && !nextErrors.startTime) {
       if (!startIso) {
-        nextErrors.startDate = 'Invalid start date';
+        nextErrors.startDate = i18n.t('events.edit.errors.invalidStartDate');
       } else if (new Date(startIso).getTime() <= Date.now()) {
-        nextErrors.startDate = 'Start date must be in the future';
+        nextErrors.startDate = i18n.t('events.edit.errors.startFuture');
       }
     }
 
     const hasEndInput = Boolean(formData.endDate || formData.endTime);
     if (hasEndInput) {
       if (!formData.endDate) {
-        nextErrors.endDate = 'End date is required';
+        nextErrors.endDate = i18n.t('events.edit.errors.endDateRequired');
       } else {
         nextErrors.endDate = validateLiveDateInput(formData.endDate);
       }
 
       if (!formData.endTime) {
-        nextErrors.endTime = 'End time is required';
+        nextErrors.endTime = i18n.t('events.edit.errors.endTimeRequired');
       } else {
         nextErrors.endTime = validateLiveTimeInput(formData.endTime);
       }
@@ -429,9 +430,9 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
       const endIso = parseDateTime(formData.endDate, formData.endTime);
       if (!nextErrors.endDate && !nextErrors.endTime) {
         if (!endIso) {
-          nextErrors.endDate = 'Invalid end date';
+          nextErrors.endDate = i18n.t('events.edit.errors.invalidEndDate');
         } else if (startIso && new Date(endIso).getTime() <= new Date(startIso).getTime()) {
-          nextErrors.endDate = 'End must be after start';
+          nextErrors.endDate = i18n.t('events.edit.errors.endAfterStart');
         }
       }
     }
@@ -440,20 +441,20 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
     if (capacityInput) {
       const capacity = Number.parseInt(capacityInput, 10);
       if (!Number.isFinite(capacity) || String(capacity) !== capacityInput) {
-        nextErrors.constraints = 'Capacity must be a whole number';
+        nextErrors.constraints = i18n.t('events.edit.errors.capacityWhole');
       } else if (capacity < CAPACITY_MIN) {
-        nextErrors.constraints = `Capacity must be at least ${CAPACITY_MIN}`;
+        nextErrors.constraints = i18n.t('events.edit.errors.capacityMin', { count: CAPACITY_MIN });
       } else if (
         event &&
         capacity < event.approved_participant_count + event.pending_participant_count
       ) {
-        nextErrors.constraints = 'Capacity cannot be below current approved plus pending participants';
+        nextErrors.constraints = i18n.t('events.edit.errors.capacityBelowCurrent');
       }
     }
 
     const invalidConstraint = normalizeConstraints(formData.constraints).length !== formData.constraints.length;
     if (invalidConstraint) {
-      nextErrors.constraints = 'Every requirement needs a type and details';
+      nextErrors.constraints = i18n.t('events.edit.errors.requirementComplete');
     }
 
     return nextErrors;
@@ -462,7 +463,7 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
   const previewChanges = useCallback(() => {
     if (!event) return null;
     if (!canEdit) {
-      setApiError('Only active events that have not started can be edited.');
+      setApiError(i18n.t('events.edit.errors.onlyActiveFuture'));
       return null;
     }
 
@@ -475,7 +476,7 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
 
     const preview = buildUpdateRequest(formData, event);
     if (preview.changedFields.length === 0) {
-      setApiError('No changes to save.');
+      setApiError(i18n.t('events.edit.errors.noChanges'));
       return null;
     }
 
@@ -504,8 +505,10 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
       setUpdateResult(result);
       setSuccessMessage(
         result.reconfirmation_required
-          ? `Event updated. ${result.participants_marked_pending} participant${result.participants_marked_pending === 1 ? '' : 's'} must reconfirm.`
-          : 'Event updated successfully.',
+          ? i18n.t('events.edit.successWithReconfirmation', {
+              count: result.participants_marked_pending,
+            })
+          : i18n.t('events.edit.success'),
       );
       return result;
     } catch (err) {
@@ -515,7 +518,7 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
         }
         setApiError(err.message);
       } else {
-        setApiError('Failed to update event. Please try again.');
+        setApiError(i18n.t('events.edit.errors.updateFailed'));
       }
       return null;
     } finally {
@@ -657,13 +660,13 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
     const type = constraintDraftType.trim();
     const info = constraintDraftInfo.trim();
     if (!type || !info) {
-      setErrors((prev) => ({ ...prev, constraints: 'Every requirement needs a type and details' }));
+      setErrors((prev) => ({ ...prev, constraints: i18n.t('events.edit.errors.requirementComplete') }));
       return;
     }
 
     setFormData((prev) => {
       if (prev.constraints.length >= 5) {
-        setErrors((errors) => ({ ...errors, constraints: 'Maximum 5 requirements allowed' }));
+        setErrors((errors) => ({ ...errors, constraints: i18n.t('events.edit.errors.maxRequirements') }));
         return prev;
       }
       return {

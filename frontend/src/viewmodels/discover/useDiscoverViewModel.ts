@@ -1,5 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { discoverEvents, listCategories, searchLocation } from '@/services/eventService';
+import {
+  discoverEvents,
+  listCategories,
+  reverseGeocode,
+  searchLocation,
+} from '@/services/eventService';
 import { profileService } from '@/services/profileService';
 import type { FavoriteLocation } from '@/models/profile';
 import type {
@@ -54,24 +59,28 @@ export type PrivacyFilter = 'ALL' | 'PUBLIC' | 'PROTECTED';
 
 export interface DiscoverFilters {
   q: string;
-  categoryId: number | null;
+  categoryIds: number[];
   sortBy: DiscoverSortBy;
   radiusMeters: number;
   minimumAge: number | null;
   privacy: PrivacyFilter;
   startFrom: string;
   startTo: string;
+  childFriendly: boolean;
+  familyOriented: boolean;
 }
 
 const INITIAL_FILTERS: DiscoverFilters = {
   q: '',
-  categoryId: null,
+  categoryIds: [],
   sortBy: 'START_TIME',
   radiusMeters: DEFAULT_RADIUS,
   minimumAge: null,
   privacy: 'ALL',
   startFrom: '',
   startTo: '',
+  childFriendly: false,
+  familyOriented: false,
 };
 
 interface StoredDiscoverState {
@@ -148,7 +157,7 @@ function readStoredDiscoverState(): StoredDiscoverState | null {
 
     const restoredFilters: DiscoverFilters = {
       q: typeof filters.q === 'string' ? filters.q : INITIAL_FILTERS.q,
-      categoryId: typeof filters.categoryId === 'number' ? filters.categoryId : null,
+      categoryIds: Array.isArray(filters.categoryIds) ? filters.categoryIds : [],
       sortBy: filters.sortBy === 'DISTANCE' ? 'DISTANCE' : 'START_TIME',
       radiusMeters:
         typeof filters.radiusMeters === 'number'
@@ -161,6 +170,14 @@ function readStoredDiscoverState(): StoredDiscoverState | null {
           : INITIAL_FILTERS.privacy,
       startFrom: typeof filters.startFrom === 'string' ? filters.startFrom : '',
       startTo: typeof filters.startTo === 'string' ? filters.startTo : '',
+      childFriendly:
+        typeof filters.childFriendly === 'boolean'
+          ? filters.childFriendly
+          : INITIAL_FILTERS.childFriendly,
+      familyOriented:
+        typeof filters.familyOriented === 'boolean'
+          ? filters.familyOriented
+          : INITIAL_FILTERS.familyOriented,
     };
 
     return {
@@ -240,6 +257,7 @@ export function useDiscoverViewModel(token: string | null) {
   );
   const [browserLocationRequestPending, setBrowserLocationRequestPending] = useState(false);
   const browserLocation = useRef<LocationSuggestion | null>(null);
+  const mapLocationRequestId = useRef(0);
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [pendingLocation, setPendingLocation] = useState<LocationSuggestion | null>(null);
@@ -413,22 +431,28 @@ export function useDiscoverViewModel(token: string | null) {
       };
       if (filters.minimumAge != null) params.minimum_age = filters.minimumAge;
       if (debouncedQ.trim()) params.q = debouncedQ.trim();
-      if (filters.categoryId) params.category_ids = String(filters.categoryId);
+      if (filters.categoryIds && filters.categoryIds.length > 0) {
+        params.category_ids = filters.categoryIds.join(',');
+      }
       if (filters.privacy !== 'ALL') params.privacy_levels = filters.privacy;
       if (filters.startFrom) params.start_from = new Date(filters.startFrom).toISOString();
       if (filters.startTo) params.start_to = new Date(filters.startTo).toISOString();
+      if (filters.childFriendly) params.child_friendly = true;
+      if (filters.familyOriented) params.family_oriented = true;
       if (cursor) params.cursor = cursor;
       return params;
     },
     [
       selectedLocation,
       filters.sortBy,
-      filters.categoryId,
+      filters.categoryIds,
       filters.radiusMeters,
       filters.minimumAge,
       filters.privacy,
       filters.startFrom,
       filters.startTo,
+      filters.childFriendly,
+      filters.familyOriented,
       debouncedQ,
     ],
   );
@@ -495,11 +519,16 @@ export function useDiscoverViewModel(token: string | null) {
     [],
   );
 
-  const updateCategory = useCallback((categoryId: number | null) => {
-    setFilters((prev) => ({
-      ...prev,
-      categoryId: prev.categoryId === categoryId ? null : categoryId,
-    }));
+  const updateCategory = useCallback((categoryId: number) => {
+    setFilters((prev) => {
+      const isSelected = prev.categoryIds.includes(categoryId);
+      return {
+        ...prev,
+        categoryIds: isSelected
+          ? prev.categoryIds.filter((id) => id !== categoryId)
+          : [...prev.categoryIds, categoryId],
+      };
+    });
   }, []);
 
   const updateSort = useCallback((sortBy: DiscoverSortBy) => {
@@ -600,6 +629,29 @@ export function useDiscoverViewModel(token: string | null) {
     setModalLocationResults([]);
   }, []);
 
+  const selectMapLocation = useCallback(async (lat: number, lon: number) => {
+    const requestId = mapLocationRequestId.current + 1;
+    mapLocationRequestId.current = requestId;
+    const pendingSelection = {
+      display_name: 'Finding address…',
+      lat: String(lat),
+      lon: String(lon),
+    };
+    setSelectedLocation(pendingSelection);
+    const resolved = await reverseGeocode(lat, lon, { areaLevel: true });
+    if (mapLocationRequestId.current === requestId) {
+      setSelectedLocation(
+        resolved
+          ? { ...resolved, lat: String(lat), lon: String(lon) }
+          : { ...pendingSelection, display_name: 'Selected map location' },
+      );
+    }
+    setPendingLocation(null);
+    setModalLocationQuery('');
+    setModalLocationResults([]);
+    setIsLocationModalOpen(false);
+  }, []);
+
   const applyModalLocation = useCallback(() => {
     setSelectedLocation(pendingLocation ?? defaultProfileLocation ?? null);
     setModalLocationQuery('');
@@ -657,6 +709,7 @@ export function useDiscoverViewModel(token: string | null) {
     selectFavoriteInModal,
     selectDefaultProfileInModal,
     selectBrowserLocationInModal,
+    selectMapLocation,
     applyModalLocation,
     resetModalLocationDraft,
     hasCustomLocationFilter,

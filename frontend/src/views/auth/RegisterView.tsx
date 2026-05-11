@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   useRegisterViewModel,
   type Gender,
@@ -57,7 +57,9 @@ export default function RegisterView() {
         </div>
 
         {vm.apiError && (
-          <div className="error-banner">{vm.apiError}</div>
+          <div className="error-banner" role="alert" aria-live="assertive">
+            {vm.apiError}
+          </div>
         )}
 
         <form onSubmit={handleSubmit}>
@@ -76,9 +78,13 @@ export default function RegisterView() {
                   onChange={(e) => vm.updateField('email', e.target.value)}
                   autoComplete="email"
                   disabled={vm.isLoading}
+                  aria-invalid={!!vm.errors.email}
+                  aria-describedby={vm.errors.email ? 'register-email-error' : undefined}
                 />
                 {vm.errors.email && (
-                  <p className="field-error">{vm.errors.email}</p>
+                  <p className="field-error" id="register-email-error" role="alert">
+                    {vm.errors.email}
+                  </p>
                 )}
               </div>
 
@@ -95,9 +101,13 @@ export default function RegisterView() {
                   onChange={(e) => vm.updateField('username', e.target.value)}
                   autoComplete="username"
                   disabled={vm.isLoading}
+                  aria-invalid={!!vm.errors.username}
+                  aria-describedby={vm.errors.username ? 'register-username-error' : undefined}
                 />
                 {vm.errors.username && (
-                  <p className="field-error">{vm.errors.username}</p>
+                  <p className="field-error" id="register-username-error" role="alert">
+                    {vm.errors.username}
+                  </p>
                 )}
               </div>
 
@@ -114,9 +124,13 @@ export default function RegisterView() {
                   onChange={(e) => vm.updateField('password', e.target.value)}
                   autoComplete="new-password"
                   disabled={vm.isLoading}
+                  aria-invalid={!!vm.errors.password}
+                  aria-describedby={vm.errors.password ? 'register-password-error' : undefined}
                 />
                 {vm.errors.password && (
-                  <p className="field-error">{vm.errors.password}</p>
+                  <p className="field-error" id="register-password-error" role="alert">
+                    {vm.errors.password}
+                  </p>
                 )}
               </div>
 
@@ -133,9 +147,13 @@ export default function RegisterView() {
                   onChange={(e) => vm.updateField('phone_number', e.target.value)}
                   autoComplete="tel"
                   disabled={vm.isLoading}
+                  aria-invalid={!!vm.errors.phone_number}
+                  aria-describedby={vm.errors.phone_number ? 'register-phone-error' : undefined}
                 />
                 {vm.errors.phone_number && (
-                  <p className="field-error">{vm.errors.phone_number}</p>
+                  <p className="field-error" id="register-phone-error" role="alert">
+                    {vm.errors.phone_number}
+                  </p>
                 )}
               </div>
 
@@ -156,13 +174,14 @@ export default function RegisterView() {
                         )
                       }
                       disabled={vm.isLoading}
+                      aria-pressed={vm.formData.gender === opt.value}
                     >
                       {opt.label}
                     </button>
                   ))}
                 </div>
                 {vm.errors.gender && (
-                  <p className="field-error">{vm.errors.gender}</p>
+                  <p className="field-error" role="alert">{vm.errors.gender}</p>
                 )}
               </div>
 
@@ -177,9 +196,13 @@ export default function RegisterView() {
                   value={vm.formData.birth_date}
                   onChange={(e) => vm.updateField('birth_date', e.target.value)}
                   disabled={vm.isLoading}
+                  aria-invalid={!!vm.errors.birth_date}
+                  aria-describedby={vm.errors.birth_date ? 'register-birth-date-error' : undefined}
                 />
                 {vm.errors.birth_date && (
-                  <p className="field-error">{vm.errors.birth_date}</p>
+                  <p className="field-error" id="register-birth-date-error" role="alert">
+                    {vm.errors.birth_date}
+                  </p>
                 )}
               </div>
             </>
@@ -200,9 +223,14 @@ export default function RegisterView() {
                 value={vm.formData.otp}
                 onChange={(e) => vm.updateField('otp', e.target.value)}
                 disabled={vm.isLoading}
+                autoComplete="one-time-code"
+                aria-invalid={!!vm.errors.otp}
+                aria-describedby={vm.errors.otp ? 'register-otp-error' : undefined}
               />
               {vm.errors.otp && (
-                <p className="field-error">{vm.errors.otp}</p>
+                <p className="field-error" id="register-otp-error" role="alert">
+                  {vm.errors.otp}
+                </p>
               )}
             </div>
           )}
@@ -230,9 +258,9 @@ export default function RegisterView() {
         {vm.step === 'details' && (
           <div className="auth-footer">
             <span>Already have an account?</span>
-            <a onClick={() => navigate('/login')} className="link">
+            <Link to="/login" className="link">
               Sign In
-            </a>
+            </Link>
           </div>
         )}
       </div>

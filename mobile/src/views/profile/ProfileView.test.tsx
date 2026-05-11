@@ -15,6 +15,14 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 
+jest.mock('@/contexts/LocaleContext', () => ({
+  useLocale: () => ({
+    locale: 'en',
+    isHydrating: false,
+    setLocale: jest.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 jest.mock('@/viewmodels/auth/useLogoutViewModel', () => ({
   useLogoutViewModel: jest.fn(),
 }));
@@ -255,7 +263,7 @@ describe('ProfileView', () => {
 
     render(<ProfileView />);
 
-    fireEvent.click(screen.getByLabelText('Add equipment'));
+    fireEvent.click(screen.getByLabelText('Add Equipment'));
     fireEvent.click(screen.getByTestId('equipment-modal-dismiss-layer'));
 
     expect(Keyboard.dismiss).toHaveBeenCalled();

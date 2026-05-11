@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useForgotPasswordViewModel } from '@/viewmodels/auth/useForgotPasswordViewModel';
 import '@/styles/auth.css';
 
@@ -32,7 +32,11 @@ export default function ForgotPasswordView() {
               Enter your email address and we&apos;ll send you a code to reset your password.
             </p>
 
-            {vm.apiError && <div className="error-banner">{vm.apiError}</div>}
+            {vm.apiError && (
+              <div className="error-banner" role="alert" aria-live="assertive">
+                {vm.apiError}
+              </div>
+            )}
 
             <form onSubmit={handleRequestSubmit}>
               <div className="field-group">
@@ -47,9 +51,14 @@ export default function ForgotPasswordView() {
                   value={vm.email}
                   onChange={(e) => vm.setEmail(e.target.value)}
                   disabled={vm.isLoading}
+                  autoComplete="email"
+                  aria-invalid={!!vm.errors.email}
+                  aria-describedby={vm.errors.email ? 'forgot-email-error' : undefined}
                 />
                 {vm.errors.email && (
-                  <p className="field-error">{vm.errors.email}</p>
+                  <p className="field-error" id="forgot-email-error" role="alert">
+                    {vm.errors.email}
+                  </p>
                 )}
               </div>
 
@@ -71,7 +80,11 @@ export default function ForgotPasswordView() {
               Enter the 6-digit code sent to <strong>{vm.email}</strong>
             </p>
 
-            {vm.apiError && <div className="error-banner">{vm.apiError}</div>}
+            {vm.apiError && (
+              <div className="error-banner" role="alert" aria-live="assertive">
+                {vm.apiError}
+              </div>
+            )}
 
             <form onSubmit={handleVerifySubmit}>
               <div className="field-group">
@@ -87,9 +100,15 @@ export default function ForgotPasswordView() {
                   value={vm.otp}
                   onChange={(e) => vm.setOtp(e.target.value.replace(/\D/g, ''))}
                   disabled={vm.isLoading}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  aria-invalid={!!vm.errors.otp}
+                  aria-describedby={vm.errors.otp ? 'forgot-otp-error' : undefined}
                 />
                 {vm.errors.otp && (
-                  <p className="field-error">{vm.errors.otp}</p>
+                  <p className="field-error" id="forgot-otp-error" role="alert">
+                    {vm.errors.otp}
+                  </p>
                 )}
               </div>
 
@@ -111,7 +130,11 @@ export default function ForgotPasswordView() {
               Your new password must be at least 8 characters long.
             </p>
 
-            {vm.apiError && <div className="error-banner">{vm.apiError}</div>}
+            {vm.apiError && (
+              <div className="error-banner" role="alert" aria-live="assertive">
+                {vm.apiError}
+              </div>
+            )}
 
             <form onSubmit={handleResetSubmit}>
               <div className="field-group">
@@ -126,9 +149,14 @@ export default function ForgotPasswordView() {
                   value={vm.newPassword}
                   onChange={(e) => vm.setNewPassword(e.target.value)}
                   disabled={vm.isLoading}
+                  autoComplete="new-password"
+                  aria-invalid={!!vm.errors.newPassword}
+                  aria-describedby={vm.errors.newPassword ? 'new-password-error' : undefined}
                 />
                 {vm.errors.newPassword && (
-                  <p className="field-error">{vm.errors.newPassword}</p>
+                  <p className="field-error" id="new-password-error" role="alert">
+                    {vm.errors.newPassword}
+                  </p>
                 )}
               </div>
 
@@ -144,9 +172,14 @@ export default function ForgotPasswordView() {
                   value={vm.confirmPassword}
                   onChange={(e) => vm.setConfirmPassword(e.target.value)}
                   disabled={vm.isLoading}
+                  autoComplete="new-password"
+                  aria-invalid={!!vm.errors.confirmPassword}
+                  aria-describedby={vm.errors.confirmPassword ? 'confirm-password-error' : undefined}
                 />
                 {vm.errors.confirmPassword && (
-                  <p className="field-error">{vm.errors.confirmPassword}</p>
+                  <p className="field-error" id="confirm-password-error" role="alert">
+                    {vm.errors.confirmPassword}
+                  </p>
                 )}
               </div>
 
@@ -179,9 +212,9 @@ export default function ForgotPasswordView() {
 
         {vm.step !== 'success' && (
           <div className="auth-footer" style={{ marginTop: '1.5rem' }}>
-            <a onClick={() => navigate('/login')} className="link">
+            <Link to="/login" className="link">
               Back to Login
-            </a>
+            </Link>
           </div>
         )}
       </div>

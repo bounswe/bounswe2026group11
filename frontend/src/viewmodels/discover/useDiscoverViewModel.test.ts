@@ -39,13 +39,15 @@ describe('useDiscoverViewModel persistence', () => {
       JSON.stringify({
         filters: {
           q: 'jazz',
-          categoryId: 3,
+          categoryIds: [3, 4],
           sortBy: 'DISTANCE',
           radiusMeters: 10000,
           minimumAge: 18,
           privacy: 'PROTECTED',
           startFrom: '2026-05-10',
           startTo: '',
+          childFriendly: true,
+          familyOriented: true,
         },
         debouncedQ: 'jazz',
         selectedLocation: {
@@ -61,23 +63,27 @@ describe('useDiscoverViewModel persistence', () => {
     await waitFor(() => expect(mockDiscoverEvents).toHaveBeenCalled());
 
     expect(result.current.filters.q).toBe('jazz');
-    expect(result.current.filters.categoryId).toBe(3);
+    expect(result.current.filters.categoryIds).toEqual([3, 4]);
     expect(result.current.filters.sortBy).toBe('DISTANCE');
     expect(result.current.filters.radiusMeters).toBe(10000);
     expect(result.current.filters.minimumAge).toBe(18);
     expect(result.current.filters.privacy).toBe('PROTECTED');
+    expect(result.current.filters.childFriendly).toBe(true);
+    expect(result.current.filters.familyOriented).toBe(true);
     expect(result.current.mapCenter).toEqual({ lat: 40.9919, lon: 29.0278 });
     expect(mockDiscoverEvents).toHaveBeenCalledWith(
       expect.objectContaining({
         lat: 40.9919,
         lon: 29.0278,
         q: 'jazz',
-        category_ids: '3',
+        category_ids: '3,4',
         sort_by: 'DISTANCE',
         radius_meters: 10000,
         minimum_age: 18,
         privacy_levels: 'PROTECTED',
         start_from: new Date('2026-05-10').toISOString(),
+        child_friendly: true,
+        family_oriented: true,
       }),
       null,
     );

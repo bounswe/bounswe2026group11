@@ -85,7 +85,7 @@ type Container struct {
 	FavoriteLocationService favoritelocation.UseCase
 	ImageUploadService      imageupload.UseCase
 	BadgeService            badge.UseCase
-	// Extend with additional services as features are added
+	// Extend with additional services as business-flows are added
 }
 
 // New initializes infrastructure (config, database) and wires all application

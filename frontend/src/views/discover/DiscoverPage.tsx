@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDiscoverViewMode } from '@/contexts/DiscoverViewModeContext';
@@ -10,6 +10,7 @@ import {
 } from '@/viewmodels/discover/useDiscoverViewModel';
 import type { DiscoverEventItem, DiscoverSortBy } from '@/models/event';
 import { EventCoverImage } from '@/components/EventCoverImage';
+import { RatingWithCount } from '@/components/RatingWithCount';
 import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
 import DiscoverMapView from './DiscoverMapView';
@@ -20,6 +21,83 @@ const SORT_OPTIONS: { label: string; value: DiscoverSortBy; icon: 'time' | 'dist
   { label: 'Soonest', value: 'START_TIME', icon: 'time' },
   { label: 'Nearest', value: 'DISTANCE', icon: 'distance' },
 ];
+
+interface DiscoverWeatherSummary {
+  temperatureC: number;
+  weatherCode: number;
+  isDay: boolean;
+}
+
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width={20}
+      height={20}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="4" width="18" height="18" rx="3" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
+function WeatherGlyph({
+  kind,
+  className,
+}: {
+  kind: 'CLEAR' | 'CLOUD' | 'RAIN' | 'SNOW' | 'STORM' | 'FOG';
+  className?: string;
+}) {
+  if (kind === 'CLEAR') {
+    return (
+      <svg className={className} width={24} height={24} viewBox="0 0 24 24" fill="none" aria-hidden>
+        <circle cx="12" cy="12" r="4.5" fill="currentColor" />
+        <path d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9 5.3 5.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (kind === 'RAIN' || kind === 'STORM') {
+    return (
+      <svg className={className} width={24} height={24} viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path d="M7.5 16.5h9a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.4 1.4A3.4 3.4 0 0 0 7.5 16.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        {kind === 'STORM' ? (
+          <path d="m12.5 13-2 4h3l-2 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        ) : (
+          <path d="M8 19.5 7 21M12 19.5 11 21M16 19.5 15 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        )}
+      </svg>
+    );
+  }
+  if (kind === 'SNOW') {
+    return (
+      <svg className={className} width={24} height={24} viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path d="M12 4v16M5.1 8l13.8 8M18.9 8 5.1 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="12" cy="12" r="2" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (kind === 'FOG') {
+    return (
+      <svg className={className} width={24} height={24} viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path d="M5 9h14M3 13h18M5 17h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg className={className} width={24} height={24} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M7.5 16.5h9a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.4 1.4A3.4 3.4 0 0 0 7.5 16.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function FilterIcon({ className }: { className?: string }) {
   return (
@@ -123,6 +201,60 @@ function SearchIcon({ className }: { className?: string }) {
   );
 }
 
+function getWeatherKind(code: number): 'CLEAR' | 'CLOUD' | 'RAIN' | 'SNOW' | 'STORM' | 'FOG' {
+  if (code === 0) return 'CLEAR';
+  if (code === 45 || code === 48) return 'FOG';
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'RAIN';
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'SNOW';
+  if (code >= 95) return 'STORM';
+  return 'CLOUD';
+}
+
+function getTodayLabel(): string {
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date());
+}
+
+async function fetchDiscoverWeather(
+  lat: number,
+  lon: number,
+  signal: AbortSignal,
+): Promise<DiscoverWeatherSummary> {
+  const params = new URLSearchParams({
+    latitude: String(lat),
+    longitude: String(lon),
+    current: 'temperature_2m,weather_code,is_day',
+    timezone: 'auto',
+  });
+  const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { signal });
+  if (!response.ok) {
+    throw new Error('Weather unavailable');
+  }
+  const payload = (await response.json()) as {
+    current?: {
+      temperature_2m?: number;
+      weather_code?: number;
+      is_day?: number;
+    };
+  };
+  const current = payload.current;
+  if (
+    !current ||
+    typeof current.temperature_2m !== 'number' ||
+    typeof current.weather_code !== 'number'
+  ) {
+    throw new Error('Weather unavailable');
+  }
+  return {
+    temperatureC: current.temperature_2m,
+    weatherCode: current.weather_code,
+    isDay: current.is_day !== 0,
+  };
+}
+
 function SortOptionIcon({ kind, className }: { kind: 'time' | 'distance'; className?: string }) {
   if (kind === 'time') {
     return (
@@ -169,6 +301,13 @@ const PRIVACY_OPTIONS: { label: string; value: PrivacyFilter }[] = [
   { label: 'All', value: 'ALL' },
   { label: 'Public', value: 'PUBLIC' },
   { label: 'Protected', value: 'PROTECTED' },
+];
+
+type AudienceFilterKey = 'childFriendly' | 'familyOriented';
+
+const AUDIENCE_FILTER_OPTIONS: { label: string; value: AudienceFilterKey }[] = [
+  { label: 'Child-friendly', value: 'childFriendly' },
+  { label: 'Family-oriented', value: 'familyOriented' },
 ];
 
 function formatDate(iso: string): string {
@@ -233,11 +372,11 @@ function EventCard({ event }: { event: DiscoverEventItem }) {
           <span className="dc-card-participants">
             {event.approved_participant_count} participant{event.approved_participant_count !== 1 ? 's' : ''}
           </span>
-          {event.host_score.final_score != null && (
-            <span className="dc-card-score">
-              {'★'} {event.host_score.final_score.toFixed(1)}
-            </span>
-          )}
+          <RatingWithCount
+            score={event.host_score.final_score}
+            count={event.host_score.hosted_event_rating_count}
+            className="dc-card-score"
+          />
         </div>
       </div>
     </Link>
@@ -290,6 +429,8 @@ export default function DiscoverPage() {
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [categoryChipsNeedExpand, setCategoryChipsNeedExpand] = useState(false);
+  const [isChoosingMapLocation, setIsChoosingMapLocation] = useState(false);
+  const [weatherSummary, setWeatherSummary] = useState<DiscoverWeatherSummary | null>(null);
 
   const isMapMode = viewMode === 'map';
 
@@ -311,7 +452,9 @@ export default function DiscoverPage() {
     vm.filters.startTo !== '' ||
     vm.filters.radiusMeters !== 50000 ||
     vm.filters.minimumAge !== null ||
-    vm.filters.categoryId !== null;
+    vm.filters.categoryIds.length > 0 ||
+    vm.filters.childFriendly ||
+    vm.filters.familyOriented;
 
   useEffect(() => {
     if (!vm.isLocationModalOpen) return;
@@ -341,6 +484,12 @@ export default function DiscoverPage() {
     };
   }, [filterModalOpen]);
 
+  useEffect(() => {
+    if (!isMapMode && isChoosingMapLocation) {
+      setIsChoosingMapLocation(false);
+    }
+  }, [isChoosingMapLocation, isMapMode]);
+
   // Clear selection if the selected event is no longer in the loaded list
   useEffect(() => {
     if (!selectedEventId) return;
@@ -354,14 +503,106 @@ export default function DiscoverPage() {
       ? vm.events.find((e) => e.id === selectedEventId) ?? null
       : null;
 
+  useEffect(() => {
+    const controller = new AbortController();
+    setWeatherSummary(null);
+    void fetchDiscoverWeather(vm.mapCenter.lat, vm.mapCenter.lon, controller.signal)
+      .then(setWeatherSummary)
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setWeatherSummary(null);
+        }
+      });
+    return () => {
+      controller.abort();
+    };
+  }, [vm.mapCenter.lat, vm.mapCenter.lon]);
+
+  const handleChooseMapLocation = useCallback(
+    (lat: number, lon: number) => {
+      void vm.selectMapLocation(lat, lon);
+      setSelectedEventId(null);
+      setIsChoosingMapLocation(false);
+    },
+    [vm],
+  );
+
+  const titleWeatherKind = weatherSummary ? getWeatherKind(weatherSummary.weatherCode) : null;
+
   const titleBlock = (
     <div className="dc-title-card">
-      <h1 className="dc-title">Discover Events</h1>
-      <p className="dc-subtitle">Find events happening near you</p>
+      <div className="dc-title-card-copy">
+        <h1 className="dc-title">Discover Events</h1>
+        <p className="dc-subtitle">Find events happening near you</p>
+      </div>
+      <div className="dc-title-card-meta" aria-label={weatherSummary ? 'Current weather' : 'Today'}>
+        {weatherSummary && titleWeatherKind ? (
+          <>
+            <WeatherGlyph
+              kind={titleWeatherKind}
+              className={`dc-title-card-meta-icon dc-title-card-meta-icon--weather dc-title-card-meta-icon--${titleWeatherKind.toLowerCase()}`}
+            />
+            <span className="dc-title-card-meta-primary">
+              {Math.round(weatherSummary.temperatureC)}°
+            </span>
+          </>
+        ) : (
+          <>
+            <CalendarIcon className="dc-title-card-meta-icon" />
+            <span className="dc-title-card-meta-primary">{getTodayLabel()}</span>
+          </>
+        )}
+      </div>
     </div>
   );
 
-  const locationButton = (
+  const locationButton = isMapMode ? (
+    <div className="dc-map-location-controls">
+      <button
+        type="button"
+        className="dc-location-bar-btn dc-location-bar-btn--wide"
+        onClick={vm.handleLocationButtonClick}
+        aria-haspopup="dialog"
+        aria-expanded={vm.isLocationModalOpen}
+        aria-label={`Location: ${vm.locationShortLabel}. Open location picker.`}
+      >
+        <MapPinIcon className="dc-location-bar-icon" />
+        <span className="dc-location-bar-value">{vm.locationShortLabel}</span>
+        <ChevronDownIcon className="dc-location-bar-chevron" />
+      </button>
+      <div className="dc-map-location-actions">
+        <button
+          type="button"
+          className={`dc-map-pick-location-btn ${isChoosingMapLocation ? 'selected' : ''}`}
+          onClick={() => {
+            setSelectedEventId(null);
+            setIsChoosingMapLocation((value) => !value);
+          }}
+          aria-pressed={isChoosingMapLocation}
+        >
+          <CrosshairIcon className="dc-map-pick-location-icon" />
+          <span>
+            {isChoosingMapLocation ? 'Click map to choose' : 'Choose location from map'}
+          </span>
+        </button>
+        <label className="dc-map-radius-control">
+          <span className="dc-map-radius-label">Radius</span>
+          <input
+            type="range"
+            min={1000}
+            max={50000}
+            step={1000}
+            value={vm.filters.radiusMeters}
+            onChange={(e) => vm.updateFilter('radiusMeters', Number(e.target.value))}
+            aria-label="Discovery radius"
+          />
+          <span className="dc-map-radius-value">
+            {Math.round(vm.filters.radiusMeters / 1000)} km
+          </span>
+        </label>
+      </div>
+    </div>
+  ) : (
     <button
       type="button"
       className="dc-location-bar-btn dc-location-bar-btn--wide"
@@ -506,6 +747,26 @@ export default function DiscoverPage() {
           </div>
 
           <div className="dc-filter-group">
+            <label className="dc-filter-label" id="dc-audience-filter-label">Audience</label>
+            <div className="dc-audience-filter-grid" role="group" aria-labelledby="dc-audience-filter-label">
+              {AUDIENCE_FILTER_OPTIONS.map((opt) => {
+                const selected = vm.filters[opt.value];
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`dc-filter-chip dc-audience-filter-chip ${selected ? 'selected' : ''}`}
+                    aria-pressed={selected}
+                    onClick={() => vm.updateFilter(opt.value, !selected)}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="dc-filter-group">
             <label className="dc-filter-label">Date Range</label>
             <div className="dc-date-row">
               <input
@@ -551,10 +812,16 @@ export default function DiscoverPage() {
     </div>
   );
 
-  const visibleCategories =
-    categoryChipsNeedExpand && !categoriesExpanded
-      ? vm.categories.slice(0, CATEGORY_COLLAPSED_COUNT)
-      : vm.categories;
+  let visibleCategories = vm.categories;
+  if (categoryChipsNeedExpand && !categoriesExpanded) {
+    const selectedIds = new Set(vm.filters.categoryIds);
+    const selected = vm.categories.filter((c) => selectedIds.has(c.id));
+    const unselected = vm.categories.filter((c) => !selectedIds.has(c.id));
+    visibleCategories = [...selected, ...unselected].slice(
+      0,
+      Math.max(CATEGORY_COLLAPSED_COUNT, selected.length)
+    );
+  }
 
   const categoriesBlock = vm.categories.length > 0 && (
     <div className="dc-category-block">
@@ -565,16 +832,34 @@ export default function DiscoverPage() {
         role="group"
         aria-label="Event categories"
       >
-        {visibleCategories.map((cat) => (
+        {visibleCategories.map((cat) => {
+          const isSelected = vm.filters.categoryIds.includes(cat.id);
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              className={`dc-category-chip ${isSelected ? 'selected' : ''}`}
+              onClick={() => vm.updateCategory(cat.id)}
+            >
+              {cat.name}
+              {isSelected && (
+                <span className="dc-category-chip-remove" aria-hidden="true" style={{ marginLeft: '4px' }}>
+                  ×
+                </span>
+              )}
+            </button>
+          );
+        })}
+        {vm.filters.categoryIds.length > 0 && (
           <button
-            key={cat.id}
             type="button"
-            className={`dc-category-chip ${vm.filters.categoryId === cat.id ? 'selected' : ''}`}
-            onClick={() => vm.updateCategory(cat.id)}
+            className="dc-category-chip"
+            style={{ fontWeight: 600 }}
+            onClick={() => vm.updateFilter('categoryIds', [])}
           >
-            {cat.name}
+            Clear categories
           </button>
-        ))}
+        )}
         {categoryChipsNeedExpand && (
           <button
             type="button"
@@ -593,6 +878,29 @@ export default function DiscoverPage() {
           </button>
         )}
       </div>
+    </div>
+  );
+
+  const activeAudienceChips = (vm.filters.childFriendly || vm.filters.familyOriented) && (
+    <div className="dc-active-filter-row" aria-label="Active audience filters">
+      {vm.filters.childFriendly && (
+        <button
+          type="button"
+          className="dc-active-filter-chip"
+          onClick={() => vm.updateFilter('childFriendly', false)}
+        >
+          Child-friendly <span aria-hidden="true">×</span>
+        </button>
+      )}
+      {vm.filters.familyOriented && (
+        <button
+          type="button"
+          className="dc-active-filter-chip"
+          onClick={() => vm.updateFilter('familyOriented', false)}
+        >
+          Family-oriented <span aria-hidden="true">×</span>
+        </button>
+      )}
     </div>
   );
 
@@ -851,8 +1159,11 @@ export default function DiscoverPage() {
           isLoading={vm.isLoading}
           error={vm.error}
           center={vm.mapCenter}
+          radiusMeters={vm.filters.radiusMeters}
+          isChoosingLocation={isChoosingMapLocation}
           selectedEventId={selectedEventId}
           onSelectEvent={setSelectedEventId}
+          onChooseLocation={handleChooseMapLocation}
           onRetry={vm.refresh}
         />
 
@@ -863,6 +1174,7 @@ export default function DiscoverPage() {
         >
           {titleBlock}
           {searchToolbar}
+          {!overlayCollapsed && activeAudienceChips}
           {!overlayCollapsed && browserLocationPrompt}
           {!overlayCollapsed && eventsListUnderSearch}
         </div>
@@ -900,6 +1212,7 @@ export default function DiscoverPage() {
 
       <div className="dc-filters">
         {searchToolbar}
+        {activeAudienceChips}
         {categoriesBlock}
       </div>
 

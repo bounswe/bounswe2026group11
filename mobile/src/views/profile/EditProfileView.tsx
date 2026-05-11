@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
+import { useTranslation } from 'react-i18next';
 import {
   useEditProfileViewModel,
   GENDER_OPTIONS,
@@ -28,6 +29,7 @@ export default function EditProfileView() {
   const vm = useEditProfileViewModel();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const getPickerDate = useCallback(() => {
@@ -93,11 +95,11 @@ export default function EditProfileView() {
               style={styles.backButton}
               onPress={() => router.back()}
               accessibilityRole="button"
-              accessibilityLabel="Go back"
+              accessibilityLabel={t('common.back')}
             >
               <MaterialIcons name="arrow-back" size={28} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.screenTitle}>Edit Profile</Text>
+            <Text style={styles.screenTitle}>{t('profile.edit.title')}</Text>
             <View style={styles.headerSpacer} />
           </View>
 
@@ -116,12 +118,12 @@ export default function EditProfileView() {
         {vm.isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.text} />
-            <Text style={styles.loadingText}>Loading profile...</Text>
+            <Text style={styles.loadingText}>{t('profile.loading')}</Text>
           </View>
         ) : (
           <View style={styles.formCard}>
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Display Name</Text>
+              <Text style={styles.fieldLabel}>{t('profile.edit.displayName')}</Text>
               <TextInput
                 style={[
                   styles.textInput,
@@ -129,10 +131,10 @@ export default function EditProfileView() {
                 ]}
                 value={vm.formData.displayName}
                 onChangeText={(text) => vm.updateField('displayName', text)}
-                placeholder="Enter your display name"
+                placeholder={t('profile.edit.displayNamePlaceholder')}
                 placeholderTextColor={theme.placeholder}
                 maxLength={DISPLAY_NAME_MAX_LENGTH}
-                accessibilityLabel="Display name"
+                accessibilityLabel={t('profile.edit.displayName')}
               />
               <Text style={styles.charCount}>
                 {vm.formData.displayName.length}/{DISPLAY_NAME_MAX_LENGTH}
@@ -143,7 +145,7 @@ export default function EditProfileView() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Bio</Text>
+              <Text style={styles.fieldLabel}>{t('profile.edit.bio')}</Text>
               <TextInput
                 style={[
                   styles.textInput,
@@ -152,13 +154,13 @@ export default function EditProfileView() {
                 ]}
                 value={vm.formData.bio}
                 onChangeText={(text) => vm.updateField('bio', text)}
-                placeholder="Tell us about yourself"
+                placeholder={t('profile.edit.bioPlaceholder')}
                 placeholderTextColor={theme.placeholder}
                 maxLength={BIO_MAX_LENGTH}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                accessibilityLabel="Bio"
+                accessibilityLabel={t('profile.edit.bio')}
               />
               <Text style={styles.charCount}>
                 {vm.formData.bio.length}/{BIO_MAX_LENGTH}
@@ -169,7 +171,7 @@ export default function EditProfileView() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Phone Number</Text>
+              <Text style={styles.fieldLabel}>{t('profile.edit.phone')}</Text>
               <TextInput
                 style={[
                   styles.textInput,
@@ -182,7 +184,7 @@ export default function EditProfileView() {
                 keyboardType="phone-pad"
                 autoComplete="tel"
                 textContentType="telephoneNumber"
-                accessibilityLabel="Phone number"
+                accessibilityLabel={t('profile.edit.phone')}
               />
               {vm.errors.phoneNumber ? (
                 <Text style={styles.fieldError}>{vm.errors.phoneNumber}</Text>
@@ -190,22 +192,22 @@ export default function EditProfileView() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Default Location</Text>
+              <Text style={styles.fieldLabel}>{t('profile.edit.defaultLocation')}</Text>
               <View style={styles.locationInputRow}>
                 <TextInput
                   style={styles.textInput}
                   value={vm.locationQuery}
                   onChangeText={vm.updateLocationQuery}
-                  placeholder="Search for a place..."
+                  placeholder={t('profile.edit.locationPlaceholder')}
                   placeholderTextColor={theme.placeholder}
-                  accessibilityLabel="Default location"
+                  accessibilityLabel={t('profile.edit.defaultLocation')}
                 />
                 {vm.formData.defaultLocationLat !== null ? (
                   <TouchableOpacity
                     style={styles.clearLocationBtn}
                     onPress={vm.clearLocation}
                     accessibilityRole="button"
-                    accessibilityLabel="Clear default location"
+                    accessibilityLabel={t('profile.edit.clearDefaultLocation')}
                   >
                     <Text style={styles.clearLocationText}>X</Text>
                   </TouchableOpacity>
@@ -237,7 +239,7 @@ export default function EditProfileView() {
 
             {vm.canEditGender ? (
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Gender</Text>
+                <Text style={styles.fieldLabel}>{t('profile.edit.gender')}</Text>
                 <View style={styles.genderRow}>
                   {GENDER_OPTIONS.map((option) => {
                     const selected = vm.formData.gender === option.value;
@@ -255,7 +257,11 @@ export default function EditProfileView() {
                           )
                         }
                         accessibilityRole="button"
-                        accessibilityLabel={`Select ${option.label}`}
+                        accessibilityLabel={t('profile.edit.selectGender', {
+                          gender: t(`profile.edit.genderOptions.${option.value}`, {
+                            defaultValue: option.label,
+                          }),
+                        })}
                       >
                         <Text
                           style={[
@@ -263,7 +269,9 @@ export default function EditProfileView() {
                             selected && styles.genderChipTextSelected,
                           ]}
                         >
-                          {option.label}
+                          {t(`profile.edit.genderOptions.${option.value}`, {
+                            defaultValue: option.label,
+                          })}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -274,7 +282,7 @@ export default function EditProfileView() {
 
             {vm.canEditBirthDate ? (
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Birth Date</Text>
+                <Text style={styles.fieldLabel}>{t('profile.edit.birthDate')}</Text>
                 <View style={styles.dateInputContainer}>
                   <TextInput
                     style={[
@@ -284,15 +292,15 @@ export default function EditProfileView() {
                     ]}
                     value={vm.formData.birthDate}
                     onChangeText={(text) => vm.updateField('birthDate', text)}
-                    placeholder="dd.mm.yyyy"
+                    placeholder={t('profile.edit.birthDatePlaceholder')}
                     placeholderTextColor={theme.placeholder}
-                    accessibilityLabel="Birth date"
+                    accessibilityLabel={t('profile.edit.birthDate')}
                   />
                   <TouchableOpacity
                     style={styles.calendarIconInside}
                     onPress={() => setShowDatePicker((prev) => !prev)}
                     activeOpacity={0.7}
-                    accessibilityLabel="Pick birth date"
+                    accessibilityLabel={t('profile.edit.pickBirthDate')}
                   >
                     <Ionicons name="calendar-outline" size={20} color={theme.textSecondary} />
                   </TouchableOpacity>
@@ -323,14 +331,14 @@ export default function EditProfileView() {
               onPress={handleSave}
               disabled={vm.isSaving}
               accessibilityRole="button"
-              accessibilityLabel="Save profile"
+              accessibilityLabel={t('profile.edit.saveProfile')}
             >
               {vm.isSaving ? (
                 <ActivityIndicator size="small" color={theme.textOnPrimary} />
               ) : (
                 <>
                   <Ionicons name="checkmark-circle-outline" size={20} color={theme.textOnPrimary} />
-                  <Text style={styles.saveButtonText}>Save Changes</Text>
+                  <Text style={styles.saveButtonText}>{t('profile.edit.save')}</Text>
                 </>
               )}
             </TouchableOpacity>

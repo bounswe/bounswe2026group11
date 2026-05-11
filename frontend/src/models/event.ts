@@ -35,6 +35,8 @@ export interface CreateEventRequest {
   minimum_age?: number;
   maximum_age?: number;
   preferred_gender?: PreferredGender;
+  child_friendly?: boolean;
+  family_oriented?: boolean;
 }
 
 export interface CreateEventResponse {
@@ -107,6 +109,8 @@ export interface DiscoverEventsParams {
   start_to?: string;
   tag_names?: string;
   only_favorited?: boolean;
+  child_friendly?: boolean;
+  family_oriented?: boolean;
   sort_by?: DiscoverSortBy;
   limit?: number;
   cursor?: string;
@@ -131,6 +135,8 @@ export interface DiscoverEventItem {
   privacy_level: 'PUBLIC' | 'PROTECTED';
   approved_participant_count: number;
   is_favorited: boolean;
+  child_friendly?: boolean;
+  family_oriented?: boolean;
   host_score: HostScoreSummary;
 }
 
@@ -283,6 +289,8 @@ export interface EventDetailResponse {
   capacity: number | null;
   minimum_age: number | null;
   preferred_gender: string | null;
+  child_friendly?: boolean;
+  family_oriented?: boolean;
   approved_participant_count: number;
   pending_participant_count: number;
   favorite_count: number;

@@ -80,6 +80,8 @@ export interface CreateEventFormData {
   minimumAge: string;
   maximumAge: string;
   preferredGender: PreferredGender | '';
+  childFriendly: boolean;
+  familyOriented: boolean;
   constraints: EventConstraint[];
   constraintType: ConstraintType;
   otherConstraintInput: string;
@@ -126,6 +128,8 @@ const INITIAL: CreateEventFormData = {
   minimumAge: '',
   maximumAge: '',
   preferredGender: '',
+  childFriendly: false,
+  familyOriented: false,
   constraints: [],
   constraintType: 'other',
   otherConstraintInput: '',
@@ -292,7 +296,6 @@ export function useCreateEventViewModel() {
   const [locationResults, setLocationResults] = useState<LocationSuggestion[]>([]);
   const [locationSearching, setLocationSearching] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const imagePreviewBlobUrlRef = useRef<string | null>(null);
   const imageUploadSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearImageUploadSuccessToast = useCallback(() => {
@@ -309,15 +312,6 @@ export function useCreateEventViewModel() {
     },
     [],
   );
-
-  const revokeImagePreviewUrl = useCallback(() => {
-    if (imagePreviewBlobUrlRef.current) {
-      URL.revokeObjectURL(imagePreviewBlobUrlRef.current);
-      imagePreviewBlobUrlRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => () => revokeImagePreviewUrl(), [revokeImagePreviewUrl]);
 
   useEffect(() => {
     listCategories()
@@ -341,32 +335,30 @@ export function useCreateEventViewModel() {
     [],
   );
 
+  useEffect(() => {
+    setErrors(getVisibleErrors(form, touched, submitAttempted));
+  }, [form, touched, submitAttempted, getVisibleErrors]);
+
   const updateField = useCallback(
     <K extends keyof CreateEventFormData>(field: K, value: CreateEventFormData[K]) => {
-      setForm((prev) => {
-        const nextForm = { ...prev, [field]: value };
-        setErrors(getVisibleErrors(nextForm, touched, submitAttempted));
-        return nextForm;
-      });
+      setForm((prev) => ({ ...prev, [field]: value }));
       setApiError(null);
       setImageError(null);
       setSuccessMessage(null);
       clearImageUploadSuccessToast();
       setCoverImageUploadedForLastCreate(false);
     },
-    [clearImageUploadSuccessToast, getVisibleErrors, submitAttempted, touched],
+    [clearImageUploadSuccessToast],
   );
 
   const touchField = useCallback(
     (field: keyof CreateEventFormErrors) => {
       setTouched((prev) => {
         if (prev[field]) return prev;
-        const nextTouched = { ...prev, [field]: true };
-        setErrors(getVisibleErrors(form, nextTouched, submitAttempted));
-        return nextTouched;
+        return { ...prev, [field]: true };
       });
     },
-    [form, getVisibleErrors, submitAttempted],
+    [],
   );
 
   const handleLocationSearch = useCallback((query: string) => {
@@ -393,19 +385,15 @@ export function useCreateEventViewModel() {
   }, [updateField]);
 
   const selectLocation = useCallback((suggestion: LocationSuggestion) => {
-    setForm((prev) => {
-      const nextForm = {
-        ...prev,
-        locationQuery: suggestion.display_name,
-        address: suggestion.display_name,
-        lat: parseFloat(suggestion.lat),
-        lon: parseFloat(suggestion.lon),
-      };
-      setErrors(getVisibleErrors(nextForm, touched, submitAttempted));
-      return nextForm;
-    });
+    setForm((prev) => ({
+      ...prev,
+      locationQuery: suggestion.display_name,
+      address: suggestion.display_name,
+      lat: parseFloat(suggestion.lat),
+      lon: parseFloat(suggestion.lon),
+    }));
     setLocationResults([]);
-  }, [getVisibleErrors, submitAttempted, touched]);
+  }, []);
 
   const addTag = useCallback(() => {
     setForm((prev) => {
@@ -443,48 +431,28 @@ export function useCreateEventViewModel() {
 
   const handleImageUpload = useCallback(
     (file: File | null) => {
-      revokeImagePreviewUrl();
       setImageError(null);
+      setTouched((prev) => ({ ...prev, image: true }));
+      
       if (!file) {
-        setTouched((prev) => {
-          const nextTouched = { ...prev, image: true };
-          setForm((currentForm) => {
-            const nextForm = { ...currentForm, imageFile: null, imagePreview: '' };
-            setErrors(getVisibleErrors(nextForm, nextTouched, submitAttempted));
-            return nextForm;
-          });
-          return nextTouched;
-        });
+        setForm((prev) => ({ ...prev, imageFile: null, imagePreview: '' }));
         return;
       }
-      const url = URL.createObjectURL(file);
-      imagePreviewBlobUrlRef.current = url;
-      setTouched((prev) => {
-        const nextTouched = { ...prev, image: true };
-        setForm((currentForm) => {
-          const nextForm = { ...currentForm, imageFile: file, imagePreview: url };
-          setErrors(getVisibleErrors(nextForm, nextTouched, submitAttempted));
-          return nextForm;
-        });
-        return nextTouched;
-      });
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setForm((prev) => ({ ...prev, imageFile: file, imagePreview: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
     },
-    [getVisibleErrors, revokeImagePreviewUrl, submitAttempted],
+    [],
   );
 
   const removeImage = useCallback(() => {
-    revokeImagePreviewUrl();
     setImageError(null);
-    setTouched((prev) => {
-      const nextTouched = { ...prev, image: true };
-      setForm((currentForm) => {
-        const nextForm = { ...currentForm, imageFile: null, imagePreview: '' };
-        setErrors(getVisibleErrors(nextForm, nextTouched, submitAttempted));
-        return nextForm;
-      });
-      return nextTouched;
-    });
-  }, [getVisibleErrors, revokeImagePreviewUrl, submitAttempted]);
+    setTouched((prev) => ({ ...prev, image: true }));
+    setForm((prev) => ({ ...prev, imageFile: null, imagePreview: '' }));
+  }, []);
 
   const setLocationType = useCallback((type: LocationType) => {
     setForm((prev) => {
@@ -575,6 +543,7 @@ export function useCreateEventViewModel() {
       const validationErrors = validateForm(form);
       const hasErrors = Object.values(validationErrors).some((e) => e != null);
       if (hasErrors) {
+        // Errors will be synced by the useEffect, but we can set them immediately too for responsiveness
         setErrors(validationErrors);
         return null;
       }
@@ -609,6 +578,8 @@ export function useCreateEventViewModel() {
           minimum_age: form.minimumAge ? parseInt(form.minimumAge, 10) : undefined,
           maximum_age: form.maximumAge ? parseInt(form.maximumAge, 10) : undefined,
           preferred_gender: form.preferredGender || undefined,
+          child_friendly: form.childFriendly,
+          family_oriented: form.familyOriented,
         };
 
         const result = await createEvent(request, token);

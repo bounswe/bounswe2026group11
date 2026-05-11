@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 
+import { useTranslation } from 'react-i18next';
 import { useLoginViewModel } from '@/viewmodels/auth/useLoginViewModel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/theme';
@@ -23,6 +24,7 @@ export default function LoginView() {
   const vm = useLoginViewModel();
   const { setSession } = useAuth();
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const handleSubmit = async () => {
@@ -50,10 +52,8 @@ export default function LoginView() {
           <View style={styles.brand}>
             <SemLogo height={76} color={theme.text} />
           </View>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>
-            Sign in to continue to your account
-          </Text>
+          <Text style={styles.title}>{t('auth.login.title')}</Text>
+          <Text style={styles.subtitle}>{t('auth.login.subtitle')}</Text>
 
           {vm.apiError && (
             <View style={styles.errorBanner}>
@@ -62,16 +62,18 @@ export default function LoginView() {
           )}
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Username</Text>
+          <Text style={styles.label}>{t('auth.login.username')}</Text>
           <TextInput
             style={[styles.input, vm.errors.username && styles.inputError]}
-            placeholder="maplover"
+            placeholder={t('auth.login.usernamePlaceholder')}
             placeholderTextColor={theme.placeholder}
             value={vm.formData.username}
             onChangeText={(v) => vm.updateField('username', v)}
             autoCapitalize="none"
             autoComplete="username"
             editable={!vm.isLoading}
+            accessibilityLabel="Username"
+            accessibilityState={{ disabled: vm.isLoading }}
           />
           {vm.errors.username && (
             <Text style={styles.fieldError}>{vm.errors.username}</Text>
@@ -79,16 +81,18 @@ export default function LoginView() {
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('auth.login.password')}</Text>
           <TextInput
             style={[styles.input, vm.errors.password && styles.inputError]}
-            placeholder="Your password"
+            placeholder={t('auth.login.passwordPlaceholder')}
             placeholderTextColor={theme.placeholder}
             value={vm.formData.password}
             onChangeText={(v) => vm.updateField('password', v)}
             secureTextEntry
             autoComplete="current-password"
             editable={!vm.isLoading}
+            accessibilityLabel="Password"
+            accessibilityState={{ disabled: vm.isLoading }}
           />
           {vm.errors.password && (
             <Text style={styles.fieldError}>{vm.errors.password}</Text>
@@ -99,8 +103,11 @@ export default function LoginView() {
           style={styles.forgotPasswordLink}
           onPress={() => router.push('/forgot-password' as Href)}
           disabled={vm.isLoading}
+          accessibilityRole="link"
+          accessibilityLabel="Forgot password"
+          accessibilityState={{ disabled: vm.isLoading }}
         >
-          <Text style={styles.footerLink}>Forgot password?</Text>
+          <Text style={styles.footerLink}>{t('auth.login.forgotPassword')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -108,21 +115,27 @@ export default function LoginView() {
           onPress={handleSubmit}
           disabled={vm.isLoading}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={vm.isLoading ? 'Signing in' : 'Sign in'}
+          accessibilityState={{ disabled: vm.isLoading, busy: vm.isLoading }}
         >
           {vm.isLoading ? (
             <ActivityIndicator color={theme.textOnPrimary} />
           ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
+            <Text style={styles.buttonText}>{t('auth.login.submit')}</Text>
           )}
         </TouchableOpacity>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don&apos;t have an account? </Text>
+          <Text style={styles.footerText}>{t('auth.login.noAccount')}</Text>
           <TouchableOpacity
             onPress={() => router.push('/register')}
             disabled={vm.isLoading}
+            accessibilityRole="link"
+            accessibilityLabel="Sign up"
+            accessibilityState={{ disabled: vm.isLoading }}
           >
-            <Text style={styles.footerLink}>Sign Up</Text>
+            <Text style={styles.footerLink}>{t('auth.login.signUp')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

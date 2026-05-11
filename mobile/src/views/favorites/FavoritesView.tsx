@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import FavoriteEventsTab from '@/views/favorites/FavoriteEventsTab';
 import FavoriteLocationsTab from '@/views/favorites/FavoriteLocationsTab';
 import { useTheme } from '@/theme';
@@ -11,12 +12,13 @@ type FavoritesTab = 'events' | 'locations';
 export default function FavoritesView() {
   const [activeTab, setActiveTab] = useState<FavoritesTab>('events');
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <View style={styles.container}>
-        <Text style={styles.screenTitle}>Favorites</Text>
+        <Text style={styles.screenTitle}>{t('favorites.title')}</Text>
 
         <View style={styles.tabRow}>
           <TouchableOpacity
@@ -29,7 +31,7 @@ export default function FavoritesView() {
                 activeTab === 'events' && styles.tabTextActive,
               ]}
             >
-              Events
+              {t('favorites.eventsTab')}
             </Text>
           </TouchableOpacity>
 
@@ -43,7 +45,7 @@ export default function FavoritesView() {
                 activeTab === 'locations' && styles.tabTextActive,
               ]}
             >
-              Locations
+              {t('favorites.locationsTab')}
             </Text>
           </TouchableOpacity>
         </View>

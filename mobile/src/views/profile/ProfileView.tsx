@@ -20,7 +20,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ProfileEventCard from '@/components/profile/ProfileEventCard';
 import InvitationCard from '@/components/invitation/InvitationCard';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocale } from '@/contexts/LocaleContext';
+import { type Locale } from '@/i18n';
 import { useLogoutViewModel } from '@/viewmodels/auth/useLogoutViewModel';
 import { usePushNotificationPreference } from '@/viewmodels/notifications/usePushNotificationPreference';
 import { useProfileViewModel } from '@/viewmodels/profile/useProfileViewModel';
@@ -41,12 +44,19 @@ export default function ProfileView() {
   const notificationSettings = usePushNotificationPreference();
   const [activeTab, setActiveTab] = useState<ProfileEventTab>('hosted');
   const { theme, isDark, setThemePreference } = useTheme();
+  const { t } = useTranslation();
+  const { locale, setLocale } = useLocale();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [equipmentModalVisible, setEquipmentModalVisible] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<EquipmentItem | null>(null);
   const [eqName, setEqName] = useState('');
   const [eqDesc, setEqDesc] = useState('');
+
+  const handleToggleLocale = useCallback(() => {
+    const next: Locale = locale === 'tr' ? 'en' : 'tr';
+    void setLocale(next);
+  }, [locale, setLocale]);
 
   const { isLoggingOut, logoutError, handleLogout } = useLogoutViewModel(
     refreshToken,
@@ -69,18 +79,20 @@ export default function ProfileView() {
 
   const gender = vm.profile?.gender;
   const genderLabel = gender
-    ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase().replace(/_/g, ' ')
-    : 'Gender not set';
+    ? t(`profile.edit.genderOptions.${gender}`, {
+        defaultValue: gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase().replace(/_/g, ' '),
+      })
+    : t('profile.details.genderNotSet');
 
   const birthDate = vm.profile?.birth_date;
   const birthDateLabel = birthDate
     ? birthDate.split('-').reverse().join('.')
-    : 'Birth date not set';
+    : t('profile.details.birthDateNotSet');
 
-  const phoneLabel = vm.profile?.phone_number || 'Phone not set';
+  const phoneLabel = vm.profile?.phone_number || t('profile.details.phoneNotSet');
   const locationLabel = vm.profile?.default_location_address
     ? formatEventLocation(vm.profile.default_location_address)
-    : 'Location not set';
+    : t('profile.details.locationNotSet');
 
   const openAddEquipment = () => {
     setEditingEquipment(null);
@@ -118,7 +130,7 @@ export default function ProfileView() {
 
     return (
       <View>
-      <Text style={styles.screenTitle}>Profile</Text>
+      <Text style={styles.screenTitle}>{t('profile.title')}</Text>
 
       {vm.apiError ? (
         <View style={styles.errorBanner}>
@@ -127,9 +139,9 @@ export default function ProfileView() {
             style={styles.retryButton}
             onPress={vm.refresh}
             accessibilityRole="button"
-            accessibilityLabel="Retry loading profile"
+            accessibilityLabel={t('profile.menu.retry')}
           >
-            <Text style={styles.retryButtonText}>Retry</Text>
+            <Text style={styles.retryButtonText}>{t('profile.menu.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -161,13 +173,13 @@ export default function ProfileView() {
                 activeOpacity={0.9}
                 style={styles.avatarButton}
                 accessibilityRole="button"
-                accessibilityLabel="Change profile photo"
+                accessibilityLabel={t('profile.details.changePhoto')}
               >
                 {vm.profile.avatar_url ? (
                   <Image
                     source={{ uri: vm.profile.avatar_url }}
                     style={styles.avatar}
-                    accessibilityLabel="Profile photo"
+                    accessibilityLabel={t('profile.details.photo')}
                   />
                 ) : (
                   <View style={styles.avatarPlaceholder}>
@@ -190,7 +202,7 @@ export default function ProfileView() {
                 <Text
                   style={styles.primaryName}
                   numberOfLines={2}
-                  accessibilityLabel="Display name"
+                    accessibilityLabel={t('profile.edit.displayName')}
                 >
                   {vm.primaryName}
                 </Text>
@@ -198,7 +210,7 @@ export default function ProfileView() {
                   <Text
                     style={styles.secondaryName}
                     numberOfLines={1}
-                    accessibilityLabel="Username"
+                    accessibilityLabel={t('profile.edit.username')}
                   >
                     @{vm.secondaryName}
                   </Text>
@@ -249,19 +261,19 @@ export default function ProfileView() {
             </View>
 
             <View style={styles.statsSection}>
-              <Text style={styles.statsSectionTitle}>Ratings</Text>
+              <Text style={styles.statsSectionTitle}>{t('profile.ratings')}</Text>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>{vm.overallRatingLabel}</Text>
-                  <Text style={styles.statLabel}>Overall</Text>
+                  <Text style={styles.statLabel}>{t('profile.ratingOverall')}</Text>
                 </View>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>{vm.hostRatingLabel}</Text>
-                  <Text style={styles.statLabel}>Host</Text>
+                  <Text style={styles.statLabel}>{t('profile.ratingHost')}</Text>
                 </View>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>{vm.participantRatingLabel}</Text>
-                  <Text style={styles.statLabel}>Participant</Text>
+                  <Text style={styles.statLabel}>{t('profile.ratingParticipant')}</Text>
                 </View>
               </View>
             </View>
@@ -270,15 +282,15 @@ export default function ProfileView() {
           <View style={styles.section}>
             <View style={[styles.sectionHeader, { alignItems: 'flex-start' }]}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={styles.sectionTitle}>Badges</Text>
-                <Text style={styles.sectionSubtitle}>Achievements earned through hosting, participation, and social activity</Text>
+                <Text style={styles.sectionTitle}>{t('publicProfile.sections.badges')}</Text>
+                <Text style={styles.sectionSubtitle}>{t('publicProfile.sections.badgesSubtitle')}</Text>
               </View>
               <TouchableOpacity onPress={() => vm.setCatalogVisible(true)} style={{ marginTop: 2 }}>
-                <Text style={styles.viewAllActionText}>View All Badges</Text>
+                <Text style={styles.viewAllActionText}>{t('publicProfile.viewAllBadges')}</Text>
               </TouchableOpacity>
             </View>
-            <BadgeList 
-              badges={vm.badges} 
+            <BadgeList
+              badges={vm.badges}
               catalogVisible={vm.catalogVisible}
               onToggleCatalog={vm.setCatalogVisible}
             />
@@ -287,8 +299,8 @@ export default function ProfileView() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={styles.sectionTitle}>Invitations</Text>
-                <Text style={styles.sectionSubtitle}>Private event invites awaiting your response</Text>
+                <Text style={styles.sectionTitle}>{t('profile.invitations.title')}</Text>
+                <Text style={styles.sectionSubtitle}>{t('profile.invitations.subtitle')}</Text>
               </View>
               {vm.invitationCount > 0 ? (
                 <View style={styles.sectionCountBadge}>
@@ -304,9 +316,9 @@ export default function ProfileView() {
                   onPress={vm.refresh}
                   style={styles.sectionRetryButton}
                   accessibilityRole="button"
-                  accessibilityLabel="Retry loading invitations"
+                  accessibilityLabel={t('profile.invitations.retry')}
                 >
-                  <Text style={styles.sectionRetryButtonText}>Retry</Text>
+                  <Text style={styles.sectionRetryButtonText}>{t('profile.invitations.retry')}</Text>
                 </TouchableOpacity>
               </View>
             ) : previewInvitations.length > 0 ? (
@@ -328,10 +340,10 @@ export default function ProfileView() {
                     style={styles.viewAllInvitationsButton}
                     onPress={() => router.push('/profile/invitations' as Href)}
                     accessibilityRole="button"
-                    accessibilityLabel="View all invitations"
+                    accessibilityLabel={t('profile.invitations.viewAll')}
                   >
                     <Text style={styles.viewAllInvitationsText}>
-                      View all {vm.invitationCount} invitations
+                      {t('profile.invitations.viewAllCount', { count: vm.invitationCount })}
                     </Text>
                     <Ionicons name="chevron-forward" size={18} color={theme.primaryAlt} />
                   </TouchableOpacity>
@@ -339,47 +351,48 @@ export default function ProfileView() {
               </>
             ) : (
               <View style={styles.sectionMessageCard}>
-                <Text style={styles.sectionMessageText}>No pending invitations.</Text>
+                <Text style={styles.sectionMessageText}>{t('profile.invitations.empty')}</Text>
               </View>
             )}
           </View>
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>Equipment</Text>
-                <Text style={styles.sectionSubtitle}>Gear and essentials this member wants to highlight</Text>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.sectionTitle}>{t('publicProfile.sections.equipment')}</Text>
+                <Text style={styles.sectionSubtitle}>{t('publicProfile.sections.equipmentSubtitle')}</Text>
               </View>
               <TouchableOpacity
+                style={{ marginTop: 2 }}
                 onPress={openAddEquipment}
                 accessibilityRole="button"
-                accessibilityLabel="Add equipment"
+                accessibilityLabel={t('profile.equipment.add')}
               >
                 <Ionicons name="add-circle-outline" size={24} color={theme.primaryAlt} />
               </TouchableOpacity>
             </View>
-            <EquipmentList 
-              equipment={vm.equipment} 
-              isOwner 
-              onEdit={openEditEquipment} 
-              onDelete={vm.removeEquipment} 
+            <EquipmentList
+              equipment={vm.equipment}
+              isOwner
+              onEdit={openEditEquipment}
+              onDelete={vm.removeEquipment}
             />
           </View>
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={styles.sectionTitle}>Showcase</Text>
-                <Text style={styles.sectionSubtitle}>Moments, snapshots, and visual highlights shared on the profile</Text>
+                <Text style={styles.sectionTitle}>{t('publicProfile.sections.showcase')}</Text>
+                <Text style={styles.sectionSubtitle}>{t('publicProfile.sections.showcaseSubtitle')}</Text>
               </View>
               <TouchableOpacity onPress={vm.uploadShowcaseImage}>
                 <Ionicons name="add-circle-outline" size={24} color={theme.primaryAlt} />
               </TouchableOpacity>
             </View>
-            <ShowcaseImageGrid 
-              images={vm.showcaseImages} 
-              isOwner 
-              onDelete={vm.removeShowcaseImage} 
+            <ShowcaseImageGrid
+              images={vm.showcaseImages}
+              isOwner
+              onDelete={vm.removeShowcaseImage}
             />
           </View>
 
@@ -388,11 +401,11 @@ export default function ProfileView() {
               style={styles.menuRow}
               onPress={() => router.push('/profile/edit' as Href)}
               accessibilityRole="button"
-              accessibilityLabel="Edit profile"
+              accessibilityLabel={t('profile.menu.editProfile')}
             >
               <View style={styles.menuRowLeft}>
                 <Ionicons name="create-outline" size={20} color={theme.text} />
-                <Text style={styles.menuRowText}>Edit Profile</Text>
+                <Text style={styles.menuRowText}>{t('profile.menu.editProfile')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
             </TouchableOpacity>
@@ -403,11 +416,11 @@ export default function ProfileView() {
               style={styles.menuRow}
               onPress={() => router.push('/notifications' as Href)}
               accessibilityRole="button"
-              accessibilityLabel="Open notifications"
+              accessibilityLabel={t('profile.menu.notifications')}
             >
               <View style={styles.menuRowLeft}>
                 <Ionicons name="notifications-outline" size={20} color={theme.text} />
-                <Text style={styles.menuRowText}>Notifications</Text>
+                <Text style={styles.menuRowText}>{t('profile.menu.notifications')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
             </TouchableOpacity>
@@ -418,9 +431,9 @@ export default function ProfileView() {
               <View style={styles.menuRowLeft}>
                 <Ionicons name="phone-portrait-outline" size={20} color={theme.text} />
                 <View style={styles.settingTextBlock}>
-                  <Text style={styles.menuRowText}>Push Notifications</Text>
+                  <Text style={styles.menuRowText}>{t('profile.menu.pushNotifications')}</Text>
                   <Text style={styles.settingSubtitle}>
-                    Receive alerts on this device
+                    {t('profile.menu.pushNotificationsDesc')}
                   </Text>
                 </View>
               </View>
@@ -440,7 +453,7 @@ export default function ProfileView() {
                     : theme.switchThumbFalse
                 }
                 ios_backgroundColor={theme.switchIosBg}
-                accessibilityLabel="Toggle push notifications"
+                accessibilityLabel={t('profile.menu.pushNotifications')}
               />
             </View>
 
@@ -460,9 +473,9 @@ export default function ProfileView() {
                   color={theme.text}
                 />
                 <View style={styles.settingTextBlock}>
-                  <Text style={styles.menuRowText}>Dark Mode</Text>
+                  <Text style={styles.menuRowText}>{t('profile.menu.darkMode')}</Text>
                   <Text style={styles.settingSubtitle}>
-                    {isDark ? 'Dark theme is on' : 'Light theme is on'}
+                    {isDark ? t('profile.menu.darkModeOn') : t('profile.menu.darkModeOff')}
                   </Text>
                 </View>
               </View>
@@ -474,7 +487,7 @@ export default function ProfileView() {
                 trackColor={{ false: theme.switchTrackFalse, true: theme.switchTrackTrue }}
                 thumbColor={isDark ? theme.switchThumbTrue : theme.switchThumbFalse}
                 ios_backgroundColor={theme.switchIosBg}
-                accessibilityLabel="Toggle dark mode"
+                accessibilityLabel={t('profile.menu.darkMode')}
               />
             </View>
 
@@ -482,13 +495,33 @@ export default function ProfileView() {
 
             <TouchableOpacity
               style={styles.menuRow}
+              onPress={handleToggleLocale}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.menu.language')}
+              testID="profile-language-toggle"
+            >
+              <View style={styles.menuRowLeft}>
+                <Ionicons name="language-outline" size={20} color={theme.text} />
+                <Text style={styles.menuRowText}>{t('profile.menu.language')}</Text>
+              </View>
+              <Text style={styles.settingSubtitle}>
+                {locale === 'tr'
+                  ? t('profile.languagePicker.turkish')
+                  : t('profile.languagePicker.english')}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.menuDivider} />
+
+            <TouchableOpacity
+              style={styles.menuRow}
               onPress={() => router.push('/profile/change-password' as Href)}
               accessibilityRole="button"
-              accessibilityLabel="Change password"
+              accessibilityLabel={t('profile.menu.changePassword')}
             >
               <View style={styles.menuRowLeft}>
                 <Ionicons name="key-outline" size={20} color={theme.text} />
-                <Text style={styles.menuRowText}>Change Password</Text>
+                <Text style={styles.menuRowText}>{t('profile.menu.changePassword')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
             </TouchableOpacity>
@@ -500,11 +533,11 @@ export default function ProfileView() {
               onPress={handleLogout}
               disabled={isLoggingOut}
               accessibilityRole="button"
-              accessibilityLabel="Sign out"
+              accessibilityLabel={t('profile.menu.signOut')}
             >
               <View style={styles.menuRowLeft}>
                 <Ionicons name="log-out-outline" size={20} color={theme.errorText} />
-                <Text style={styles.signOutText}>Sign Out</Text>
+                <Text style={styles.signOutText}>{t('profile.menu.signOut')}</Text>
               </View>
               {isLoggingOut ? (
                 <ActivityIndicator size="small" color={theme.errorText} />
@@ -519,7 +552,7 @@ export default function ProfileView() {
               style={styles.tabButton}
               onPress={() => setActiveTab('hosted')}
               accessibilityRole="button"
-              accessibilityLabel="Show hosted events"
+              accessibilityLabel={t('profile.hostedTab')}
             >
               <Text
                 style={[
@@ -527,7 +560,7 @@ export default function ProfileView() {
                   activeTab === 'hosted' && styles.tabTextActive,
                 ]}
               >
-                Hosted ({vm.hostedCount})
+                {t('profile.hostedTab')} ({vm.hostedCount})
               </Text>
               <View
                 style={[
@@ -541,7 +574,7 @@ export default function ProfileView() {
               style={styles.tabButton}
               onPress={() => setActiveTab('attended')}
               accessibilityRole="button"
-              accessibilityLabel="Show attended events"
+              accessibilityLabel={t('profile.attendedTab')}
             >
               <Text
                 style={[
@@ -549,7 +582,7 @@ export default function ProfileView() {
                   activeTab === 'attended' && styles.tabTextActive,
                 ]}
               >
-                Attended ({vm.attendedCount})
+                {t('profile.attendedTab')} ({vm.attendedCount})
               </Text>
               <View
                 style={[
@@ -571,7 +604,7 @@ export default function ProfileView() {
         {vm.isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.text} />
-            <Text style={styles.loadingText}>Loading profile...</Text>
+            <Text style={styles.loadingText}>{t('publicProfile.loading')}</Text>
           </View>
         ) : (
           <FlatList
@@ -593,11 +626,15 @@ export default function ProfileView() {
               vm.profile ? (
                 <View style={styles.emptyState}>
                   <Ionicons name="calendar-outline" size={32} color={theme.border} />
-                  <Text style={styles.emptyTitle}>No {activeTab} events yet</Text>
+                  <Text style={styles.emptyTitle}>
+                    {activeTab === 'hosted'
+                      ? t('profile.noHostedEvents')
+                      : t('profile.noAttendedEvents')}
+                  </Text>
                   <Text style={styles.emptySubtitle}>
                     {activeTab === 'hosted'
-                      ? 'Events you create will show up here.'
-                      : 'Events you join will show up here.'}
+                      ? t('profile.emptyHostedSubtitle')
+                      : t('profile.emptyAttendedSubtitle')}
                   </Text>
                 </View>
               ) : null
@@ -627,24 +664,24 @@ export default function ProfileView() {
           >
             <Pressable style={styles.modalContent} onPress={Keyboard.dismiss}>
               <Text style={styles.modalTitle}>
-                {editingEquipment ? 'Edit Equipment' : 'Add Equipment'}
+                {editingEquipment ? t('profile.equipment.edit') : t('profile.equipment.add')}
               </Text>
 
-              <Text style={styles.label}>Name</Text>
+              <Text style={styles.label}>{t('profile.equipment.name')}</Text>
               <TextInput
                 style={styles.input}
                 value={eqName}
                 onChangeText={setEqName}
-                placeholder="e.g. Mountain Bike"
+                placeholder={t('profile.equipment.namePlaceholder')}
                 placeholderTextColor={theme.textMuted}
               />
 
-              <Text style={styles.label}>Description (Optional)</Text>
+              <Text style={styles.label}>{t('profile.equipment.descriptionOptional')}</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
                 value={eqDesc}
                 onChangeText={setEqDesc}
-                placeholder="Brief details about the item..."
+                placeholder={t('profile.equipment.descriptionPlaceholder')}
                 placeholderTextColor={theme.textMuted}
                 multiline
                 numberOfLines={3}
@@ -656,7 +693,7 @@ export default function ProfileView() {
                   style={styles.modalCancel}
                   onPress={closeEquipmentModal}
                 >
-                  <Text style={styles.modalCancelText}>Cancel</Text>
+                  <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modalSave, !eqName.trim() && styles.modalSaveDisabled]}
@@ -666,7 +703,7 @@ export default function ProfileView() {
                   {vm.isActionLoading ? (
                     <ActivityIndicator size="small" color={theme.textOnPrimary} />
                   ) : (
-                    <Text style={styles.modalSaveText}>Save</Text>
+                    <Text style={styles.modalSaveText}>{t('common.save')}</Text>
                   )}
                 </TouchableOpacity>
               </View>

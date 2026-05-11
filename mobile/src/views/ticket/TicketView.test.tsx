@@ -147,7 +147,7 @@ describe('TicketView', () => {
     mockUseTicketViewModel.mockReturnValue(buildViewModel({
       secondsRemaining: 0
     }));
-    
+
     render(<TicketView ticketId="ticket-1" />);
 
     expect(screen.getByTestId('qr-refreshing-indicator')).toBeTruthy();
@@ -157,7 +157,7 @@ describe('TicketView', () => {
     mockUseTicketViewModel.mockReturnValue(buildViewModel({
       apiError: 'Network failure'
     }));
-    
+
     render(<TicketView ticketId="ticket-1" />);
 
     expect(screen.getByText('Network failure')).toBeTruthy();

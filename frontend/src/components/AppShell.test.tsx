@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import AppShell from './AppShell';
 
@@ -37,6 +37,29 @@ afterEach(() => {
 });
 
 describe('AppShell admin entry', () => {
+  it('exposes skip link, main landmark, and navigation state', () => {
+    mockUseAuth.mockReturnValue({
+      token: null,
+      refreshToken: null,
+      username: null,
+      role: null,
+      avatarUrl: null,
+      displayName: null,
+      clearAuth: vi.fn(),
+    });
+
+    const { container } = renderShell();
+
+    expect(screen.getByRole('link', { name: 'Skip to main content' }).getAttribute('href')).toBe('#main-content');
+    expect(container.querySelector('main#main-content')?.getAttribute('tabindex')).toBe('-1');
+    expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeDefined();
+
+    const toggle = screen.getByRole('button', { name: 'Toggle navigation' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  });
+
   it('shows non-admin header actions as locked when unauthenticated', () => {
     mockUseAuth.mockReturnValue({
       token: null,

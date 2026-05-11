@@ -1,20 +1,23 @@
+import i18n from '@/i18n';
+
 export function formatEventDateLabel(
   startTime: string,
   endTime?: string | null,
 ): string {
   const start = new Date(startTime);
+  const locale = i18n.language || 'en';
 
   if (Number.isNaN(start.getTime())) {
     return 'Invalid date';
   }
 
-  const startDatePart = start.toLocaleDateString([], {
+  const startDatePart = start.toLocaleDateString(locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
 
-  const startTimePart = start.toLocaleTimeString([], {
+  const startTimePart = start.toLocaleTimeString(locale, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -30,13 +33,13 @@ export function formatEventDateLabel(
     return `${startDatePart} • ${startTimePart}`;
   }
 
-  const endDatePart = end.toLocaleDateString([], {
+  const endDatePart = end.toLocaleDateString(locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
 
-  const endTimePart = end.toLocaleTimeString([], {
+  const endTimePart = end.toLocaleTimeString(locale, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,

@@ -3,40 +3,27 @@ import {
   MyEventStatus,
   MyEventSummary,
 } from '@/models/event';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { listMyEvents } from '@/services/eventService';
 import { ApiError } from '@/services/api';
 import { listMyTickets } from '@/services/ticketService';
 import type { TicketListItem } from '@/models/ticket';
+import i18n from '@/i18n';
 
-const STATUS_OPTIONS: Array<{ value: MyEventStatus; label: string }> = [
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'IN_PROGRESS', label: 'In Progress' },
-  { value: 'COMPLETED', label: 'Completed' },
-  { value: 'CANCELED', label: 'Canceled' },
+const STATUS_OPTIONS: Array<{ value: MyEventStatus; labelKey: string }> = [
+  { value: 'ACTIVE', labelKey: 'events.status.ACTIVE' },
+  { value: 'IN_PROGRESS', labelKey: 'events.status.IN_PROGRESS' },
+  { value: 'COMPLETED', labelKey: 'events.status.COMPLETED' },
+  { value: 'CANCELED', labelKey: 'events.status.CANCELED' },
 ];
 
-const EMPTY_STATE_COPY: Record<
-  MyEventStatus,
-  { title: string; subtitle: string }
-> = {
-  ACTIVE: {
-    title: 'No active events right now',
-    subtitle: 'Hosted plans and upcoming participations will appear here.',
-  },
-  IN_PROGRESS: {
-    title: 'Nothing is in progress',
-    subtitle: 'Events that are currently happening will show up here.',
-  },
-  COMPLETED: {
-    title: 'No completed events yet',
-    subtitle: 'Your hosted wrap-ups and participation history will build here.',
-  },
-  CANCELED: {
-    title: 'No canceled events',
-    subtitle: 'Canceled hosted or attended events will appear here when needed.',
-  },
-};
+function getEmptyStateCopy(status: MyEventStatus): { title: string; subtitle: string } {
+  return {
+    title: i18n.t(`myEvents.empty.${status}.title`),
+    subtitle: i18n.t(`myEvents.empty.${status}.subtitle`),
+  };
+}
 
 export interface MyEventsStatusTab {
   value: MyEventStatus;
@@ -96,6 +83,8 @@ function sortVisibleEvents(
 
 export function useMyEventsViewModel(): MyEventsViewModel {
   const { token } = useAuth();
+  // Subscribe to locale so tab labels and empty-state copy re-render on language change.
+  useTranslation();
 
   const [activeStatus, setActiveStatus] = useState<MyEventStatus>('ACTIVE');
   const [hostedEvents, setHostedEvents] = useState<MyEventSummary[]>([]);
@@ -107,7 +96,7 @@ export function useMyEventsViewModel(): MyEventsViewModel {
     if (!token) {
       setHostedEvents([]);
       setAttendedEvents([]);
-      setErrorMessage('You must be logged in to manage your events.');
+      setErrorMessage(i18n.t('myEvents.errors.loginRequired'));
       setIsLoading(false);
       return;
     }
@@ -143,7 +132,7 @@ export function useMyEventsViewModel(): MyEventsViewModel {
 
         const badges = event.badges.some((badge) => badge.type === 'TICKET')
           ? event.badges
-          : [...event.badges, { type: 'TICKET' as const, label: 'Ticket' }];
+          : [...event.badges, { type: 'TICKET' as const, label: i18n.t('tickets.detail.title') }];
 
         return {
           ...event,
@@ -162,9 +151,11 @@ export function useMyEventsViewModel(): MyEventsViewModel {
       setHostedEvents([]);
       setAttendedEvents([]);
       
-      const message = error instanceof ApiError ? error.message : 
-                     error instanceof Error ? error.message : 
-                     'Failed to load your events. Please try again.';
+      const message = error instanceof ApiError
+        ? error.message
+        : error instanceof Error
+          ? error.message
+          : i18n.t('myEvents.errors.loadFailed');
       setErrorMessage(message);
     } finally {
       setIsLoading(false);
@@ -183,18 +174,23 @@ export function useMyEventsViewModel(): MyEventsViewModel {
 
   const statusTabs = STATUS_OPTIONS.map((statusOption) => {
     const count = allEvents.filter((event) => event.status === statusOption.value).length;
-    return { ...statusOption, count };
+    return {
+      value: statusOption.value,
+      label: i18n.t(statusOption.labelKey),
+      count,
+    };
   });
 
   const hasAnyEvents = allEvents.length > 0;
 
-  let emptyTitle = 'No events to manage yet';
-  let emptySubtitle = 'Events you host or join will appear here once your plans start coming together.';
+  let emptyTitle = i18n.t('myEvents.noEventsTitle');
+  let emptySubtitle = i18n.t('myEvents.noEventsSubtitle');
 
   if (hasAnyEvents) {
     const currentStatus = activeStatus;
-    emptyTitle = EMPTY_STATE_COPY[currentStatus].title;
-    emptySubtitle = EMPTY_STATE_COPY[currentStatus].subtitle;
+    const copy = getEmptyStateCopy(currentStatus);
+    emptyTitle = copy.title;
+    emptySubtitle = copy.subtitle;
   }
 
   return {

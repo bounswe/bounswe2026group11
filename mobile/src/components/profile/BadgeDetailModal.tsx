@@ -1,9 +1,16 @@
 import React, { useRef } from 'react';
 import { StyleSheet, View, Text, Image, Modal, TouchableOpacity, ScrollView, PanResponder, Animated, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { BadgeItem } from '@/models/profile';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+import {
+  getBadgeCategoryLabel,
+  getBadgeDescription,
+  getBadgeName,
+  getBadgeProgressHint,
+} from '@/utils/badgePresentation';
 
 const { height } = Dimensions.get('window');
 
@@ -15,6 +22,7 @@ interface BadgeDetailModalProps {
 
 export default function BadgeDetailModal({ badge, visible, onClose }: BadgeDetailModalProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = makeStyles(theme);
   
   const panY = useRef(new Animated.Value(0)).current;
@@ -59,7 +67,8 @@ export default function BadgeDetailModal({ badge, visible, onClose }: BadgeDetai
 
   const earnedDate = badge?.earned_at 
     ? new Date(badge.earned_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
-    : 'Not yet earned';
+    : t('publicProfile.badges.notEarned');
+  const progressHint = badge ? getBadgeProgressHint(badge) : null;
 
   return (
     <Modal
@@ -102,12 +111,12 @@ export default function BadgeDetailModal({ badge, visible, onClose }: BadgeDetai
                   </View>
                 </View>
 
-                <Text style={styles.name}>{badge.name}</Text>
+                <Text style={styles.name}>{getBadgeName(badge)}</Text>
                 <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryText}>{badge.category || 'Achievement'}</Text>
+                  <Text style={styles.categoryText}>{getBadgeCategoryLabel(badge.category)}</Text>
                 </View>
 
-                <Text style={styles.description}>{badge.description}</Text>
+                <Text style={styles.description}>{getBadgeDescription(badge)}</Text>
 
                 <View style={styles.earnedSection}>
                   <Ionicons 
@@ -117,20 +126,22 @@ export default function BadgeDetailModal({ badge, visible, onClose }: BadgeDetai
                   />
                   <Text style={[styles.earnedText, !badge.earned && styles.notEarnedText]}>
                     {badge.earned 
-                      ? (badge.earned_at ? `Earned on ${earnedDate}` : 'Earned') 
-                      : 'Not yet earned'}
+                      ? (badge.earned_at
+                          ? t('publicProfile.badges.earnedOn', { date: earnedDate })
+                          : t('publicProfile.badges.earned'))
+                      : t('publicProfile.badges.notEarned')}
                   </Text>
                 </View>
 
-                {!badge.earned && !!badge.progress_hint && (
+                {!badge.earned && !!progressHint && (
                   <View style={styles.progressHintBox}>
-                    <Text style={styles.progressHintTitle}>How to earn:</Text>
-                    <Text style={styles.progressHintText}>{badge.progress_hint}</Text>
+                    <Text style={styles.progressHintTitle}>{t('publicProfile.badges.howToEarn')}</Text>
+                    <Text style={styles.progressHintText}>{progressHint}</Text>
                   </View>
                 )}
 
                 <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                  <Text style={styles.closeButtonText}>Close</Text>
+                  <Text style={styles.closeButtonText}>{t('common.close')}</Text>
                 </TouchableOpacity>
               </>
             ) : null}

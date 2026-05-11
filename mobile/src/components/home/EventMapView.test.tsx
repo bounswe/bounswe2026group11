@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import i18n from '@/i18n';
 import EventMapView from './EventMapView';
 import type { MapRegion } from './EventMapView';
 import type { EventSummary } from '@/models/event';
@@ -10,6 +11,7 @@ import type { EventSummary } from '@/models/event';
 var mockImagePrefetch: jest.Mock<Promise<boolean>, [string]>;
 var mockRedrawCallout: jest.Mock;
 var mockShowCallout: jest.Mock;
+var mockAnimateToRegion: jest.Mock;
 
 // ── react-native mock ──────────────────────────────────────────────────────────
 
@@ -124,33 +126,53 @@ jest.mock('react-native', () => {
   };
 });
 
+jest.mock('@expo/vector-icons', () => {
+  const ReactLocal = require('react');
+
+  return {
+    Feather: ({ name }: { name: string }) =>
+      ReactLocal.createElement('span', { 'data-icon-name': name }),
+  };
+});
+
 // ── react-native-maps mock ─────────────────────────────────────────────────────
 
 jest.mock('react-native-maps', () => {
   const ReactLocal = require('react');
   mockRedrawCallout = jest.fn();
   mockShowCallout = jest.fn();
+  mockAnimateToRegion = jest.fn();
 
-  const MapView = ({
-    children,
-    testID,
-    mapPadding,
-    onPress,
-  }: {
-    children?: React.ReactNode;
-    testID?: string;
-    mapPadding?: unknown;
-    onPress?: () => void;
-  }) =>
-    ReactLocal.createElement(
-      'div',
+  const MapView = ReactLocal.forwardRef(
+    (
       {
-        'data-testid': testID ?? 'map-surface',
-        'data-map-padding': mapPadding ? JSON.stringify(mapPadding) : undefined,
-        onClick: onPress,
+        children,
+        testID,
+        mapPadding,
+        onPress,
+      }: {
+        children?: React.ReactNode;
+        testID?: string;
+        mapPadding?: unknown;
+        onPress?: () => void;
       },
-      children,
-    );
+      ref: React.Ref<unknown>,
+    ) => {
+      ReactLocal.useImperativeHandle(ref, () => ({
+        animateToRegion: mockAnimateToRegion,
+      }));
+
+      return ReactLocal.createElement(
+        'div',
+        {
+          'data-testid': testID ?? 'map-surface',
+          'data-map-padding': mapPadding ? JSON.stringify(mapPadding) : undefined,
+          onClick: onPress,
+        },
+        children,
+      );
+    },
+  );
 
   const Marker = ReactLocal.forwardRef(
     (
@@ -208,11 +230,27 @@ jest.mock('react-native-maps', () => {
       children,
     );
 
+  const Circle = ({
+    testID,
+    center,
+    radius,
+  }: {
+    testID?: string;
+    center?: { latitude: number; longitude: number };
+    radius?: number;
+  }) =>
+    ReactLocal.createElement('div', {
+      'data-testid': testID,
+      'data-center': center ? JSON.stringify(center) : undefined,
+      'data-radius': radius,
+    });
+
   return {
     __esModule: true,
     default: MapView,
     Marker,
     Callout,
+    Circle,
     PROVIDER_GOOGLE: 'google',
   };
 });
@@ -276,6 +314,12 @@ describe('EventMapView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockImagePrefetch.mockResolvedValue(true);
+  });
+
+  afterEach(async () => {
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
   });
 
   describe('loading state', () => {
@@ -422,7 +466,7 @@ describe('EventMapView', () => {
       );
     });
 
-    it('offsets markers that are geographically very close', () => {
+    it('clusters events that are geographically very close at the current zoom', () => {
       render(
         <EventMapView
           events={[
@@ -436,16 +480,73 @@ describe('EventMapView', () => {
         />,
       );
 
-      const firstCoordinate = screen
-        .getByTestId('marker-evt-1')
-        .getAttribute('data-coordinate');
-      const secondCoordinate = screen
-        .getByTestId('marker-evt-2')
-        .getAttribute('data-coordinate');
+      expect(screen.getByTestId('cluster-marker-evt-1-evt-2')).toBeTruthy();
+      expect(screen.getByText('2')).toBeTruthy();
+      expect(screen.queryByText('events')).toBeNull();
+      expect(screen.queryByTestId('marker-evt-1')).toBeNull();
+      expect(screen.queryByTestId('marker-evt-2')).toBeNull();
+    });
 
-      expect(firstCoordinate).toBeTruthy();
-      expect(secondCoordinate).toBeTruthy();
-      expect(firstCoordinate).not.toEqual(secondCoordinate);
+    it('splits nearby clusters as the map zooms in', () => {
+      const closeEvents = [
+        makeEvent({ id: 'evt-1', location_lat: 41.0422, location_lon: 29.0083 }),
+        makeEvent({ id: 'evt-2', location_lat: 41.0432, location_lon: 29.0093 }),
+      ];
+
+      const { rerender } = render(
+        <EventMapView
+          events={closeEvents}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('cluster-marker-evt-1-evt-2')).toBeTruthy();
+
+      rerender(
+        <EventMapView
+          events={closeEvents}
+          isLoading={false}
+          apiError={null}
+          region={{
+            ...DEFAULT_REGION,
+            latitudeDelta: 0.006,
+            longitudeDelta: 0.006,
+          }}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      expect(screen.queryByTestId('cluster-marker-evt-1-evt-2')).toBeNull();
+      expect(screen.getByTestId('marker-evt-1')).toBeTruthy();
+      expect(screen.getByTestId('marker-evt-2')).toBeTruthy();
+    });
+
+    it('zooms toward a cluster when the cluster marker is pressed', () => {
+      render(
+        <EventMapView
+          events={[
+            makeEvent({ id: 'evt-1', location_lat: 41.0422, location_lon: 29.0083 }),
+            makeEvent({ id: 'evt-2', location_lat: 41.0432, location_lon: 29.0093 }),
+          ]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByTestId('cluster-marker-evt-1-evt-2'));
+
+      const [nextRegion, duration] = mockAnimateToRegion.mock.calls.at(-1) ?? [];
+
+      expect(nextRegion.latitude).toBeCloseTo(41.0427);
+      expect(nextRegion.longitude).toBeCloseTo(29.0088);
+      expect(nextRegion.latitudeDelta).toBeCloseTo(DEFAULT_REGION.latitudeDelta * 0.45);
+      expect(nextRegion.longitudeDelta).toBeCloseTo(DEFAULT_REGION.longitudeDelta * 0.45);
+      expect(duration).toBe(250);
     });
 
     it('shows participant count and capacity when both are present', () => {
@@ -484,6 +585,71 @@ describe('EventMapView', () => {
 
       expect(screen.getByText(/5.*going/s)).toBeTruthy();
       expect(screen.queryByText(/\//)).toBeNull();
+    });
+  });
+
+  describe('location overlays', () => {
+    it('draws the active filter radius around the filter center', () => {
+      render(
+        <EventMapView
+          events={[makeEvent()]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          filterCenter={{ lat: 40.99, lon: 29.03 }}
+          filterRadiusMeters={15000}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      const circle = screen.getByTestId('filter-radius-circle');
+
+      expect(circle.getAttribute('data-radius')).toBe('15000');
+      expect(JSON.parse(circle.getAttribute('data-center') ?? '{}')).toEqual({
+        latitude: 40.99,
+        longitude: 29.03,
+      });
+    });
+
+    it('shows current location controls when live location is available', () => {
+      render(
+        <EventMapView
+          events={[makeEvent()]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          currentLocation={{ lat: 40.9869, lon: 29.0287 }}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('current-location-marker')).toBeTruthy();
+      expect(screen.getByTestId('current-location-button')).toBeTruthy();
+    });
+
+    it('centers the map on current location when the locate button is pressed', () => {
+      render(
+        <EventMapView
+          events={[makeEvent()]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          currentLocation={{ lat: 40.9869, lon: 29.0287 }}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByTestId('current-location-button'));
+
+      expect(mockAnimateToRegion).toHaveBeenLastCalledWith(
+        {
+          latitude: 40.9869,
+          longitude: 29.0287,
+          latitudeDelta: DEFAULT_REGION.latitudeDelta,
+          longitudeDelta: DEFAULT_REGION.longitudeDelta,
+        },
+        250,
+      );
     });
   });
 
@@ -538,6 +704,27 @@ describe('EventMapView', () => {
       selectMarker();
 
       expect(screen.getByText(/Belgrad Forest/)).toBeTruthy();
+    });
+
+    it('localizes the callout details hint', async () => {
+      await act(async () => {
+        await i18n.changeLanguage('tr');
+      });
+
+      render(
+        <EventMapView
+          events={[makeEvent()]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      selectMarker();
+
+      expect(screen.getByText('Detayları görmek için dokun →')).toBeTruthy();
+      expect(screen.queryByText('Tap to view details →')).toBeNull();
     });
 
     it('shows a small event image in the native callout when available', async () => {

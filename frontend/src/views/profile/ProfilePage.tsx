@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { EventCoverImage } from '@/components/EventCoverImage';
+import { RatingWithCount } from '@/components/RatingWithCount';
 import { useProfileViewModel } from '../../viewmodels/profile/useProfileViewModel';
 import type { BadgeCategory, CatalogBadge, EarnedBadge, EventSummary } from '../../models/profile';
 import { getEventLifecyclePresentation } from '@/utils/eventStatus';
@@ -338,10 +339,12 @@ function ProfileHistoryCard({ event }: { event: EventSummary }) {
           <span className="dc-card-participants">
             {event.approved_participant_count ?? 0} participant{event.approved_participant_count === 1 ? '' : 's'}
           </span>
-          {event.host_score?.final_score != null && (
-            <span className="dc-card-score">
-              {'★'} {event.host_score.final_score.toFixed(1)}
-            </span>
+          {event.host_score && (
+            <RatingWithCount
+              score={event.host_score.final_score}
+              count={event.host_score.hosted_event_rating_count}
+              className="dc-card-score"
+            />
           )}
         </div>
       </div>

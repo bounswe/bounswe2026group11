@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createEventReport,
+  discoverEvents,
   listEventApprovedParticipants,
   reconfirmEventParticipation,
   reverseGeocode,
@@ -68,7 +69,7 @@ describe('searchLocation', () => {
     expect(calledUrl).not.toContain('nominatim');
   });
 
-  it('maps Photon GeoJSON features to LocationSuggestion shape', async () => {
+  it('maps Photon GeoJSON business-flows to LocationSuggestion shape', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         features: [
@@ -121,7 +122,7 @@ describe('searchLocation', () => {
     expect(suggestion.display_name).toBe('Kafe Bagdat Caddesi 12, Kadikoy, Turkey');
   });
 
-  it('skips features missing coordinates or display name', async () => {
+  it('skips business-flows missing coordinates or display name', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         features: [
@@ -228,6 +229,62 @@ describe('reverseGeocode', () => {
     });
   });
 
+  it('keeps standard reverse geocoded names unless area-level formatting is requested', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        features: [
+          {
+            geometry: { coordinates: [28.969129, 41.0502944] },
+            properties: {
+              name: 'Sonsuz Nakliyat & TIR Parkı',
+              street: 'İslambol Caddesi',
+              locality: 'Paşa',
+              district: 'Yeşilbayır',
+              city: 'Istanbul',
+              country: 'Turkey',
+            },
+          },
+        ],
+      }),
+    );
+
+    const result = await reverseGeocode(41.0503, 28.9687);
+
+    expect(result).toEqual({
+      display_name: 'Sonsuz Nakliyat & TIR Parkı İslambol Caddesi, Yeşilbayır, Istanbul, Turkey',
+      lat: '41.0503',
+      lon: '28.9687',
+    });
+  });
+
+  it('prefers area-level names for map-selection reverse geocoding', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        features: [
+          {
+            geometry: { coordinates: [28.969129, 41.0502944] },
+            properties: {
+              name: 'Sonsuz Nakliyat & TIR Parkı',
+              street: 'İslambol Caddesi',
+              locality: 'Paşa',
+              district: 'Yeşilbayır',
+              city: 'Istanbul',
+              country: 'Turkey',
+            },
+          },
+        ],
+      }),
+    );
+
+    const result = await reverseGeocode(41.0503, 28.9687, { areaLevel: true });
+
+    expect(result).toEqual({
+      display_name: 'Paşa, Yeşilbayır, Istanbul, Turkey',
+      lat: '41.0503',
+      lon: '28.9687',
+    });
+  });
+
   it('falls back to original coordinates when the feature lacks geometry', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
@@ -248,7 +305,28 @@ describe('reverseGeocode', () => {
     });
   });
 
-  it('returns null when Photon returns no features', async () => {
+  it('keeps the original clicked coordinates when Photon returns a snapped feature', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        features: [
+          {
+            geometry: { coordinates: [28.9784, 41.0082] },
+            properties: { name: 'Istanbul', country: 'Turkey' },
+          },
+        ],
+      }),
+    );
+
+    const result = await reverseGeocode(41.5, 29.5);
+
+    expect(result).toEqual({
+      display_name: 'Istanbul, Turkey',
+      lat: '41.5',
+      lon: '29.5',
+    });
+  });
+
+  it('returns null when Photon returns no business-flows', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ features: [] }));
 
     expect(await reverseGeocode(41, 29)).toBeNull();
@@ -266,6 +344,36 @@ describe('reverseGeocode', () => {
     );
 
     expect(await reverseGeocode(41, 29)).toBeNull();
+  });
+});
+
+describe('eventService.discoverEvents', () => {
+  it('passes selected audience filters to discovery requests', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        items: [],
+        page_info: {
+          next_cursor: null,
+          has_next: false,
+        },
+      }),
+    );
+
+    await discoverEvents(
+      {
+        lat: 41.0082,
+        lon: 28.9784,
+        radius_meters: 10000,
+        child_friendly: true,
+        family_oriented: true,
+      },
+      null,
+    );
+
+    const calledUrl = new URL(fetchSpy.mock.calls[0][0] as string);
+    expect(calledUrl.pathname).toBe('/events/');
+    expect(calledUrl.searchParams.get('child_friendly')).toBe('true');
+    expect(calledUrl.searchParams.get('family_oriented')).toBe('true');
   });
 });
 

@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+
 export interface EventCategoryPresentation {
   label: string;
   emoji: string;
@@ -46,7 +48,11 @@ const FALLBACK_CATEGORY_PRESENTATIONS: EventCategoryPresentationConfig[] = [
 ];
 
 function normalizeCategoryName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const normalized = name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const aliases: Record<string, string> = {
+    doga: 'outdoors',
+  };
+  return aliases[normalized] ?? normalized;
 }
 
 function hashString(value: string): number {
@@ -69,8 +75,12 @@ export function getEventCategoryPresentation(
   categoryName: string,
   isDark: boolean,
 ): EventCategoryPresentation {
-  const label = categoryName.trim() || 'Event';
-  const normalizedName = normalizeCategoryName(label);
+  const rawLabel = categoryName.trim() || 'Event';
+  // Look up the translated category name; if not in catalog, fall back to the raw label.
+  const translationKey = `events.categories.${rawLabel}`;
+  const translated = i18n.t(translationKey);
+  const label = translated === translationKey ? rawLabel : translated;
+  const normalizedName = normalizeCategoryName(rawLabel);
   const config =
     CATEGORY_PRESENTATION_BY_NAME[normalizedName] ??
     FALLBACK_CATEGORY_PRESENTATIONS[

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AdvancedMarker,
   Map as GoogleMap,
@@ -15,9 +15,17 @@ interface DiscoverMapViewProps {
   isLoading: boolean;
   error: string | null;
   center: { lat: number; lon: number };
+  radiusMeters: number;
+  isChoosingLocation: boolean;
   selectedEventId: string | null;
   onSelectEvent: (eventId: string | null) => void;
+  onChooseLocation: (lat: number, lon: number) => void;
   onRetry: () => void;
+}
+
+interface LatLng {
+  lat: number;
+  lng: number;
 }
 
 interface MappableEvent {
@@ -82,6 +90,162 @@ function MapRecenter({ center }: { center: { lat: number; lon: number } }) {
   return null;
 }
 
+function buildCirclePath(center: LatLng, radiusMeters: number): LatLng[] {
+  const earthRadiusMeters = 6378137;
+  const lat = center.lat * Math.PI / 180;
+  const lng = center.lng * Math.PI / 180;
+  const angularDistance = radiusMeters / earthRadiusMeters;
+  const points: LatLng[] = [];
+
+  for (let step = 0; step <= 96; step += 1) {
+    const bearing = (step / 96) * Math.PI * 2;
+    const pointLat = Math.asin(
+      Math.sin(lat) * Math.cos(angularDistance) +
+        Math.cos(lat) * Math.sin(angularDistance) * Math.cos(bearing),
+    );
+    const pointLng =
+      lng +
+      Math.atan2(
+        Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(lat),
+        Math.cos(angularDistance) - Math.sin(lat) * Math.sin(pointLat),
+      );
+    points.push({
+      lat: pointLat * 180 / Math.PI,
+      lng: pointLng * 180 / Math.PI,
+    });
+  }
+
+  return points;
+}
+
+function RadiusCircle({
+  center,
+  radiusMeters,
+  isPreview = false,
+}: {
+  center: LatLng;
+  radiusMeters: number;
+  isPreview?: boolean;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+    const color = isPreview ? '#111827' : '#2563eb';
+    const dottedBorder = new google.maps.Polyline({
+      map,
+      path: buildCirclePath(center, radiusMeters),
+      strokeOpacity: 0,
+      clickable: false,
+      zIndex: isPreview ? 9 : 5,
+      icons: [
+        {
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: isPreview ? 2.2 : 2.5,
+            fillColor: color,
+            fillOpacity: 1,
+            strokeOpacity: 0,
+          },
+          offset: '0',
+          repeat: isPreview ? '14px' : '16px',
+        },
+      ],
+    });
+
+    return () => {
+      dottedBorder.setMap(null);
+    };
+  }, [center, isPreview, map, radiusMeters]);
+
+  return null;
+}
+
+function DiscoveryLocationMarker({ center }: { center: LatLng }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+    const element = document.createElement('div');
+    element.className = 'dc-map-location-marker';
+    element.setAttribute('aria-label', 'Discovery location');
+    element.innerHTML = '<div class="dc-map-location-marker-dot"></div>';
+
+    const overlay = new google.maps.OverlayView();
+    overlay.onAdd = () => {
+      const panes = overlay.getPanes();
+      panes?.overlayLayer.appendChild(element);
+    };
+    overlay.draw = () => {
+      const projection = overlay.getProjection();
+      if (!projection) return;
+      const point = projection.fromLatLngToDivPixel(
+        new google.maps.LatLng(center.lat, center.lng),
+      );
+      if (!point) return;
+      element.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%)`;
+    };
+    overlay.onRemove = () => {
+      element.remove();
+    };
+    overlay.setMap(map);
+
+    return () => {
+      overlay.setMap(null);
+    };
+  }, [center, map]);
+
+  return null;
+}
+
+function MapLocationPicker({
+  enabled,
+  radiusMeters,
+  onChooseLocation,
+}: {
+  enabled: boolean;
+  radiusMeters: number;
+  onChooseLocation: (lat: number, lon: number) => void;
+}) {
+  const map = useMap();
+  const [previewCenter, setPreviewCenter] = useState<LatLng | null>(null);
+
+  useEffect(() => {
+    if (!map || !enabled) {
+      setPreviewCenter(null);
+      return;
+    }
+
+    const previousDraggableCursor = map.get('draggableCursor') as string | null | undefined;
+    map.setOptions({ draggableCursor: 'crosshair' });
+
+    const moveListener = map.addListener('mousemove', (event: google.maps.MapMouseEvent) => {
+      if (!event.latLng) return;
+      setPreviewCenter({ lat: event.latLng.lat(), lng: event.latLng.lng() });
+    });
+    const clickListener = map.addListener('click', (event: google.maps.MapMouseEvent) => {
+      if (!event.latLng) return;
+      onChooseLocation(event.latLng.lat(), event.latLng.lng());
+      setPreviewCenter(null);
+    });
+    const outListener = map.addListener('mouseout', () => {
+      setPreviewCenter(null);
+    });
+
+    return () => {
+      moveListener?.remove();
+      clickListener?.remove();
+      outListener?.remove();
+      map.setOptions({ draggableCursor: previousDraggableCursor ?? null });
+      setPreviewCenter(null);
+    };
+  }, [enabled, map, onChooseLocation]);
+
+  return previewCenter ? (
+    <RadiusCircle center={previewCenter} radiusMeters={radiusMeters} isPreview />
+  ) : null;
+}
+
 function MapNotConfigured() {
   return (
     <div className="dc-map-overlay" role="status">
@@ -96,8 +260,11 @@ export default function DiscoverMapView({
   isLoading,
   error,
   center,
+  radiusMeters,
+  isChoosingLocation,
   selectedEventId,
   onSelectEvent,
+  onChooseLocation,
   onRetry,
 }: DiscoverMapViewProps) {
   const { theme } = useTheme();
@@ -134,6 +301,16 @@ export default function DiscoverMapView({
           className="dc-map-surface"
         >
           <MapRecenter center={center} />
+          <RadiusCircle
+            center={{ lat: center.lat, lng: center.lon }}
+            radiusMeters={radiusMeters}
+          />
+          <MapLocationPicker
+            enabled={isChoosingLocation}
+            radiusMeters={radiusMeters}
+            onChooseLocation={onChooseLocation}
+          />
+          <DiscoveryLocationMarker center={{ lat: center.lat, lng: center.lon }} />
           {mappable.map((item) => {
             const presentation = getEventCategoryPresentation(
               item.event.category_name ?? '',

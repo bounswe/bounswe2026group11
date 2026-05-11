@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { EquipmentItem } from '@/models/profile';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
@@ -14,12 +15,13 @@ interface EquipmentListProps {
 
 export default function EquipmentList({ equipment, onEdit, onDelete, isOwner }: EquipmentListProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = makeStyles(theme);
 
   if (equipment.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No equipment listed yet.</Text>
+        <Text style={styles.emptyText}>{t('publicProfile.empty.equipment')}</Text>
       </View>
     );
   }

@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useTranslation } from 'react-i18next';
 import { useTicketScanViewModel } from '@/viewmodels/ticket/useTicketScanViewModel';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
@@ -29,19 +30,24 @@ interface TicketScanViewProps {
 
 export default function TicketScanView({ eventId }: TicketScanViewProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const vm = useTicketScanViewModel(eventId);
   const [permission, requestPermission] = useCameraPermissions();
   const [isScannerPaused, setIsScannerPaused] = React.useState(false);
+  const isScanningRef = React.useRef(false);
+
 
   const handleBarCodeScanned = React.useCallback(async ({ data }: { data: string }) => {
-    if (vm.isSubmitting || isScannerPaused) return;
+    if (vm.isSubmitting || isScannerPaused || isScanningRef.current) return;
+    isScanningRef.current = true;
     setIsScannerPaused(true);
     await vm.submitToken(data);
-    // Camera stays paused until user presses "Scan Another Ticket"
+    // Camera stays paused until the user explicitly starts another scan.
   }, [isScannerPaused, vm]);
 
   const handleScanAnother = React.useCallback(() => {
+    isScanningRef.current = false;
     setIsScannerPaused(false);
     vm.clearResult();
   }, [vm]);
@@ -51,7 +57,7 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <View style={styles.loadingPanel}>
           <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={styles.loadingText}>Loading scan tools...</Text>
+          <Text style={styles.loadingText}>{t('tickets.scan.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -63,26 +69,26 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
         <View style={styles.container}>
           <View style={styles.headerRow}>
             <TouchableOpacity
-              accessibilityLabel="Go back"
+              accessibilityLabel={t('common.back')}
               activeOpacity={0.8}
               onPress={() => router.back()}
               style={styles.backButton}
             >
               <Ionicons name="arrow-back" size={26} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Scan Ticket</Text>
+            <Text style={styles.headerTitle}>{t('tickets.scan.title')}</Text>
           </View>
 
           <View style={styles.errorPanel}>
-            <Text style={styles.errorTitle}>Unable to open scanner</Text>
+            <Text style={styles.errorTitle}>{t('tickets.scan.unableToOpen')}</Text>
             <Text style={styles.errorText}>{vm.errorMessage}</Text>
             <TouchableOpacity
-              accessibilityLabel="Try again"
+              accessibilityLabel={t('common.retry')}
               activeOpacity={0.85}
               onPress={() => void vm.reload()}
               style={styles.retryButton}
             >
-              <Text style={styles.retryButtonText}>Try Again</Text>
+              <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -97,29 +103,29 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
         <View style={styles.container}>
           <View style={styles.headerRow}>
             <TouchableOpacity
-              accessibilityLabel="Go back"
+              accessibilityLabel={t('common.back')}
               activeOpacity={0.8}
               onPress={() => router.back()}
               style={styles.backButton}
             >
               <Ionicons name="arrow-back" size={26} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Scan Ticket</Text>
+            <Text style={styles.headerTitle}>{t('tickets.scan.title')}</Text>
           </View>
 
           <View style={styles.errorPanel}>
             <Feather name="shield-off" size={48} color={theme.errorText} style={{ marginBottom: 16 }} />
-            <Text style={styles.errorTitle}>Access Denied</Text>
+            <Text style={styles.errorTitle}>{t('tickets.scan.accessDenied')}</Text>
             <Text style={styles.errorText}>
-              Only the event host is authorized to scan tickets. If you are the host, please make sure you are logged into the correct account.
+              {t('tickets.scan.hostOnly')}
             </Text>
             <TouchableOpacity
-              accessibilityLabel="Go back"
+              accessibilityLabel={t('common.back')}
               activeOpacity={0.85}
               onPress={() => router.back()}
               style={styles.retryButton}
             >
-              <Text style={styles.retryButtonText}>Go Back</Text>
+              <Text style={styles.retryButtonText}>{t('common.back')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -140,14 +146,14 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
         <View style={styles.container}>
           <View style={styles.headerRow}>
             <TouchableOpacity
-              accessibilityLabel="Go back"
+              accessibilityLabel={t('common.back')}
               activeOpacity={0.8}
               onPress={() => router.back()}
               style={styles.backButton}
             >
               <Ionicons name="arrow-back" size={26} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Scan Ticket</Text>
+            <Text style={styles.headerTitle}>{t('tickets.scan.title')}</Text>
           </View>
 
           <View style={styles.heroCard}>
@@ -159,7 +165,7 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
               </View>
             )}
             <View style={styles.heroBody}>
-              <Text style={styles.eventTitle}>{event?.title ?? 'Event'}</Text>
+              <Text style={styles.eventTitle}>{event?.title ?? t('tickets.scan.eventFallback')}</Text>
               {event ? (
                 <>
                   <Text style={styles.metaText}>{formatEventDateLabel(event.start_time, event.end_time)}</Text>
@@ -170,7 +176,7 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
           </View>
 
           <View style={styles.scanCard}>
-            {/* ── Scan result card (shown prominently at the top) ── */}
+            {/* Scan result card (shown prominently at the top) */}
             {vm.scanResult ? (
               <View
                 style={[
@@ -190,13 +196,15 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
                       { color: vm.scanResult.result === 'ACCEPTED' ? theme.successText : theme.errorText },
                     ]}
                   >
-                    {vm.scanResult.result === 'ACCEPTED' ? 'Ticket accepted ✓' : 'Ticket rejected'}
+                    {vm.scanResult.result === 'ACCEPTED'
+                      ? t('tickets.scan.accepted')
+                      : t('tickets.scan.rejected')}
                   </Text>
                 </View>
 
                 <Text style={styles.resultText}>
                   {vm.scanResult.result === 'ACCEPTED'
-                    ? 'The attendee can enter the event.'
+                    ? t('tickets.scan.acceptedDescription')
                     : getTicketScanRejectMessage(vm.scanResult.reason)}
                 </Text>
 
@@ -210,25 +218,25 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
               </View>
             ) : null}
 
-            {/* ── Error message ── */}
+            {/* Error message */}
             {vm.errorMessage ? <Text style={styles.inlineError}>{vm.errorMessage}</Text> : null}
 
-            {/* ── Scan Another Ticket button (only when there's a result or error) ── */}
+            {/* Scan another ticket button (only when there's a result or error) */}
             {cameraPermissionGranted && (vm.scanResult || vm.errorMessage) ? (
               <TouchableOpacity
-                accessibilityLabel="Scan another ticket"
+                accessibilityLabel={t('tickets.scan.scanAnother')}
                 activeOpacity={0.85}
                 disabled={vm.isSubmitting}
                 onPress={handleScanAnother}
                 style={styles.scanAnotherButton}
               >
                 <Feather name="refresh-cw" size={18} color={theme.textOnPrimary} />
-                <Text style={styles.scanAnotherButtonText}>Scan Another Ticket</Text>
+                <Text style={styles.scanAnotherButtonText}>{t('tickets.scan.scanAnother')}</Text>
               </TouchableOpacity>
             ) : null}
 
             {/* ── Camera / Permission ── */}
-            {!vm.scanResult && !vm.errorMessage ? (
+            {!vm.scanResult && !vm.errorMessage && !isScannerPaused ? (
               cameraPermissionGranted ? (
                 <View style={styles.scanFrame}>
                   <CameraView
@@ -241,7 +249,7 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
                   {vm.isSubmitting ? (
                     <View style={styles.scanSubmittingOverlay}>
                       <ActivityIndicator size="large" color="#fff" />
-                      <Text style={styles.scanSubmittingText}>Validating ticket...</Text>
+                      <Text style={styles.scanSubmittingText}>{t('tickets.scan.validating')}</Text>
                     </View>
                   ) : (
                     <View pointerEvents="none" style={styles.scanOverlay}>
@@ -257,18 +265,18 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
                   <Feather name="camera-off" size={48} color={theme.textTertiary} />
                   <Text style={styles.scanFrameFallbackText}>
                     {cameraPermissionDenied
-                      ? 'Camera access is denied. Please enable it in settings to scan tickets.'
-                      : 'Camera access lets hosts scan tickets instantly.'}
+                      ? t('tickets.scan.cameraDenied')
+                      : t('tickets.scan.cameraPrompt')}
                   </Text>
                   {permission?.granted === false ? (
                     <TouchableOpacity
-                      accessibilityLabel="Enable camera access"
+                      accessibilityLabel={t('tickets.scan.enableCamera')}
                       activeOpacity={0.85}
                       onPress={() => void requestPermission()}
                       style={styles.permissionButton}
                     >
                       <Text style={styles.permissionButtonText}>
-                        {cameraPermissionDenied ? 'Request Again' : 'Enable Camera'}
+                        {cameraPermissionDenied ? t('tickets.scan.requestAgain') : t('tickets.scan.enableCamera')}
                       </Text>
                     </TouchableOpacity>
                   ) : null}
@@ -276,10 +284,18 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
               )
             ) : null}
 
+            {/* ── Validating Overlay (shown when camera is hidden but request is in flight) ── */}
+            {isScannerPaused && vm.isSubmitting && !vm.scanResult && !vm.errorMessage ? (
+              <View style={[styles.scanFrame, styles.scanSubmittingOverlay, { position: 'relative' }]}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={styles.scanSubmittingText}>{t('tickets.scan.validating')}</Text>
+              </View>
+            ) : null}
+
             {/* ── Hint text (only when camera is active) ── */}
             {!vm.scanResult && !vm.errorMessage ? (
               <Text style={styles.scanHint}>
-                Scan the attendee QR code with your camera to validate their entry.
+                {t('tickets.scan.scanHint')}
               </Text>
             ) : null}
           </View>

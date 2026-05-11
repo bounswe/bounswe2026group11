@@ -13,18 +13,26 @@ CREATE TABLE app_user (
     email_verified_at TIMESTAMP WITH TIME ZONE,
     phone_verified_at TIMESTAMP WITH TIME ZONE,
     last_login TIMESTAMP WITH TIME ZONE,
-    status TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    role TEXT NOT NULL DEFAULT 'USER',
+    locale TEXT NOT NULL DEFAULT 'en',
     default_location_point GEOGRAPHY(POINT, 4326),
     default_location_address TEXT,
     gender TEXT,
     birth_date DATE,
 
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+
+    CONSTRAINT chk_app_user_role CHECK (role IN ('USER', 'ADMIN')),
+    CONSTRAINT chk_app_user_locale CHECK (locale IN ('en', 'tr')),
+    CONSTRAINT chk_app_user_status CHECK (status IN ('active', 'deactivated'))
 );
 
 CREATE INDEX idx_app_user_default_location_point ON app_user USING GIST (default_location_point);
 CREATE UNIQUE INDEX idx_app_user_phone_unique ON app_user (phone_number) WHERE phone_number IS NOT NULL;
+CREATE INDEX idx_app_user_role ON app_user (role);
+CREATE INDEX idx_app_user_status_created ON app_user (status, created_at DESC, id DESC);
 
 -- =========================
 -- PROFILE
@@ -154,7 +162,7 @@ CREATE TABLE event (
     family_oriented BOOLEAN NOT NULL DEFAULT false,
     location_type TEXT,
     image_version INT NOT NULL DEFAULT 0,
-    version_no INT NOT NULL DEFAULT 0,
+    version_no INT NOT NULL DEFAULT 1,
     canceled_approved_participant_count INT,
     tag_text TEXT,
     search_vector tsvector,
@@ -166,6 +174,7 @@ CREATE TABLE event (
     CONSTRAINT fk_event_category FOREIGN KEY (category_id) REFERENCES event_category(id),
     CONSTRAINT uq_event_host_title UNIQUE (host_id, title),
     CONSTRAINT chk_event_time CHECK (end_time IS NULL OR start_time < end_time),
+    CONSTRAINT chk_event_version_no_positive CHECK (version_no >= 1),
     CONSTRAINT chk_event_counts CHECK (
         approved_participant_count >= 0 AND
         pending_participant_count >= 0 AND
@@ -201,15 +210,21 @@ CREATE TABLE event_history (
     preferred_gender TEXT,
     location_type TEXT,
     version_no INT NOT NULL,
+    snapshot JSONB NOT NULL,
+    changed_fields TEXT[] NOT NULL DEFAULT '{}',
+    created_by_user_id UUID,
+    event_updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
 
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
 
     CONSTRAINT fk_event_history_event FOREIGN KEY (event_id) REFERENCES event(id) ON DELETE CASCADE,
+    CONSTRAINT fk_event_history_created_by_user FOREIGN KEY (created_by_user_id) REFERENCES app_user(id),
     CONSTRAINT uq_event_history UNIQUE (event_id, version_no)
 );
 
 CREATE INDEX idx_event_history_event_uid ON event_history(event_id);
+CREATE INDEX idx_event_history_event_version_desc ON event_history(event_id, version_no DESC);
 
 -- =========================
 -- EVENT LOCATION (POSTGIS)
@@ -260,6 +275,8 @@ CREATE TABLE event_constraint (
     CONSTRAINT fk_event_constraint_event FOREIGN KEY (event_id) REFERENCES event(id) ON DELETE CASCADE
 );
 
+CREATE INDEX idx_event_constraint_event_id ON event_constraint(event_id);
+
 -- =========================
 -- PARTICIPATION
 -- =========================
@@ -281,6 +298,7 @@ CREATE TABLE participation (
 
 CREATE INDEX idx_participation_event_id ON participation(event_id);
 CREATE INDEX idx_participation_user_id ON participation(user_id);
+CREATE INDEX idx_participation_event_status_created ON participation(event_id, status, created_at DESC);
 
 -- =========================
 -- EVENT RATING
@@ -390,6 +408,8 @@ CREATE TABLE invitation (
 
 CREATE INDEX idx_invitation_host_id ON invitation(host_id);
 CREATE INDEX idx_invitation_invited_user_id ON invitation(invited_user_id);
+CREATE INDEX idx_invitation_invited_status_created ON invitation(invited_user_id, status, created_at DESC);
+CREATE INDEX idx_invitation_status_created ON invitation(status, created_at DESC, id DESC);
 
 -- =========================
 -- NOTIFICATION
@@ -407,7 +427,7 @@ CREATE TABLE notification (
     deep_link TEXT,
     image_url TEXT,
     data JSONB NOT NULL DEFAULT '{}'::jsonb,
-    idempotency_key TEXT NOT NULL,
+    idempotency_key TEXT,
     delivery_method VARCHAR,
     status TEXT,  -- SENT, FAILED
     sent_at TIMESTAMP WITH TIME ZONE,
@@ -493,6 +513,7 @@ CREATE TABLE join_request (
     host_user_id UUID NOT NULL,
     status VARCHAR(50),
     message TEXT,
+    image_url TEXT,
 
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -504,23 +525,32 @@ CREATE TABLE join_request (
     CONSTRAINT fk_join_participation FOREIGN KEY (participation_id) REFERENCES participation(id) ON DELETE SET NULL
 );
 
+CREATE INDEX idx_join_request_event_status_created ON join_request(event_id, status, created_at DESC);
+CREATE INDEX idx_join_request_status_created ON join_request(status, created_at DESC, id DESC);
+
 -- =========================
 -- TICKET
 -- =========================
 CREATE TABLE ticket (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     participation_id UUID NOT NULL,
-    qr_token TEXT NOT NULL,
-    status VARCHAR,
-    expires_at TIMESTAMP WITH TIME ZONE,
+    status VARCHAR NOT NULL DEFAULT 'ACTIVE',
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    qr_token_version INTEGER NOT NULL DEFAULT 0,
+    last_issued_qr_token_hash TEXT,
+    used_at TIMESTAMP WITH TIME ZONE,
+    canceled_at TIMESTAMP WITH TIME ZONE,
 
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
 
-    CONSTRAINT fk_ticket_participation FOREIGN KEY (participation_id) REFERENCES participation(id) ON DELETE CASCADE
+    CONSTRAINT fk_ticket_participation FOREIGN KEY (participation_id) REFERENCES participation(id) ON DELETE CASCADE,
+    CONSTRAINT chk_ticket_status CHECK (status IN ('ACTIVE', 'PENDING', 'EXPIRED', 'USED', 'CANCELED'))
 );
 
-CREATE UNIQUE INDEX idx_ticket_qr ON ticket(qr_token);
+CREATE UNIQUE INDEX uq_ticket_participation_non_terminal ON ticket(participation_id) WHERE status IN ('ACTIVE', 'PENDING');
+CREATE INDEX idx_ticket_participation_id ON ticket(participation_id);
+CREATE INDEX idx_ticket_status ON ticket(status);
 
 -- =========================
 -- FEEDBACK
@@ -548,16 +578,37 @@ CREATE TABLE event_comment (
     message TEXT NOT NULL,
     parent_id UUID,
     likes_count INT DEFAULT 0,
+    comment_type TEXT NOT NULL DEFAULT 'DISCUSSION',
+    rating INT,
+    image_url TEXT,
+    reply_count INT NOT NULL DEFAULT 0,
 
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
 
     CONSTRAINT fk_comment_user FOREIGN KEY (user_id) REFERENCES app_user(id),
     CONSTRAINT fk_comment_event FOREIGN KEY (event_id) REFERENCES event(id) ON DELETE CASCADE,
-    CONSTRAINT fk_comment_parent FOREIGN KEY (parent_id) REFERENCES event_comment(id) ON DELETE CASCADE
+    CONSTRAINT fk_comment_parent FOREIGN KEY (parent_id) REFERENCES event_comment(id) ON DELETE CASCADE,
+    CONSTRAINT chk_event_comment_counts CHECK (likes_count >= 0 AND reply_count >= 0),
+    CONSTRAINT chk_event_comment_review_shape CHECK (
+        (
+            comment_type = 'DISCUSSION'
+            AND rating IS NULL
+            AND image_url IS NULL
+        )
+        OR (
+            comment_type = 'REVIEW'
+            AND parent_id IS NULL
+            AND rating BETWEEN 1 AND 5
+        )
+    ),
+    CONSTRAINT chk_event_comment_type CHECK (comment_type IN ('DISCUSSION', 'REVIEW'))
 );
 
 CREATE INDEX idx_comment_event_id ON event_comment(event_id);
+CREATE UNIQUE INDEX uq_event_comment_review_event_user ON event_comment(event_id, user_id) WHERE comment_type = 'REVIEW';
+CREATE INDEX idx_event_comment_collection_latest ON event_comment(event_id, comment_type, parent_id, created_at DESC, id DESC);
+CREATE INDEX idx_event_comment_replies_latest ON event_comment(parent_id, created_at DESC, id DESC);
 
 -- =========================
 -- COMMENT LIKES
@@ -609,6 +660,78 @@ CREATE TABLE favorite_location (
 
 CREATE INDEX idx_fav_location_user_id ON favorite_location(user_id);
 CREATE INDEX idx_fav_location_point ON favorite_location USING GIST(point);
+
+-- =========================
+-- EVENT REPORT
+-- =========================
+CREATE TABLE event_report (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID NOT NULL,
+    reporter_user_id UUID NOT NULL,
+    report_category TEXT NOT NULL,
+    message TEXT NOT NULL,
+    image_url TEXT,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+
+    CONSTRAINT fk_event_report_event FOREIGN KEY (event_id) REFERENCES event(id) ON DELETE CASCADE,
+    CONSTRAINT fk_event_report_reporter FOREIGN KEY (reporter_user_id) REFERENCES app_user(id) ON DELETE CASCADE,
+    CONSTRAINT chk_event_report_category CHECK (
+        report_category IN (
+            'SAFETY',
+            'HARASSMENT',
+            'SPAM_OR_SCAM',
+            'INAPPROPRIATE_CONTENT',
+            'EVENT_NOT_AS_DESCRIBED',
+            'ILLEGAL_OR_DANGEROUS',
+            'OTHER'
+        )
+    ),
+    CONSTRAINT chk_event_report_status CHECK (status IN ('PENDING', 'REVIEWED', 'DISMISSED')),
+    CONSTRAINT chk_event_report_message_length CHECK (length(btrim(message)) BETWEEN 1 AND 1000)
+);
+
+CREATE INDEX idx_event_report_event_created ON event_report(event_id, created_at DESC);
+CREATE INDEX idx_event_report_reporter_created ON event_report(reporter_user_id, created_at DESC);
+CREATE INDEX idx_event_report_status_created ON event_report(status, created_at DESC);
+CREATE INDEX idx_event_report_category_created ON event_report(report_category, created_at DESC, id DESC);
+
+-- =========================
+-- BADGE
+-- =========================
+CREATE TABLE badge (
+    id SMALLINT PRIMARY KEY,
+    slug TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    icon_url TEXT,
+    category TEXT NOT NULL,
+    sort_order SMALLINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT chk_badge_category CHECK (category IN ('HOSTING', 'PARTICIPATION', 'SOCIAL'))
+);
+
+CREATE TABLE user_badge (
+    user_id UUID NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    badge_id SMALLINT NOT NULL REFERENCES badge(id) ON DELETE CASCADE,
+    earned_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, badge_id)
+);
+
+CREATE INDEX idx_user_badge_user_earned ON user_badge(user_id, earned_at DESC);
+CREATE INDEX idx_user_badge_badge ON user_badge(badge_id);
+
+INSERT INTO badge (id, slug, name, description, category, sort_order) VALUES
+    (1, 'FIRST_STEPS', 'First Steps', 'Attend your first event.', 'PARTICIPATION', 10),
+    (2, 'REGULAR', 'Regular', 'Attend 5 events.', 'PARTICIPATION', 20),
+    (3, 'VETERAN', 'Veteran', 'Attend 20 events.', 'PARTICIPATION', 30),
+    (4, 'EXPLORER', 'Explorer', 'Attend events in 3 different categories.', 'PARTICIPATION', 40),
+    (5, 'HOST_DEBUT', 'Host Debut', 'Host your first event.', 'HOSTING', 50),
+    (6, 'SUPER_HOST', 'Super Host', 'Host 10 events.', 'HOSTING', 60),
+    (7, 'TOP_RATED', 'Top Rated', 'Receive an average rating of 4.5+ as a host with at least 5 ratings.', 'HOSTING', 70),
+    (8, 'FAVORITE_FINDER', 'Favorite Finder', 'Save 3 favorite locations.', 'SOCIAL', 80);
 
 
 -- =========================
@@ -846,3 +969,94 @@ CREATE TRIGGER trg_comment_likes
 AFTER INSERT OR DELETE OR UPDATE OF comment_id ON comment_like
 FOR EACH ROW
 EXECUTE FUNCTION sync_comment_likes_count();
+
+-- =========================
+-- COMMENT PARENT VALIDATION AND REPLY COUNT SYNC
+-- =========================
+CREATE OR REPLACE FUNCTION validate_event_comment_parent() RETURNS trigger AS $$
+DECLARE
+    parent_event_id UUID;
+    parent_type TEXT;
+    parent_parent_id UUID;
+BEGIN
+    IF NEW.parent_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT event_id, comment_type, parent_id
+    INTO parent_event_id, parent_type, parent_parent_id
+    FROM event_comment
+    WHERE id = NEW.parent_id;
+
+    IF parent_event_id IS NULL THEN
+        RAISE EXCEPTION 'comment parent does not exist';
+    END IF;
+    IF parent_event_id IS DISTINCT FROM NEW.event_id THEN
+        RAISE EXCEPTION 'comment parent must belong to same event';
+    END IF;
+    IF parent_type <> 'DISCUSSION' THEN
+        RAISE EXCEPTION 'comment parent must be a discussion comment';
+    END IF;
+    IF parent_parent_id IS NOT NULL THEN
+        RAISE EXCEPTION 'nested replies are not supported';
+    END IF;
+    IF NEW.comment_type <> 'DISCUSSION' THEN
+        RAISE EXCEPTION 'only discussion comments can be replies';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_event_comment_parent_validate
+BEFORE INSERT OR UPDATE OF event_id, parent_id, comment_type ON event_comment
+FOR EACH ROW
+EXECUTE FUNCTION validate_event_comment_parent();
+
+CREATE OR REPLACE FUNCTION sync_event_comment_reply_count() RETURNS trigger AS $$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        IF OLD.parent_id IS NOT NULL THEN
+            UPDATE event_comment
+            SET reply_count = (
+                SELECT COUNT(*) FROM event_comment
+                WHERE parent_id = OLD.parent_id
+            )
+            WHERE id = OLD.parent_id;
+        END IF;
+    ELSIF TG_OP = 'INSERT' THEN
+        IF NEW.parent_id IS NOT NULL THEN
+            UPDATE event_comment
+            SET reply_count = (
+                SELECT COUNT(*) FROM event_comment
+                WHERE parent_id = NEW.parent_id
+            )
+            WHERE id = NEW.parent_id;
+        END IF;
+    ELSIF TG_OP = 'UPDATE' AND OLD.parent_id IS DISTINCT FROM NEW.parent_id THEN
+        IF OLD.parent_id IS NOT NULL THEN
+            UPDATE event_comment
+            SET reply_count = (
+                SELECT COUNT(*) FROM event_comment
+                WHERE parent_id = OLD.parent_id
+            )
+            WHERE id = OLD.parent_id;
+        END IF;
+        IF NEW.parent_id IS NOT NULL THEN
+            UPDATE event_comment
+            SET reply_count = (
+                SELECT COUNT(*) FROM event_comment
+                WHERE parent_id = NEW.parent_id
+            )
+            WHERE id = NEW.parent_id;
+        END IF;
+    END IF;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_event_comment_reply_count
+AFTER INSERT OR DELETE OR UPDATE OF parent_id ON event_comment
+FOR EACH ROW
+EXECUTE FUNCTION sync_event_comment_reply_count();

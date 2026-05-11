@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { EventSummary } from '@/models/event';
 import { getFavoriteCountForDisplay } from '@/utils/eventFavoriteCount';
 import { formatEventDateLabel } from '@/utils/eventDate';
@@ -14,12 +15,13 @@ interface EventCardProps {
   onPress?: (eventId: string) => void;
 }
 
-function formatPrivacyLabel(value: EventSummary['privacy_level']) {
+function formatPrivacyLabel(value: EventSummary['privacy_level']): string {
   return value.charAt(0) + value.slice(1).toLowerCase();
 }
 
 export default function EventCard({ event, onPress }: EventCardProps) {
   const { theme, isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const categoryPresentation = getEventCategoryPresentation(
     event.category_name,
@@ -30,14 +32,18 @@ export default function EventCard({ event, onPress }: EventCardProps) {
   const ratingLabel =
     event.host_score.final_score != null && event.host_score.hosted_event_rating_count > 0
       ? `${event.host_score.final_score.toFixed(1)} (${event.host_score.hosted_event_rating_count})`
-      : 'New';
-  
-  const hostRatingLabel = ratingLabel === 'New' ? 'New Host' : `Host: ${ratingLabel}`;
+      : t('profile.new');
+
+  const hostRatingLabel =
+    ratingLabel === t('profile.new')
+      ? t('events.detail.newHost')
+      : t('events.detail.hostRatingLabel', { rating: ratingLabel });
 
   const participantLabel =
     event.capacity != null
       ? `${event.approved_participant_count}/${event.capacity}`
       : String(event.approved_participant_count);
+  const accessibleSummary = `${event.title}. ${categoryPresentation.label}. ${formatPrivacyLabel(event.privacy_level)} event. ${formatEventDateLabel(event.start_time, event.end_time)}. ${formatEventLocation(event.location_address)}. ${participantLabel} participants. ${hostRatingLabel}.`;
 
   const level = event.privacy_level;
   let badgeBg = theme.badgePublicBg;
@@ -62,6 +68,8 @@ export default function EventCard({ event, onPress }: EventCardProps) {
       activeOpacity={0.92}
       onPress={() => onPress?.(event.id)}
       style={styles.card}
+      accessibilityRole="button"
+      accessibilityLabel={accessibleSummary}
     >
       <View style={styles.imageContainer}>
         {event.image_url ? (
@@ -69,6 +77,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
             source={{ uri: event.image_url }}
             style={styles.image}
             resizeMode="cover"
+            accessible={false}
           />
         ) : (
           <View style={styles.imagePlaceholder}>
@@ -93,7 +102,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
             <View style={[styles.visibilityBadge, { backgroundColor: badgeBg }]}>
               <Feather name={iconName} size={12} color={iconColor} />
               <Text style={[styles.visibilityBadgeText, { color: badgeText }]}>
-                {formatPrivacyLabel(level)}
+                {t(`events.privacy.${level}`)}
               </Text>
             </View>
           </View>

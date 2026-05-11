@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import {
   useForgotPasswordViewModel,
   ForgotPasswordStep,
@@ -21,21 +22,22 @@ import type { Theme } from '@/theme';
 
 const STEPS: ForgotPasswordStep[] = ['email', 'otp', 'reset'];
 
-const STEP_SUBTITLES: Record<ForgotPasswordStep, string> = {
-  email: 'Enter your email address to request a password reset.',
-  otp: 'Enter the verification code sent to your email.',
-  reset: 'Choose a new password for your account.',
+const SUBTITLE_KEYS: Record<ForgotPasswordStep, string> = {
+  email: 'auth.forgotPassword.subtitleEmail',
+  otp: 'auth.forgotPassword.subtitleOtp',
+  reset: 'auth.forgotPassword.subtitleReset',
 };
 
-const BUTTON_LABELS: Record<ForgotPasswordStep, string> = {
-  email: 'Send reset code',
-  otp: 'Verify code',
-  reset: 'Reset password',
+const BUTTON_KEYS: Record<ForgotPasswordStep, string> = {
+  email: 'auth.forgotPassword.submitEmail',
+  otp: 'auth.forgotPassword.submitOtp',
+  reset: 'auth.forgotPassword.submitReset',
 };
 
 export default function ForgotPasswordView() {
   const vm = useForgotPasswordViewModel();
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const handleNext = async () => {
@@ -61,8 +63,8 @@ export default function ForgotPasswordView() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>Forgot password</Text>
-        <Text style={styles.subtitle}>{STEP_SUBTITLES[vm.step]}</Text>
+        <Text style={styles.title}>{t('auth.forgotPassword.title')}</Text>
+        <Text style={styles.subtitle}>{t(SUBTITLE_KEYS[vm.step])}</Text>
 
         <View style={styles.stepIndicator}>
           {STEPS.map((s, i) => (
@@ -90,10 +92,10 @@ export default function ForgotPasswordView() {
 
         {vm.step === 'email' && (
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t('auth.forgotPassword.email')}</Text>
             <TextInput
               style={[styles.input, vm.errors.email && styles.inputError]}
-              placeholder="you@example.com"
+              placeholder={t('auth.forgotPassword.emailPlaceholder')}
               placeholderTextColor={theme.placeholder}
               value={vm.formData.email}
               onChangeText={(v) => vm.updateField('email', v)}
@@ -110,10 +112,10 @@ export default function ForgotPasswordView() {
 
         {vm.step === 'otp' && (
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Verification Code</Text>
+            <Text style={styles.label}>{t('auth.forgotPassword.verificationCode')}</Text>
             <TextInput
               style={[styles.input, vm.errors.otp && styles.inputError]}
-              placeholder="123456"
+              placeholder={t('auth.forgotPassword.verificationCodePlaceholder')}
               placeholderTextColor={theme.placeholder}
               value={vm.formData.otp}
               onChangeText={(v) => vm.updateField('otp', v)}
@@ -129,13 +131,13 @@ export default function ForgotPasswordView() {
 
         {vm.step === 'reset' && (
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>New Password</Text>
+            <Text style={styles.label}>{t('auth.forgotPassword.newPassword')}</Text>
             <TextInput
               style={[
                 styles.input,
                 vm.errors.newPassword && styles.inputError,
               ]}
-              placeholder="At least 8 characters"
+              placeholder={t('auth.forgotPassword.newPasswordPlaceholder')}
               placeholderTextColor={theme.placeholder}
               value={vm.formData.newPassword}
               onChangeText={(v) => vm.updateField('newPassword', v)}
@@ -158,7 +160,7 @@ export default function ForgotPasswordView() {
           {vm.isLoading ? (
             <ActivityIndicator color={theme.textOnPrimary} />
           ) : (
-            <Text style={styles.buttonText}>{BUTTON_LABELS[vm.step]}</Text>
+            <Text style={styles.buttonText}>{t(BUTTON_KEYS[vm.step])}</Text>
           )}
         </TouchableOpacity>
 
@@ -168,7 +170,7 @@ export default function ForgotPasswordView() {
             onPress={vm.goBack}
             disabled={vm.isLoading}
           >
-            <Text style={styles.backButtonText}>Go Back</Text>
+            <Text style={styles.backButtonText}>{t('auth.forgotPassword.goBack')}</Text>
           </TouchableOpacity>
         )}
 
@@ -178,7 +180,7 @@ export default function ForgotPasswordView() {
               onPress={() => router.back()}
               disabled={vm.isLoading}
             >
-              <Text style={styles.footerLink}>Back to Sign In</Text>
+              <Text style={styles.footerLink}>{t('auth.forgotPassword.backToSignIn')}</Text>
             </TouchableOpacity>
           </View>
         )}

@@ -9,7 +9,10 @@ import {
 } from '@/models/event';
 import { FavoriteLocation } from '@/models/favorite';
 import { ApiError } from '@/services/api';
-import { getCurrentLocationSuggestion } from '@/services/deviceLocationService';
+import {
+  CURRENT_LOCATION_LABEL,
+  getCurrentLocationSuggestion,
+} from '@/services/deviceLocationService';
 import { listCategories, listEvents, searchLocation } from '@/services/eventService';
 import { listFavoriteLocations } from '@/services/favoriteService';
 import {
@@ -19,6 +22,8 @@ import {
 import { getMyProfile } from '@/services/profileService';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 
 const PAGE_SIZE = 50;
 const MAX_FAVORITE_LOCATION_OPTIONS = 3;
@@ -104,14 +109,14 @@ function sortFavoriteLocations(locations: FavoriteLocation[]): FavoriteLocation[
 
 function getFavoriteLocationsErrorMessage(error: unknown): string {
   if (error instanceof ApiError && error.status === 401) {
-    return 'You must be logged in to view favorite locations.';
+    return i18n.t('home.locationPicker.favoriteLocationsLoginRequired');
   }
 
   if (error instanceof ApiError) {
     return error.message;
   }
 
-  return 'Failed to load favorite locations. Please try again.';
+  return i18n.t('home.locationPicker.favoriteLocationsLoadFailed');
 }
 
 function getDefaultLocationSubtitle(
@@ -120,16 +125,28 @@ function getDefaultLocationSubtitle(
   isResolving: boolean,
 ): string {
   if (!location) {
-    return isResolving ? 'Resolving your location...' : 'Location unavailable.';
+    return isResolving
+      ? i18n.t('home.locationPicker.resolvingDefaultLocation')
+      : i18n.t('home.locationPicker.locationUnavailable');
   }
 
   if (source === 'LIVE') {
-    return location.display_name === 'Current location'
-      ? 'Using your current live location.'
-      : `Current location: ${location.display_name}`;
+    return location.display_name === CURRENT_LOCATION_LABEL
+      ? i18n.t('home.locationPicker.currentLiveLocation')
+      : i18n.t('home.locationPicker.currentLocationPrefix', {
+        location: location.display_name,
+      });
   }
 
   return location.display_name;
+}
+
+function formatLocationLabel(location: LocationSuggestion): string {
+  if (location.display_name === CURRENT_LOCATION_LABEL) {
+    return i18n.t('home.locationPicker.currentLocation');
+  }
+
+  return formatEventLocation(location.display_name);
 }
 
 function locationsMatch(
@@ -351,6 +368,7 @@ export interface HomeViewModel {
   filterError: string | null;
   viewMode: HomeViewMode;
   activeLocation: { lat: number; lon: number };
+  currentLocation: { lat: number; lon: number } | null;
   toggleViewMode: () => void;
   updateSearchText: (value: string) => void;
   submitSearch: () => void;
@@ -384,6 +402,8 @@ export interface HomeViewModel {
 
 export function useHomeViewModel(): HomeViewModel {
   const { token, user } = useAuth();
+  // Subscribe so derived location picker copy updates when the app language changes.
+  useTranslation();
   const locationSelectionScope = user?.id ?? token ?? 'anonymous';
   const storedLocationSelection = getHomeLocationSelection(locationSelectionScope);
 
@@ -400,6 +420,7 @@ export function useHomeViewModel(): HomeViewModel {
       : null,
   );
   const [defaultLocation, setDefaultLocation] = useState<LocationSuggestion | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<LocationSuggestion | null>(null);
   const [defaultLocationSource, setDefaultLocationSource] =
     useState<DefaultLocationSource>('FALLBACK');
   const [pendingLocation, setPendingLocation] = useState<LocationSuggestion | null>(null);
@@ -479,6 +500,7 @@ export function useHomeViewModel(): HomeViewModel {
     setIsResolvingDefaultLocation(true);
 
     if (!token) {
+      setCurrentLocation(null);
       setDefaultLocation(FALLBACK_LOCATION);
       setDefaultLocationSource('FALLBACK');
       syncSelectedLocationWithDefault(FALLBACK_LOCATION);
@@ -491,6 +513,7 @@ export function useHomeViewModel(): HomeViewModel {
       const liveLocation = await getCurrentLocationSuggestion();
 
       if (liveLocation) {
+        setCurrentLocation(liveLocation);
         setDefaultLocation(liveLocation);
         setDefaultLocationSource('LIVE');
         syncSelectedLocationWithDefault(liveLocation);
@@ -499,6 +522,8 @@ export function useHomeViewModel(): HomeViewModel {
     } catch {
       // Fall through to profile and fallback location resolution.
     }
+
+    setCurrentLocation(null);
 
     try {
       const profile = await getMyProfile(token);
@@ -624,7 +649,7 @@ export function useHomeViewModel(): HomeViewModel {
           setEvents(filtered);
         }
       } catch {
-        setApiError('Failed to load events. Please try again.');
+        setApiError(i18n.t('home.errors.loadFailed'));
       } finally {
         if (mode === 'initial') setIsLoading(false);
         if (mode === 'refresh') setIsRefreshing(false);
@@ -1014,9 +1039,9 @@ export function useHomeViewModel(): HomeViewModel {
 
   return {
     locationLabel: selectedLocation
-      ? formatEventLocation(selectedLocation.display_name)
+      ? formatLocationLabel(selectedLocation)
       : isResolvingDefaultLocation
-        ? 'Locating...'
+        ? i18n.t('home.locationPicker.locating')
         : DEFAULT_LOCATION_LABEL,
     locationQuery,
     categories,
@@ -1040,9 +1065,15 @@ export function useHomeViewModel(): HomeViewModel {
       lat: Number(effectiveLocation.lat),
       lon: Number(effectiveLocation.lon),
     },
+    currentLocation: currentLocation
+      ? {
+        lat: Number(currentLocation.lat),
+        lon: Number(currentLocation.lon),
+      }
+      : null,
     toggleViewMode,
     defaultLocationOption: {
-      title: 'Use Default Location',
+      title: i18n.t('home.locationPicker.useDefaultLocation'),
       subtitle: getDefaultLocationSubtitle(
         defaultLocationSource,
         defaultLocation,
