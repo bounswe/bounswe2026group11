@@ -5,6 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { BadgeItem } from '@/models/profile';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+import {
+  getBadgeCategoryLabel,
+  getBadgeDescription,
+  getBadgeName,
+  getBadgeProgressHint,
+} from '@/utils/badgePresentation';
 
 const { height } = Dimensions.get('window');
 
@@ -62,6 +68,7 @@ export default function BadgeDetailModal({ badge, visible, onClose }: BadgeDetai
   const earnedDate = badge?.earned_at 
     ? new Date(badge.earned_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
     : t('publicProfile.badges.notEarned');
+  const progressHint = badge ? getBadgeProgressHint(badge) : null;
 
   return (
     <Modal
@@ -104,12 +111,12 @@ export default function BadgeDetailModal({ badge, visible, onClose }: BadgeDetai
                   </View>
                 </View>
 
-                <Text style={styles.name}>{badge.name}</Text>
+                <Text style={styles.name}>{getBadgeName(badge)}</Text>
                 <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryText}>{badge.category || t('publicProfile.badges.achievement')}</Text>
+                  <Text style={styles.categoryText}>{getBadgeCategoryLabel(badge.category)}</Text>
                 </View>
 
-                <Text style={styles.description}>{badge.description}</Text>
+                <Text style={styles.description}>{getBadgeDescription(badge)}</Text>
 
                 <View style={styles.earnedSection}>
                   <Ionicons 
@@ -126,10 +133,10 @@ export default function BadgeDetailModal({ badge, visible, onClose }: BadgeDetai
                   </Text>
                 </View>
 
-                {!badge.earned && !!badge.progress_hint && (
+                {!badge.earned && !!progressHint && (
                   <View style={styles.progressHintBox}>
                     <Text style={styles.progressHintTitle}>{t('publicProfile.badges.howToEarn')}</Text>
-                    <Text style={styles.progressHintText}>{badge.progress_hint}</Text>
+                    <Text style={styles.progressHintText}>{progressHint}</Text>
                   </View>
                 )}
 

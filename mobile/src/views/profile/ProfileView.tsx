@@ -79,7 +79,9 @@ export default function ProfileView() {
 
   const gender = vm.profile?.gender;
   const genderLabel = gender
-    ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase().replace(/_/g, ' ')
+    ? t(`profile.edit.genderOptions.${gender}`, {
+        defaultValue: gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase().replace(/_/g, ' '),
+      })
     : t('profile.details.genderNotSet');
 
   const birthDate = vm.profile?.birth_date;
@@ -356,11 +358,12 @@ export default function ProfileView() {
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <View>
+              <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={styles.sectionTitle}>{t('publicProfile.sections.equipment')}</Text>
                 <Text style={styles.sectionSubtitle}>{t('publicProfile.sections.equipmentSubtitle')}</Text>
               </View>
               <TouchableOpacity
+                style={{ marginTop: 2 }}
                 onPress={openAddEquipment}
                 accessibilityRole="button"
                 accessibilityLabel={t('profile.equipment.add')}

@@ -44,8 +44,7 @@ export default function ProfileEventCard({
   onPress,
 }: ProfileEventCardProps) {
   const { theme, isDark } = useTheme();
-  // Subscribe to language so status/category labels re-render on locale change.
-  useTranslation();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const statusColors = getEventStatusBadgeColors(status);
@@ -96,7 +95,9 @@ export default function ProfileEventCard({
                   color={privacyIconColor}
                 />
                 <Text style={[styles.visibilityBadgeText, { color: privacyText }]}>
-                  {formatPrivacyLabel(privacyLevel)}
+                  {t(`events.privacy.${privacyLevel}`, {
+                    defaultValue: formatPrivacyLabel(privacyLevel),
+                  })}
                 </Text>
               </View>
             ) : null}

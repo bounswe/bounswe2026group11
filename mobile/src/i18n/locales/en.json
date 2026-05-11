@@ -23,7 +23,12 @@
     "tryAgain": "Please try again.",
     "notAvailable": "N/A",
     "none": "None",
-    "invalidDate": "Invalid date"
+    "invalidDate": "Invalid date",
+    "accept": "Accept",
+    "decline": "Decline",
+    "leave": "Leave",
+    "post": "Post",
+    "update": "Update"
   },
   "auth": {
     "login": {
@@ -246,7 +251,28 @@
         "maxParticipants": "Max participants",
         "describeRequirement": "Describe requirement",
         "malesOnly": "Males only",
-        "femalesOnly": "Females only"
+        "femalesOnly": "Females only",
+        "customRange": "Custom range"
+      },
+      "invites": {
+        "helper": "Add guests by username or upload a .txt/.csv file (one username per line or comma-separated).",
+        "messageHelper": "This message will be sent to all invited guests.",
+        "invalidTitle": "Invalid Invitation",
+        "invalidSelf": "You cannot invite yourself to your own event."
+      },
+      "route": {
+        "searchPlaceholder": "Search a place to add a waypoint…",
+        "hint": "Or tap on the map to add a waypoint. Tap a marker to keep things in order.",
+        "waypoints": "Waypoints",
+        "waypoints_withCount": "Waypoints ({{count}})",
+        "empty": "No waypoints yet. Add at least 2 to continue.",
+        "moveUp": "Move waypoint up",
+        "moveDown": "Move waypoint down",
+        "remove": "Remove waypoint"
+      },
+      "errors": {
+        "routeMinPoints": "Add at least {{count}} waypoints to create a route",
+        "routeMaxPoints": "A route can have at most {{count}} waypoints"
       }
     },
     "edit": {
@@ -366,8 +392,24 @@
       "savedCount": "{{count}} saved",
       "participantsLabel": "{{count}} participants",
       "capacityLabel": "{{count}} / {{capacity}} participants (capacity)",
+      "qaLabel": "Q&A ({{count}})",
+      "reviewsLabel": "Reviews ({{count}})",
       "discussions": "Discussions",
       "meetingInstructions": "Meeting Instructions",
+      "reconfirmationNeeded": "Attendance needs reconfirmation",
+      "reconfirmAttendance": "Reconfirm Attendance",
+      "rejectReconfirmationTitle": "Reject Reconfirmation",
+      "rejectReconfirmationBody": "Rejecting this update will remove you from the event.",
+      "rejectReconfirmation": "Reject Reconfirmation",
+      "rejectAndLeave": "Reject & Leave",
+      "leaveConfirmBody": "Are you sure you want to leave this event?",
+      "cancelRequestConfirmBody": "Are you sure you want to withdraw your join request?",
+      "confirmCancelRequest": "Yes, Cancel",
+      "autoCompleteWarning": "This event will be automatically completed in {{count}} day due to inactivity.",
+      "autoCompleteWarning_other": "This event will be automatically completed in {{count}} days due to inactivity.",
+      "reconfirmationBanner": "Event details changed since you last confirmed. Review the version history and reconfirm if you can still attend, or reject to leave the event.",
+      "approximateLocationTitle": "You're seeing an approximate location",
+      "approximateLocationBody": "The exact location will be revealed once you're approved to join.",
       "errorTitle": "Something went wrong",
       "errorTitleInaccessible": "Event Inaccessible",
       "errorDescription": "The event you are looking for could not be found.",
@@ -442,6 +484,24 @@
       "validationMin": "Feedback must be at least {{count}} characters.",
       "validationMax": "Feedback must be {{count}} characters or fewer."
     },
+    "discussion": {
+      "askPlaceholder": "Ask a question or start a discussion…",
+      "signInToJoin": "Sign in to join the discussion.",
+      "closedQa": "This event has ended. New Q&A comments are closed.",
+      "emptyQuestions": "No questions yet. Be the first to ask!",
+      "loadMoreQuestions": "Load more questions",
+      "viewReplies": "View {{label}}",
+      "hideReplies": "Hide {{label}}",
+      "reply": "Reply",
+      "replyPlaceholder": "Write a reply…",
+      "updateReview": "Update your review",
+      "leaveReview": "Leave a review",
+      "reviewPlaceholder": "Share your experience…",
+      "signInToReview": "Sign in to leave a review.",
+      "reviewsClosed": "The feedback window has closed. New reviews are no longer accepted.",
+      "emptyReviews": "No reviews yet.",
+      "loadMoreReviews": "Load more reviews"
+    },
     "version": {
       "title": "Version History",
       "reviewBeforeConfirm": "Review these changes before confirming that you can still attend.",
@@ -494,7 +554,52 @@
     "today": "Today",
     "earlier": "Earlier",
     "emptyTitle": "All caught up!",
-    "emptySubtitle": "When you receive invitations or event updates, they will appear here."
+    "emptySubtitle": "When you receive invitations or event updates, they will appear here.",
+    "presentation": {
+      "eventUpdate": "Event update",
+      "retryAfter": "Retry after {{date}}",
+      "badges": {
+        "invitation": "Invitation",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "newRequest": "New Request",
+        "canceled": "Canceled",
+        "accepted": "Accepted",
+        "declined": "Declined"
+      },
+      "titles": {
+        "privateInvitation": "Private event invitation",
+        "joinApproved": "Join request approved",
+        "joinRejected": "Join request rejected",
+        "joinSubmitted": "Join request submitted",
+        "eventCanceled": "Event canceled",
+        "invitationAccepted": "Invitation accepted",
+        "invitationDeclined": "Invitation declined"
+      },
+      "summaries": {
+        "privateInvitationFrom": "{{actor}} invited you to a private event.",
+        "privateInvitation": "You received a private event invitation.",
+        "joinApprovedBy": "{{actor}} approved your join request.",
+        "joinApproved": "Your join request was approved.",
+        "joinRejectedBy": "{{actor}} rejected your join request.",
+        "joinRejected": "Your join request was rejected.",
+        "joinSubmittedBy": "{{actor}} wants to join your event.",
+        "joinSubmitted": "Someone wants to join your event.",
+        "eventCanceledNamed": "The event \"{{event}}\" has been canceled.",
+        "eventCanceled": "An event you were interested in has been canceled.",
+        "invitationAcceptedBy": "{{actor}} accepted your invitation.",
+        "invitationAccepted": "Your invitation was accepted.",
+        "invitationDeclinedBy": "{{actor}} declined your invitation.",
+        "invitationDeclined": "Your invitation was declined."
+      },
+      "actions": {
+        "viewEvent": "View event",
+        "reviewInvitation": "Review invitation",
+        "openEvent": "Open event",
+        "viewEventDetails": "View event details",
+        "reviewRequest": "Review request"
+      }
+    }
   },
   "myEvents": {
     "title": "My Events",
@@ -507,6 +612,7 @@
     "noEventsSubtitle": "Events you host or join will appear here once your plans start coming together.",
     "noInvitationsTitle": "No invitations yet",
     "noInvitationsSubtitle": "Private event invites from your friends and hosts will appear here.",
+    "locationAvailableOnEventPage": "Location available on event page",
     "empty": {
       "ACTIVE": {
         "title": "No active events right now",
@@ -585,7 +691,12 @@
       "retry": "Retry",
       "viewAll": "View all invitations",
       "viewAllCount": "View all {{count}} invitations",
-      "empty": "No pending invitations."
+      "empty": "No pending invitations.",
+      "invitedBadge": "Invited",
+      "noteFromHost": "Note from host:",
+      "loadFailed": "Failed to load invitations.",
+      "acceptFailed": "Failed to accept invitation.",
+      "declineFailed": "Failed to decline invitation."
     },
     "equipment": {
       "add": "Add Equipment",
@@ -607,6 +718,10 @@
       "changePassword": "Change Password",
       "signOut": "Sign Out",
       "retry": "Retry"
+    },
+    "errors": {
+      "loginRequired": "You must be logged in to view your profile.",
+      "loadFailed": "Failed to load profile. Please try again."
     },
     "languagePicker": {
       "title": "Language",
@@ -763,7 +878,46 @@
       "notEarned": "Not yet earned",
       "earnedOn": "Earned on {{date}}",
       "achievement": "Achievement",
-      "howToEarn": "How to earn:"
+      "howToEarn": "How to earn:",
+      "categories": {
+        "HOSTING": "Hosting",
+        "PARTICIPATION": "Participation",
+        "SOCIAL": "Social"
+      },
+      "catalog": {
+        "FIRST_STEPS": {
+          "name": "First Steps",
+          "description": "Completed your first event."
+        },
+        "REGULAR": {
+          "name": "Regular Attendee",
+          "description": "Completed at least 5 events as an approved participant."
+        },
+        "VETERAN": {
+          "name": "Veteran",
+          "description": "Completed 20 events as an approved participant."
+        },
+        "EXPLORER": {
+          "name": "Explorer",
+          "description": "Saved 3 favorite locations."
+        },
+        "HOST_DEBUT": {
+          "name": "Host Debut",
+          "description": "Hosted your first completed event."
+        },
+        "SUPER_HOST": {
+          "name": "Super Host",
+          "description": "Hosted at least 10 completed events."
+        },
+        "TOP_RATED": {
+          "name": "Top Rated",
+          "description": "Reached a host rating of at least 4.5 after 5 ratings."
+        },
+        "FAVORITE_FINDER": {
+          "name": "Favorite Finder",
+          "description": "Saved your first favorite location."
+        }
+      }
     },
     "errors": {
       "loginRequired": "You must be logged in to view profiles.",

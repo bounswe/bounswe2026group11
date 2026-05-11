@@ -773,7 +773,7 @@ export default function CreateEventView() {
               </View>
             )}
             <Text style={styles.helperText}>
-              Add guests by username or upload a .txt/.csv file (one username per line or comma-separated).
+              {t('events.create.invites.helper')}
             </Text>
 
             {vm.invitedUsers.length > 0 && (
@@ -791,7 +791,7 @@ export default function CreateEventView() {
                   editable={!vm.isLoading}
                 />
                 <Text style={styles.helperText}>
-                  This message will be sent to all invited guests.
+                  {t('events.create.invites.messageHelper')}
                 </Text>
               </View>
             )}
@@ -844,9 +844,9 @@ export default function CreateEventView() {
 
         {/* Audience */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Audience</Text>
+          <Text style={styles.label}>{t('home.filtersSheet.audience')}</Text>
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Child Friendly</Text>
+            <Text style={styles.switchLabel}>{t('home.filtersSheet.childFriendly')}</Text>
             <Switch
               value={vm.formData.childFriendly}
               onValueChange={(v) => vm.updateField('childFriendly', v)}
@@ -854,11 +854,11 @@ export default function CreateEventView() {
               thumbColor={vm.formData.childFriendly ? theme.switchThumbTrue : theme.switchThumbFalse}
               ios_backgroundColor={theme.switchIosBg}
               disabled={vm.isLoading}
-              accessibilityLabel="Child Friendly"
+              accessibilityLabel={t('home.filtersSheet.childFriendly')}
             />
           </View>
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Family Oriented</Text>
+            <Text style={styles.switchLabel}>{t('home.filtersSheet.familyOriented')}</Text>
             <Switch
               value={vm.formData.familyOriented}
               onValueChange={(v) => vm.updateField('familyOriented', v)}
@@ -866,7 +866,7 @@ export default function CreateEventView() {
               thumbColor={vm.formData.familyOriented ? theme.switchThumbTrue : theme.switchThumbFalse}
               ios_backgroundColor={theme.switchIosBg}
               disabled={vm.isLoading}
-              accessibilityLabel="Family Oriented"
+              accessibilityLabel={t('home.filtersSheet.familyOriented')}
             />
           </View>
         </View>
@@ -971,7 +971,7 @@ export default function CreateEventView() {
                           vm.formData.ageMaxInput !== '' && styles.chipTextSelected,
                         ]}
                       >
-                        Custom range
+                        {t('events.create.constraintActions.customRange')}
                       </Text>
                     </TouchableOpacity>
                   </View>

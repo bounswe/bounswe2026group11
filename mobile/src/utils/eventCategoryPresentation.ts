@@ -48,7 +48,11 @@ const FALLBACK_CATEGORY_PRESENTATIONS: EventCategoryPresentationConfig[] = [
 ];
 
 function normalizeCategoryName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const normalized = name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const aliases: Record<string, string> = {
+    doga: 'outdoors',
+  };
+  return aliases[normalized] ?? normalized;
 }
 
 function hashString(value: string): number {

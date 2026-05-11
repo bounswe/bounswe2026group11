@@ -16,6 +16,7 @@ import type { LocationSuggestion } from '@/models/event';
 import type { RouteWaypoint } from '@/viewmodels/event/useCreateEventViewModel';
 import { fetchRoutedGeometry, reverseGeocode } from '@/services/eventService';
 import MapZoomControls from './MapZoomControls';
+import { useTranslation } from 'react-i18next';
 
 const ROUTED_GEOMETRY_DEBOUNCE_MS = 400;
 
@@ -56,6 +57,7 @@ export default function RoutePointsEditor({
   onUpdateLabel,
 }: Props) {
   const { theme, isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const mapRef = useRef<MapView>(null);
   const lastRegionRef = useRef(DEFAULT_REGION);
@@ -152,7 +154,7 @@ export default function RoutePointsEditor({
       <View style={styles.searchRow}>
         <TextInput
           style={[styles.searchInput, errorText ? styles.searchInputError : null]}
-          placeholder="Search a place to add a waypoint…"
+          placeholder={t('events.create.route.searchPlaceholder')}
           placeholderTextColor={theme.placeholder}
           value={locationQuery}
           onChangeText={onSearch}
@@ -183,7 +185,7 @@ export default function RoutePointsEditor({
       )}
 
       <Text style={styles.hint}>
-        Or tap on the map to add a waypoint. Tap a marker to keep things in order.
+        {t('events.create.route.hint')}
       </Text>
 
       <View style={styles.mapContainer}>
@@ -227,14 +229,16 @@ export default function RoutePointsEditor({
 
       <View style={styles.listHeader}>
         <Text style={styles.listHeaderText}>
-          Waypoints {routePoints.length > 0 ? `(${routePoints.length})` : ''}
+          {routePoints.length > 0
+            ? t('events.create.route.waypoints_withCount', { count: routePoints.length })
+            : t('events.create.route.waypoints')}
         </Text>
       </View>
 
       {routePoints.length === 0 ? (
         <View style={styles.emptyState}>
           <Feather name="map-pin" size={20} color={theme.textTertiary} />
-          <Text style={styles.emptyStateText}>No waypoints yet. Add at least 2 to continue.</Text>
+          <Text style={styles.emptyStateText}>{t('events.create.route.empty')}</Text>
         </View>
       ) : (
         routePoints.map((p, i) => (
@@ -262,7 +266,7 @@ export default function RoutePointsEditor({
                 onPress={() => onMove(i, -1)}
                 disabled={i === 0 || disabled}
                 testID={`waypoint-up-${i}`}
-                accessibilityLabel="Move waypoint up"
+                accessibilityLabel={t('events.create.route.moveUp')}
               >
                 <Feather
                   name="chevron-up"
@@ -278,7 +282,7 @@ export default function RoutePointsEditor({
                 onPress={() => onMove(i, 1)}
                 disabled={i === routePoints.length - 1 || disabled}
                 testID={`waypoint-down-${i}`}
-                accessibilityLabel="Move waypoint down"
+                accessibilityLabel={t('events.create.route.moveDown')}
               >
                 <Feather
                   name="chevron-down"
@@ -291,7 +295,7 @@ export default function RoutePointsEditor({
                 onPress={() => onRemove(i)}
                 disabled={disabled}
                 testID={`waypoint-remove-${i}`}
-                accessibilityLabel="Remove waypoint"
+                accessibilityLabel={t('events.create.route.remove')}
               >
                 <Feather name="trash-2" size={16} color={theme.errorText} />
               </TouchableOpacity>

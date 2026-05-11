@@ -917,7 +917,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         <View>
           <View style={[styles.statusChip, styles.reconfirmStatusChip]}>
             <Feather name="alert-triangle" size={16} color={theme.warningText} />
-            <Text style={styles.statusChipTextAmber}>Attendance needs reconfirmation</Text>
+            <Text style={styles.statusChipTextAmber}>{t('events.detail.reconfirmationNeeded')}</Text>
           </View>
           <TouchableOpacity
             style={[
@@ -934,7 +934,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             ) : (
               <>
                 <Feather name="refresh-cw" size={18} color={theme.textOnPrimary} />
-                <Text style={styles.actionButtonText}>Reconfirm Attendance</Text>
+                <Text style={styles.actionButtonText}>{t('events.detail.reconfirmAttendance')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -945,12 +945,12 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             ]}
             onPress={() => {
               Alert.alert(
-                'Reject Reconfirmation',
-                'Rejecting this update will remove you from the event.',
+                t('events.detail.rejectReconfirmationTitle'),
+                t('events.detail.rejectReconfirmationBody'),
                 [
-                  { text: 'Cancel', style: 'cancel' },
+                  { text: t('common.cancel'), style: 'cancel' },
                   {
-                    text: 'Reject & Leave',
+                    text: t('events.detail.rejectAndLeave'),
                     style: 'destructive',
                     onPress: vm.handleLeaveEvent,
                   },
@@ -965,7 +965,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             ) : (
               <>
                 <Feather name="x-circle" size={18} color="#DC2626" />
-                <Text style={styles.leaveButtonText}>Reject Reconfirmation</Text>
+                <Text style={styles.leaveButtonText}>{t('events.detail.rejectReconfirmation')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -996,11 +996,11 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               style={[styles.leaveButton, vm.actionState === 'leaving' && styles.actionButtonLoading]}
               onPress={() => {
                 Alert.alert(
-                  'Leave Event',
-                  'Are you sure you want to leave this event?',
+                  t('events.detail.leaveEvent'),
+                  t('events.detail.leaveConfirmBody'),
                   [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Leave', style: 'destructive', onPress: vm.handleLeaveEvent },
+                    { text: t('common.cancel'), style: 'cancel' },
+                    { text: t('common.leave'), style: 'destructive', onPress: vm.handleLeaveEvent },
                   ],
                 );
               }}
@@ -1035,12 +1035,12 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             ]}
             onPress={() => {
               Alert.alert(
-                'Cancel Request',
-                'Are you sure you want to withdraw your join request?',
+                t('events.detail.cancelRequest'),
+                t('events.detail.cancelRequestConfirmBody'),
                 [
-                  { text: 'No', style: 'cancel' },
+                  { text: t('common.no'), style: 'cancel' },
                   {
-                    text: 'Yes, Cancel',
+                    text: t('events.detail.confirmCancelRequest'),
                     style: 'destructive',
                     onPress: vm.handleCancelJoinRequest,
                   },
@@ -1303,7 +1303,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <View style={styles.warningBanner}>
               <Feather name="alert-triangle" size={16} color={theme.warningText} />
               <Text style={styles.warningBannerText}>
-                This event will be automatically completed in {daysLeft} day{daysLeft !== 1 ? 's' : ''} due to inactivity.
+                {t('events.detail.autoCompleteWarning', { count: daysLeft })}
               </Text>
             </View>
           );
@@ -1313,7 +1313,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <View style={[styles.warningBanner, styles.reconfirmationBanner]} testID="reconfirmation-banner">
             <Feather name="alert-triangle" size={16} color={theme.warningText} />
             <Text style={styles.warningBannerText}>
-              Event details changed since you last confirmed. Review the version history and reconfirm if you can still attend, or reject to leave the event.
+              {t('events.detail.reconfirmationBanner')}
             </Text>
           </View>
         ) : null}
@@ -1348,7 +1348,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             {event.location.type === 'ROUTE' && (
               <View style={styles.routeChip}>
                 <Feather name="navigation" size={10} color={theme.textOnPrimary} />
-                <Text style={styles.routeChipText}>Route</Text>
+                <Text style={styles.routeChipText}>{t('events.create.fields.locationTypeRoute')}</Text>
               </View>
             )}
           </View>
@@ -1357,7 +1357,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <View style={styles.meetingPointContainer}>
               <View style={styles.meetingPointHeader}>
                 <Ionicons name="information-circle-outline" size={16} color={theme.primary} />
-                <Text style={styles.meetingPointTitle}>Meeting Instructions</Text>
+                <Text style={styles.meetingPointTitle}>{t('events.detail.meetingInstructions')}</Text>
               </View>
               <Text style={styles.meetingPointText}>{event.location.meeting_instructions}</Text>
             </View>
@@ -1366,14 +1366,20 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <View style={styles.metaRow}>
             <Feather name="users" size={16} color={theme.textTertiary} />
             <Text style={styles.metaText}>
-              {capacityLabel} participant{event.approved_participant_count !== 1 ? 's' : ''}
-              {event.capacity != null ? ' (capacity)' : ''}
+              {event.capacity != null
+                ? t('events.detail.capacityLabel', {
+                    count: event.approved_participant_count,
+                    capacity: event.capacity,
+                  })
+                : t('events.detail.participantsLabel', {
+                    count: event.approved_participant_count,
+                  })}
             </Text>
           </View>
 
           <View style={styles.metaRow}>
             <Feather name="heart" size={16} color={theme.textTertiary} />
-            <Text style={styles.metaText}>{event.favorite_count} saved</Text>
+            <Text style={styles.metaText}>{t('events.detail.savedCount', { count: event.favorite_count })}</Text>
           </View>
 
           {(() => {
@@ -1468,10 +1474,10 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                     <Feather name="alert-triangle" size={16} color={theme.warningText} />
                     <View style={styles.approxMapCalloutBody}>
                       <Text style={styles.approxMapCalloutTitle}>
-                        You're seeing an approximate location
+                        {t('events.detail.approximateLocationTitle')}
                       </Text>
                       <Text style={styles.approxMapCalloutDesc}>
-                        The exact location will be revealed once you're approved to join.
+                        {t('events.detail.approximateLocationBody')}
                       </Text>
                     </View>
                   </View>
@@ -1536,10 +1542,10 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   <TouchableOpacity
                     style={[styles.hostActionBtn, styles.hostActionBtnPrimary]}
                     onPress={() => router.push(`/event/${event.id}/edit` as Href)}
-                    accessibilityLabel="Edit event"
+                    accessibilityLabel={t('events.edit.title')}
                   >
                     <Feather name="edit-3" size={18} color={theme.textOnPrimary} />
-                    <Text style={styles.hostActionTextWhite}>Edit Event</Text>
+                    <Text style={styles.hostActionTextWhite}>{t('events.edit.title')}</Text>
                   </TouchableOpacity>
                 ) : null}
 

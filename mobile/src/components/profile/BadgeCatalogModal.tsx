@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 import BadgeDetailModal from './BadgeDetailModal';
+import { getBadgeName } from '@/utils/badgePresentation';
 
 interface BadgeCatalogModalProps {
   visible: boolean;
@@ -80,7 +81,7 @@ export default function BadgeCatalogModal({ visible, onClose, earnedBadges }: Ba
           </View>
         )}
       </View>
-      <Text style={styles.badgeName} numberOfLines={1}>{item.name}</Text>
+      <Text style={styles.badgeName} numberOfLines={1}>{getBadgeName(item)}</Text>
       <Text style={styles.badgeStatus}>
         {item.earned ? t('publicProfile.badges.earned') : t('publicProfile.badges.locked')}
       </Text>

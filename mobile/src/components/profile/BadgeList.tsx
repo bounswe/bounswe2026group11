@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { BadgeItem } from '@/models/profile';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+import { getBadgeName } from '@/utils/badgePresentation';
 import BadgeDetailModal from './BadgeDetailModal';
 import BadgeCatalogModal from './BadgeCatalogModal';
 
@@ -65,7 +66,7 @@ export default function BadgeList({
                 </View>
               )}
             </View>
-            <Text style={styles.badgeName} numberOfLines={1}>{badge.name}</Text>
+            <Text style={styles.badgeName} numberOfLines={1}>{getBadgeName(badge)}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>

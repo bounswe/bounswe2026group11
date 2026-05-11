@@ -23,7 +23,12 @@
     "tryAgain": "Lütfen tekrar deneyin.",
     "notAvailable": "Yok",
     "none": "Yok",
-    "invalidDate": "Geçersiz tarih"
+    "invalidDate": "Geçersiz tarih",
+    "accept": "Kabul Et",
+    "decline": "Reddet",
+    "leave": "Ayrıl",
+    "post": "Paylaş",
+    "update": "Güncelle"
   },
   "auth": {
     "login": {
@@ -246,7 +251,28 @@
         "maxParticipants": "Maks katılımcı",
         "describeRequirement": "Gereksinimi açıkla",
         "malesOnly": "Sadece erkekler",
-        "femalesOnly": "Sadece kadınlar"
+        "femalesOnly": "Sadece kadınlar",
+        "customRange": "Özel aralık"
+      },
+      "invites": {
+        "helper": "Kullanıcı adıyla misafir ekle ya da bir .txt/.csv dosyası yükle (satır başına bir kullanıcı adı veya virgülle ayrılmış).",
+        "messageHelper": "Bu mesaj davet edilen tüm misafirlere gönderilecek.",
+        "invalidTitle": "Geçersiz Davet",
+        "invalidSelf": "Kendini kendi etkinliğine davet edemezsin."
+      },
+      "route": {
+        "searchPlaceholder": "Bir uğrak noktası eklemek için yer ara…",
+        "hint": "Ya da haritaya dokunarak bir uğrak noktası ekle. Sırayı korumak için işaretçilere dokun.",
+        "waypoints": "Uğrak Noktaları",
+        "waypoints_withCount": "Uğrak Noktaları ({{count}})",
+        "empty": "Henüz uğrak noktası yok. Devam etmek için en az 2 tane ekle.",
+        "moveUp": "Uğrak noktasını yukarı taşı",
+        "moveDown": "Uğrak noktasını aşağı taşı",
+        "remove": "Uğrak noktasını kaldır"
+      },
+      "errors": {
+        "routeMinPoints": "Rota oluşturmak için en az {{count}} uğrak noktası ekle",
+        "routeMaxPoints": "Bir rota en fazla {{count}} uğrak noktasına sahip olabilir"
       }
     },
     "edit": {
@@ -366,8 +392,24 @@
       "savedCount": "{{count}} kaydedildi",
       "participantsLabel": "{{count}} katılımcı",
       "capacityLabel": "{{count}} / {{capacity}} katılımcı (kapasite)",
+      "qaLabel": "Soru-Cevap ({{count}})",
+      "reviewsLabel": "Değerlendirmeler ({{count}})",
       "discussions": "Tartışmalar",
       "meetingInstructions": "Buluşma Talimatları",
+      "reconfirmationNeeded": "Katılımın yeniden onaylanmalı",
+      "reconfirmAttendance": "Katılımı Yeniden Onayla",
+      "rejectReconfirmationTitle": "Yeniden Onayı Reddet",
+      "rejectReconfirmationBody": "Bu güncellemeyi reddetmek seni etkinlikten çıkaracak.",
+      "rejectReconfirmation": "Yeniden Onayı Reddet",
+      "rejectAndLeave": "Reddet ve Ayrıl",
+      "leaveConfirmBody": "Bu etkinlikten ayrılmak istediğine emin misin?",
+      "cancelRequestConfirmBody": "Katılım isteğini geri çekmek istediğine emin misin?",
+      "confirmCancelRequest": "Evet, İptal Et",
+      "autoCompleteWarning": "Bu etkinlik hareketsizlik nedeniyle {{count}} gün içinde otomatik olarak tamamlanacak.",
+      "autoCompleteWarning_other": "Bu etkinlik hareketsizlik nedeniyle {{count}} gün içinde otomatik olarak tamamlanacak.",
+      "reconfirmationBanner": "Son onayından bu yana etkinlik detayları değişti. Hâlâ katılabiliyorsan sürüm geçmişini inceleyip yeniden onayla ya da reddedip etkinlikten ayrıl.",
+      "approximateLocationTitle": "Yaklaşık bir konum görüyorsun",
+      "approximateLocationBody": "Tam konum, katılımın onaylandığında gösterilecek.",
       "errorTitle": "Bir şeyler ters gitti",
       "errorTitleInaccessible": "Etkinliğe Erişilemiyor",
       "errorDescription": "Aradığın etkinlik bulunamadı.",
@@ -442,6 +484,24 @@
       "validationMin": "Geri bildirim en az {{count}} karakter olmalı.",
       "validationMax": "Geri bildirim en fazla {{count}} karakter olmalı."
     },
+    "discussion": {
+      "askPlaceholder": "Bir soru sor ya da tartışma başlat…",
+      "signInToJoin": "Tartışmaya katılmak için giriş yap.",
+      "closedQa": "Bu etkinlik sona erdi. Yeni soru-cevap yorumları kapalı.",
+      "emptyQuestions": "Henüz soru yok. İlk soruyu sen sor!",
+      "loadMoreQuestions": "Daha fazla soru yükle",
+      "viewReplies": "{{label}} göster",
+      "hideReplies": "{{label}} gizle",
+      "reply": "Yanıtla",
+      "replyPlaceholder": "Bir yanıt yaz…",
+      "updateReview": "Değerlendirmeni güncelle",
+      "leaveReview": "Değerlendirme bırak",
+      "reviewPlaceholder": "Deneyimini paylaş…",
+      "signInToReview": "Değerlendirme bırakmak için giriş yap.",
+      "reviewsClosed": "Geri bildirim penceresi kapandı. Yeni değerlendirmeler artık kabul edilmiyor.",
+      "emptyReviews": "Henüz değerlendirme yok.",
+      "loadMoreReviews": "Daha fazla değerlendirme yükle"
+    },
     "version": {
       "title": "Sürüm Geçmişi",
       "reviewBeforeConfirm": "Hâlâ katılabileceğini onaylamadan önce bu değişiklikleri gözden geçir.",
@@ -494,7 +554,52 @@
     "today": "Bugün",
     "earlier": "Daha önce",
     "emptyTitle": "Hepsi okundu!",
-    "emptySubtitle": "Davet ya da etkinlik güncellemeleri aldığında burada görünecek."
+    "emptySubtitle": "Davet ya da etkinlik güncellemeleri aldığında burada görünecek.",
+    "presentation": {
+      "eventUpdate": "Etkinlik güncellemesi",
+      "retryAfter": "{{date}} sonrasında tekrar dene",
+      "badges": {
+        "invitation": "Davet",
+        "approved": "Onaylandı",
+        "rejected": "Reddedildi",
+        "newRequest": "Yeni İstek",
+        "canceled": "İptal",
+        "accepted": "Kabul Edildi",
+        "declined": "Reddedildi"
+      },
+      "titles": {
+        "privateInvitation": "Özel etkinlik daveti",
+        "joinApproved": "Katılım isteği onaylandı",
+        "joinRejected": "Katılım isteği reddedildi",
+        "joinSubmitted": "Katılım isteği gönderildi",
+        "eventCanceled": "Etkinlik iptal edildi",
+        "invitationAccepted": "Davet kabul edildi",
+        "invitationDeclined": "Davet reddedildi"
+      },
+      "summaries": {
+        "privateInvitationFrom": "{{actor}} seni özel bir etkinliğe davet etti.",
+        "privateInvitation": "Özel bir etkinlik daveti aldın.",
+        "joinApprovedBy": "{{actor}} katılım isteğini onayladı.",
+        "joinApproved": "Katılım isteğin onaylandı.",
+        "joinRejectedBy": "{{actor}} katılım isteğini reddetti.",
+        "joinRejected": "Katılım isteğin reddedildi.",
+        "joinSubmittedBy": "{{actor}} etkinliğine katılmak istiyor.",
+        "joinSubmitted": "Birisi etkinliğine katılmak istiyor.",
+        "eventCanceledNamed": "\"{{event}}\" etkinliği iptal edildi.",
+        "eventCanceled": "İlgilendiğin bir etkinlik iptal edildi.",
+        "invitationAcceptedBy": "{{actor}} davetini kabul etti.",
+        "invitationAccepted": "Davetin kabul edildi.",
+        "invitationDeclinedBy": "{{actor}} davetini reddetti.",
+        "invitationDeclined": "Davetin reddedildi."
+      },
+      "actions": {
+        "viewEvent": "Etkinliği Gör",
+        "reviewInvitation": "Daveti İncele",
+        "openEvent": "Etkinliği Aç",
+        "viewEventDetails": "Etkinlik Detaylarını Gör",
+        "reviewRequest": "İsteği İncele"
+      }
+    }
   },
   "myEvents": {
     "title": "Etkinliklerim",
@@ -507,6 +612,7 @@
     "noEventsSubtitle": "Düzenlediğin veya katıldığın etkinlikler planların belirginleştiğinde burada görünür.",
     "noInvitationsTitle": "Henüz davet yok",
     "noInvitationsSubtitle": "Arkadaşlarından ve organizatörlerden gelen özel davetler burada görünür.",
+    "locationAvailableOnEventPage": "Konum etkinlik sayfasında görüntülenebilir",
     "empty": {
       "ACTIVE": {
         "title": "Şu an aktif etkinlik yok",
@@ -585,7 +691,12 @@
       "retry": "Tekrar Dene",
       "viewAll": "Tüm davetleri gör",
       "viewAllCount": "{{count}} davetin tümünü gör",
-      "empty": "Bekleyen davet yok."
+      "empty": "Bekleyen davet yok.",
+      "invitedBadge": "Davetli",
+      "noteFromHost": "Organizatörden not:",
+      "loadFailed": "Davetler yüklenemedi.",
+      "acceptFailed": "Davet kabul edilemedi.",
+      "declineFailed": "Davet reddedilemedi."
     },
     "equipment": {
       "add": "Ekipman Ekle",
@@ -607,6 +718,10 @@
       "changePassword": "Şifre Değiştir",
       "signOut": "Çıkış Yap",
       "retry": "Tekrar Dene"
+    },
+    "errors": {
+      "loginRequired": "Profilini görüntülemek için giriş yapmalısın.",
+      "loadFailed": "Profil yüklenemedi. Lütfen tekrar dene."
     },
     "languagePicker": {
       "title": "Dil",
@@ -763,7 +878,46 @@
       "notEarned": "Henüz kazanılmadı",
       "earnedOn": "{{date}} tarihinde kazanıldı",
       "achievement": "Başarı",
-      "howToEarn": "Nasıl kazanılır:"
+      "howToEarn": "Nasıl kazanılır:",
+      "categories": {
+        "HOSTING": "Organizatörlük",
+        "PARTICIPATION": "Katılım",
+        "SOCIAL": "Sosyal"
+      },
+      "catalog": {
+        "FIRST_STEPS": {
+          "name": "İlk Adımlar",
+          "description": "İlk etkinliğini tamamladın."
+        },
+        "REGULAR": {
+          "name": "Düzenli Katılımcı",
+          "description": "Onaylı katılımcı olarak en az 5 etkinlik tamamladın."
+        },
+        "VETERAN": {
+          "name": "Tecrübeli",
+          "description": "Onaylı katılımcı olarak 20 etkinlik tamamladın."
+        },
+        "EXPLORER": {
+          "name": "Kaşif",
+          "description": "3 favori konum kaydettin."
+        },
+        "HOST_DEBUT": {
+          "name": "İlk Organizasyon",
+          "description": "İlk tamamlanmış etkinliğine ev sahipliği yaptın."
+        },
+        "SUPER_HOST": {
+          "name": "Süper Organizatör",
+          "description": "En az 10 tamamlanmış etkinliğe ev sahipliği yaptın."
+        },
+        "TOP_RATED": {
+          "name": "En Beğenilen",
+          "description": "5 değerlendirme sonunda en az 4.5 organizatör puanına ulaştın."
+        },
+        "FAVORITE_FINDER": {
+          "name": "Favori Avcısı",
+          "description": "İlk favori konumunu kaydettin."
+        }
+      }
     },
     "errors": {
       "loginRequired": "Profilleri görüntülemek için giriş yapmalısın.",
