@@ -63,7 +63,7 @@ describe('usePublicProfileViewModel', () => {
     expect(result.current.profile).toEqual(publicProfileFixture);
     expect(result.current.primaryName).toBe('Jane Doe');
     expect(result.current.secondaryName).toBe('jane_doe');
-    expect(result.current.overallRatingLabel).toBe('4.5');
+    expect(result.current.overallRatingLabel).toBe('4.5 (25)');
   });
 
   it('handles API errors gracefully', async () => {

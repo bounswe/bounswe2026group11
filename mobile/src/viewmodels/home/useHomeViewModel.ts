@@ -908,12 +908,18 @@ export function useHomeViewModel(): HomeViewModel {
     }));
   }, []);
 
-  const toggleDraftChildFriendly = useCallback(() => {
-    setFilterDraft((prev) => ({ ...prev, childFriendly: !prev.childFriendly }));
+  const toggleDraftChildFriendly = useCallback((value?: boolean) => {
+    setFilterDraft((prev) => ({
+      ...prev,
+      childFriendly: value !== undefined ? value : !prev.childFriendly,
+    }));
   }, []);
 
-  const toggleDraftFamilyOriented = useCallback(() => {
-    setFilterDraft((prev) => ({ ...prev, familyOriented: !prev.familyOriented }));
+  const toggleDraftFamilyOriented = useCallback((value?: boolean) => {
+    setFilterDraft((prev) => ({
+      ...prev,
+      familyOriented: value !== undefined ? value : !prev.familyOriented,
+    }));
   }, []);
 
   const loadMoreEvents = useCallback(async () => {

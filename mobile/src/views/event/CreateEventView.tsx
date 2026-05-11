@@ -846,20 +846,24 @@ export default function CreateEventView() {
             <Switch
               value={vm.formData.childFriendly}
               onValueChange={(v) => vm.updateField('childFriendly', v)}
-                trackColor={{ true: theme.primary }}
-                disabled={vm.isLoading}
-                accessibilityLabel="Child Friendly"
-              />
+              trackColor={{ false: theme.switchTrackFalse, true: theme.switchTrackTrue }}
+              thumbColor={vm.formData.childFriendly ? theme.switchThumbTrue : theme.switchThumbFalse}
+              ios_backgroundColor={theme.switchIosBg}
+              disabled={vm.isLoading}
+              accessibilityLabel="Child Friendly"
+            />
           </View>
           <View style={styles.switchRow}>
             <Text style={styles.switchLabel}>Family Oriented</Text>
             <Switch
               value={vm.formData.familyOriented}
               onValueChange={(v) => vm.updateField('familyOriented', v)}
-                trackColor={{ true: theme.primary }}
-                disabled={vm.isLoading}
-                accessibilityLabel="Family Oriented"
-              />
+              trackColor={{ false: theme.switchTrackFalse, true: theme.switchTrackTrue }}
+              thumbColor={vm.formData.familyOriented ? theme.switchThumbTrue : theme.switchThumbFalse}
+              ios_backgroundColor={theme.switchIosBg}
+              disabled={vm.isLoading}
+              accessibilityLabel="Family Oriented"
+            />
           </View>
         </View>
 

@@ -82,17 +82,18 @@ export function usePublicProfileViewModel(userId: string): PublicProfileViewMode
   const secondaryName = profile?.display_name ? profile.username : null;
   const avatarInitial = primaryName.trim().charAt(0).toUpperCase() || '?';
 
-  const overallRatingLabel = profile?.final_score != null 
-    ? profile.final_score.toFixed(1) 
+  const totalCount = (profile?.host_rating_count || 0) + (profile?.participant_rating_count || 0);
+  const overallRatingLabel = profile?.final_score != null && totalCount > 0
+    ? `${profile.final_score.toFixed(1)} (${totalCount})`
     : 'New';
   
-  const hostRatingLabel = profile?.final_score != null // Note: Backend currently returns final_score but might need more specific host/participant count
-    ? `Host (${profile.host_rating_count})`
-    : 'New Host';
+  const hostRatingLabel = profile?.final_score != null && profile.host_rating_count > 0
+    ? `${profile.final_score.toFixed(1)} (${profile.host_rating_count})`
+    : 'New';
 
-  const participantRatingLabel = profile?.final_score != null
-    ? `Guest (${profile.participant_rating_count})`
-    : 'New Guest';
+  const participantRatingLabel = profile?.final_score != null && profile.participant_rating_count > 0
+    ? `${profile.final_score.toFixed(1)} (${profile.participant_rating_count})`
+    : 'New';
 
   return {
     profile,

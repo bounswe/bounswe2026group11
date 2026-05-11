@@ -45,6 +45,7 @@ jest.mock('@expo/vector-icons', () => {
     Feather: createIconComponent('feather'),
     Ionicons: createIconComponent('ionicons'),
     MaterialIcons: createIconComponent('material-icons'),
+    MaterialCommunityIcons: createIconComponent('material-community-icons'),
   };
 });
 
