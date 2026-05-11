@@ -38,6 +38,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
     event.capacity != null
       ? `${event.approved_participant_count}/${event.capacity}`
       : String(event.approved_participant_count);
+  const accessibleSummary = `${event.title}. ${categoryPresentation.label}. ${formatPrivacyLabel(event.privacy_level)} event. ${formatEventDateLabel(event.start_time, event.end_time)}. ${formatEventLocation(event.location_address)}. ${participantLabel} participants. ${hostRatingLabel}.`;
 
   const level = event.privacy_level;
   let badgeBg = theme.badgePublicBg;
@@ -62,6 +63,8 @@ export default function EventCard({ event, onPress }: EventCardProps) {
       activeOpacity={0.92}
       onPress={() => onPress?.(event.id)}
       style={styles.card}
+      accessibilityRole="button"
+      accessibilityLabel={accessibleSummary}
     >
       <View style={styles.imageContainer}>
         {event.image_url ? (
@@ -69,6 +72,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
             source={{ uri: event.image_url }}
             style={styles.image}
             resizeMode="cover"
+            accessible={false}
           />
         ) : (
           <View style={styles.imagePlaceholder}>
