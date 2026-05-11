@@ -235,7 +235,7 @@ describe('LocationPickerPanel', () => {
       />,
     );
 
-    fireEvent.click(screen.getByText('Retry'));
+    fireEvent.click(screen.getByText('Try Again'));
 
     expect(screen.getByText('Unable to load favorite locations')).toBeTruthy(); // i18n key: home.locationPicker.unableToLoadFavoriteLocations
     expect(props.onRetryFavoriteLocations).toHaveBeenCalledTimes(1);

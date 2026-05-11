@@ -227,7 +227,7 @@ describe('FavoriteLocationsTab', () => {
     expect(screen.getByText('Unable to load favorite locations')).toBeTruthy();
     expect(screen.queryByText('No favorite locations')).toBeNull();
 
-    fireEvent.click(screen.getByText('Try again'));
+    fireEvent.click(screen.getByText('Try Again'));
 
     expect(refresh).toHaveBeenCalled();
   });
