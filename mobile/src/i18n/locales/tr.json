@@ -179,6 +179,9 @@
       "showMore": "Daha fazla",
       "showLess": "Daha az",
       "apply": "Filtreleri Uygula"
+    },
+    "errors": {
+      "loadFailed": "Etkinlikler yüklenemedi. Lütfen tekrar deneyin."
     }
   },
   "events": {

@@ -179,6 +179,9 @@
       "showMore": "Show more",
       "showLess": "Show less",
       "apply": "Apply Filters"
+    },
+    "errors": {
+      "loadFailed": "Failed to load events. Please try again."
     }
   },
   "events": {

@@ -103,46 +103,78 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
           return;
         }
 
-        const tokenData = await getTicketQrTokenOnce(
-          ticketId,
-          { lat: location.coords.latitude, lon: location.coords.longitude },
-          token
-        );
+        // We fetch both in parallel using allSettled. 
+        // This ensures that if getTicketQrTokenOnce fails (e.g. ticket scanned),
+        // we still receive and process the latest ticket status from getMyTicket.
+        const [ticketResult, tokenResult] = await Promise.allSettled([
+          getMyTicket(ticketId, token),
+          getTicketQrTokenOnce(
+            ticketId,
+            { lat: location.coords.latitude, lon: location.coords.longitude },
+            token
+          )
+        ]);
 
-        setQrMessage(null);
-        setQrToken(tokenData);
-
-        // Setup countdown
-        const expiresAt = new Date(tokenData.expires_at).getTime();
-        const updateCountdown = () => {
-          const now = Date.now();
-          const diff = Math.max(0, Math.floor((expiresAt - now) / 1000));
-          setSecondsRemaining(diff);
-
-          if (diff <= 0) {
-            if (countdownIntervalRef.current) {
-              clearInterval(countdownIntervalRef.current);
-            }
+        // 1. Update ticket detail/status if successful
+        if (ticketResult.status === 'fulfilled') {
+          const ticketData = ticketResult.value;
+          setTicket(ticketData);
+          
+          if (ticketData.ticket.status !== 'ACTIVE') {
+            // Ticket is USED or CANCELED, stop polling immediately
+            stopPolling();
+            return;
           }
-        };
-
-        if (countdownIntervalRef.current) {
-          clearInterval(countdownIntervalRef.current);
         }
-        updateCountdown();
-        countdownIntervalRef.current = setInterval(updateCountdown, 1000);
 
-        // Schedule next poll - backend generates new tokens every 10s usually
-        // We poll slightly before expiration or every 10s.
-        pollingTimeoutRef.current = setTimeout(poll, 10000);
+        // 2. Update QR token if successful
+        if (tokenResult.status === 'fulfilled') {
+          const tokenData = tokenResult.value;
+          setQrMessage(null);
+          setQrToken(tokenData);
+          
+          // Setup countdown
+          const expiresAt = new Date(tokenData.expires_at).getTime();
+          const updateCountdown = () => {
+            const now = Date.now();
+            const diff = Math.max(0, Math.floor((expiresAt - now) / 1000));
+            setSecondsRemaining(diff);
+            
+            if (diff <= 0) {
+              if (countdownIntervalRef.current) {
+                clearInterval(countdownIntervalRef.current);
+              }
+            }
+          };
+
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+          }
+          updateCountdown();
+          countdownIntervalRef.current = setInterval(updateCountdown, 1000);
+        } else {
+          // Token fetch failed (might be because of scan)
+          const err = tokenResult.reason;
+          if (err instanceof Error && err.message === 'AbortError') return;
+          
+          const message = err instanceof ApiError ? err.message : i18n.t('tickets.qr.connectionLost');
+          setQrMessage(getTicketQrAccessMessage(message));
+        }
+
+        // Schedule next poll if still active
+        if (pollingRef.current) {
+          pollingTimeoutRef.current = setTimeout(poll, 10000);
+        }
       } catch (err) {
         if (err instanceof Error && err.message === 'AbortError') return;
-
+        
         const message = err instanceof ApiError ? err.message : i18n.t('tickets.qr.connectionLost');
         setQrMessage(getTicketQrAccessMessage(message));
 
         // Retry later on error
-        pollingTimeoutRef.current = setTimeout(poll, 15000);
+        if (pollingRef.current) {
+          pollingTimeoutRef.current = setTimeout(poll, 15000);
+        }
       }
     };
 

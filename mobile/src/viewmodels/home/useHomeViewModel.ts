@@ -649,7 +649,7 @@ export function useHomeViewModel(): HomeViewModel {
           setEvents(filtered);
         }
       } catch {
-        setApiError('Failed to load events. Please try again.');
+        setApiError(i18n.t('home.errors.loadFailed'));
       } finally {
         if (mode === 'initial') setIsLoading(false);
         if (mode === 'refresh') setIsRefreshing(false);
