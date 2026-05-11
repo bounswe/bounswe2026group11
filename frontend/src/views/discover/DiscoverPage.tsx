@@ -381,7 +381,7 @@ export default function DiscoverPage() {
       <input
         type="text"
         className="field-input dc-search"
-        placeholder="Search events..."
+        placeholder={t('discover.searchPlaceholder')}
         value={vm.filters.q}
         onChange={(e) => vm.updateSearch(e.target.value)}
       />
@@ -391,7 +391,7 @@ export default function DiscoverPage() {
         onClick={() => setFilterModalOpen(true)}
       >
         <FilterIcon className="dc-filter-toggle-icon" />
-        <span>Filters</span>
+        <span>{t('discover.filters')}</span>
       </button>
       <span className="dc-search-bar-divider" />
       <button

@@ -25,6 +25,50 @@
     "languageOptions": {
       "en": "English",
       "tr": "Türkçe"
+    },
+    "tabs": {
+      "events": "Events",
+      "reviews": "Reviews",
+      "settings": "Settings"
+    },
+    "badges": {
+      "title": "Badges",
+      "subtitle": "Achievements earned through hosting, participation, and social activity",
+      "viewAll": "View All Badges",
+      "empty": "No badges available yet.",
+      "locked": "Locked",
+      "notEarned": "Not earned",
+      "back": "Back",
+      "close": "Close",
+      "details": "Badge details",
+      "earned": "Earned",
+      "allBadges": "All Badges",
+      "all": "All",
+      "emptyCategory": "No badges in this category yet.",
+      "loading": "Loading badges...",
+      "retry": "Retry"
+    },
+    "settingsTab": {
+      "editProfile": "Edit Profile",
+      "cancel": "Cancel",
+      "saveChanges": "Save Changes",
+      "saving": "Saving...",
+      "changePassword": "Change Password",
+      "changePasswordSubtitle": "Update your account password without changing profile details.",
+      "close": "Close",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmNewPassword": "Confirm new password",
+      "show": "Show",
+      "hide": "Hide",
+      "updatePassword": "Update Password",
+      "updating": "Updating...",
+      "logOut": "Log Out"
+    },
+    "eventsTab": {
+      "hosted": "Hosted Events",
+      "attended": "Attended Events",
+      "noEvents": "No events found."
     }
   },
   "discover": {
@@ -32,13 +76,46 @@
     "mapView": "Map",
     "listView": "List",
     "filters": "Filters",
-    "searchArea": "Search this area"
+    "searchArea": "Search this area",
+    "sortBy": "Sort by",
+    "radius": "Radius",
+    "privacy": "Privacy",
+    "dateRange": "Date Range",
+    "category": "Category",
+    "applyFilters": "Apply Filters",
+    "clearAll": "Clear All",
+    "noEvents": "No events found matching your criteria."
   },
   "event": {
     "createTitle": "Create Event",
+    "createSubtitle": "Fill out the details below to publish a new event.",
     "editTitle": "Edit Event",
     "join": "Join Event",
     "leave": "Leave Event",
-    "details": "Event Details"
+    "details": "Event Details",
+    "host": "Host",
+    "title": "Title",
+    "description": "Description",
+    "category": "Category",
+    "image": "Event Image",
+    "uploadImage": "Upload Image",
+    "remove": "Remove",
+    "location": "Location",
+    "startDate": "Start Date",
+    "startTime": "Start Time",
+    "endDate": "End Date",
+    "endTime": "End Time",
+    "privacyLevel": "Privacy",
+    "capacity": "Capacity",
+    "tags": "Tags",
+    "add": "Add",
+    "participationConstraints": "Participation Constraints",
+    "ageRestriction": "Age Restriction",
+    "minAge": "Min Age",
+    "maxAge": "Max Age",
+    "preferredGender": "Preferred Gender",
+    "otherConstraints": "Other Constraints",
+    "createBtn": "Create Event",
+    "optional": "(optional)"
   }
 }

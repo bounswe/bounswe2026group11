@@ -9,15 +9,15 @@
     "passwordLabel": "Şifre",
     "passwordPlaceholder": "••••••••",
     "usernameLabel": "Kullanıcı adı",
-    "usernamePlaceholder": "kullanici_adi",
+    "usernamePlaceholder": "johndoe",
     "rememberMe": "Beni hatırla",
-    "forgotPassword": "Şifrenizi mi unuttunuz?",
+    "forgotPassword": "Şifremi unuttum?",
     "loginBtn": "Giriş yap",
     "registerBtn": "Kayıt ol",
     "signingIn": "Giriş yapılıyor...",
     "signingUp": "Kayıt olunuyor...",
     "noAccount": "Hesabınız yok mu?",
-    "hasAccount": "Zaten bir hesabınız var mı?"
+    "hasAccount": "Zaten hesabınız var mı?"
   },
   "profile": {
     "title": "Profil",
@@ -25,20 +25,97 @@
     "languageOptions": {
       "en": "English",
       "tr": "Türkçe"
+    },
+    "tabs": {
+      "events": "Etkinlikler",
+      "reviews": "Değerlendirmeler",
+      "settings": "Ayarlar"
+    },
+    "badges": {
+      "title": "Rozetler",
+      "subtitle": "Ev sahipliği, katılım ve sosyal aktivite ile kazanılan başarılar",
+      "viewAll": "Tüm Rozetleri Gör",
+      "empty": "Henüz rozet yok.",
+      "locked": "Kilitli",
+      "notEarned": "Kazanılmadı",
+      "back": "Geri",
+      "close": "Kapat",
+      "details": "Rozet detayları",
+      "earned": "Kazanıldı",
+      "allBadges": "Tüm Rozetler",
+      "all": "Tümü",
+      "emptyCategory": "Bu kategoride henüz rozet yok.",
+      "loading": "Rozetler yükleniyor...",
+      "retry": "Tekrar Dene"
+    },
+    "settingsTab": {
+      "editProfile": "Profili Düzenle",
+      "cancel": "İptal",
+      "saveChanges": "Değişiklikleri Kaydet",
+      "saving": "Kaydediliyor...",
+      "changePassword": "Şifreyi Değiştir",
+      "changePasswordSubtitle": "Profil detaylarını değiştirmeden hesap şifrenizi güncelleyin.",
+      "close": "Kapat",
+      "currentPassword": "Mevcut şifre",
+      "newPassword": "Yeni şifre",
+      "confirmNewPassword": "Yeni şifreyi onayla",
+      "show": "Göster",
+      "hide": "Gizle",
+      "updatePassword": "Şifreyi Güncelle",
+      "updating": "Güncelleniyor...",
+      "logOut": "Çıkış Yap"
+    },
+    "eventsTab": {
+      "hosted": "Düzenlenen Etkinlikler",
+      "attended": "Katılınan Etkinlikler",
+      "noEvents": "Etkinlik bulunamadı."
     }
   },
   "discover": {
-    "searchPlaceholder": "Etkinlikleri ara...",
+    "searchPlaceholder": "Etkinlikleri başlık, açıklama ile ara...",
     "mapView": "Harita",
     "listView": "Liste",
     "filters": "Filtreler",
-    "searchArea": "Bu alanda ara"
+    "searchArea": "Bu alanda ara",
+    "sortBy": "Sıralama",
+    "radius": "Yarıçap",
+    "privacy": "Gizlilik",
+    "dateRange": "Tarih Aralığı",
+    "category": "Kategori",
+    "applyFilters": "Filtreleri Uygula",
+    "clearAll": "Tümünü Temizle",
+    "noEvents": "Kriterlerinize uygun etkinlik bulunamadı."
   },
   "event": {
     "createTitle": "Etkinlik Oluştur",
+    "createSubtitle": "Yeni bir etkinlik yayınlamak için aşağıdaki detayları doldurun.",
     "editTitle": "Etkinliği Düzenle",
     "join": "Etkinliğe Katıl",
     "leave": "Etkinlikten Ayrıl",
-    "details": "Etkinlik Detayları"
+    "details": "Etkinlik Detayları",
+    "host": "Ev Sahibi",
+    "title": "Başlık",
+    "description": "Açıklama",
+    "category": "Kategori",
+    "image": "Etkinlik Görseli",
+    "uploadImage": "Görsel Yükle",
+    "remove": "Kaldır",
+    "location": "Konum",
+    "startDate": "Başlangıç Tarihi",
+    "startTime": "Başlangıç Saati",
+    "endDate": "Bitiş Tarihi",
+    "endTime": "Bitiş Saati",
+    "privacyLevel": "Gizlilik",
+    "capacity": "Kapasite",
+    "tags": "Etiketler",
+    "add": "Ekle",
+    "participationConstraints": "Katılım Şartları",
+    "ageRestriction": "Yaş Sınırı",
+    "minAge": "Min Yaş",
+    "maxAge": "Maks Yaş",
+    "preferredGender": "Tercih Edilen Cinsiyet",
+    "otherConstraints": "Diğer Şartlar",
+    "createBtn": "Etkinlik Oluştur",
+    "optional": "(isteğe bağlı)"
   }
 }

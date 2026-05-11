@@ -74,6 +74,7 @@ function BadgeCard({
   compact?: boolean;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <button
       type="button"
@@ -86,7 +87,7 @@ function BadgeCard({
       </span>
       <span className="profile-badge-name">{badge.name}</span>
       <span className="profile-badge-date">
-        {badge.earned_at ? formatBadgeDate(badge.earned_at) : 'Not earned'}
+        {badge.earned_at ? `${t('profile.badges.earned')} ${formatBadgeDate(badge.earned_at)}` : t('profile.badges.notEarned')}
       </span>
     </button>
   );
@@ -101,18 +102,19 @@ function BadgeDetail({
   onBack: (() => void) | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="profile-badge-modal-card" role="dialog" aria-modal="true" aria-labelledby="profile-badge-detail-title">
       <div className="profile-badge-modal-header">
         {onBack ? (
           <button type="button" className="profile-badge-modal-text-btn" onClick={onBack}>
-            Back
+            {t('profile.badges.back')}
           </button>
         ) : (
           <span className="profile-badge-modal-spacer" aria-hidden />
         )}
-        <h2 id="profile-badge-detail-title" className="profile-badge-modal-title">Badge details</h2>
-        <button type="button" className="profile-badge-modal-close" onClick={onClose} aria-label="Close">
+        <h2 id="profile-badge-detail-title" className="profile-badge-modal-title">{t('profile.badges.details')}</h2>
+        <button type="button" className="profile-badge-modal-close" onClick={onClose} aria-label={t('profile.badges.close')}>
           ×
         </button>
       </div>
@@ -126,8 +128,8 @@ function BadgeDetail({
         <p className="profile-badge-detail-description">{badge.description}</p>
         <p className="profile-badge-detail-status">
           {badge.earned_at
-            ? `Earned ${formatBadgeDate(badge.earned_at)}`
-            : `Not yet earned. ${badge.description}`}
+            ? `${t('profile.badges.earned')} ${formatBadgeDate(badge.earned_at)}`
+            : `${t('profile.badges.notEarned')}. ${badge.description}`}
         </p>
       </div>
     </div>
@@ -147,6 +149,7 @@ function BadgeCatalogModal({
   onSelectBadge: (badge: CatalogBadge) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const categories: Array<BadgeCategory | 'ALL'> = ['ALL', 'HOSTING', 'PARTICIPATION', 'SOCIAL'];
   const visibleBadges = activeCategory === 'ALL'
     ? badges
@@ -156,8 +159,8 @@ function BadgeCatalogModal({
     <div className="profile-badge-modal-card wide" role="dialog" aria-modal="true" aria-labelledby="profile-badge-catalog-title">
       <div className="profile-badge-modal-header">
         <span className="profile-badge-modal-spacer" aria-hidden />
-        <h2 id="profile-badge-catalog-title" className="profile-badge-modal-title">All Badges</h2>
-        <button type="button" className="profile-badge-modal-close" onClick={onClose} aria-label="Close">
+        <h2 id="profile-badge-catalog-title" className="profile-badge-modal-title">{t('profile.badges.allBadges')}</h2>
+        <button type="button" className="profile-badge-modal-close" onClick={onClose} aria-label={t('profile.badges.close')}>
           ×
         </button>
       </div>
@@ -169,7 +172,7 @@ function BadgeCatalogModal({
             className={`profile-badge-tab ${activeCategory === category ? 'active' : ''}`}
             onClick={() => onCategoryChange(category)}
           >
-            {category === 'ALL' ? 'All' : BADGE_CATEGORY_LABELS[category]}
+            {category === 'ALL' ? t('profile.badges.all') : BADGE_CATEGORY_LABELS[category]}
           </button>
         ))}
       </div>
@@ -180,7 +183,7 @@ function BadgeCatalogModal({
           ))}
         </div>
       ) : (
-        <div className="profile-badges-empty">No badges in this category yet.</div>
+        <div className="profile-badges-empty">{t('profile.badges.emptyCategory')}</div>
       )}
     </div>
   );
@@ -199,6 +202,7 @@ function ProfileBadgesSection({
   badgeError: string | null;
   onRetry: () => void;
 }) {
+  const { t } = useTranslation();
   const [selectedBadge, setSelectedBadge] = useState<CatalogBadge | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<BadgeCategory | 'ALL'>('ALL');
@@ -215,8 +219,8 @@ function ProfileBadgesSection({
     <section className="profile-badges">
       <div className="profile-badges-header">
         <div>
-          <h2 className="profile-badges-title">Badges</h2>
-          <p className="profile-badges-subtitle">Achievements earned through hosting, participation, and social activity</p>
+          <h2 className="profile-badges-title">{t('profile.badges.title')}</h2>
+          <p className="profile-badges-subtitle">{t('profile.badges.subtitle')}</p>
         </div>
         <button
           type="button"
@@ -227,16 +231,16 @@ function ProfileBadgesSection({
           }}
           disabled={badgesLoading || badgesForPreview.length === 0}
         >
-          View All Badges
+          {t('profile.badges.viewAll')}
         </button>
       </div>
 
       {badgesLoading ? (
-        <div className="profile-badges-state">Loading badges...</div>
+        <div className="profile-badges-state">{t('profile.badges.loading')}</div>
       ) : badgeError ? (
         <div className="profile-badges-state error">
           <span>{badgeError}</span>
-          <button type="button" onClick={onRetry}>Retry</button>
+          <button type="button" onClick={onRetry}>{t('profile.badges.retry')}</button>
         </div>
       ) : badgesForPreview.length > 0 ? (
         <div className="profile-badges-row" aria-label="Profile badges">
@@ -250,7 +254,7 @@ function ProfileBadgesSection({
           ))}
         </div>
       ) : (
-        <div className="profile-badges-empty">No badges available yet.</div>
+        <div className="profile-badges-empty">{t('profile.badges.empty')}</div>
       )}
 
       {(selectedBadge || catalogOpen) && (
@@ -385,6 +389,7 @@ function ChangePasswordSection({
   isChangingPassword,
   handleChangePassword,
 }: ChangePasswordSectionProps) {
+  const { t } = useTranslation();
   const [visiblePasswords, setVisiblePasswords] = useState<Record<PasswordFieldKey, boolean>>({
     current: false,
     new: false,
@@ -399,8 +404,8 @@ function ChangePasswordSection({
     <section className="change-password-section">
       <div className="change-password-header">
         <div>
-          <h2 className="change-password-title">Change Password</h2>
-          <p className="change-password-subtitle">Update your account password without changing profile details.</p>
+          <h2 className="change-password-title">{t('profile.settingsTab.changePassword')}</h2>
+          <p className="change-password-subtitle">{t('profile.settingsTab.changePasswordSubtitle')}</p>
         </div>
         <button
           type="button"
@@ -409,7 +414,7 @@ function ChangePasswordSection({
           disabled={isChangingPassword}
           aria-expanded={isPasswordFormOpen}
         >
-          {isPasswordFormOpen ? 'Close' : 'Change Password'}
+          {isPasswordFormOpen ? t('profile.settingsTab.close') : t('profile.settingsTab.changePassword')}
         </button>
       </div>
 
@@ -428,7 +433,7 @@ function ChangePasswordSection({
       {isPasswordFormOpen && (
         <form className="change-password-form" onSubmit={handleChangePassword}>
           <div className="form-group">
-            <label htmlFor="current-password">Current password</label>
+            <label htmlFor="current-password">{t('profile.settingsTab.currentPassword')}</label>
             <div className="password-input-row">
               <input
                 id="current-password"
@@ -445,7 +450,7 @@ function ChangePasswordSection({
                 onClick={() => togglePasswordVisibility('current')}
                 disabled={isChangingPassword}
               >
-                {visiblePasswords.current ? 'Hide' : 'Show'}
+                {visiblePasswords.current ? t('profile.settingsTab.hide') : t('profile.settingsTab.show')}
               </button>
             </div>
             {passwordErrors.currentPassword && (
@@ -454,7 +459,7 @@ function ChangePasswordSection({
           </div>
 
           <div className="form-group">
-            <label htmlFor="new-password">New password</label>
+            <label htmlFor="new-password">{t('profile.settingsTab.newPassword')}</label>
             <div className="password-input-row">
               <input
                 id="new-password"
@@ -471,7 +476,7 @@ function ChangePasswordSection({
                 onClick={() => togglePasswordVisibility('new')}
                 disabled={isChangingPassword}
               >
-                {visiblePasswords.new ? 'Hide' : 'Show'}
+                {visiblePasswords.new ? t('profile.settingsTab.hide') : t('profile.settingsTab.show')}
               </button>
             </div>
             {passwordErrors.newPassword && (
@@ -480,7 +485,7 @@ function ChangePasswordSection({
           </div>
 
           <div className="form-group">
-            <label htmlFor="confirm-new-password">Confirm new password</label>
+            <label htmlFor="confirm-new-password">{t('profile.settingsTab.confirmNewPassword')}</label>
             <div className="password-input-row">
               <input
                 id="confirm-new-password"
@@ -497,7 +502,7 @@ function ChangePasswordSection({
                 onClick={() => togglePasswordVisibility('confirm')}
                 disabled={isChangingPassword}
               >
-                {visiblePasswords.confirm ? 'Hide' : 'Show'}
+                {visiblePasswords.confirm ? t('profile.settingsTab.hide') : t('profile.settingsTab.show')}
               </button>
             </div>
             {passwordErrors.confirmPassword && (
@@ -512,14 +517,14 @@ function ChangePasswordSection({
               onClick={togglePasswordForm}
               disabled={isChangingPassword}
             >
-              Cancel
+              {t('profile.settingsTab.cancel')}
             </button>
             <button
               type="submit"
               className="save-btn"
               disabled={isChangingPassword}
             >
-              {isChangingPassword ? 'Updating...' : 'Update Password'}
+              {isChangingPassword ? t('profile.settingsTab.updating') : t('profile.settingsTab.updatePassword')}
             </button>
           </div>
         </form>
@@ -832,13 +837,13 @@ export default function ProfilePage() {
   return (
     <div className="profile-container profile-container-wide">
       <div className="profile-header">
-        <h1>Your Profile</h1>
+        <h1>{t('profile.title')}</h1>
         <button
           className="edit-toggle-btn"
           onClick={handleEditToggle}
           disabled={isSaving}
         >
-          {isEditing ? 'Cancel Edit' : 'Edit Profile'}
+          {isEditing ? t('profile.settingsTab.cancel') : t('profile.settingsTab.editProfile')}
         </button>
       </div>
 
