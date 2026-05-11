@@ -45,8 +45,8 @@ interface FiltersBottomSheetProps {
   onChangeSortBy: (
     value: Extract<DiscoverEventsSortBy, 'START_TIME' | 'DISTANCE'>,
   ) => void;
-  onToggleChildFriendly: () => void;
-  onToggleFamilyOriented: () => void;
+  onToggleChildFriendly: (value?: boolean) => void;
+  onToggleFamilyOriented: (value?: boolean) => void;
 }
 
 const CATEGORY_PREVIEW_COUNT = 6;
@@ -424,7 +424,9 @@ export default function FiltersBottomSheet({
                 <Switch
                   value={draftFilters.childFriendly}
                   onValueChange={onToggleChildFriendly}
-                  trackColor={{ true: theme.primary }}
+                  trackColor={{ false: theme.switchTrackFalse, true: theme.switchTrackTrue }}
+                  thumbColor={draftFilters.childFriendly ? theme.switchThumbTrue : theme.switchThumbFalse}
+                  ios_backgroundColor={theme.switchIosBg}
                   accessibilityLabel={t('home.filtersSheet.childFriendly')}
                 />
               </View>
@@ -433,7 +435,9 @@ export default function FiltersBottomSheet({
                 <Switch
                   value={draftFilters.familyOriented}
                   onValueChange={onToggleFamilyOriented}
-                  trackColor={{ true: theme.primary }}
+                  trackColor={{ false: theme.switchTrackFalse, true: theme.switchTrackTrue }}
+                  thumbColor={draftFilters.familyOriented ? theme.switchThumbTrue : theme.switchThumbFalse}
+                  ios_backgroundColor={theme.switchIosBg}
                   accessibilityLabel={t('home.filtersSheet.familyOriented')}
                 />
               </View>

@@ -18,7 +18,7 @@ import {
 import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
-import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
@@ -1236,9 +1236,9 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
   const { event } = vm;
   const ratingLabel =
-    event.host_score.final_score != null
+    event.host_score.final_score != null && event.host_score.hosted_event_rating_count > 0
       ? `${event.host_score.final_score.toFixed(1)} (${event.host_score.hosted_event_rating_count})`
-      : 'New host';
+      : t('events.detail.noRatingsYet');
   const hostDisplayName = event.host.display_name ?? event.host.username;
   const capacityLabel =
     event.capacity != null
@@ -1518,7 +1518,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               <Text style={styles.hostUsername}>@{event.host.username}</Text>
             </View>
             <View style={styles.hostRating}>
-              <Feather name="star" size={14} color="#F59E0B" />
+              <MaterialCommunityIcons name="account-star" size={16} color="#F59E0B" />
               <Text style={styles.hostRatingText}>{ratingLabel}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />

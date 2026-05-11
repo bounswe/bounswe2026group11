@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Feather, MaterialIcons } from '@expo/vector-icons';
+import { Feather, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { EventSummary } from '@/models/event';
 import { getFavoriteCountForDisplay } from '@/utils/eventFavoriteCount';
@@ -26,9 +26,15 @@ export default function EventCard({ event, onPress }: EventCardProps) {
 
   const favoriteCount = getFavoriteCountForDisplay(event);
   const ratingLabel =
-    event.host_score.final_score != null
-      ? event.host_score.final_score.toFixed(1)
-      : 'New';
+    event.host_score.final_score != null && event.host_score.hosted_event_rating_count > 0
+      ? `${event.host_score.final_score.toFixed(1)} (${event.host_score.hosted_event_rating_count})`
+      : t('profile.new');
+
+  const hostRatingLabel =
+    ratingLabel === t('profile.new')
+      ? t('events.detail.newHost')
+      : t('events.detail.hostRatingLabel', { rating: ratingLabel });
+
   const participantLabel =
     event.capacity != null
       ? `${event.approved_participant_count}/${event.capacity}`
@@ -147,8 +153,8 @@ export default function EventCard({ event, onPress }: EventCardProps) {
           </View>
 
           <View style={styles.statItem}>
-            <Feather name="star" size={18} color={theme.textMuted} />
-            <Text style={styles.ratingText}>{ratingLabel}</Text>
+            <MaterialCommunityIcons name="account-star" size={20} color={theme.textMuted} />
+            <Text style={styles.ratingText}>{hostRatingLabel}</Text>
           </View>
         </View>
       </View>

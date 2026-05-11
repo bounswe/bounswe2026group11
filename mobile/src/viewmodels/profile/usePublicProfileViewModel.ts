@@ -83,17 +83,27 @@ export function usePublicProfileViewModel(userId: string): PublicProfileViewMode
   const secondaryName = profile?.display_name ? profile.username : null;
   const avatarInitial = primaryName.trim().charAt(0).toUpperCase() || '?';
 
-  const overallRatingLabel = profile?.final_score != null 
-    ? profile.final_score.toFixed(1) 
+  const totalCount = (profile?.host_rating_count || 0) + (profile?.participant_rating_count || 0);
+  const overallRatingLabel = profile?.final_score != null && totalCount > 0
+    ? i18n.t('publicProfile.ratingWithCount', {
+        rating: profile.final_score.toFixed(1),
+        count: totalCount,
+      })
     : i18n.t('profile.new');
   
-  const hostRatingLabel = profile?.final_score != null // Note: Backend currently returns final_score but might need more specific host/participant count
-    ? i18n.t('publicProfile.hostRatingCount', { count: profile.host_rating_count })
-    : i18n.t('publicProfile.newHost');
+  const hostRatingLabel = profile?.final_score != null && profile.host_rating_count > 0
+    ? i18n.t('publicProfile.ratingWithCount', {
+        rating: profile.final_score.toFixed(1),
+        count: profile.host_rating_count,
+      })
+    : i18n.t('profile.new');
 
-  const participantRatingLabel = profile?.final_score != null
-    ? i18n.t('publicProfile.guestRatingCount', { count: profile.participant_rating_count })
-    : i18n.t('publicProfile.newGuest');
+  const participantRatingLabel = profile?.final_score != null && profile.participant_rating_count > 0
+    ? i18n.t('publicProfile.ratingWithCount', {
+        rating: profile.final_score.toFixed(1),
+        count: profile.participant_rating_count,
+      })
+    : i18n.t('profile.new');
 
   return {
     profile,
