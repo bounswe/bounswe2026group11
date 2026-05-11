@@ -2,8 +2,9 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Platform } from 'react-native';
+import { router } from 'expo-router';
 import CreateEventView from './CreateEventView';
 import { jest } from '@jest/globals';
 import {
@@ -33,6 +34,7 @@ jest.mock('expo-router', () => ({
   router: {
     back: jest.fn(),
     replace: jest.fn(),
+    canGoBack: jest.fn(() => true),
   },
 }));
 
@@ -105,6 +107,15 @@ jest.mock('@/viewmodels/event/useCreateEventViewModel', () => {
 
 const mockUseAuth = jest.mocked(useAuth);
 const mockUseCreateEventViewModel = jest.mocked(useCreateEventViewModel);
+
+const createdEventResponse = {
+  id: 'event-1',
+  title: 'Created Event',
+  privacy_level: 'PUBLIC',
+  status: 'ACTIVE',
+  start_time: '2027-05-10T10:00:00Z',
+  created_at: '2026-05-01T10:00:00Z',
+};
 
 function buildViewModel(
   partial: Partial<CreateEventViewModel> = {},
@@ -189,6 +200,7 @@ describe('CreateEventView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (Platform as any).OS = 'ios';
+    (router.canGoBack as jest.Mock).mockReturnValue(true);
     mockUseAuth.mockReturnValue({
       token: 'token',
       login: jest.fn(),
@@ -351,5 +363,37 @@ describe('CreateEventView', () => {
 
     fireEvent.click(familyOrientedToggle);
     expect(updateField).toHaveBeenCalledWith('familyOriented', true);
+  });
+
+  it('returns to the previous screen after creating an event successfully', async () => {
+    const handleSubmit = jest
+      .fn<CreateEventViewModel['handleSubmit']>()
+      .mockResolvedValue(createdEventResponse as any);
+    (router.canGoBack as jest.Mock).mockReturnValue(true);
+    mockUseCreateEventViewModel.mockReturnValue(buildViewModel({ handleSubmit }));
+
+    render(<CreateEventView />);
+
+    fireEvent.click(screen.getByLabelText('Create event'));
+
+    await waitFor(() => expect(handleSubmit).toHaveBeenCalledWith('token'));
+    await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it('falls back to home after creation when there is no previous screen', async () => {
+    const handleSubmit = jest
+      .fn<CreateEventViewModel['handleSubmit']>()
+      .mockResolvedValue(createdEventResponse as any);
+    (router.canGoBack as jest.Mock).mockReturnValue(false);
+    mockUseCreateEventViewModel.mockReturnValue(buildViewModel({ handleSubmit }));
+
+    render(<CreateEventView />);
+
+    fireEvent.click(screen.getByLabelText('Create event'));
+
+    await waitFor(() => expect(handleSubmit).toHaveBeenCalledWith('token'));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/(tabs)/home'));
+    expect(router.back).not.toHaveBeenCalled();
   });
 });

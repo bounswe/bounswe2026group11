@@ -25,6 +25,8 @@ const REACT_NATIVE_ONLY_PROPS = new Set([
   'showsHorizontalScrollIndicator',
   'showsVerticalScrollIndicator',
   'textAlignVertical',
+  'thumbColor',
+  'trackColor',
   'underlineColorAndroid',
   'adjustsFontSizeToFit',
   'clearButtonMode',
@@ -35,6 +37,7 @@ const REACT_NATIVE_ONLY_PROPS = new Set([
   'delayPressOut',
   'hitSlop',
   'horizontal',
+  'ios_backgroundColor',
   'keyboardType',
   'nestedScrollEnabled',
   'onRequestClose',
@@ -168,6 +171,35 @@ const TouchableOpacity = React.forwardRef(function MockTouchableOpacity(
   );
 });
 
+const Pressable = React.forwardRef(function MockPressable(
+  {
+    children,
+    onPress,
+    accessibilityLabel,
+    accessibilityRole,
+    testID,
+    style,
+    disabled,
+    ...props
+  },
+  ref,
+) {
+  return React.createElement(
+    'div',
+    {
+      ref,
+      role: accessibilityRole,
+      'aria-label': accessibilityLabel,
+      'data-testid': testID,
+      style: mergeStyle(style),
+      disabled,
+      onClick: disabled ? undefined : (event) => onPress?.(event),
+      ...stripReactNativeOnlyProps(props),
+    },
+    children,
+  );
+});
+
 const TextInput = React.forwardRef(function MockTextInput(
   {
     value,
@@ -256,21 +288,32 @@ const Switch = React.forwardRef(function MockSwitch(
   });
 });
 
+function renderListPart(part) {
+  if (!part) return null;
+  return typeof part === 'function' ? React.createElement(part) : part;
+}
+
 const FlatList = React.forwardRef(function MockFlatList(
   { data, renderItem, ListEmptyComponent, ListHeaderComponent, ListFooterComponent, keyExtractor },
   ref,
 ) {
   if (!data || data.length === 0) {
-    return React.createElement('div', { ref }, ListEmptyComponent);
+    return React.createElement(
+      'div',
+      { ref },
+      renderListPart(ListHeaderComponent),
+      renderListPart(ListEmptyComponent),
+      renderListPart(ListFooterComponent),
+    );
   }
   return React.createElement(
     'div',
     { ref },
-    ListHeaderComponent,
+    renderListPart(ListHeaderComponent),
     data.map((item, index) =>
       React.createElement('div', { key: keyExtractor ? keyExtractor(item, index) : index }, renderItem({ item, index })),
     ),
-    ListFooterComponent,
+    renderListPart(ListFooterComponent),
   );
 });
 
@@ -279,12 +322,18 @@ const SectionList = React.forwardRef(function MockSectionList(
   ref,
 ) {
   if (!sections || sections.length === 0) {
-    return React.createElement('div', { ref }, ListEmptyComponent);
+    return React.createElement(
+      'div',
+      { ref },
+      renderListPart(ListHeaderComponent),
+      renderListPart(ListEmptyComponent),
+      renderListPart(ListFooterComponent),
+    );
   }
   return React.createElement(
     'div',
     { ref },
-    ListHeaderComponent,
+    renderListPart(ListHeaderComponent),
     sections.map((section, idx) =>
       React.createElement(
         'div',
@@ -295,13 +344,16 @@ const SectionList = React.forwardRef(function MockSectionList(
         ),
       ),
     ),
-    ListFooterComponent,
+    renderListPart(ListFooterComponent),
   );
 });
 
 module.exports = {
   Alert: {
     alert: jest.fn(),
+  },
+  Keyboard: {
+    dismiss: jest.fn(),
   },
   Platform: {
     OS: 'ios',
@@ -321,6 +373,7 @@ module.exports = {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   StyleSheet: {
     create: (styles) => styles,
   },

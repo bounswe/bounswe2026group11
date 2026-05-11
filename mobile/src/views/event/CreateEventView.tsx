@@ -14,7 +14,7 @@ import {
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,7 +42,14 @@ export default function CreateEventView() {
   const pickerThemeVariant = isDark ? 'dark' : 'light';
 
   const handleCreate = async () => {
-    await vm.handleSubmit(token ?? '');
+    const createdEvent = await vm.handleSubmit(token ?? '');
+    if (!createdEvent) return;
+
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/home' as Href);
+    }
   };
 
   const [activeDatePicker, setActiveDatePicker] = useState<'start' | 'end' | null>(null);
@@ -1072,6 +1079,8 @@ export default function CreateEventView() {
           onPress={handleCreate}
           disabled={vm.isLoading}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Create event"
         >
           {vm.isLoading ? (
             <ActivityIndicator color={theme.textOnPrimary} />

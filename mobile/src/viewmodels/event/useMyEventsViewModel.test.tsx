@@ -3,21 +3,18 @@
  */
 import { act, renderHook, waitFor } from '@testing-library/react';
 import * as eventService from '@/services/eventService';
-import * as invitationService from '@/services/invitationService';
 import * as ticketService from '@/services/ticketService';
 import type { MyEventsResponse, MyEventSummary } from '@/models/event';
 import { useMyEventsViewModel } from './useMyEventsViewModel';
 import { useAuth } from '@/contexts/AuthContext';
 
 jest.mock('@/services/eventService');
-jest.mock('@/services/invitationService');
 jest.mock('@/services/ticketService');
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 
 const mockListMyEvents = jest.mocked(eventService.listMyEvents);
-const mockListMyInvitations = jest.mocked(invitationService.listMyInvitations);
 const mockListMyTickets = jest.mocked(ticketService.listMyTickets);
 const mockUseAuth = jest.mocked(useAuth);
 
@@ -68,22 +65,6 @@ const myEventsResponse: MyEventsResponse = {
   ],
 };
 
-const myInvitationsResponse = {
-  pending: [
-    {
-      invitation_id: 'inv-1',
-      status: 'PENDING',
-      event: { id: 'event-1', title: 'Private Event 1', start_time: '2026-05-10T10:00:00Z' },
-      host: { username: 'host1', display_name: 'Host One' },
-      message: 'Join us!',
-    },
-  ],
-  past: {
-    items: [],
-    page_info: { next_cursor: null, has_next: false },
-  },
-};
-
 const myTicketsResponse = {
   items: [
     {
@@ -119,77 +100,41 @@ describe('useMyEventsViewModel', () => {
       clearAuth: jest.fn(),
     });
     mockListMyEvents.mockResolvedValue(myEventsResponse);
-    mockListMyInvitations.mockResolvedValue(myInvitationsResponse as any);
     mockListMyTickets.mockResolvedValue(myTicketsResponse as any);
   });
 
-  it('loads my events and invitations on mount', async () => {
+  it('loads my events on mount and decorates attended ticket data', async () => {
     const { result } = renderHook(() => useMyEventsViewModel());
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(mockListMyEvents).toHaveBeenCalledWith('mock-token');
-    expect(mockListMyInvitations).toHaveBeenCalledWith('mock-token');
     expect(mockListMyTickets).toHaveBeenCalledWith('mock-token');
     
-    expect(result.current.invitations.length).toBe(1);
-    expect(result.current.statusTabs.find(t => t.value === 'INVITATIONS')?.count).toBe(1);
+    expect(result.current.statusTabs.map((tab) => tab.value)).toEqual([
+      'ACTIVE',
+      'IN_PROGRESS',
+      'COMPLETED',
+      'CANCELED',
+    ]);
     expect(result.current.attendedEvents[0].ticket_id).toBe('ticket-1');
     expect(result.current.attendedEvents[0].ticket_status).toBe('USED');
     expect(result.current.attendedEvents[0].badges).toEqual([{ type: 'TICKET', label: 'Ticket' }]);
   });
 
-  it('filters events when the selected status changes, including INVITATIONS', async () => {
+  it('filters events when the selected status changes', async () => {
     const { result } = renderHook(() => useMyEventsViewModel());
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     act(() => {
-      result.current.setActiveStatus('INVITATIONS');
+      result.current.setActiveStatus('COMPLETED');
     });
 
-    expect(result.current.activeStatus).toBe('INVITATIONS');
-    expect(result.current.emptyTitle).toBe('No invitations yet');
-  });
-
-  it('handles accepting an invitation', async () => {
-    const mockAccept = jest.mocked(invitationService.acceptInvitation);
-    mockAccept.mockResolvedValue({} as any);
-    
-    // First call returns 1, second (after reload) returns 0
-    mockListMyInvitations
-      .mockResolvedValueOnce(myInvitationsResponse as any)
-      .mockResolvedValueOnce({
-        pending: [],
-        past: { items: [], page_info: { next_cursor: null, has_next: false } },
-      } as any);
-
-    const { result } = renderHook(() => useMyEventsViewModel());
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    await act(async () => {
-      await result.current.handleAccept('inv-1');
-    });
-
-    expect(mockAccept).toHaveBeenCalledWith('inv-1', 'mock-token');
-    // After reload, it should be 0
-    await waitFor(() => expect(result.current.invitations.length).toBe(0));
-    await waitFor(() => expect(mockListMyEvents).toHaveBeenCalledTimes(2));
-  });
-
-  it('handles declining an invitation', async () => {
-    const mockDecline = jest.mocked(invitationService.declineInvitation);
-    mockDecline.mockResolvedValue({} as any);
-
-    const { result } = renderHook(() => useMyEventsViewModel());
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    await act(async () => {
-      await result.current.handleDecline('inv-1');
-    });
-
-    expect(mockDecline).toHaveBeenCalledWith('inv-1', 'mock-token');
-    expect(result.current.invitations.length).toBe(0);
+    expect(result.current.activeStatus).toBe('COMPLETED');
+    expect(result.current.visibleEvents.map((event) => event.id)).toEqual([
+      'host-completed',
+    ]);
   });
 
   it('shows an auth-specific error when the user is logged out', async () => {
@@ -226,15 +171,4 @@ describe('useMyEventsViewModel', () => {
     }
   });
 
-  it('treats a missing invitations items array as empty instead of crashing', async () => {
-    mockListMyInvitations.mockResolvedValueOnce({ total: 0 } as any);
-
-    const { result } = renderHook(() => useMyEventsViewModel());
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    expect(result.current.errorMessage).toBeNull();
-    expect(result.current.invitations).toEqual([]);
-    expect(result.current.invitationCount).toBe(0);
-  });
 });
