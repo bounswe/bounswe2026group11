@@ -15,6 +15,14 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 
+jest.mock('@/contexts/LocaleContext', () => ({
+  useLocale: () => ({
+    locale: 'en',
+    isHydrating: false,
+    setLocale: jest.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 jest.mock('@/viewmodels/auth/useLogoutViewModel', () => ({
   useLogoutViewModel: jest.fn(),
 }));

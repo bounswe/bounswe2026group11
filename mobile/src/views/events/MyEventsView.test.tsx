@@ -210,7 +210,7 @@ describe('MyEventsView', () => {
     render(<MyEventsView />);
 
     expect(screen.getByText('Unable to load your events')).toBeTruthy();
-    fireEvent.click(screen.getByLabelText('Try again'));
+    fireEvent.click(screen.getByLabelText('Try Again'));
 
     expect(reload).toHaveBeenCalled();
   });
