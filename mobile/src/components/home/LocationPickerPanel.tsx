@@ -275,12 +275,12 @@ export default function LocationPickerPanel({
                         onPress={onRetryFavoriteLocations}
                         activeOpacity={0.85}
                       >
-                        <Text style={styles.retryButtonText}>Retry</Text>
+                        <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
                       </TouchableOpacity>
                     </View>
                   ) : favoriteOptions.length === 0 ? (
                     <Text style={styles.emptyText}>
-                      No favorite locations saved yet.
+                      {t('home.locationPicker.noFavoriteLocations')}
                     </Text>
                   ) : (
                     favoriteOptions.map((option) => (

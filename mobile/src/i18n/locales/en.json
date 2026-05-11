@@ -21,7 +21,9 @@
     "english": "English",
     "turkish": "Türkçe",
     "tryAgain": "Please try again.",
-    "notAvailable": "N/A"
+    "notAvailable": "N/A",
+    "none": "None",
+    "invalidDate": "Invalid date"
   },
   "auth": {
     "login": {
@@ -120,6 +122,12 @@
       "list": "List",
       "map": "Map"
     },
+    "map": {
+      "emptyTitle": "No events on the map",
+      "emptySubtitle": "Try panning the map or adjusting filters. Some events may be hidden due to age or gender restrictions.",
+      "participants": "{{count}} going",
+      "participantsWithCapacity": "{{count}} / {{capacity}} going"
+    },
     "filtersSheet": {
       "title": "Filters",
       "reset": "Reset",
@@ -177,7 +185,8 @@
       "Theatre": "Theatre",
       "Books & Literature": "Books & Literature",
       "Wellness": "Wellness",
-      "Volunteering": "Volunteering"
+      "Volunteering": "Volunteering",
+      "Event": "Event"
     },
     "tabs": {
       "home": "Explore",
@@ -361,6 +370,118 @@
       "errorTitleInaccessible": "Event Inaccessible",
       "errorDescription": "The event you are looking for could not be found.",
       "backToDiscovery": "Go Back to Discovery"
+    },
+    "joinRequest": {
+      "title": "Request to Join",
+      "subtitle": "Send a message to the host explaining why you'd like to join.",
+      "messageOptional": "Message (optional)",
+      "messagePlaceholder": "I have experience with similar events and would love to participate…",
+      "attachment": "Attachment (Evidence)",
+      "addPhotoEvidence": "Add Photo Evidence",
+      "send": "Send Request"
+    },
+    "joinRequests": {
+      "title": "Pending Requests ({{count}})",
+      "viewAttachment": "View Attachment",
+      "loading": "Loading requests...",
+      "empty": "No pending requests."
+    },
+    "participants": {
+      "title": "Attendees ({{count}})",
+      "loading": "Loading attendees...",
+      "empty": "No attendees yet."
+    },
+    "report": {
+      "title": "Report Event",
+      "reason": "Select a Reason",
+      "description": "Description",
+      "descriptionPlaceholder": "Tell us what is wrong with this event...",
+      "attachEvidence": "Attach Evidence (Optional)",
+      "addImage": "Add a screenshot or photo",
+      "submit": "Submit Report",
+      "categories": {
+        "SAFETY": "Safety Concern",
+        "HARASSMENT": "Harassment",
+        "SPAM_OR_SCAM": "Spam or Scam",
+        "INAPPROPRIATE_CONTENT": "Inappropriate Content",
+        "EVENT_NOT_AS_DESCRIBED": "Event not as Described",
+        "ILLEGAL_OR_DANGEROUS": "Illegal or Dangerous",
+        "OTHER": "Other"
+      }
+    },
+    "feedback": {
+      "kicker": "Post-event feedback",
+      "updateHostRating": "Update your rating for the host",
+      "howWasEvent": "How was this event?",
+      "openUntil": "Open until {{date}}",
+      "closed": "Closed {{date}}",
+      "hostRatingCopy": "Rate the experience from 1 to 5 stars. You can optionally leave a short message for the host.",
+      "windowClosedOn": "The feedback window closed on {{date}}.",
+      "lastUpdated": "Last updated {{date}}",
+      "editRating": "Edit Rating",
+      "selectStarRating": "Select a star rating",
+      "ratingSummary": "{{rating}}/5 · {{stars}}",
+      "message": "Message",
+      "hostPlaceholder": "Share what stood out, how the event felt, or anything the host should know.",
+      "optionalRangeHelper": "Optional. If you write one, keep it between {{min}} and {{max}} characters.",
+      "overwriteNotice": "Last updated {{date}}. Submitting again overwrites the existing rating.",
+      "updateRating": "Update Rating",
+      "submitRating": "Submit Rating",
+      "saveChanges": "Save Changes",
+      "rate": "Rate",
+      "rateParticipant": "Rate {{name}}",
+      "oneToFiveStars": "1 to 5 stars",
+      "participantPlaceholder": "Optional note about reliability, communication, or overall experience.",
+      "optionalMinHelper": "Optional, but must be at least {{count}} characters if provided.",
+      "participantNotRated": "You haven't rated this participant yet",
+      "canRateParticipants": "You can leave post-event ratings for participants.",
+      "participantOpenUntil": "Participant feedback is open until {{date}}.",
+      "participantClosedOn": "Participant feedback closed on {{date}}.",
+      "validationMin": "Feedback must be at least {{count}} characters.",
+      "validationMax": "Feedback must be {{count}} characters or fewer."
+    },
+    "version": {
+      "title": "Version History",
+      "reviewBeforeConfirm": "Review these changes before confirming that you can still attend.",
+      "changesFromTo": "Changes from version {{from}} to {{to}}",
+      "currentVersion": "Current event version {{version}}",
+      "attendanceImpact": "Attendance impact",
+      "before": "Before",
+      "now": "Now",
+      "noChangesTitle": "No changes need your review right now.",
+      "noChangesSubtitle": "If future edits affect time, location, privacy, or participation rules, they will appear here.",
+      "notSet": "Not set",
+      "unlimited": "Unlimited",
+      "route": "route",
+      "routeWithLabel": "Route ({{label}})",
+      "pointLocation": "Point location",
+      "participantCount": "{{count}} participants",
+      "summary": {
+        "timeChanged": "Time changed",
+        "locationChanged": "Location or route changed",
+        "privacyChanged": "Privacy changed",
+        "participationRulesChanged": "Participation rules changed",
+        "fieldChanged": "{{field}} changed",
+        "detailsChanged": "Event details changed"
+      },
+      "fields": {
+        "title": "Title",
+        "description": "Description",
+        "image_url": "Cover image",
+        "category": "Category",
+        "location": "Location or route",
+        "start_time": "Start time",
+        "end_time": "End time",
+        "privacy_level": "Privacy",
+        "capacity": "Capacity",
+        "minimum_age": "Minimum age",
+        "preferred_gender": "Preferred gender",
+        "constraints": "Participation requirements",
+        "tags": "Tags",
+        "child_friendly": "Child friendly",
+        "family_oriented": "Family oriented",
+        "status": "Status"
+      }
     }
   },
   "notifications": {
@@ -405,6 +526,34 @@
     "errors": {
       "loginRequired": "You must be logged in to manage your events.",
       "loadFailed": "Failed to load your events. Please try again."
+    }
+  },
+  "favorites": {
+    "title": "Favorites",
+    "eventsTab": "Events",
+    "locationsTab": "Locations",
+    "events": {
+      "loading": "Loading favorites...",
+      "emptyTitle": "No favorite events yet",
+      "emptySubtitle": "Tap the heart icon on an event to save it here."
+    },
+    "locations": {
+      "loading": "Loading favorite locations...",
+      "count": "{{count}} / {{max}} locations",
+      "add": "Add",
+      "addTitle": "Add Favorite Location",
+      "name": "Name",
+      "namePlaceholder": "e.g. Home, Office, Gym",
+      "address": "Address",
+      "addressPlaceholder": "Search for a location...",
+      "save": "Save Location",
+      "removeTitle": "Remove Location",
+      "removeMessage": "Remove \"{{name}}\" from favorites?",
+      "limitReached": "Maximum of 3 favorite locations reached.",
+      "errorTitle": "Unable to load favorite locations",
+      "retry": "Retry favorite locations",
+      "emptyTitle": "No favorite locations",
+      "emptySubtitle": "Add up to 3 locations for quick access."
     }
   },
   "profile": {
@@ -473,7 +622,21 @@
       "bio": "Bio",
       "gender": "Gender",
       "birthDate": "Birth Date",
-      "defaultLocation": "Default Location"
+      "defaultLocation": "Default Location",
+      "displayNamePlaceholder": "Enter your display name",
+      "bioPlaceholder": "Tell us about yourself",
+      "locationPlaceholder": "Search for a place...",
+      "clearDefaultLocation": "Clear default location",
+      "selectGender": "Select {{gender}}",
+      "birthDatePlaceholder": "dd.mm.yyyy",
+      "pickBirthDate": "Pick birth date",
+      "saveProfile": "Save profile",
+      "genderOptions": {
+        "MALE": "Male",
+        "FEMALE": "Female",
+        "OTHER": "Other",
+        "PREFER_NOT_TO_SAY": "Prefer not to say"
+      }
     }
   },
   "tickets": {

@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import ProfileEventCard from '@/components/profile/ProfileEventCard';
 import { useFavoriteEventsViewModel } from '@/viewmodels/favorites/useFavoriteEventsViewModel';
 import { useTheme } from '@/theme';
@@ -16,13 +17,14 @@ import type { Theme } from '@/theme';
 export default function FavoriteEventsTab() {
   const vm = useFavoriteEventsViewModel();
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   if (vm.isLoading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={theme.text} />
-        <Text style={styles.loadingText}>Loading favorites...</Text>
+        <Text style={styles.loadingText}>{t('favorites.events.loading')}</Text>
       </View>
     );
   }
@@ -42,7 +44,9 @@ export default function FavoriteEventsTab() {
           <ProfileEventCard
             title={item.title}
             imageUrl={item.image_url}
-            categoryLabel={item.category ?? 'Event'}
+            categoryLabel={t(`events.categories.${item.category}`, {
+              defaultValue: item.category ?? t('events.categories.Event'),
+            })}
             startTime={item.start_time}
             locationAddress={item.location_address ?? null}
             status={item.status}
@@ -59,9 +63,9 @@ export default function FavoriteEventsTab() {
         ListEmptyComponent={vm.apiError ? null : (
           <View style={styles.center}>
             <Ionicons name="heart-outline" size={40} color={theme.border} />
-            <Text style={styles.emptyTitle}>No favorite events yet</Text>
+            <Text style={styles.emptyTitle}>{t('favorites.events.emptyTitle')}</Text>
             <Text style={styles.emptySubtitle}>
-              Tap the heart icon on an event to save it here.
+              {t('favorites.events.emptySubtitle')}
             </Text>
           </View>
         )}

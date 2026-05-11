@@ -15,6 +15,7 @@ import MapView, {
 } from 'react-native-maps';
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 import { DARK_MAP_STYLE } from '@/theme/mapStyle';
@@ -347,8 +348,14 @@ function EventMapMarker({
               </Text>
             ) : null}
             <Text style={styles.calloutMeta}>
-              👥 {event.approved_participant_count}
-              {event.capacity != null ? ` / ${event.capacity}` : ''} going
+              👥 {event.capacity != null
+                ? i18n.t('home.map.participantsWithCapacity', {
+                    count: event.approved_participant_count,
+                    capacity: event.capacity,
+                  })
+                : i18n.t('home.map.participants', {
+                    count: event.approved_participant_count,
+                  })}
             </Text>
           </View>
 
@@ -370,7 +377,7 @@ export default function EventMapView({
 }: EventMapViewProps) {
   const { theme, isDark } = useTheme();
   // Subscribe to language so category presentation labels re-render on locale change.
-  useTranslation();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const mapRef = useRef<MapView | null>(null);
   const [visibleRegion, setVisibleRegion] = useState<MapRegion>(region);
@@ -484,9 +491,9 @@ export default function EventMapView({
 
       {!isLoading && mappableEvents.length === 0 && (
         <View style={styles.emptyOverlay} testID="map-empty">
-          <Text style={styles.emptyTitle}>No events on the map</Text>
+          <Text style={styles.emptyTitle}>{t('home.map.emptyTitle')}</Text>
           <Text style={styles.emptySubtitle}>
-            Try panning the map or adjusting filters. Some events may be hidden due to age or gender restrictions.
+            {t('home.map.emptySubtitle')}
           </Text>
         </View>
       )}

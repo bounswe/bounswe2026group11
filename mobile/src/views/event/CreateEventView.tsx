@@ -350,7 +350,7 @@ export default function CreateEventView() {
                     vm.formData.categoryId === cat.id && styles.chipTextSelected,
                   ]}
                 >
-                  {cat.name}
+                  {t(`events.categories.${cat.name}`, { defaultValue: cat.name })}
                 </Text>
               </TouchableOpacity>
             ))}

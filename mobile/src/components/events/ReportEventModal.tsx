@@ -13,6 +13,7 @@ import {
   Image,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { EventReportCategory } from '@/models/event';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
@@ -32,14 +33,14 @@ interface ReportEventModalProps {
   allowImage: boolean;
 }
 
-const CATEGORIES: { value: EventReportCategory; label: string }[] = [
-  { value: EventReportCategory.SAFETY, label: 'Safety Concern' },
-  { value: EventReportCategory.HARASSMENT, label: 'Harassment' },
-  { value: EventReportCategory.SPAM_OR_SCAM, label: 'Spam or Scam' },
-  { value: EventReportCategory.INAPPROPRIATE_CONTENT, label: 'Inappropriate Content' },
-  { value: EventReportCategory.EVENT_NOT_AS_DESCRIBED, label: 'Event not as Described' },
-  { value: EventReportCategory.ILLEGAL_OR_DANGEROUS, label: 'Illegal or Dangerous' },
-  { value: EventReportCategory.OTHER, label: 'Other' },
+const CATEGORIES: { value: EventReportCategory; labelKey: string }[] = [
+  { value: EventReportCategory.SAFETY, labelKey: 'events.report.categories.SAFETY' },
+  { value: EventReportCategory.HARASSMENT, labelKey: 'events.report.categories.HARASSMENT' },
+  { value: EventReportCategory.SPAM_OR_SCAM, labelKey: 'events.report.categories.SPAM_OR_SCAM' },
+  { value: EventReportCategory.INAPPROPRIATE_CONTENT, labelKey: 'events.report.categories.INAPPROPRIATE_CONTENT' },
+  { value: EventReportCategory.EVENT_NOT_AS_DESCRIBED, labelKey: 'events.report.categories.EVENT_NOT_AS_DESCRIBED' },
+  { value: EventReportCategory.ILLEGAL_OR_DANGEROUS, labelKey: 'events.report.categories.ILLEGAL_OR_DANGEROUS' },
+  { value: EventReportCategory.OTHER, labelKey: 'events.report.categories.OTHER' },
 ];
 
 export default function ReportEventModal({
@@ -57,6 +58,7 @@ export default function ReportEventModal({
   allowImage,
 }: ReportEventModalProps) {
   const { theme, isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme, isDark), [theme, isDark]);
   const isSubmitDisabled = !category || !message.trim() || loading;
 
@@ -83,7 +85,7 @@ export default function ReportEventModal({
           style={styles.container}
         >
           <View style={styles.header}>
-            <Text style={styles.title}>Report Event</Text>
+            <Text style={styles.title}>{t('events.report.title')}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Feather name="x" size={24} color={theme.textTertiary} />
             </TouchableOpacity>
@@ -94,7 +96,7 @@ export default function ReportEventModal({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.label}>Select a Reason</Text>
+            <Text style={styles.label}>{t('events.report.reason')}</Text>
             <View style={styles.categories}>
               {CATEGORIES.map((cat) => (
                 <TouchableOpacity
@@ -111,16 +113,16 @@ export default function ReportEventModal({
                       category === cat.value && styles.categoryTextSelected,
                     ]}
                   >
-                    {cat.label}
+                    {t(cat.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={styles.label}>Description</Text>
+            <Text style={styles.label}>{t('events.report.description')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Tell us what is wrong with this event..."
+              placeholder={t('events.report.descriptionPlaceholder')}
               placeholderTextColor={theme.placeholder}
               multiline
               numberOfLines={4}
@@ -130,7 +132,7 @@ export default function ReportEventModal({
 
             {allowImage && (
               <>
-                <Text style={styles.label}>Attach Evidence (Optional)</Text>
+                <Text style={styles.label}>{t('events.report.attachEvidence')}</Text>
                 {imageUri ? (
                   <View style={styles.imageContainer}>
                     <Image source={{ uri: imageUri }} style={styles.previewImage} />
@@ -148,7 +150,7 @@ export default function ReportEventModal({
                   >
                     <Feather name="camera" size={24} color={theme.textTertiary} />
                     <Text style={styles.imagePlaceholderText}>
-                      Add a screenshot or photo
+                      {t('events.report.addImage')}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -164,7 +166,7 @@ export default function ReportEventModal({
                 {loading ? (
                   <ActivityIndicator color={theme.textOnPrimary} />
                 ) : (
-                  <Text style={styles.submitBtnText}>Submit Report</Text>
+                  <Text style={styles.submitBtnText}>{t('events.report.submit')}</Text>
                 )}
               </TouchableOpacity>
             </View>

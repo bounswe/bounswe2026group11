@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { FavoriteLocation } from '@/models/favorite';
 import { LocationSuggestion } from '@/models/event';
 import { useFavoriteLocationsViewModel } from '@/viewmodels/favorites/useFavoriteLocationsViewModel';
@@ -28,21 +29,23 @@ function LocationCard({
   isRemoving,
   theme,
   styles,
+  t,
 }: {
   location: FavoriteLocation;
   onRemove: (id: string) => Promise<void>;
   isRemoving: boolean;
   theme: Theme;
   styles: ReturnType<typeof makeStyles>;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   const handleRemove = () => {
     Alert.alert(
-      'Remove Location',
-      `Remove "${location.name}" from favorites?`,
+      t('favorites.locations.removeTitle'),
+      t('favorites.locations.removeMessage', { name: location.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Remove',
+          text: t('common.remove'),
           style: 'destructive',
           onPress: () => onRemove(location.id),
         },
@@ -93,6 +96,7 @@ function AddLocationModal({
   onSubmit,
   theme,
   styles,
+  t,
 }: {
   visible: boolean;
   name: string;
@@ -109,6 +113,7 @@ function AddLocationModal({
   onSubmit: () => Promise<void>;
   theme: Theme;
   styles: ReturnType<typeof makeStyles>;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   return (
     <Modal
@@ -123,7 +128,7 @@ function AddLocationModal({
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add Favorite Location</Text>
+            <Text style={styles.modalTitle}>{t('favorites.locations.addTitle')}</Text>
             <TouchableOpacity onPress={onClose} style={styles.modalClose}>
               <Feather name="x" size={24} color={theme.text} />
             </TouchableOpacity>
@@ -133,20 +138,22 @@ function AddLocationModal({
             style={styles.modalBody}
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.fieldLabel}>Name</Text>
+            <Text style={styles.fieldLabel}>{t('favorites.locations.name')}</Text>
             <TextInput
               style={styles.textInput}
-              placeholder="e.g. Home, Office, Gym"
+              placeholder={t('favorites.locations.namePlaceholder')}
               placeholderTextColor={theme.placeholder}
               value={name}
               onChangeText={onChangeName}
               maxLength={50}
             />
 
-            <Text style={[styles.fieldLabel, { marginTop: 20 }]}>Address</Text>
+            <Text style={[styles.fieldLabel, { marginTop: 20 }]}>
+              {t('favorites.locations.address')}
+            </Text>
             <TextInput
               style={styles.textInput}
-              placeholder="Search for a location..."
+              placeholder={t('favorites.locations.addressPlaceholder')}
               placeholderTextColor={theme.placeholder}
               value={locationQuery}
               onChangeText={onChangeQuery}
@@ -155,7 +162,7 @@ function AddLocationModal({
             {isSearching ? (
               <View style={styles.searchingRow}>
                 <ActivityIndicator size="small" color="#6366F1" />
-                <Text style={styles.searchingText}>Searching...</Text>
+                <Text style={styles.searchingText}>{t('common.search')}</Text>
               </View>
             ) : null}
 
@@ -198,7 +205,7 @@ function AddLocationModal({
 
           <View style={styles.modalFooter}>
             <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -211,7 +218,7 @@ function AddLocationModal({
               {isSubmitting ? (
                 <ActivityIndicator size="small" color={theme.textOnPrimary} />
               ) : (
-                <Text style={styles.saveButtonText}>Save Location</Text>
+                <Text style={styles.saveButtonText}>{t('favorites.locations.save')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -224,13 +231,14 @@ function AddLocationModal({
 export default function FavoriteLocationsTab() {
   const vm = useFavoriteLocationsViewModel();
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   if (vm.isLoading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={theme.text} />
-        <Text style={styles.loadingText}>Loading favorite locations...</Text>
+        <Text style={styles.loadingText}>{t('favorites.locations.loading')}</Text>
       </View>
     );
   }
@@ -239,7 +247,7 @@ export default function FavoriteLocationsTab() {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.countText}>
-          {vm.locations.length} / 3 locations
+          {t('favorites.locations.count', { count: vm.locations.length, max: 3 })}
         </Text>
         <TouchableOpacity
           style={[styles.addButton, !vm.canAddMore && styles.addButtonDisabled]}
@@ -257,7 +265,7 @@ export default function FavoriteLocationsTab() {
               !vm.canAddMore && styles.addButtonTextDisabled,
             ]}
           >
-            Add
+            {t('favorites.locations.add')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -272,7 +280,7 @@ export default function FavoriteLocationsTab() {
         <View style={styles.limitBanner}>
           <Ionicons name="information-circle" size={18} color={theme.warningText} />
           <Text style={styles.limitText}>
-            Maximum of 3 favorite locations reached.
+            {t('favorites.locations.limitReached')}
           </Text>
         </View>
       ) : null}
@@ -287,6 +295,7 @@ export default function FavoriteLocationsTab() {
             isRemoving={vm.removingLocationId === item.id}
             theme={theme}
             styles={styles}
+            t={t}
           />
         )}
         contentContainerStyle={styles.listContent}
@@ -297,22 +306,22 @@ export default function FavoriteLocationsTab() {
           vm.apiError ? (
             <View style={styles.emptyCenter}>
               <Ionicons name="alert-circle-outline" size={40} color={theme.border} />
-              <Text style={styles.emptyTitle}>Unable to load favorite locations</Text>
+              <Text style={styles.emptyTitle}>{t('favorites.locations.errorTitle')}</Text>
               <Text style={styles.emptySubtitle}>{vm.apiError}</Text>
               <TouchableOpacity
                 style={styles.retryButton}
                 onPress={vm.refresh}
-                accessibilityLabel="Retry favorite locations"
+                accessibilityLabel={t('favorites.locations.retry')}
               >
-                <Text style={styles.retryButtonText}>Try again</Text>
+                <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.emptyCenter}>
               <Ionicons name="location-outline" size={40} color={theme.border} />
-              <Text style={styles.emptyTitle}>No favorite locations</Text>
+              <Text style={styles.emptyTitle}>{t('favorites.locations.emptyTitle')}</Text>
               <Text style={styles.emptySubtitle}>
-                Add up to 3 locations for quick access.
+                {t('favorites.locations.emptySubtitle')}
               </Text>
             </View>
           )
@@ -335,6 +344,7 @@ export default function FavoriteLocationsTab() {
         onSubmit={vm.submitAdd}
         theme={theme}
         styles={styles}
+        t={t}
       />
     </View>
   );

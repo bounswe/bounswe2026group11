@@ -21,7 +21,9 @@
     "english": "English",
     "turkish": "Türkçe",
     "tryAgain": "Lütfen tekrar deneyin.",
-    "notAvailable": "Yok"
+    "notAvailable": "Yok",
+    "none": "Yok",
+    "invalidDate": "Geçersiz tarih"
   },
   "auth": {
     "login": {
@@ -120,6 +122,12 @@
       "list": "Liste",
       "map": "Harita"
     },
+    "map": {
+      "emptyTitle": "Haritada etkinlik yok",
+      "emptySubtitle": "Haritayı kaydırmayı ya da filtreleri değiştirmeyi dene. Bazı etkinlikler yaş veya cinsiyet kısıtları nedeniyle gizlenmiş olabilir.",
+      "participants": "{{count}} katılıyor",
+      "participantsWithCapacity": "{{count}} / {{capacity}} katılıyor"
+    },
     "filtersSheet": {
       "title": "Filtreler",
       "reset": "Sıfırla",
@@ -177,7 +185,8 @@
       "Theatre": "Tiyatro",
       "Books & Literature": "Kitap & Edebiyat",
       "Wellness": "Wellness",
-      "Volunteering": "Gönüllülük"
+      "Volunteering": "Gönüllülük",
+      "Event": "Etkinlik"
     },
     "tabs": {
       "home": "Keşfet",
@@ -361,6 +370,118 @@
       "errorTitleInaccessible": "Etkinliğe Erişilemiyor",
       "errorDescription": "Aradığın etkinlik bulunamadı.",
       "backToDiscovery": "Keşfet'e Dön"
+    },
+    "joinRequest": {
+      "title": "Katılım İste",
+      "subtitle": "Organizatöre neden katılmak istediğini anlatan bir mesaj gönder.",
+      "messageOptional": "Mesaj (isteğe bağlı)",
+      "messagePlaceholder": "Benzer etkinliklerde deneyimim var ve katılmayı çok isterim…",
+      "attachment": "Ek (Kanıt)",
+      "addPhotoEvidence": "Fotoğraf Kanıtı Ekle",
+      "send": "İstek Gönder"
+    },
+    "joinRequests": {
+      "title": "Bekleyen İstekler ({{count}})",
+      "viewAttachment": "Eki Görüntüle",
+      "loading": "İstekler yükleniyor...",
+      "empty": "Bekleyen istek yok."
+    },
+    "participants": {
+      "title": "Katılımcılar ({{count}})",
+      "loading": "Katılımcılar yükleniyor...",
+      "empty": "Henüz katılımcı yok."
+    },
+    "report": {
+      "title": "Etkinliği Bildir",
+      "reason": "Sebep Seç",
+      "description": "Açıklama",
+      "descriptionPlaceholder": "Bu etkinlikte neyin yanlış olduğunu anlat...",
+      "attachEvidence": "Kanıt Ekle (İsteğe Bağlı)",
+      "addImage": "Ekran görüntüsü veya fotoğraf ekle",
+      "submit": "Bildirimi Gönder",
+      "categories": {
+        "SAFETY": "Güvenlik Endişesi",
+        "HARASSMENT": "Taciz",
+        "SPAM_OR_SCAM": "Spam veya Dolandırıcılık",
+        "INAPPROPRIATE_CONTENT": "Uygunsuz İçerik",
+        "EVENT_NOT_AS_DESCRIBED": "Etkinlik Açıklandığı Gibi Değil",
+        "ILLEGAL_OR_DANGEROUS": "Yasa Dışı veya Tehlikeli",
+        "OTHER": "Diğer"
+      }
+    },
+    "feedback": {
+      "kicker": "Etkinlik sonrası geri bildirim",
+      "updateHostRating": "Organizatör puanını güncelle",
+      "howWasEvent": "Etkinlik nasıldı?",
+      "openUntil": "{{date}} tarihine kadar açık",
+      "closed": "{{date}} tarihinde kapandı",
+      "hostRatingCopy": "Deneyimi 1 ile 5 yıldız arasında puanla. İstersen organizatöre kısa bir mesaj bırakabilirsin.",
+      "windowClosedOn": "Geri bildirim penceresi {{date}} tarihinde kapandı.",
+      "lastUpdated": "Son güncelleme {{date}}",
+      "editRating": "Puanı Düzenle",
+      "selectStarRating": "Yıldız puanı seç",
+      "ratingSummary": "{{rating}}/5 · {{stars}}",
+      "message": "Mesaj",
+      "hostPlaceholder": "Öne çıkanları, etkinliğin nasıl hissettirdiğini veya organizatörün bilmesi gerekenleri paylaş.",
+      "optionalRangeHelper": "İsteğe bağlı. Yazarsan {{min}} ile {{max}} karakter arasında tut.",
+      "overwriteNotice": "Son güncelleme {{date}}. Tekrar göndermek mevcut puanın üzerine yazar.",
+      "updateRating": "Puanı Güncelle",
+      "submitRating": "Puanı Gönder",
+      "saveChanges": "Değişiklikleri Kaydet",
+      "rate": "Puanla",
+      "rateParticipant": "{{name}} kullanıcısını puanla",
+      "oneToFiveStars": "1 ile 5 yıldız",
+      "participantPlaceholder": "Güvenilirlik, iletişim veya genel deneyim hakkında isteğe bağlı not.",
+      "optionalMinHelper": "İsteğe bağlı, ancak yazarsan en az {{count}} karakter olmalı.",
+      "participantNotRated": "Bu katılımcıyı henüz puanlamadın",
+      "canRateParticipants": "Katılımcılar için etkinlik sonrası puan bırakabilirsin.",
+      "participantOpenUntil": "Katılımcı geri bildirimi {{date}} tarihine kadar açık.",
+      "participantClosedOn": "Katılımcı geri bildirimi {{date}} tarihinde kapandı.",
+      "validationMin": "Geri bildirim en az {{count}} karakter olmalı.",
+      "validationMax": "Geri bildirim en fazla {{count}} karakter olmalı."
+    },
+    "version": {
+      "title": "Sürüm Geçmişi",
+      "reviewBeforeConfirm": "Hâlâ katılabileceğini onaylamadan önce bu değişiklikleri gözden geçir.",
+      "changesFromTo": "{{from}} sürümünden {{to}} sürümüne değişiklikler",
+      "currentVersion": "Mevcut etkinlik sürümü {{version}}",
+      "attendanceImpact": "Katılım etkisi",
+      "before": "Önce",
+      "now": "Şimdi",
+      "noChangesTitle": "Şu anda gözden geçirmen gereken değişiklik yok.",
+      "noChangesSubtitle": "Gelecekte zaman, konum, gizlilik veya katılım kurallarını etkileyen düzenlemeler burada görünür.",
+      "notSet": "Ayarlanmadı",
+      "unlimited": "Sınırsız",
+      "route": "rota",
+      "routeWithLabel": "Rota ({{label}})",
+      "pointLocation": "Nokta konumu",
+      "participantCount": "{{count}} katılımcı",
+      "summary": {
+        "timeChanged": "Zaman değişti",
+        "locationChanged": "Konum veya rota değişti",
+        "privacyChanged": "Gizlilik değişti",
+        "participationRulesChanged": "Katılım kuralları değişti",
+        "fieldChanged": "{{field}} değişti",
+        "detailsChanged": "Etkinlik detayları değişti"
+      },
+      "fields": {
+        "title": "Başlık",
+        "description": "Açıklama",
+        "image_url": "Kapak görseli",
+        "category": "Kategori",
+        "location": "Konum veya rota",
+        "start_time": "Başlangıç zamanı",
+        "end_time": "Bitiş zamanı",
+        "privacy_level": "Gizlilik",
+        "capacity": "Kapasite",
+        "minimum_age": "Minimum yaş",
+        "preferred_gender": "Tercih edilen cinsiyet",
+        "constraints": "Katılım gereksinimleri",
+        "tags": "Etiketler",
+        "child_friendly": "Çocuk dostu",
+        "family_oriented": "Aile odaklı",
+        "status": "Durum"
+      }
     }
   },
   "notifications": {
@@ -405,6 +526,34 @@
     "errors": {
       "loginRequired": "Etkinliklerini yönetmek için giriş yapmalısın.",
       "loadFailed": "Etkinliklerin yüklenemedi. Lütfen tekrar dene."
+    }
+  },
+  "favorites": {
+    "title": "Favoriler",
+    "eventsTab": "Etkinlikler",
+    "locationsTab": "Konumlar",
+    "events": {
+      "loading": "Favoriler yükleniyor...",
+      "emptyTitle": "Henüz favori etkinlik yok",
+      "emptySubtitle": "Bir etkinliği buraya kaydetmek için kalp simgesine dokun."
+    },
+    "locations": {
+      "loading": "Favori konumlar yükleniyor...",
+      "count": "{{count}} / {{max}} konum",
+      "add": "Ekle",
+      "addTitle": "Favori Konum Ekle",
+      "name": "Ad",
+      "namePlaceholder": "örn. Ev, Ofis, Spor salonu",
+      "address": "Adres",
+      "addressPlaceholder": "Konum ara...",
+      "save": "Konumu Kaydet",
+      "removeTitle": "Konumu Kaldır",
+      "removeMessage": "\"{{name}}\" favorilerden kaldırılsın mı?",
+      "limitReached": "En fazla 3 favori konuma ulaşıldı.",
+      "errorTitle": "Favori konumlar yüklenemedi",
+      "retry": "Favori konumları tekrar dene",
+      "emptyTitle": "Favori konum yok",
+      "emptySubtitle": "Hızlı erişim için en fazla 3 konum ekle."
     }
   },
   "profile": {
@@ -473,7 +622,21 @@
       "bio": "Biyografi",
       "gender": "Cinsiyet",
       "birthDate": "Doğum Tarihi",
-      "defaultLocation": "Varsayılan Konum"
+      "defaultLocation": "Varsayılan Konum",
+      "displayNamePlaceholder": "Görünen adını gir",
+      "bioPlaceholder": "Kendinden bahset",
+      "locationPlaceholder": "Bir yer ara...",
+      "clearDefaultLocation": "Varsayılan konumu temizle",
+      "selectGender": "{{gender}} seç",
+      "birthDatePlaceholder": "gg.aa.yyyy",
+      "pickBirthDate": "Doğum tarihi seç",
+      "saveProfile": "Profili kaydet",
+      "genderOptions": {
+        "MALE": "Erkek",
+        "FEMALE": "Kadın",
+        "OTHER": "Diğer",
+        "PREFER_NOT_TO_SAY": "Belirtmek istemiyorum"
+      }
     }
   },
   "tickets": {

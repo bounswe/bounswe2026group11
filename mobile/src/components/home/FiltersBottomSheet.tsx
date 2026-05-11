@@ -353,7 +353,9 @@ export default function FiltersBottomSheet({
                           isSelected && styles.selectedChipText,
                         ]}
                       >
-                        {category.name}
+                        {t(`events.categories.${category.name}`, {
+                          defaultValue: category.name,
+                        })}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -541,7 +543,9 @@ export default function FiltersBottomSheet({
 
               <View style={styles.radiusHeader}>
                 <Text style={styles.sectionTitle}>{t('home.filtersSheet.distanceRadius')}</Text>
-                <Text style={styles.radiusValue}>{draftFilters.radiusKm} km</Text>
+                <Text style={styles.radiusValue}>
+                  {t('home.filtersSheet.radiusKm', { km: draftFilters.radiusKm })}
+                </Text>
               </View>
 
               <Slider
@@ -557,8 +561,12 @@ export default function FiltersBottomSheet({
               />
 
               <View style={styles.radiusRangeRow}>
-                <Text style={styles.rangeText}>1 km</Text>
-                <Text style={styles.rangeText}>50 km</Text>
+                <Text style={styles.rangeText}>
+                  {t('home.filtersSheet.radiusKm', { km: 1 })}
+                </Text>
+                <Text style={styles.rangeText}>
+                  {t('home.filtersSheet.radiusKm', { km: 50 })}
+                </Text>
               </View>
 
               {generalError ? (

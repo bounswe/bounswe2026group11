@@ -20,6 +20,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router, type Href } from 'expo-router';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import { fetchRoutedGeometry } from '@/services/eventService';
 import { formatEventDateLabel, getAutoCompletionDaysLeft } from '@/utils/eventDate';
@@ -107,6 +108,7 @@ function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
 
 function AudienceBadges({ event }: { event: EventDetail }) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   if (!event.child_friendly && !event.family_oriented) return null;
 
   return (
@@ -114,13 +116,17 @@ function AudienceBadges({ event }: { event: EventDetail }) {
       {event.child_friendly && (
         <View style={[badgeBase, { backgroundColor: theme.surface, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }]}>
           <MaterialIcons name="child-care" size={14} color={theme.primary} />
-          <Text style={[badgeTextBase, { color: theme.text }]}>Child Friendly</Text>
+          <Text style={[badgeTextBase, { color: theme.text }]}>
+            {t('home.filtersSheet.childFriendly')}
+          </Text>
         </View>
       )}
       {event.family_oriented && (
         <View style={[badgeBase, { backgroundColor: theme.surface, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }]}>
           <MaterialIcons name="family-restroom" size={14} color={theme.primary} />
-          <Text style={[badgeTextBase, { color: theme.text }]}>Family Friendly</Text>
+          <Text style={[badgeTextBase, { color: theme.text }]}>
+            {t('home.filtersSheet.familyOriented')}
+          </Text>
         </View>
       )}
     </>
@@ -160,8 +166,8 @@ const FEEDBACK_MAX_LENGTH = 100;
 function formatShortDate(iso: string): string {
   try {
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return 'Invalid Date';
-    return d.toLocaleDateString('en-US', {
+    if (isNaN(d.getTime())) return i18n.t('common.invalidDate');
+    return d.toLocaleDateString(i18n.language, {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -174,8 +180,8 @@ function formatShortDate(iso: string): string {
 function formatLongDateTime(iso: string): string {
   try {
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return 'Invalid Date';
-    return d.toLocaleString('en-US', {
+    if (isNaN(d.getTime())) return i18n.t('common.invalidDate');
+    return d.toLocaleString(i18n.language, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -215,23 +221,23 @@ function humanizeFieldName(field: string): string {
 
 function getChangeFieldLabel(field: string): string {
   const labels: Record<string, string> = {
-    title: 'Title',
-    description: 'Description',
-    image_url: 'Cover image',
-    category: 'Category',
-    category_id: 'Category',
-    location: 'Location or route',
-    start_time: 'Start time',
-    end_time: 'End time',
-    privacy_level: 'Privacy',
-    capacity: 'Capacity',
-    minimum_age: 'Minimum age',
-    preferred_gender: 'Preferred gender',
-    constraints: 'Participation requirements',
-    tags: 'Tags',
-    child_friendly: 'Child friendly',
-    family_oriented: 'Family oriented',
-    status: 'Status',
+    title: i18n.t('events.version.fields.title'),
+    description: i18n.t('events.version.fields.description'),
+    image_url: i18n.t('events.version.fields.image_url'),
+    category: i18n.t('events.version.fields.category'),
+    category_id: i18n.t('events.version.fields.category'),
+    location: i18n.t('events.version.fields.location'),
+    start_time: i18n.t('events.version.fields.start_time'),
+    end_time: i18n.t('events.version.fields.end_time'),
+    privacy_level: i18n.t('events.version.fields.privacy_level'),
+    capacity: i18n.t('events.version.fields.capacity'),
+    minimum_age: i18n.t('events.version.fields.minimum_age'),
+    preferred_gender: i18n.t('events.version.fields.preferred_gender'),
+    constraints: i18n.t('events.version.fields.constraints'),
+    tags: i18n.t('events.version.fields.tags'),
+    child_friendly: i18n.t('events.version.fields.child_friendly'),
+    family_oriented: i18n.t('events.version.fields.family_oriented'),
+    status: i18n.t('events.version.fields.status'),
   };
   return labels[field] ?? humanizeFieldName(field);
 }
@@ -272,7 +278,7 @@ function formatCoordinates(value: unknown): string | null {
 }
 
 function formatHistoryLocation(value: unknown): string {
-  if (!isRecord(value)) return value == null ? 'Not set' : String(value);
+  if (!isRecord(value)) return value == null ? i18n.t('events.version.notSet') : String(value);
 
   const type = typeof value.type === 'string' ? value.type : 'POINT';
   const address =
@@ -286,15 +292,17 @@ function formatHistoryLocation(value: unknown): string {
     const waypointLabel =
       routePoints.length > 0
         ? `${routePoints.length} waypoint${routePoints.length === 1 ? '' : 's'}`
-        : 'route';
-    return address ? `${address} (${waypointLabel})` : `Route (${waypointLabel})`;
+        : i18n.t('events.version.route');
+    return address
+      ? `${address} (${waypointLabel})`
+      : i18n.t('events.version.routeWithLabel', { label: waypointLabel });
   }
 
-  return address ?? point ?? 'Point location';
+  return address ?? point ?? i18n.t('events.version.pointLocation');
 }
 
 function formatConstraintList(value: unknown): string {
-  if (!Array.isArray(value) || value.length === 0) return 'None';
+  if (!Array.isArray(value) || value.length === 0) return i18n.t('common.none');
 
   return value
     .map((item) => {
@@ -308,8 +316,8 @@ function formatConstraintList(value: unknown): string {
 
 function formatDiffValue(field: string, value: unknown): string {
   if (value == null) {
-    if (field === 'capacity') return 'Unlimited';
-    return 'Not set';
+    if (field === 'capacity') return i18n.t('events.version.unlimited');
+    return i18n.t('events.version.notSet');
   }
 
   if (field === 'start_time' || field === 'end_time') {
@@ -319,19 +327,36 @@ function formatDiffValue(field: string, value: unknown): string {
   if (field === 'location') return formatHistoryLocation(value);
   if (field === 'constraints') return formatConstraintList(value);
   if (field === 'privacy_level' || field === 'preferred_gender' || field === 'status') {
-    return typeof value === 'string' ? formatTitleCaseValue(value) : String(value);
+    if (typeof value !== 'string') return String(value);
+    if (field === 'privacy_level') {
+      return i18n.t(`events.privacy.${value}`, { defaultValue: formatTitleCaseValue(value) });
+    }
+    if (field === 'status') {
+      return i18n.t(`events.status.${value}`, { defaultValue: formatTitleCaseValue(value) });
+    }
+    return i18n.t(`profile.edit.genderOptions.${value}`, {
+      defaultValue: formatTitleCaseValue(value),
+    });
   }
-  if (field === 'capacity') return typeof value === 'number' ? `${value} participants` : String(value);
+  if (field === 'capacity') {
+    return typeof value === 'number'
+      ? i18n.t('events.version.participantCount', { count: value })
+      : String(value);
+  }
   if (field === 'minimum_age') return typeof value === 'number' ? `${value}+` : String(value);
   if (field === 'category' || field === 'category_id') {
-    if (isRecord(value) && typeof value.name === 'string') return value.name;
-    return String(value);
+    const categoryName = isRecord(value) && typeof value.name === 'string'
+      ? value.name
+      : String(value);
+    return i18n.t(`events.categories.${categoryName}`, {
+      defaultValue: categoryName,
+    });
   }
   if (field === 'tags' && Array.isArray(value)) {
-    return value.length > 0 ? value.map((tag) => `#${String(tag)}`).join(', ') : 'None';
+    return value.length > 0 ? value.map((tag) => `#${String(tag)}`).join(', ') : i18n.t('common.none');
   }
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-  if (typeof value === 'string') return value.trim() || 'Not set';
+  if (typeof value === 'boolean') return value ? i18n.t('common.yes') : i18n.t('common.no');
+  if (typeof value === 'string') return value.trim() || i18n.t('events.version.notSet');
   if (typeof value === 'number') return String(value);
 
   try {
@@ -366,33 +391,37 @@ function summarizeChangedFields(changedFields: string[]): string[] {
   };
 
   if (changedFields.includes('start_time') || changedFields.includes('end_time')) {
-    add('Time changed');
+    add(i18n.t('events.version.summary.timeChanged'));
   }
-  if (changedFields.includes('location')) add('Location or route changed');
-  if (changedFields.includes('privacy_level')) add('Privacy changed');
+  if (changedFields.includes('location')) add(i18n.t('events.version.summary.locationChanged'));
+  if (changedFields.includes('privacy_level')) add(i18n.t('events.version.summary.privacyChanged'));
   if (
     changedFields.includes('capacity') ||
     changedFields.includes('minimum_age') ||
     changedFields.includes('preferred_gender') ||
     changedFields.includes('constraints')
   ) {
-    add('Participation rules changed');
+    add(i18n.t('events.version.summary.participationRulesChanged'));
   }
 
   changedFields.forEach((field) => {
-    if (!ATTENDANCE_CRITICAL_FIELDS.has(field)) add(`${getChangeFieldLabel(field)} changed`);
+    if (!ATTENDANCE_CRITICAL_FIELDS.has(field)) {
+      add(i18n.t('events.version.summary.fieldChanged', {
+        field: getChangeFieldLabel(field),
+      }));
+    }
   });
 
-  return summaries.length > 0 ? summaries : ['Event details changed'];
+  return summaries.length > 0 ? summaries : [i18n.t('events.version.summary.detailsChanged')];
 }
 
 function getFeedbackValidationMessage(message: string): string | null {
   const trimmed = message.trim();
   if (trimmed.length === 0) return null;
   if (trimmed.length < FEEDBACK_MIN_LENGTH)
-    return `Feedback must be at least ${FEEDBACK_MIN_LENGTH} characters.`;
+    return i18n.t('events.feedback.validationMin', { count: FEEDBACK_MIN_LENGTH });
   if (trimmed.length > FEEDBACK_MAX_LENGTH)
-    return `Feedback must be ${FEEDBACK_MAX_LENGTH} characters or fewer.`;
+    return i18n.t('events.feedback.validationMax', { count: FEEDBACK_MAX_LENGTH });
   return null;
 }
 
@@ -447,6 +476,7 @@ function ParticipantRatingSection({
   onDismissError: () => void;
   styles: ReturnType<typeof makeStyles>;
 }) {
+  const { t } = useTranslation();
   const existingRating = event.viewer_event_rating;
   const [rating, setRating] = React.useState(existingRating?.rating ?? 0);
   const [message, setMessage] = React.useState(existingRating?.message ?? '');
@@ -491,27 +521,35 @@ function ParticipantRatingSection({
         <View style={styles.ratingCard}>
           <View style={styles.ratingCardHeader}>
             <View style={styles.ratingCardHeaderCopy}>
-              <Text style={styles.ratingKicker}>Post-event feedback</Text>
+              <Text style={styles.ratingKicker}>{t('events.feedback.kicker')}</Text>
               <Text style={styles.ratingTitle}>
-                {existingRating ? 'Update your rating for the host' : 'How was this event?'}
+                {existingRating
+                  ? t('events.feedback.updateHostRating')
+                  : t('events.feedback.howWasEvent')}
               </Text>
             </View>
             <Text style={styles.ratingDeadline}>
               {event.rating_window.is_active
-                ? `Open until ${formatShortDate(event.rating_window.closes_at)}`
-                : `Closed ${formatShortDate(event.rating_window.closes_at)}`}
+                ? t('events.feedback.openUntil', {
+                    date: formatShortDate(event.rating_window.closes_at),
+                  })
+                : t('events.feedback.closed', {
+                    date: formatShortDate(event.rating_window.closes_at),
+                  })}
             </Text>
           </View>
 
           <Text style={styles.ratingCopy}>
-            Rate the experience from 1 to 5 stars. You can optionally leave a short message for the host.
+            {t('events.feedback.hostRatingCopy')}
           </Text>
 
           {!event.rating_window.is_active ? (
             <View style={styles.ratingInfoBanner}>
               <Feather name="info" size={16} color={theme.warningText} />
               <Text style={styles.ratingInfoBannerText}>
-                The feedback window closed on {formatLongDateTime(event.rating_window.closes_at)}.
+                {t('events.feedback.windowClosedOn', {
+                  date: formatLongDateTime(event.rating_window.closes_at),
+                })}
               </Text>
             </View>
           ) : null}
@@ -528,7 +566,9 @@ function ParticipantRatingSection({
 
               <View style={styles.ratingActionRow}>
                 <Text style={styles.ratingExistingNote}>
-                  Last updated {formatShortDate(existingRating.updated_at)}
+                  {t('events.feedback.lastUpdated', {
+                    date: formatShortDate(existingRating.updated_at),
+                  })}
                 </Text>
                 <TouchableOpacity
                   style={styles.ratingEditButton}
@@ -537,7 +577,7 @@ function ParticipantRatingSection({
                     setIsEditing(true);
                   }}
                 >
-                  <Text style={styles.ratingEditButtonText}>Edit Rating</Text>
+                  <Text style={styles.ratingEditButtonText}>{t('events.feedback.editRating')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -546,14 +586,19 @@ function ParticipantRatingSection({
               <View style={styles.ratingSelectionRow}>
                 <StarRatingInput value={rating} onChange={setRating} disabled={loading} styles={styles} />
                 <Text style={[styles.ratingSelectionSummary, rating > 0 && styles.ratingSelectionSummaryActive]}>
-                  {rating > 0 ? `${rating}/5 · ${renderStars(rating)}` : 'Select a star rating'}
+                  {rating > 0
+                    ? t('events.feedback.ratingSummary', {
+                        rating,
+                        stars: renderStars(rating),
+                      })
+                    : t('events.feedback.selectStarRating')}
                 </Text>
               </View>
 
-              <Text style={styles.ratingFieldLabel}>Message</Text>
+              <Text style={styles.ratingFieldLabel}>{t('events.feedback.message')}</Text>
               <TextInput
                 style={[styles.ratingTextArea, feedbackError && styles.ratingTextAreaError]}
-                placeholder="Share what stood out, how the event felt, or anything the host should know."
+                placeholder={t('events.feedback.hostPlaceholder')}
                 placeholderTextColor={theme.placeholder}
                 value={message}
                 onChangeText={setMessage}
@@ -569,7 +614,10 @@ function ParticipantRatingSection({
                   {trimmedLength}/{FEEDBACK_MAX_LENGTH}
                 </Text>
                 <Text style={styles.ratingHelper}>
-                  Optional. If you write one, keep it between {FEEDBACK_MIN_LENGTH} and {FEEDBACK_MAX_LENGTH} characters.
+                  {t('events.feedback.optionalRangeHelper', {
+                    min: FEEDBACK_MIN_LENGTH,
+                    max: FEEDBACK_MAX_LENGTH,
+                  })}
                 </Text>
               </View>
 
@@ -585,7 +633,9 @@ function ParticipantRatingSection({
 
               {existingRating ? (
                 <Text style={styles.ratingExistingNote}>
-                  Last updated {formatShortDate(existingRating.updated_at)}. Submitting again overwrites the existing rating.
+                  {t('events.feedback.overwriteNotice', {
+                    date: formatShortDate(existingRating.updated_at),
+                  })}
                 </Text>
               ) : null}
 
@@ -603,7 +653,9 @@ function ParticipantRatingSection({
                     <ActivityIndicator size="small" color={theme.textOnPrimary} />
                   ) : (
                     <Text style={styles.ratingSubmitButtonText}>
-                      {existingRating ? 'Update Rating' : 'Submit Rating'}
+                      {existingRating
+                        ? t('events.feedback.updateRating')
+                        : t('events.feedback.submitRating')}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -619,7 +671,7 @@ function ParticipantRatingSection({
                       setIsEditing(false);
                     }}
                   >
-                    <Text style={styles.ratingCancelButtonText}>Cancel</Text>
+                    <Text style={styles.ratingCancelButtonText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -639,6 +691,7 @@ function EventVersionHistorySection({
   styles: ReturnType<typeof makeStyles>;
 }) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const diff = event.viewer_context.event_diff ?? null;
   const changes = diff?.changes ?? [];
   const versionNo = getVersionNumber(event);
@@ -656,7 +709,7 @@ function EventVersionHistorySection({
       <View style={styles.divider} />
       <View style={styles.section} testID="event-version-history">
         <View style={styles.versionHeaderRow}>
-          <Text style={styles.sectionTitle}>Version History</Text>
+          <Text style={styles.sectionTitle}>{t('events.version.title')}</Text>
           {versionNo != null ? (
             <Text style={styles.versionCurrentLabel}>v{versionNo}</Text>
           ) : null}
@@ -667,18 +720,23 @@ function EventVersionHistorySection({
             <View style={styles.versionAttentionBanner}>
               <Feather name="alert-triangle" size={16} color={theme.warningText} />
               <Text style={styles.versionAttentionText}>
-                Review these changes before confirming that you can still attend.
+                {t('events.version.reviewBeforeConfirm')}
               </Text>
             </View>
           ) : null}
 
           {diff ? (
             <Text style={styles.versionRangeText}>
-              Changes from version {diff.from_version_no} to {diff.to_version_no}
+              {t('events.version.changesFromTo', {
+                from: diff.from_version_no,
+                to: diff.to_version_no,
+              })}
             </Text>
           ) : (
             <Text style={styles.versionRangeText}>
-              Current event version{versionNo != null ? ` ${versionNo}` : ''}
+              {t('events.version.currentVersion', {
+                version: versionNo ?? '',
+              })}
             </Text>
           )}
 
@@ -713,18 +771,20 @@ function EventVersionHistorySection({
                             {getChangeFieldLabel(change.field)}
                           </Text>
                           {isCritical ? (
-                            <Text style={styles.versionImpactLabel}>Attendance impact</Text>
+                            <Text style={styles.versionImpactLabel}>
+                              {t('events.version.attendanceImpact')}
+                            </Text>
                           ) : null}
                         </View>
 
                         <View style={styles.versionValueBlock}>
-                          <Text style={styles.versionValueLabel}>Before</Text>
+                          <Text style={styles.versionValueLabel}>{t('events.version.before')}</Text>
                           <Text style={styles.versionValueText}>
                             {formatDiffValue(change.field, change.old_value)}
                           </Text>
                         </View>
                         <View style={styles.versionValueBlock}>
-                          <Text style={styles.versionValueLabel}>Now</Text>
+                          <Text style={styles.versionValueLabel}>{t('events.version.now')}</Text>
                           <Text style={styles.versionValueText}>
                             {formatDiffValue(change.field, change.new_value)}
                           </Text>
@@ -739,10 +799,10 @@ function EventVersionHistorySection({
             <View style={styles.versionEmptyState}>
               <Feather name="check-circle" size={18} color={theme.successText} />
               <Text style={styles.versionEmptyTitle}>
-                No changes need your review right now.
+                {t('events.version.noChangesTitle')}
               </Text>
               <Text style={styles.versionEmptyText}>
-                If future edits affect time, location, privacy, or participation rules, they will appear here.
+                {t('events.version.noChangesSubtitle')}
               </Text>
             </View>
           )}
@@ -1495,8 +1555,12 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 {vm.event.status === 'COMPLETED' ? (
                   <Text style={styles.hostActionHint}>
                     {vm.event.rating_window.is_active
-                      ? `Participant feedback is open until ${formatLongDateTime(vm.event.rating_window.closes_at)}.`
-                      : `Participant feedback closed on ${formatLongDateTime(vm.event.rating_window.closes_at)}.`}
+                      ? t('events.feedback.participantOpenUntil', {
+                          date: formatLongDateTime(vm.event.rating_window.closes_at),
+                        })
+                      : t('events.feedback.participantClosedOn', {
+                          date: formatLongDateTime(vm.event.rating_window.closes_at),
+                        })}
                   </Text>
                 ) : null}
 
@@ -1700,15 +1764,15 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <View style={styles.modalSheet}>
               <View style={styles.modalHandle} />
 
-              <Text style={styles.modalTitle}>Request to Join</Text>
+              <Text style={styles.modalTitle}>{t('events.joinRequest.title')}</Text>
               <Text style={styles.modalSubtitle}>
-                Send a message to the host explaining why you&apos;d like to join.
+                {t('events.joinRequest.subtitle')}
               </Text>
 
-              <Text style={styles.label}>Message (optional)</Text>
+              <Text style={styles.label}>{t('events.joinRequest.messageOptional')}</Text>
               <TextInput
                 style={styles.messageInput}
-                placeholder="I have experience with similar events and would love to participate…"
+                placeholder={t('events.joinRequest.messagePlaceholder')}
                 placeholderTextColor={theme.placeholder}
                 value={vm.joinRequestMessage}
                 onChangeText={vm.setJoinRequestMessage}
@@ -1721,7 +1785,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               <Text style={styles.charCount}>{vm.joinRequestMessage.length}/500</Text>
 
               <View style={styles.attachmentSection}>
-                <Text style={styles.label}>Attachment (Evidence)</Text>
+                <Text style={styles.label}>{t('events.joinRequest.attachment')}</Text>
                 {vm.selectedImageUri ? (
                   <View style={styles.attachmentPreviewContainer}>
                     <Image source={{ uri: vm.selectedImageUri }} style={styles.attachmentPreview} />
@@ -1745,7 +1809,9 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                     activeOpacity={0.7}
                   >
                     <Feather name="image" size={20} color={theme.primary} />
-                    <Text style={styles.addAttachmentText}>Add Photo Evidence</Text>
+                    <Text style={styles.addAttachmentText}>
+                      {t('events.joinRequest.addPhotoEvidence')}
+                    </Text>
                   </TouchableOpacity>
                 )}
                 {vm.imageError ? (
@@ -1774,7 +1840,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 ) : (
                   <>
                     <Feather name="send" size={18} color={theme.textOnPrimary} />
-                    <Text style={styles.actionButtonText}>Send Request</Text>
+                    <Text style={styles.actionButtonText}>{t('events.joinRequest.send')}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -1784,7 +1850,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 onPress={vm.closeJoinRequestModal}
                 disabled={vm.actionState === 'requesting'}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1828,8 +1894,12 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             ratingWindowMessage={
               vm.event.status === 'COMPLETED'
                 ? vm.event.rating_window.is_active
-                  ? `Participant feedback is open until ${formatLongDateTime(vm.event.rating_window.closes_at)}.`
-                  : `Participant feedback closed on ${formatLongDateTime(vm.event.rating_window.closes_at)}.`
+                  ? t('events.feedback.participantOpenUntil', {
+                      date: formatLongDateTime(vm.event.rating_window.closes_at),
+                    })
+                  : t('events.feedback.participantClosedOn', {
+                      date: formatLongDateTime(vm.event.rating_window.closes_at),
+                    })
                 : null
             }
             ratingLoadingId={vm.participantRatingLoadingId}
