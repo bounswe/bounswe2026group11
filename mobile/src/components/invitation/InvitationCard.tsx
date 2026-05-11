@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } fr
 import { Feather } from '@expo/vector-icons';
 import { ReceivedInvitation } from '@/models/invitation';
 import { formatEventDateLabel } from '@/utils/eventDate';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -24,6 +25,7 @@ export default function InvitationCard({
   compact = false,
 }: InvitationCardProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const { event, host, message } = invitation;
@@ -54,14 +56,14 @@ export default function InvitationCard({
             <View style={styles.statusBadgeRow}>
               <View style={[styles.statusBadge, { backgroundColor: theme.badgePrivateBg }]}>
                 <Text style={[styles.statusBadgeText, { color: theme.badgePrivateText }]}>
-                  Invited
+                  {t('profile.invitations.invitedBadge')}
                 </Text>
               </View>
 
               <View style={[styles.privacyBadge, { backgroundColor: theme.badgePrivateBg }]}>
                 <Feather name="lock" size={10} color={theme.badgePrivateText} />
                 <Text style={[styles.privacyBadgeText, { color: theme.badgePrivateText }]}>
-                  Private
+                  {t('events.privacy.PRIVATE')}
                 </Text>
               </View>
             </View>
@@ -89,7 +91,7 @@ export default function InvitationCard({
             <View style={styles.metaRow}>
               <Feather name="map-pin" size={16} color={theme.textMuted} />
               <Text style={styles.metaText} numberOfLines={compact ? 1 : undefined}>
-                Location available on event page
+                {t('myEvents.locationAvailableOnEventPage')}
               </Text>
             </View>
           </View>
@@ -98,7 +100,7 @@ export default function InvitationCard({
 
       {message && (
         <View style={[styles.messageBox, compact && styles.compactMessageBox]}>
-          <Text style={styles.messageLabel}>Note from host:</Text>
+          <Text style={styles.messageLabel}>{t('profile.invitations.noteFromHost')}</Text>
           <Text style={styles.messageText} numberOfLines={compact ? 2 : undefined}>
             "{message}"
           </Text>
@@ -111,7 +113,7 @@ export default function InvitationCard({
           onPress={() => onDecline(invitation.invitation_id)}
           disabled={isActionLoading}
         >
-          <Text style={styles.declineButtonText}>Decline</Text>
+          <Text style={styles.declineButtonText}>{t('common.decline')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -122,7 +124,7 @@ export default function InvitationCard({
           {isActionLoading ? (
             <ActivityIndicator size="small" color={theme.textOnPrimary} />
           ) : (
-            <Text style={styles.acceptButtonText}>Accept</Text>
+            <Text style={styles.acceptButtonText}>{t('common.accept')}</Text>
           )}
         </TouchableOpacity>
       </View>

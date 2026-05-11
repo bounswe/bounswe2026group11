@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -20,6 +21,7 @@ export default function SearchSection({
   onPressMapView,
 }: SearchSectionProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
@@ -35,7 +37,7 @@ export default function SearchSection({
           value={query}
           onChangeText={onChangeQuery}
           onSubmitEditing={onSubmitSearch}
-          placeholder="Search title, tags..."
+          placeholder={t('home.searchPlaceholder')}
           placeholderTextColor={theme.placeholder}
           style={styles.input}
           autoCapitalize="none"

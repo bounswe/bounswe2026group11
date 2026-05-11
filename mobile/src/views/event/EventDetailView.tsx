@@ -18,7 +18,9 @@ import {
 import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
-import { Feather, Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import { fetchRoutedGeometry } from '@/services/eventService';
 import { formatEventDateLabel, getAutoCompletionDaysLeft } from '@/utils/eventDate';
@@ -79,7 +81,8 @@ function getRouteRegion(
 
 function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
   const { theme } = useTheme();
-  const label = level ? level.charAt(0) + level.slice(1).toLowerCase() : '';
+  const { t } = useTranslation();
+  const label = level ? t(`events.privacy.${level}`) : '';
 
   let bg = theme.badgePublicBg;
   let color = theme.badgePublicText;
@@ -105,6 +108,7 @@ function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
 
 function AudienceBadges({ event }: { event: EventDetail }) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   if (!event.child_friendly && !event.family_oriented) return null;
 
   return (
@@ -112,13 +116,17 @@ function AudienceBadges({ event }: { event: EventDetail }) {
       {event.child_friendly && (
         <View style={[badgeBase, { backgroundColor: theme.surface, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }]}>
           <MaterialIcons name="child-care" size={14} color={theme.primary} />
-          <Text style={[badgeTextBase, { color: theme.text }]}>Child Friendly</Text>
+          <Text style={[badgeTextBase, { color: theme.text }]}>
+            {t('home.filtersSheet.childFriendly')}
+          </Text>
         </View>
       )}
       {event.family_oriented && (
         <View style={[badgeBase, { backgroundColor: theme.surface, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }]}>
           <MaterialIcons name="family-restroom" size={14} color={theme.primary} />
-          <Text style={[badgeTextBase, { color: theme.text }]}>Family Friendly</Text>
+          <Text style={[badgeTextBase, { color: theme.text }]}>
+            {t('home.filtersSheet.familyOriented')}
+          </Text>
         </View>
       )}
     </>
@@ -158,8 +166,8 @@ const FEEDBACK_MAX_LENGTH = 100;
 function formatShortDate(iso: string): string {
   try {
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return 'Invalid Date';
-    return d.toLocaleDateString('en-US', {
+    if (isNaN(d.getTime())) return i18n.t('common.invalidDate');
+    return d.toLocaleDateString(i18n.language, {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -172,8 +180,8 @@ function formatShortDate(iso: string): string {
 function formatLongDateTime(iso: string): string {
   try {
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return 'Invalid Date';
-    return d.toLocaleString('en-US', {
+    if (isNaN(d.getTime())) return i18n.t('common.invalidDate');
+    return d.toLocaleString(i18n.language, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -213,23 +221,23 @@ function humanizeFieldName(field: string): string {
 
 function getChangeFieldLabel(field: string): string {
   const labels: Record<string, string> = {
-    title: 'Title',
-    description: 'Description',
-    image_url: 'Cover image',
-    category: 'Category',
-    category_id: 'Category',
-    location: 'Location or route',
-    start_time: 'Start time',
-    end_time: 'End time',
-    privacy_level: 'Privacy',
-    capacity: 'Capacity',
-    minimum_age: 'Minimum age',
-    preferred_gender: 'Preferred gender',
-    constraints: 'Participation requirements',
-    tags: 'Tags',
-    child_friendly: 'Child friendly',
-    family_oriented: 'Family oriented',
-    status: 'Status',
+    title: i18n.t('events.version.fields.title'),
+    description: i18n.t('events.version.fields.description'),
+    image_url: i18n.t('events.version.fields.image_url'),
+    category: i18n.t('events.version.fields.category'),
+    category_id: i18n.t('events.version.fields.category'),
+    location: i18n.t('events.version.fields.location'),
+    start_time: i18n.t('events.version.fields.start_time'),
+    end_time: i18n.t('events.version.fields.end_time'),
+    privacy_level: i18n.t('events.version.fields.privacy_level'),
+    capacity: i18n.t('events.version.fields.capacity'),
+    minimum_age: i18n.t('events.version.fields.minimum_age'),
+    preferred_gender: i18n.t('events.version.fields.preferred_gender'),
+    constraints: i18n.t('events.version.fields.constraints'),
+    tags: i18n.t('events.version.fields.tags'),
+    child_friendly: i18n.t('events.version.fields.child_friendly'),
+    family_oriented: i18n.t('events.version.fields.family_oriented'),
+    status: i18n.t('events.version.fields.status'),
   };
   return labels[field] ?? humanizeFieldName(field);
 }
@@ -261,6 +269,21 @@ function formatTitleCaseValue(value: string): string {
     .join(' ');
 }
 
+function formatConstraintTypeLabel(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) return normalized;
+
+  const upper = normalized.toUpperCase();
+  const lower = normalized.toLowerCase();
+
+  return (
+    i18n.t(`events.create.constraintTypes.${lower}`, { defaultValue: '' }) ||
+    i18n.t(`events.create.constraintTypes.${upper}`, { defaultValue: '' }) ||
+    i18n.t(`events.version.fields.${lower}`, { defaultValue: '' }) ||
+    formatTitleCaseValue(normalized)
+  );
+}
+
 function formatCoordinates(value: unknown): string | null {
   if (!isRecord(value)) return null;
   const lat = value.lat;
@@ -270,7 +293,7 @@ function formatCoordinates(value: unknown): string | null {
 }
 
 function formatHistoryLocation(value: unknown): string {
-  if (!isRecord(value)) return value == null ? 'Not set' : String(value);
+  if (!isRecord(value)) return value == null ? i18n.t('events.version.notSet') : String(value);
 
   const type = typeof value.type === 'string' ? value.type : 'POINT';
   const address =
@@ -284,15 +307,17 @@ function formatHistoryLocation(value: unknown): string {
     const waypointLabel =
       routePoints.length > 0
         ? `${routePoints.length} waypoint${routePoints.length === 1 ? '' : 's'}`
-        : 'route';
-    return address ? `${address} (${waypointLabel})` : `Route (${waypointLabel})`;
+        : i18n.t('events.version.route');
+    return address
+      ? `${address} (${waypointLabel})`
+      : i18n.t('events.version.routeWithLabel', { label: waypointLabel });
   }
 
-  return address ?? point ?? 'Point location';
+  return address ?? point ?? i18n.t('events.version.pointLocation');
 }
 
 function formatConstraintList(value: unknown): string {
-  if (!Array.isArray(value) || value.length === 0) return 'None';
+  if (!Array.isArray(value) || value.length === 0) return i18n.t('common.none');
 
   return value
     .map((item) => {
@@ -306,8 +331,8 @@ function formatConstraintList(value: unknown): string {
 
 function formatDiffValue(field: string, value: unknown): string {
   if (value == null) {
-    if (field === 'capacity') return 'Unlimited';
-    return 'Not set';
+    if (field === 'capacity') return i18n.t('events.version.unlimited');
+    return i18n.t('events.version.notSet');
   }
 
   if (field === 'start_time' || field === 'end_time') {
@@ -317,19 +342,36 @@ function formatDiffValue(field: string, value: unknown): string {
   if (field === 'location') return formatHistoryLocation(value);
   if (field === 'constraints') return formatConstraintList(value);
   if (field === 'privacy_level' || field === 'preferred_gender' || field === 'status') {
-    return typeof value === 'string' ? formatTitleCaseValue(value) : String(value);
+    if (typeof value !== 'string') return String(value);
+    if (field === 'privacy_level') {
+      return i18n.t(`events.privacy.${value}`, { defaultValue: formatTitleCaseValue(value) });
+    }
+    if (field === 'status') {
+      return i18n.t(`events.status.${value}`, { defaultValue: formatTitleCaseValue(value) });
+    }
+    return i18n.t(`profile.edit.genderOptions.${value}`, {
+      defaultValue: formatTitleCaseValue(value),
+    });
   }
-  if (field === 'capacity') return typeof value === 'number' ? `${value} participants` : String(value);
+  if (field === 'capacity') {
+    return typeof value === 'number'
+      ? i18n.t('events.version.participantCount', { count: value })
+      : String(value);
+  }
   if (field === 'minimum_age') return typeof value === 'number' ? `${value}+` : String(value);
   if (field === 'category' || field === 'category_id') {
-    if (isRecord(value) && typeof value.name === 'string') return value.name;
-    return String(value);
+    const categoryName = isRecord(value) && typeof value.name === 'string'
+      ? value.name
+      : String(value);
+    return i18n.t(`events.categories.${categoryName}`, {
+      defaultValue: categoryName,
+    });
   }
   if (field === 'tags' && Array.isArray(value)) {
-    return value.length > 0 ? value.map((tag) => `#${String(tag)}`).join(', ') : 'None';
+    return value.length > 0 ? value.map((tag) => `#${String(tag)}`).join(', ') : i18n.t('common.none');
   }
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-  if (typeof value === 'string') return value.trim() || 'Not set';
+  if (typeof value === 'boolean') return value ? i18n.t('common.yes') : i18n.t('common.no');
+  if (typeof value === 'string') return value.trim() || i18n.t('events.version.notSet');
   if (typeof value === 'number') return String(value);
 
   try {
@@ -364,33 +406,37 @@ function summarizeChangedFields(changedFields: string[]): string[] {
   };
 
   if (changedFields.includes('start_time') || changedFields.includes('end_time')) {
-    add('Time changed');
+    add(i18n.t('events.version.summary.timeChanged'));
   }
-  if (changedFields.includes('location')) add('Location or route changed');
-  if (changedFields.includes('privacy_level')) add('Privacy changed');
+  if (changedFields.includes('location')) add(i18n.t('events.version.summary.locationChanged'));
+  if (changedFields.includes('privacy_level')) add(i18n.t('events.version.summary.privacyChanged'));
   if (
     changedFields.includes('capacity') ||
     changedFields.includes('minimum_age') ||
     changedFields.includes('preferred_gender') ||
     changedFields.includes('constraints')
   ) {
-    add('Participation rules changed');
+    add(i18n.t('events.version.summary.participationRulesChanged'));
   }
 
   changedFields.forEach((field) => {
-    if (!ATTENDANCE_CRITICAL_FIELDS.has(field)) add(`${getChangeFieldLabel(field)} changed`);
+    if (!ATTENDANCE_CRITICAL_FIELDS.has(field)) {
+      add(i18n.t('events.version.summary.fieldChanged', {
+        field: getChangeFieldLabel(field),
+      }));
+    }
   });
 
-  return summaries.length > 0 ? summaries : ['Event details changed'];
+  return summaries.length > 0 ? summaries : [i18n.t('events.version.summary.detailsChanged')];
 }
 
 function getFeedbackValidationMessage(message: string): string | null {
   const trimmed = message.trim();
   if (trimmed.length === 0) return null;
   if (trimmed.length < FEEDBACK_MIN_LENGTH)
-    return `Feedback must be at least ${FEEDBACK_MIN_LENGTH} characters.`;
+    return i18n.t('events.feedback.validationMin', { count: FEEDBACK_MIN_LENGTH });
   if (trimmed.length > FEEDBACK_MAX_LENGTH)
-    return `Feedback must be ${FEEDBACK_MAX_LENGTH} characters or fewer.`;
+    return i18n.t('events.feedback.validationMax', { count: FEEDBACK_MAX_LENGTH });
   return null;
 }
 
@@ -445,6 +491,7 @@ function ParticipantRatingSection({
   onDismissError: () => void;
   styles: ReturnType<typeof makeStyles>;
 }) {
+  const { t } = useTranslation();
   const existingRating = event.viewer_event_rating;
   const [rating, setRating] = React.useState(existingRating?.rating ?? 0);
   const [message, setMessage] = React.useState(existingRating?.message ?? '');
@@ -489,27 +536,35 @@ function ParticipantRatingSection({
         <View style={styles.ratingCard}>
           <View style={styles.ratingCardHeader}>
             <View style={styles.ratingCardHeaderCopy}>
-              <Text style={styles.ratingKicker}>Post-event feedback</Text>
+              <Text style={styles.ratingKicker}>{t('events.feedback.kicker')}</Text>
               <Text style={styles.ratingTitle}>
-                {existingRating ? 'Update your rating for the host' : 'How was this event?'}
+                {existingRating
+                  ? t('events.feedback.updateHostRating')
+                  : t('events.feedback.howWasEvent')}
               </Text>
             </View>
             <Text style={styles.ratingDeadline}>
               {event.rating_window.is_active
-                ? `Open until ${formatShortDate(event.rating_window.closes_at)}`
-                : `Closed ${formatShortDate(event.rating_window.closes_at)}`}
+                ? t('events.feedback.openUntil', {
+                    date: formatShortDate(event.rating_window.closes_at),
+                  })
+                : t('events.feedback.closed', {
+                    date: formatShortDate(event.rating_window.closes_at),
+                  })}
             </Text>
           </View>
 
           <Text style={styles.ratingCopy}>
-            Rate the experience from 1 to 5 stars. You can optionally leave a short message for the host.
+            {t('events.feedback.hostRatingCopy')}
           </Text>
 
           {!event.rating_window.is_active ? (
             <View style={styles.ratingInfoBanner}>
               <Feather name="info" size={16} color={theme.warningText} />
               <Text style={styles.ratingInfoBannerText}>
-                The feedback window closed on {formatLongDateTime(event.rating_window.closes_at)}.
+                {t('events.feedback.windowClosedOn', {
+                  date: formatLongDateTime(event.rating_window.closes_at),
+                })}
               </Text>
             </View>
           ) : null}
@@ -526,7 +581,9 @@ function ParticipantRatingSection({
 
               <View style={styles.ratingActionRow}>
                 <Text style={styles.ratingExistingNote}>
-                  Last updated {formatShortDate(existingRating.updated_at)}
+                  {t('events.feedback.lastUpdated', {
+                    date: formatShortDate(existingRating.updated_at),
+                  })}
                 </Text>
                 <TouchableOpacity
                   style={styles.ratingEditButton}
@@ -535,7 +592,7 @@ function ParticipantRatingSection({
                     setIsEditing(true);
                   }}
                 >
-                  <Text style={styles.ratingEditButtonText}>Edit Rating</Text>
+                  <Text style={styles.ratingEditButtonText}>{t('events.feedback.editRating')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -544,14 +601,19 @@ function ParticipantRatingSection({
               <View style={styles.ratingSelectionRow}>
                 <StarRatingInput value={rating} onChange={setRating} disabled={loading} styles={styles} />
                 <Text style={[styles.ratingSelectionSummary, rating > 0 && styles.ratingSelectionSummaryActive]}>
-                  {rating > 0 ? `${rating}/5 · ${renderStars(rating)}` : 'Select a star rating'}
+                  {rating > 0
+                    ? t('events.feedback.ratingSummary', {
+                        rating,
+                        stars: renderStars(rating),
+                      })
+                    : t('events.feedback.selectStarRating')}
                 </Text>
               </View>
 
-              <Text style={styles.ratingFieldLabel}>Message</Text>
+              <Text style={styles.ratingFieldLabel}>{t('events.feedback.message')}</Text>
               <TextInput
                 style={[styles.ratingTextArea, feedbackError && styles.ratingTextAreaError]}
-                placeholder="Share what stood out, how the event felt, or anything the host should know."
+                placeholder={t('events.feedback.hostPlaceholder')}
                 placeholderTextColor={theme.placeholder}
                 value={message}
                 onChangeText={setMessage}
@@ -567,7 +629,10 @@ function ParticipantRatingSection({
                   {trimmedLength}/{FEEDBACK_MAX_LENGTH}
                 </Text>
                 <Text style={styles.ratingHelper}>
-                  Optional. If you write one, keep it between {FEEDBACK_MIN_LENGTH} and {FEEDBACK_MAX_LENGTH} characters.
+                  {t('events.feedback.optionalRangeHelper', {
+                    min: FEEDBACK_MIN_LENGTH,
+                    max: FEEDBACK_MAX_LENGTH,
+                  })}
                 </Text>
               </View>
 
@@ -583,7 +648,9 @@ function ParticipantRatingSection({
 
               {existingRating ? (
                 <Text style={styles.ratingExistingNote}>
-                  Last updated {formatShortDate(existingRating.updated_at)}. Submitting again overwrites the existing rating.
+                  {t('events.feedback.overwriteNotice', {
+                    date: formatShortDate(existingRating.updated_at),
+                  })}
                 </Text>
               ) : null}
 
@@ -601,7 +668,9 @@ function ParticipantRatingSection({
                     <ActivityIndicator size="small" color={theme.textOnPrimary} />
                   ) : (
                     <Text style={styles.ratingSubmitButtonText}>
-                      {existingRating ? 'Update Rating' : 'Submit Rating'}
+                      {existingRating
+                        ? t('events.feedback.updateRating')
+                        : t('events.feedback.submitRating')}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -617,7 +686,7 @@ function ParticipantRatingSection({
                       setIsEditing(false);
                     }}
                   >
-                    <Text style={styles.ratingCancelButtonText}>Cancel</Text>
+                    <Text style={styles.ratingCancelButtonText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -637,6 +706,7 @@ function EventVersionHistorySection({
   styles: ReturnType<typeof makeStyles>;
 }) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const diff = event.viewer_context.event_diff ?? null;
   const changes = diff?.changes ?? [];
   const versionNo = getVersionNumber(event);
@@ -654,7 +724,7 @@ function EventVersionHistorySection({
       <View style={styles.divider} />
       <View style={styles.section} testID="event-version-history">
         <View style={styles.versionHeaderRow}>
-          <Text style={styles.sectionTitle}>Version History</Text>
+          <Text style={styles.sectionTitle}>{t('events.version.title')}</Text>
           {versionNo != null ? (
             <Text style={styles.versionCurrentLabel}>v{versionNo}</Text>
           ) : null}
@@ -665,18 +735,23 @@ function EventVersionHistorySection({
             <View style={styles.versionAttentionBanner}>
               <Feather name="alert-triangle" size={16} color={theme.warningText} />
               <Text style={styles.versionAttentionText}>
-                Review these changes before confirming that you can still attend.
+                {t('events.version.reviewBeforeConfirm')}
               </Text>
             </View>
           ) : null}
 
           {diff ? (
             <Text style={styles.versionRangeText}>
-              Changes from version {diff.from_version_no} to {diff.to_version_no}
+              {t('events.version.changesFromTo', {
+                from: diff.from_version_no,
+                to: diff.to_version_no,
+              })}
             </Text>
           ) : (
             <Text style={styles.versionRangeText}>
-              Current event version{versionNo != null ? ` ${versionNo}` : ''}
+              {t('events.version.currentVersion', {
+                version: versionNo ?? '',
+              })}
             </Text>
           )}
 
@@ -711,18 +786,20 @@ function EventVersionHistorySection({
                             {getChangeFieldLabel(change.field)}
                           </Text>
                           {isCritical ? (
-                            <Text style={styles.versionImpactLabel}>Attendance impact</Text>
+                            <Text style={styles.versionImpactLabel}>
+                              {t('events.version.attendanceImpact')}
+                            </Text>
                           ) : null}
                         </View>
 
                         <View style={styles.versionValueBlock}>
-                          <Text style={styles.versionValueLabel}>Before</Text>
+                          <Text style={styles.versionValueLabel}>{t('events.version.before')}</Text>
                           <Text style={styles.versionValueText}>
                             {formatDiffValue(change.field, change.old_value)}
                           </Text>
                         </View>
                         <View style={styles.versionValueBlock}>
-                          <Text style={styles.versionValueLabel}>Now</Text>
+                          <Text style={styles.versionValueLabel}>{t('events.version.now')}</Text>
                           <Text style={styles.versionValueText}>
                             {formatDiffValue(change.field, change.new_value)}
                           </Text>
@@ -737,10 +814,10 @@ function EventVersionHistorySection({
             <View style={styles.versionEmptyState}>
               <Feather name="check-circle" size={18} color={theme.successText} />
               <Text style={styles.versionEmptyTitle}>
-                No changes need your review right now.
+                {t('events.version.noChangesTitle')}
               </Text>
               <Text style={styles.versionEmptyText}>
-                If future edits affect time, location, privacy, or participation rules, they will appear here.
+                {t('events.version.noChangesSubtitle')}
               </Text>
             </View>
           )}
@@ -757,6 +834,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
   const vm = useEventDetailViewModel(eventId);
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const discussionVm = useEventDiscussionViewModel(eventId, vm.token ?? undefined);
   const styles = useMemo(() => makeStyles(theme, isDark), [theme, isDark]);
   const [isMapModalVisible, setIsMapModalVisible] = useState(false);
@@ -830,7 +908,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       return (
         <View style={styles.statusChip}>
           <Feather name="star" size={16} color="#7C3AED" />
-          <Text style={styles.statusChipTextPurple}>You are hosting this event</Text>
+          <Text style={styles.statusChipTextPurple}>{t('events.detail.youAreHosting')}</Text>
         </View>
       );
     }
@@ -841,7 +919,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         return (
           <View style={styles.statusChip}>
             <Ionicons name="log-out-outline" size={16} color={theme.textTertiary} />
-            <Text style={styles.statusChipTextGray}>You left this event</Text>
+            <Text style={styles.statusChipTextGray}>{t('events.detail.youLeft')}</Text>
           </View>
         );
       }
@@ -854,7 +932,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         <View>
           <View style={[styles.statusChip, styles.reconfirmStatusChip]}>
             <Feather name="alert-triangle" size={16} color={theme.warningText} />
-            <Text style={styles.statusChipTextAmber}>Attendance needs reconfirmation</Text>
+            <Text style={styles.statusChipTextAmber}>{t('events.detail.reconfirmationNeeded')}</Text>
           </View>
           <TouchableOpacity
             style={[
@@ -871,7 +949,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             ) : (
               <>
                 <Feather name="refresh-cw" size={18} color={theme.textOnPrimary} />
-                <Text style={styles.actionButtonText}>Reconfirm Attendance</Text>
+                <Text style={styles.actionButtonText}>{t('events.detail.reconfirmAttendance')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -882,12 +960,12 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             ]}
             onPress={() => {
               Alert.alert(
-                'Reject Reconfirmation',
-                'Rejecting this update will remove you from the event.',
+                t('events.detail.rejectReconfirmationTitle'),
+                t('events.detail.rejectReconfirmationBody'),
                 [
-                  { text: 'Cancel', style: 'cancel' },
+                  { text: t('common.cancel'), style: 'cancel' },
                   {
-                    text: 'Reject & Leave',
+                    text: t('events.detail.rejectAndLeave'),
                     style: 'destructive',
                     onPress: vm.handleLeaveEvent,
                   },
@@ -902,7 +980,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             ) : (
               <>
                 <Feather name="x-circle" size={18} color="#DC2626" />
-                <Text style={styles.leaveButtonText}>Reject Reconfirmation</Text>
+                <Text style={styles.leaveButtonText}>{t('events.detail.rejectReconfirmation')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -917,8 +995,10 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     ) {
       const attendedLabel =
         vm.actionState === 'success_reconfirmed'
-          ? "You're attending with latest details"
-          : vm.event.status === 'COMPLETED' ? 'You attended this event' : "You're attending";
+          ? t('events.detail.attendingReconfirmed')
+          : vm.event.status === 'COMPLETED'
+            ? t('events.detail.youAttended')
+            : t('events.detail.attending');
 
       return (
         <View>
@@ -931,11 +1011,11 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               style={[styles.leaveButton, vm.actionState === 'leaving' && styles.actionButtonLoading]}
               onPress={() => {
                 Alert.alert(
-                  'Leave Event',
-                  'Are you sure you want to leave this event?',
+                  t('events.detail.leaveEvent'),
+                  t('events.detail.leaveConfirmBody'),
                   [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Leave', style: 'destructive', onPress: vm.handleLeaveEvent },
+                    { text: t('common.cancel'), style: 'cancel' },
+                    { text: t('common.leave'), style: 'destructive', onPress: vm.handleLeaveEvent },
                   ],
                 );
               }}
@@ -947,7 +1027,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               ) : (
                 <>
                   <Ionicons name="exit-outline" size={18} color="#DC2626" />
-                  <Text style={styles.leaveButtonText}>Leave Event</Text>
+                  <Text style={styles.leaveButtonText}>{t('events.detail.leaveEvent')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -961,7 +1041,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         <View>
           <View style={styles.statusChip}>
             <Feather name="clock" size={16} color={theme.warningText} />
-            <Text style={styles.statusChipTextAmber}>Request sent — awaiting approval</Text>
+            <Text style={styles.statusChipTextAmber}>{t('events.detail.requestPending')}</Text>
           </View>
           <TouchableOpacity
             style={[
@@ -970,12 +1050,12 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             ]}
             onPress={() => {
               Alert.alert(
-                'Cancel Request',
-                'Are you sure you want to withdraw your join request?',
+                t('events.detail.cancelRequest'),
+                t('events.detail.cancelRequestConfirmBody'),
                 [
-                  { text: 'No', style: 'cancel' },
+                  { text: t('common.no'), style: 'cancel' },
                   {
-                    text: 'Yes, Cancel',
+                    text: t('events.detail.confirmCancelRequest'),
                     style: 'destructive',
                     onPress: vm.handleCancelJoinRequest,
                   },
@@ -990,7 +1070,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             ) : (
               <>
                 <Feather name="x-circle" size={18} color="#DC2626" />
-                <Text style={styles.leaveButtonText}>Cancel Request</Text>
+                <Text style={styles.leaveButtonText}>{t('events.detail.cancelRequest')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -1003,7 +1083,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         <View>
           <View style={styles.statusChip}>
             <Feather name="mail" size={16} color={theme.infoText} />
-            <Text style={styles.statusChipTextBlue}>You&apos;re invited</Text>
+            <Text style={styles.statusChipTextBlue}>{t('events.detail.youAreInvited')}</Text>
           </View>
 
           <View style={styles.invitationActionRow}>
@@ -1086,7 +1166,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         return (
           <View style={[styles.actionButton, styles.actionButtonDisabled]}>
             <Feather name="users" size={18} color={theme.textTertiary} />
-            <Text style={styles.actionButtonTextDisabled}>Event is Full</Text>
+            <Text style={styles.actionButtonTextDisabled}>{t('events.detail.eventFull')}</Text>
           </View>
         );
       }
@@ -1102,7 +1182,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           ) : (
             <>
               <Feather name="log-in" size={18} color={theme.textOnPrimary} />
-              <Text style={styles.actionButtonText}>Join Event</Text>
+              <Text style={styles.actionButtonText}>{t('events.detail.joinEvent')}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -1117,7 +1197,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           activeOpacity={0.8}
         >
           <Feather name="send" size={18} color={theme.textOnPrimary} />
-          <Text style={styles.actionButtonText}>Request to Join</Text>
+          <Text style={styles.actionButtonText}>{t('events.detail.requestToJoin')}</Text>
         </TouchableOpacity>
       );
     }
@@ -1151,16 +1231,18 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             />
           </View>
           <Text style={styles.errorTitle}>
-            {isPrivateOrMissing ? 'Event Inaccessible' : 'Something went wrong'}
+            {isPrivateOrMissing
+              ? t('events.detail.errorTitleInaccessible')
+              : t('events.detail.errorTitle')}
           </Text>
           <Text style={styles.errorMessage}>
             {vm.apiError ?? 'The event you are looking for could not be found.'}
           </Text>
           <TouchableOpacity style={styles.retryButton} onPress={vm.retry}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
+            <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.backLinkButton} onPress={() => router.back()}>
-            <Text style={styles.backLinkText}>Go Back to Discovery</Text>
+            <Text style={styles.backLinkText}>{t('events.detail.backToDiscovery')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -1169,9 +1251,9 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
   const { event } = vm;
   const ratingLabel =
-    event.host_score.final_score != null && event.host_score.hosted_event_rating_count > 0
+    event.host_score.final_score != null
       ? `${event.host_score.final_score.toFixed(1)} (${event.host_score.hosted_event_rating_count})`
-      : 'No ratings yet';
+      : 'New host';
   const hostDisplayName = event.host.display_name ?? event.host.username;
   const capacityLabel =
     event.capacity != null
@@ -1185,7 +1267,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <Feather name="arrow-left" size={22} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          Event Details
+          {t('events.detail.headerTitle')}
         </Text>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.headerIconBtn} onPress={vm.handleToggleFavorite}>
@@ -1236,7 +1318,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <View style={styles.warningBanner}>
               <Feather name="alert-triangle" size={16} color={theme.warningText} />
               <Text style={styles.warningBannerText}>
-                This event will be automatically completed in {daysLeft} day{daysLeft !== 1 ? 's' : ''} due to inactivity.
+                {t('events.detail.autoCompleteWarning', { count: daysLeft })}
               </Text>
             </View>
           );
@@ -1246,7 +1328,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <View style={[styles.warningBanner, styles.reconfirmationBanner]} testID="reconfirmation-banner">
             <Feather name="alert-triangle" size={16} color={theme.warningText} />
             <Text style={styles.warningBannerText}>
-              Event details changed since you last confirmed. Review the version history and reconfirm if you can still attend, or reject to leave the event.
+              {t('events.detail.reconfirmationBanner')}
             </Text>
           </View>
         ) : null}
@@ -1281,7 +1363,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             {event.location.type === 'ROUTE' && (
               <View style={styles.routeChip}>
                 <Feather name="navigation" size={10} color={theme.textOnPrimary} />
-                <Text style={styles.routeChipText}>Route</Text>
+                <Text style={styles.routeChipText}>{t('events.create.fields.locationTypeRoute')}</Text>
               </View>
             )}
           </View>
@@ -1290,7 +1372,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <View style={styles.meetingPointContainer}>
               <View style={styles.meetingPointHeader}>
                 <Ionicons name="information-circle-outline" size={16} color={theme.primary} />
-                <Text style={styles.meetingPointTitle}>Meeting Instructions</Text>
+                <Text style={styles.meetingPointTitle}>{t('events.detail.meetingInstructions')}</Text>
               </View>
               <Text style={styles.meetingPointText}>{event.location.meeting_instructions}</Text>
             </View>
@@ -1299,14 +1381,20 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <View style={styles.metaRow}>
             <Feather name="users" size={16} color={theme.textTertiary} />
             <Text style={styles.metaText}>
-              {capacityLabel} participant{event.approved_participant_count !== 1 ? 's' : ''}
-              {event.capacity != null ? ' (capacity)' : ''}
+              {event.capacity != null
+                ? t('events.detail.capacityLabel', {
+                    count: event.approved_participant_count,
+                    capacity: event.capacity,
+                  })
+                : t('events.detail.participantsLabel', {
+                    count: event.approved_participant_count,
+                  })}
             </Text>
           </View>
 
           <View style={styles.metaRow}>
             <Feather name="heart" size={16} color={theme.textTertiary} />
-            <Text style={styles.metaText}>{event.favorite_count} saved</Text>
+            <Text style={styles.metaText}>{t('events.detail.savedCount', { count: event.favorite_count })}</Text>
           </View>
 
           {(() => {
@@ -1401,10 +1489,10 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                     <Feather name="alert-triangle" size={16} color={theme.warningText} />
                     <View style={styles.approxMapCalloutBody}>
                       <Text style={styles.approxMapCalloutTitle}>
-                        You're seeing an approximate location
+                        {t('events.detail.approximateLocationTitle')}
                       </Text>
                       <Text style={styles.approxMapCalloutDesc}>
-                        The exact location will be revealed once you're approved to join.
+                        {t('events.detail.approximateLocationBody')}
                       </Text>
                     </View>
                   </View>
@@ -1416,7 +1504,9 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   >
                     <MaterialIcons name="directions" size={20} color={theme.primary} />
                     <Text style={styles.directionsButtonText}>
-                      {isRoute ? 'Directions to Start' : 'Get Directions'}
+                      {isRoute
+                        ? t('events.detail.directionsToStart')
+                        : t('events.detail.directions')}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -1431,7 +1521,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
         {/* Host */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Host</Text>
+          <Text style={styles.sectionTitle}>{t('events.detail.host')}</Text>
           <TouchableOpacity
             style={styles.hostRow}
             onPress={() => router.push(`/user/${event.host.id}` as Href)}
@@ -1449,7 +1539,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               <Text style={styles.hostUsername}>@{event.host.username}</Text>
             </View>
             <View style={styles.hostRating}>
-              <MaterialCommunityIcons name="account-star" size={16} color="#F59E0B" />
+              <Feather name="star" size={14} color="#F59E0B" />
               <Text style={styles.hostRatingText}>{ratingLabel}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
@@ -1461,16 +1551,16 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <>
             <View style={styles.divider} />
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Host Management</Text>
+              <Text style={styles.sectionTitle}>{t('events.detail.hostManagement')}</Text>
               <View style={styles.hostActions}>
                 {canEditEvent(vm.event) ? (
                   <TouchableOpacity
                     style={[styles.hostActionBtn, styles.hostActionBtnPrimary]}
                     onPress={() => router.push(`/event/${event.id}/edit` as Href)}
-                    accessibilityLabel="Edit event"
+                    accessibilityLabel={t('events.edit.title')}
                   >
                     <Feather name="edit-3" size={18} color={theme.textOnPrimary} />
-                    <Text style={styles.hostActionTextWhite}>Edit Event</Text>
+                    <Text style={styles.hostActionTextWhite}>{t('events.edit.title')}</Text>
                   </TouchableOpacity>
                 ) : null}
 
@@ -1480,14 +1570,18 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 >
                   <Feather name="users" size={18} color={theme.text} />
                   <Text style={styles.hostActionText}>
-                    Attendees ({vm.hostContextSummary?.approved_participant_count ?? vm.approvedParticipants.length})
+                    {t('events.detail.participants')} ({vm.hostContextSummary?.approved_participant_count ?? vm.approvedParticipants.length})
                   </Text>
                 </TouchableOpacity>
                 {vm.event.status === 'COMPLETED' ? (
                   <Text style={styles.hostActionHint}>
                     {vm.event.rating_window.is_active
-                      ? `Participant feedback is open until ${formatLongDateTime(vm.event.rating_window.closes_at)}.`
-                      : `Participant feedback closed on ${formatLongDateTime(vm.event.rating_window.closes_at)}.`}
+                      ? t('events.feedback.participantOpenUntil', {
+                          date: formatLongDateTime(vm.event.rating_window.closes_at),
+                        })
+                      : t('events.feedback.participantClosedOn', {
+                          date: formatLongDateTime(vm.event.rating_window.closes_at),
+                        })}
                   </Text>
                 ) : null}
 
@@ -1498,7 +1592,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   >
                     <Feather name="mail" size={18} color={theme.textOnPrimary} />
                     <Text style={styles.hostActionTextWhite}>
-                      Pending Requests ({vm.hostContextSummary?.pending_join_request_count ?? vm.pendingJoinRequests.length})
+                      {t('events.detail.pendingRequests')} ({vm.hostContextSummary?.pending_join_request_count ?? vm.pendingJoinRequests.length})
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -1510,7 +1604,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   >
                     <Feather name="send" size={18} color={theme.textOnPrimary} />
                     <Text style={styles.hostActionTextWhite}>
-                      Invite & Manage ({vm.hostContextSummary?.invitation_count ?? vm.invitations.length})
+                      {t('events.detail.inviteAndManage')} ({vm.hostContextSummary?.invitation_count ?? vm.invitations.length})
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -1530,7 +1624,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                     }}
                   >
                     <Feather name="trash-2" size={18} color="#DC2626" />
-                    <Text style={styles.hostActionTextDanger}>Cancel Event</Text>
+                    <Text style={styles.hostActionTextDanger}>{t('events.detail.cancelEvent')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -1552,7 +1646,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <>
             <View style={styles.divider} />
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>About</Text>
+              <Text style={styles.sectionTitle}>{t('events.detail.about')}</Text>
               <Text style={styles.description}>{event.description}</Text>
             </View>
           </>
@@ -1563,7 +1657,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <>
             <View style={styles.divider} />
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Tags</Text>
+              <Text style={styles.sectionTitle}>{t('events.detail.tags')}</Text>
               <View style={styles.tagRow}>
                 {event.tags.map((tag) => (
                   <View key={tag} style={styles.tag}>
@@ -1580,12 +1674,12 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <>
             <View style={styles.divider} />
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Requirements</Text>
+              <Text style={styles.sectionTitle}>{t('events.detail.requirements')}</Text>
               {event.constraints.map((c, i) => (
                 <View key={i} style={styles.constraintRow}>
                   <MaterialIcons name="check-circle-outline" size={16} color={theme.textTertiary} />
                   <View style={styles.constraintText}>
-                    <Text style={styles.constraintType}>{c.type}</Text>
+                    <Text style={styles.constraintType}>{formatConstraintTypeLabel(c.type)}</Text>
                     <Text style={styles.constraintInfo}>{c.info}</Text>
                   </View>
                 </View>
@@ -1599,20 +1693,26 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <>
             <View style={styles.divider} />
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Participation criteria</Text>
+              <Text style={styles.sectionTitle}>{t('events.detail.participationCriteria')}</Text>
               {event.minimum_age != null && (
                 <View style={styles.metaRow}>
                   <Feather name="user-check" size={16} color={theme.textTertiary} />
-                  <Text style={styles.metaText}>Minimum age: {event.minimum_age}+</Text>
+                  <Text style={styles.metaText}>
+                    {t('events.detail.minimumAge', { age: event.minimum_age })}
+                  </Text>
                 </View>
               )}
               {event.preferred_gender != null && (
                 <View style={styles.metaRow}>
                   <Feather name="users" size={16} color={theme.textTertiary} />
                   <Text style={styles.metaText}>
-                    Preferred gender:{' '}
-                    {event.preferred_gender.charAt(0) +
-                      event.preferred_gender.slice(1).toLowerCase()}
+                    {t('events.detail.preferredGender', {
+                      gender: t(`profile.edit.genderOptions.${event.preferred_gender}`, {
+                        defaultValue:
+                          event.preferred_gender.charAt(0) +
+                          event.preferred_gender.slice(1).toLowerCase(),
+                      }),
+                    })}
                   </Text>
                 </View>
               )}
@@ -1647,7 +1747,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <>
               <View style={styles.divider} />
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Discussions</Text>
+                <Text style={styles.sectionTitle}>{t('events.detail.discussions')}</Text>
               </View>
               <EventDiscussionSection
                 vm={discussionVm}
@@ -1691,15 +1791,15 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             <View style={styles.modalSheet}>
               <View style={styles.modalHandle} />
 
-              <Text style={styles.modalTitle}>Request to Join</Text>
+              <Text style={styles.modalTitle}>{t('events.joinRequest.title')}</Text>
               <Text style={styles.modalSubtitle}>
-                Send a message to the host explaining why you&apos;d like to join.
+                {t('events.joinRequest.subtitle')}
               </Text>
 
-              <Text style={styles.label}>Message (optional)</Text>
+              <Text style={styles.label}>{t('events.joinRequest.messageOptional')}</Text>
               <TextInput
                 style={styles.messageInput}
-                placeholder="I have experience with similar events and would love to participate…"
+                placeholder={t('events.joinRequest.messagePlaceholder')}
                 placeholderTextColor={theme.placeholder}
                 value={vm.joinRequestMessage}
                 onChangeText={vm.setJoinRequestMessage}
@@ -1712,7 +1812,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               <Text style={styles.charCount}>{vm.joinRequestMessage.length}/500</Text>
 
               <View style={styles.attachmentSection}>
-                <Text style={styles.label}>Attachment (Evidence)</Text>
+                <Text style={styles.label}>{t('events.joinRequest.attachment')}</Text>
                 {vm.selectedImageUri ? (
                   <View style={styles.attachmentPreviewContainer}>
                     <Image source={{ uri: vm.selectedImageUri }} style={styles.attachmentPreview} />
@@ -1736,7 +1836,9 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                     activeOpacity={0.7}
                   >
                     <Feather name="image" size={20} color={theme.primary} />
-                    <Text style={styles.addAttachmentText}>Add Photo Evidence</Text>
+                    <Text style={styles.addAttachmentText}>
+                      {t('events.joinRequest.addPhotoEvidence')}
+                    </Text>
                   </TouchableOpacity>
                 )}
                 {vm.imageError ? (
@@ -1765,7 +1867,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 ) : (
                   <>
                     <Feather name="send" size={18} color={theme.textOnPrimary} />
-                    <Text style={styles.actionButtonText}>Send Request</Text>
+                    <Text style={styles.actionButtonText}>{t('events.joinRequest.send')}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -1775,7 +1877,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 onPress={vm.closeJoinRequestModal}
                 disabled={vm.actionState === 'requesting'}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1819,8 +1921,12 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
             ratingWindowMessage={
               vm.event.status === 'COMPLETED'
                 ? vm.event.rating_window.is_active
-                  ? `Participant feedback is open until ${formatLongDateTime(vm.event.rating_window.closes_at)}.`
-                  : `Participant feedback closed on ${formatLongDateTime(vm.event.rating_window.closes_at)}.`
+                  ? t('events.feedback.participantOpenUntil', {
+                      date: formatLongDateTime(vm.event.rating_window.closes_at),
+                    })
+                  : t('events.feedback.participantClosedOn', {
+                      date: formatLongDateTime(vm.event.rating_window.closes_at),
+                    })
                 : null
             }
             ratingLoadingId={vm.participantRatingLoadingId}

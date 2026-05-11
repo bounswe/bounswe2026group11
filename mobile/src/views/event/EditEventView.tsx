@@ -15,6 +15,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import PointPickerMap from '@/components/events/PointPickerMap';
 import RoutePointsEditor from '@/components/events/RoutePointsEditor';
 import {
@@ -80,16 +81,16 @@ function formatPickerTime(date: Date): string {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-function getChangeFieldLabel(field: string): string {
+function getChangeFieldLabel(field: string, t: (key: string) => string): string {
   const labels: Record<string, string> = {
-    title: 'Title',
-    description: 'Description',
-    category_id: 'Category',
-    location: 'Location or route',
-    start_time: 'Start time',
-    end_time: 'End time',
-    capacity: 'Capacity',
-    constraints: 'Participation requirements',
+    title: t('events.edit.fields.titleLabel'),
+    description: t('events.edit.fields.descriptionLabel'),
+    category_id: t('events.edit.fields.category'),
+    location: t('events.edit.fields.locationOrRoute'),
+    start_time: t('events.edit.fields.startTime'),
+    end_time: t('events.edit.fields.endTime'),
+    capacity: t('events.edit.fields.capacity'),
+    constraints: t('events.edit.fields.requirements'),
   };
   return labels[field] ?? field.replace(/_/g, ' ');
 }
@@ -105,6 +106,7 @@ function getEventVersionLabel(vm: ReturnType<typeof useEditEventViewModel>): str
 export default function EditEventView({ eventId }: EditEventViewProps) {
   const vm = useEditEventViewModel(eventId);
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [activeDatePicker, setActiveDatePicker] = useState<'start' | 'end' | null>(null);
   const [activeTimePicker, setActiveTimePicker] = useState<'start' | 'end' | null>(null);
@@ -232,7 +234,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <View style={styles.centeredScreen}>
           <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={styles.loadingText}>Loading event for editing...</Text>
+          <Text style={styles.loadingText}>{t('events.edit.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -245,7 +247,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => router.back()}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.back')}
           >
             <Feather name="arrow-left" size={22} color={theme.text} />
           </TouchableOpacity>
@@ -254,9 +256,9 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
             <View style={styles.blockedIcon}>
               <Feather name="lock" size={28} color={theme.textSecondary} />
             </View>
-            <Text style={styles.blockedTitle}>This event cannot be edited</Text>
+            <Text style={styles.blockedTitle}>{t('events.edit.blockedTitle')}</Text>
             <Text style={styles.blockedText}>
-              {vm.apiError ?? 'Only active hosted events that have not started can be updated.'}
+              {vm.apiError ?? t('events.edit.blockedDescription')}
             </Text>
             {vm.event ? (
               <TouchableOpacity
@@ -264,7 +266,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                 onPress={() => router.replace(`/event/${eventId}` as Href)}
                 activeOpacity={0.85}
               >
-                <Text style={styles.primaryButtonText}>View Event</Text>
+                <Text style={styles.primaryButtonText}>{t('events.edit.viewEvent')}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
@@ -272,7 +274,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                 onPress={() => void vm.retry()}
                 activeOpacity={0.85}
               >
-                <Text style={styles.primaryButtonText}>Try Again</Text>
+                <Text style={styles.primaryButtonText}>{t('common.retry')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -296,12 +298,12 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => router.back()}
-              accessibilityLabel="Go back"
+              accessibilityLabel={t('common.back')}
             >
               <Feather name="arrow-left" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerCopy}>
-              <Text style={styles.screenTitle}>Edit Event</Text>
+              <Text style={styles.screenTitle}>{t('events.edit.title')}</Text>
               <Text style={styles.screenSubtitle} numberOfLines={1}>
                 {vm.event.title}
               </Text>
@@ -330,20 +332,20 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
           <View style={styles.warningBanner}>
             <Feather name="alert-triangle" size={16} color={theme.warningText} />
             <Text style={styles.warningBannerText}>
-              Saving a title, description, category, time, place, route, or new requirement change can require attendees to reconfirm.
+              {t('events.edit.warning')}
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Basics</Text>
+            <Text style={styles.sectionTitle}>{t('events.edit.sections.basics')}</Text>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Title</Text>
+              <Text style={styles.label}>{t('events.edit.fields.titleLabel')}</Text>
               <TextInput
                 style={[styles.input, vm.errors.title && styles.inputError]}
                 value={vm.formData.title}
                 onChangeText={(value) => vm.updateField('title', value)}
-                placeholder="Event title"
+                placeholder={t('events.edit.fields.titlePlaceholder')}
                 placeholderTextColor={theme.placeholder}
                 maxLength={TITLE_MAX_LENGTH}
                 editable={!disabled}
@@ -352,12 +354,12 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Description</Text>
+              <Text style={styles.label}>{t('events.edit.fields.descriptionLabel')}</Text>
               <TextInput
                 style={[styles.input, styles.textArea, vm.errors.description && styles.inputError]}
                 value={vm.formData.description}
                 onChangeText={(value) => vm.updateField('description', value)}
-                placeholder="What should attendees know?"
+                placeholder={t('events.edit.fields.descriptionPlaceholder')}
                 placeholderTextColor={theme.placeholder}
                 maxLength={DESCRIPTION_MAX_LENGTH}
                 multiline
@@ -371,7 +373,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Category</Text>
+              <Text style={styles.label}>{t('events.edit.fields.category')}</Text>
               <View style={styles.chipRow}>
                 {visibleCategories.map((category) => (
                   <TouchableOpacity
@@ -390,7 +392,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                         vm.formData.categoryId === category.id && styles.chipTextSelected,
                       ]}
                     >
-                      {category.name}
+                      {t(`events.categories.${category.name}`, { defaultValue: category.name })}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -402,7 +404,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                   disabled={disabled}
                 >
                   <Text style={styles.inlineActionText}>
-                    {vm.categoriesExpanded ? 'Show less' : 'Show more'}
+                    {vm.categoriesExpanded ? t('events.create.showLess') : t('events.create.showMore')}
                   </Text>
                 </TouchableOpacity>
               ) : null}
@@ -413,7 +415,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Location</Text>
+            <Text style={styles.sectionTitle}>{t('events.edit.sections.location')}</Text>
 
             <View style={styles.segmentedControl} testID="edit-location-type-toggle">
               <TouchableOpacity
@@ -436,7 +438,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                     vm.formData.locationType === 'POINT' && styles.segmentOptionTextActive,
                   ]}
                 >
-                  Single point
+                  {t('events.edit.fields.locationTypePoint')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -459,7 +461,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                     vm.formData.locationType === 'ROUTE' && styles.segmentOptionTextActive,
                   ]}
                 >
-                  Route
+                  {t('events.edit.fields.locationTypeRoute')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -475,7 +477,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                     ]}
                     value={vm.formData.locationQuery}
                     onChangeText={vm.handleLocationSearch}
-                    placeholder="Search for a place or tap the map"
+                    placeholder={t('events.edit.fields.locationSearchPlaceholder')}
                     placeholderTextColor={theme.placeholder}
                     editable={!disabled}
                   />
@@ -484,7 +486,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                       style={styles.clearLocationButton}
                       onPress={vm.clearLocation}
                       disabled={disabled}
-                      accessibilityLabel="Clear selected location"
+                      accessibilityLabel={t('events.edit.fields.clearLocation')}
                     >
                       <Feather name="x" size={18} color={theme.text} />
                     </TouchableOpacity>
@@ -540,10 +542,10 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Schedule</Text>
+            <Text style={styles.sectionTitle}>{t('events.edit.sections.schedule')}</Text>
             <View style={styles.dateTimeRow}>
               <View style={styles.dateCol}>
-                <Text style={styles.label}>Start date</Text>
+                <Text style={styles.label}>{t('events.edit.fields.startDate')}</Text>
                 <TouchableOpacity
                   style={[
                     styles.input,
@@ -552,7 +554,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                   ]}
                   onPress={() => toggleDatePicker('start')}
                   disabled={disabled}
-                  accessibilityLabel="Pick start date"
+                  accessibilityLabel={t('events.edit.fields.pickStartDate')}
                 >
                   <Text
                     style={[
@@ -560,7 +562,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                       !vm.formData.startDate && styles.pickerPlaceholderText,
                     ]}
                   >
-                    {vm.formData.startDate || 'Select date'}
+                    {vm.formData.startDate || t('events.create.fields.selectDate')}
                   </Text>
                   <MaterialIcons name="event" size={20} color={theme.textSecondary} />
                 </TouchableOpacity>
@@ -570,7 +572,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
               </View>
 
               <View style={styles.timeCol}>
-                <Text style={styles.label}>Start time</Text>
+                <Text style={styles.label}>{t('events.edit.fields.startTime')}</Text>
                 <TouchableOpacity
                   style={[
                     styles.input,
@@ -579,7 +581,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                   ]}
                   onPress={() => toggleTimePicker('start')}
                   disabled={disabled}
-                  accessibilityLabel="Pick start time"
+                  accessibilityLabel={t('events.edit.fields.pickStartTime')}
                 >
                   <Text
                     style={[
@@ -587,7 +589,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                       !vm.formData.startTime && styles.pickerPlaceholderText,
                     ]}
                   >
-                    {vm.formData.startTime || 'Time'}
+                    {vm.formData.startTime || t('events.edit.fields.timePlaceholder')}
                   </Text>
                   <MaterialIcons name="schedule" size={20} color={theme.textSecondary} />
                 </TouchableOpacity>
@@ -621,10 +623,10 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
             ) : null}
 
             <View style={styles.inlineLabelRow}>
-              <Text style={styles.label}>End</Text>
+              <Text style={styles.label}>{t('events.edit.fields.end')}</Text>
               {vm.formData.endDate || vm.formData.endTime ? (
                 <TouchableOpacity onPress={clearEndDateTime} disabled={disabled}>
-                  <Text style={styles.inlineActionText}>Clear</Text>
+                  <Text style={styles.inlineActionText}>{t('events.edit.fields.clear')}</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -639,7 +641,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                   ]}
                   onPress={() => toggleDatePicker('end')}
                   disabled={disabled}
-                  accessibilityLabel="Pick end date"
+                  accessibilityLabel={t('events.edit.fields.pickEndDate')}
                 >
                   <Text
                     style={[
@@ -647,7 +649,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                       !vm.formData.endDate && styles.pickerPlaceholderText,
                     ]}
                   >
-                    {vm.formData.endDate || 'Select date'}
+                    {vm.formData.endDate || t('events.create.fields.selectDate')}
                   </Text>
                   <MaterialIcons name="event" size={20} color={theme.textSecondary} />
                 </TouchableOpacity>
@@ -665,7 +667,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                   ]}
                   onPress={() => toggleTimePicker('end')}
                   disabled={disabled}
-                  accessibilityLabel="Pick end time"
+                  accessibilityLabel={t('events.edit.fields.pickEndTime')}
                 >
                   <Text
                     style={[
@@ -673,7 +675,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                       !vm.formData.endTime && styles.pickerPlaceholderText,
                     ]}
                   >
-                    {vm.formData.endTime || 'Time'}
+                    {vm.formData.endTime || t('events.edit.fields.timePlaceholder')}
                   </Text>
                   <MaterialIcons name="schedule" size={20} color={theme.textSecondary} />
                 </TouchableOpacity>
@@ -708,25 +710,27 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Participation</Text>
+            <Text style={styles.sectionTitle}>{t('events.edit.sections.participation')}</Text>
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Capacity</Text>
+              <Text style={styles.label}>{t('events.edit.fields.capacity')}</Text>
               <TextInput
                 style={[styles.input, vm.errors.constraints && styles.inputError]}
                 value={vm.formData.capacityInput}
                 onChangeText={(value) => vm.updateField('capacityInput', value)}
-                placeholder="Unlimited"
+                placeholder={t('events.edit.fields.unlimited')}
                 placeholderTextColor={theme.placeholder}
                 keyboardType="numeric"
                 editable={!disabled}
               />
               <Text style={styles.helperText}>
-                Current approved plus pending participants: {vm.event.approved_participant_count + vm.event.pending_participant_count}
+                {t('events.edit.currentParticipants', {
+                  count: vm.event.approved_participant_count + vm.event.pending_participant_count,
+                })}
               </Text>
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Requirements</Text>
+              <Text style={styles.label}>{t('events.edit.fields.requirements')}</Text>
               {vm.formData.constraints.length > 0 ? (
                 <View style={styles.constraintList}>
                   {vm.formData.constraints.map((constraint, index) => (
@@ -739,7 +743,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                         style={styles.constraintRemoveButton}
                         onPress={() => vm.removeConstraint(index)}
                         disabled={disabled}
-                        accessibilityLabel="Remove requirement"
+                        accessibilityLabel={t('events.edit.fields.removeRequirement')}
                       >
                         <Feather name="trash-2" size={16} color={theme.errorText} />
                       </TouchableOpacity>
@@ -748,7 +752,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                 </View>
               ) : (
                 <View style={styles.emptyRequirement}>
-                  <Text style={styles.emptyRequirementText}>No participation requirements.</Text>
+                  <Text style={styles.emptyRequirementText}>{t('events.edit.noRequirements')}</Text>
                 </View>
               )}
 
@@ -757,7 +761,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                   style={[styles.input, styles.requirementTypeInput]}
                   value={vm.constraintDraftType}
                   onChangeText={vm.updateConstraintDraftType}
-                  placeholder="Type"
+                  placeholder={t('events.edit.fields.requirementType')}
                   placeholderTextColor={theme.placeholder}
                   editable={!disabled}
                 />
@@ -765,7 +769,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                   style={[styles.input, styles.requirementInfoInput]}
                   value={vm.constraintDraftInfo}
                   onChangeText={vm.updateConstraintDraftInfo}
-                  placeholder="Details"
+                  placeholder={t('events.edit.fields.requirementDetails')}
                   placeholderTextColor={theme.placeholder}
                   editable={!disabled}
                 />
@@ -781,7 +785,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                     !vm.constraintDraftType.trim() ||
                     !vm.constraintDraftInfo.trim()
                   }
-                  accessibilityLabel="Add requirement"
+                  accessibilityLabel={t('events.edit.fields.addRequirement')}
                 >
                   <Feather name="plus" size={20} color={theme.textOnPrimary} />
                 </TouchableOpacity>
@@ -804,7 +808,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
             ) : (
               <>
                 <Feather name="save" size={18} color={theme.textOnPrimary} />
-                <Text style={styles.saveButtonText}>Save Changes</Text>
+                <Text style={styles.saveButtonText}>{t('events.edit.saveChanges')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -822,9 +826,9 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
             <View style={styles.confirmIcon}>
               <Feather name="alert-triangle" size={24} color={theme.warningText} />
             </View>
-            <Text style={styles.confirmTitle}>Review before saving</Text>
+            <Text style={styles.confirmTitle}>{t('events.edit.confirmTitle')}</Text>
             <Text style={styles.confirmBody}>
-              This update creates a new event version. Attendees may need to reconfirm the highlighted changes.
+              {t('events.edit.confirmBody')}
             </Text>
 
             {pendingPreview ? (
@@ -839,7 +843,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                   {pendingPreview.changedFields.map((field) => (
                     <View key={field} style={styles.changedFieldPill}>
                       <Text style={styles.changedFieldPillText}>
-                        {getChangeFieldLabel(field)}
+                        {getChangeFieldLabel(field, t)}
                       </Text>
                     </View>
                   ))}
@@ -853,7 +857,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                 onPress={() => setPendingPreview(null)}
                 disabled={vm.isSaving}
               >
-                <Text style={styles.cancelConfirmText}>Keep Editing</Text>
+                <Text style={styles.cancelConfirmText}>{t('events.edit.keepEditing')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.confirmSaveButton, vm.isSaving && styles.buttonDisabled]}
@@ -863,7 +867,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                 {vm.isSaving ? (
                   <ActivityIndicator size="small" color={theme.textOnPrimary} />
                 ) : (
-                  <Text style={styles.confirmSaveText}>Save Anyway</Text>
+                  <Text style={styles.confirmSaveText}>{t('events.edit.saveAnyway')}</Text>
                 )}
               </TouchableOpacity>
             </View>

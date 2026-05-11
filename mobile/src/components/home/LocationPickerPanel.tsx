@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { LocationSuggestion } from '@/models/event';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { useTheme } from '@/theme';
@@ -127,14 +128,15 @@ export default function LocationPickerPanel({
   onApply,
 }: LocationPickerPanelProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const trimmedQuery = query.trim();
   const isSearchMode = trimmedQuery.length > 0;
   const searchStateText =
     trimmedQuery.length < 2
-      ? 'Type at least 2 characters.'
-      : 'No locations found.';
+      ? t('home.locationPicker.typeAtLeastTwo')
+      : t('home.locationPicker.noLocationsFound');
 
   const canApply = Boolean(selectedLocation);
 
@@ -154,22 +156,22 @@ export default function LocationPickerPanel({
               onPress={onClose}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Close location picker"
+              accessibilityLabel={t('home.locationPicker.closeAccessibility')}
             >
               <Feather name="x" size={28} color={theme.text} />
             </TouchableOpacity>
 
-            <Text style={styles.title}>Choose Location</Text>
+            <Text style={styles.title}>{t('home.locationPicker.title')}</Text>
 
             <TouchableOpacity
               onPress={onReset}
               activeOpacity={0.85}
               style={styles.resetButton}
               accessibilityRole="button"
-              accessibilityLabel="Reset location"
+              accessibilityLabel={t('home.locationPicker.resetAccessibility')}
             >
               <Feather name="rotate-ccw" size={18} color={theme.text} />
-              <Text style={styles.resetText}>Reset</Text>
+              <Text style={styles.resetText}>{t('home.locationPicker.reset')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -178,7 +180,7 @@ export default function LocationPickerPanel({
             <TextInput
               value={query}
               onChangeText={onChangeQuery}
-              placeholder="Search for a location"
+              placeholder={t('home.locationPicker.searchPlaceholder')}
               placeholderTextColor={theme.placeholder}
               style={styles.input}
               autoCorrect={false}
@@ -193,12 +195,12 @@ export default function LocationPickerPanel({
             >
               {isSearchMode ? (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Search Results</Text>
+                  <Text style={styles.sectionTitle}>{t('home.locationPicker.searchResults')}</Text>
 
                   {isSearching ? (
                     <View style={styles.inlineStatusRow}>
                       <ActivityIndicator size="small" color={theme.text} />
-                      <Text style={styles.inlineStatusText}>Searching locations...</Text>
+                      <Text style={styles.inlineStatusText}>{t('home.locationPicker.searching')}</Text>
                     </View>
                   ) : suggestions.length > 0 ? (
                     suggestions.map((item, index) => {
@@ -228,7 +230,7 @@ export default function LocationPickerPanel({
                 </View>
               ) : (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Ready To Use</Text>
+                  <Text style={styles.sectionTitle}>{t('home.locationPicker.readyToUse')}</Text>
 
                   <SavedLocationCard
                     title={defaultOption.title}
@@ -249,7 +251,7 @@ export default function LocationPickerPanel({
                   />
 
                   <View style={styles.favoriteHeaderRow}>
-                    <Text style={styles.favoriteSectionTitle}>Favorite Locations</Text>
+                    <Text style={styles.favoriteSectionTitle}>{t('home.locationPicker.favoriteLocations')}</Text>
                     <Text style={styles.favoriteCountText}>
                       {favoriteOptions.length} / 3
                     </Text>
@@ -259,13 +261,13 @@ export default function LocationPickerPanel({
                     <View style={styles.inlineStatusRow}>
                       <ActivityIndicator size="small" color={theme.text} />
                       <Text style={styles.inlineStatusText}>
-                        Loading favorite locations...
+                        {t('home.locationPicker.loadingFavoriteLocations')}
                       </Text>
                     </View>
                   ) : favoriteLocationsError ? (
                     <View style={styles.messageCard}>
                       <Text style={styles.messageTitle}>
-                        Unable to load favorite locations
+                        {t('home.locationPicker.unableToLoadFavoriteLocations')}
                       </Text>
                       <Text style={styles.messageText}>{favoriteLocationsError}</Text>
                       <TouchableOpacity
@@ -273,12 +275,12 @@ export default function LocationPickerPanel({
                         onPress={onRetryFavoriteLocations}
                         activeOpacity={0.85}
                       >
-                        <Text style={styles.retryButtonText}>Retry</Text>
+                        <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
                       </TouchableOpacity>
                     </View>
                   ) : favoriteOptions.length === 0 ? (
                     <Text style={styles.emptyText}>
-                      No favorite locations saved yet.
+                      {t('home.locationPicker.noFavoriteLocations')}
                     </Text>
                   ) : (
                     favoriteOptions.map((option) => (
@@ -311,7 +313,7 @@ export default function LocationPickerPanel({
             activeOpacity={0.85}
             disabled={!canApply}
           >
-            <Text style={styles.applyButtonText}>Apply Location</Text>
+            <Text style={styles.applyButtonText}>{t('home.locationPicker.apply')}</Text>
           </TouchableOpacity>
         </View>
       </View>

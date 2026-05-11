@@ -14,13 +14,17 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { EventDetailApprovedParticipant } from '@/models/event';
 import { useTheme, type Theme } from '@/theme';
 
 const FEEDBACK_MIN_LENGTH = 10;
 const FEEDBACK_MAX_LENGTH = 100;
 
-function getFeedbackValidationMessage(message: string): string | null {
+function getFeedbackValidationMessage(
+  message: string,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string | null {
   const trimmed = message.trim();
 
   if (trimmed.length === 0) {
@@ -28,11 +32,11 @@ function getFeedbackValidationMessage(message: string): string | null {
   }
 
   if (trimmed.length < FEEDBACK_MIN_LENGTH) {
-    return `Feedback must be at least ${FEEDBACK_MIN_LENGTH} characters.`;
+    return t('events.feedback.validationMin', { count: FEEDBACK_MIN_LENGTH });
   }
 
   if (trimmed.length > FEEDBACK_MAX_LENGTH) {
-    return `Feedback must be ${FEEDBACK_MAX_LENGTH} characters or fewer.`;
+    return t('events.feedback.validationMax', { count: FEEDBACK_MAX_LENGTH });
   }
 
   return null;
@@ -102,6 +106,7 @@ function ParticipantRow({
   theme: Theme;
   styles: ReturnType<typeof makeStyles>;
 }) {
+  const { t } = useTranslation();
   const existingRating = participant.host_rating;
   const [isEditing, setIsEditing] = React.useState(false);
   const [rating, setRating] = React.useState(existingRating?.rating ?? 0);
@@ -112,7 +117,7 @@ function ParticipantRow({
   const isLoading = ratingLoadingId === participant.user.id;
   const rowError =
     ratingError?.participantUserId === participant.user.id ? ratingError.message : null;
-  const validationMessage = getFeedbackValidationMessage(message);
+  const validationMessage = getFeedbackValidationMessage(message, t);
   const trimmedLength = message.trim().length;
 
   React.useEffect(() => {
@@ -181,11 +186,15 @@ function ParticipantRow({
                   <Text style={styles.ratingMessage}>"{existingRating.message}"</Text>
                 ) : null}
                 <Text style={styles.ratingUpdatedAt}>
-                  Last updated {formatShortDate(existingRating.updated_at)}
+                  {t('events.feedback.lastUpdated', {
+                    date: formatShortDate(existingRating.updated_at),
+                  })}
                 </Text>
               </>
             ) : (
-              <Text style={styles.ratingEmpty}>You haven't rated this participant yet</Text>
+              <Text style={styles.ratingEmpty}>
+                {t('events.feedback.participantNotRated')}
+              </Text>
             )}
           </View>
         </View>
@@ -201,7 +210,11 @@ function ParticipantRow({
             activeOpacity={0.8}
           >
             <Text style={styles.rateButtonText}>
-              {isEditing ? 'Close' : existingRating ? 'Edit Rating' : 'Rate'}
+              {isEditing
+                ? t('common.close')
+                : existingRating
+                  ? t('events.feedback.editRating')
+                  : t('events.feedback.rate')}
             </Text>
           </TouchableOpacity>
         ) : null}
@@ -210,9 +223,11 @@ function ParticipantRow({
       {isEditing ? (
         <View style={styles.inlineEditor}>
           <Text style={styles.inlineEditorTitle}>
-            Rate {participant.user.display_name || participant.user.username}
+            {t('events.feedback.rateParticipant', {
+              name: participant.user.display_name || participant.user.username,
+            })}
           </Text>
-          <Text style={styles.inlineEditorSubtitle}>1 to 5 stars</Text>
+          <Text style={styles.inlineEditorSubtitle}>{t('events.feedback.oneToFiveStars')}</Text>
 
           <StarRatingInput
             value={rating}
@@ -229,7 +244,7 @@ function ParticipantRow({
             ]}
             value={message}
             onChangeText={setMessage}
-            placeholder="Optional note about reliability, communication, or overall experience."
+            placeholder={t('events.feedback.participantPlaceholder')}
             placeholderTextColor={theme.placeholder}
             maxLength={FEEDBACK_MAX_LENGTH}
             multiline
@@ -243,7 +258,7 @@ function ParticipantRow({
               {trimmedLength}/{FEEDBACK_MAX_LENGTH}
             </Text>
             <Text style={styles.ratingHelper}>
-              Optional, but must be at least {FEEDBACK_MIN_LENGTH} characters if provided.
+              {t('events.feedback.optionalMinHelper', { count: FEEDBACK_MIN_LENGTH })}
             </Text>
           </View>
 
@@ -271,7 +286,9 @@ function ParticipantRow({
                 <ActivityIndicator size="small" color={theme.textOnPrimary} />
               ) : (
                 <Text style={styles.submitButtonText}>
-                  {existingRating ? 'Save Changes' : 'Submit Rating'}
+                  {existingRating
+                    ? t('events.feedback.saveChanges')
+                    : t('events.feedback.submitRating')}
                 </Text>
               )}
             </TouchableOpacity>
@@ -286,7 +303,7 @@ function ParticipantRow({
                 setIsEditing(false);
               }}
             >
-              <Text style={styles.cancelInlineButtonText}>Cancel</Text>
+              <Text style={styles.cancelInlineButtonText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -325,6 +342,7 @@ export default function ParticipantListModal({
   onClose,
 }: ParticipantListModalProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = React.useMemo(() => makeStyles(theme), [theme]);
   const panY = React.useRef(new Animated.Value(0)).current;
 
@@ -386,11 +404,15 @@ export default function ParticipantListModal({
 
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>Attendees ({participants.length})</Text>
+              <Text style={styles.title}>
+                {t('events.participants.title', { count: participants.length })}
+              </Text>
               {ratingWindowMessage ? (
                 <Text style={styles.subtitle}>{ratingWindowMessage}</Text>
               ) : canRateParticipants ? (
-                <Text style={styles.subtitle}>You can leave post-event ratings for participants.</Text>
+                <Text style={styles.subtitle}>
+                  {t('events.feedback.canRateParticipants')}
+                </Text>
               ) : null}
             </View>
 
@@ -419,12 +441,16 @@ export default function ParticipantListModal({
               />
             )}
             ListEmptyComponent={
-              <Text style={styles.empty}>{loading ? 'Loading attendees...' : 'No attendees yet.'}</Text>
+              <Text style={styles.empty}>
+                {loading
+                  ? t('events.participants.loading')
+                  : t('events.participants.empty')}
+              </Text>
             }
             ListFooterComponent={
               hasMore ? (
                 <TouchableOpacity style={styles.loadMoreBtn} onPress={onLoadMore}>
-                  <Text style={styles.loadMoreText}>Load more</Text>
+                  <Text style={styles.loadMoreText}>{t('common.loadMore')}</Text>
                 </TouchableOpacity>
               ) : null
             }

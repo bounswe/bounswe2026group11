@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { EventSummary } from '@/models/event';
 import { getFavoriteCountForDisplay } from '@/utils/eventFavoriteCount';
 import { formatEventDateLabel } from '@/utils/eventDate';
@@ -14,12 +15,13 @@ interface EventCardProps {
   onPress?: (eventId: string) => void;
 }
 
-function formatPrivacyLabel(value: EventSummary['privacy_level']) {
+function formatPrivacyLabel(value: EventSummary['privacy_level']): string {
   return value.charAt(0) + value.slice(1).toLowerCase();
 }
 
 export default function EventCard({ event, onPress }: EventCardProps) {
   const { theme, isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const categoryPresentation = getEventCategoryPresentation(
     event.category_name,
@@ -30,9 +32,12 @@ export default function EventCard({ event, onPress }: EventCardProps) {
   const ratingLabel =
     event.host_score.final_score != null && event.host_score.hosted_event_rating_count > 0
       ? `${event.host_score.final_score.toFixed(1)} (${event.host_score.hosted_event_rating_count})`
-      : 'New';
-  
-  const hostRatingLabel = ratingLabel === 'New' ? 'New Host' : `Host: ${ratingLabel}`;
+      : t('profile.new');
+
+  const hostRatingLabel =
+    ratingLabel === t('profile.new')
+      ? t('events.detail.newHost')
+      : t('events.detail.hostRatingLabel', { rating: ratingLabel });
 
   const participantLabel =
     event.capacity != null
@@ -97,7 +102,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
             <View style={[styles.visibilityBadge, { backgroundColor: badgeBg }]}>
               <Feather name={iconName} size={12} color={iconColor} />
               <Text style={[styles.visibilityBadgeText, { color: badgeText }]}>
-                {formatPrivacyLabel(level)}
+                {t(`events.privacy.${level}`)}
               </Text>
             </View>
           </View>

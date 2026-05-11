@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { EventDetailPendingJoinRequest } from '@/models/event';
 import { useTheme, type Theme } from '@/theme';
 
@@ -41,6 +42,7 @@ export default function JoinRequestsModal({
   onReject,
 }: JoinRequestsModalProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = React.useMemo(() => makeStyles(theme), [theme]);
   const [previewImage, setPreviewImage] = React.useState<string | null>(null);
   const panY = React.useRef(new Animated.Value(0)).current;
@@ -99,7 +101,9 @@ export default function JoinRequestsModal({
             <View style={styles.handle} />
           </View>
           <View style={styles.header}>
-            <Text style={styles.title}>Pending Requests ({requests.length})</Text>
+            <Text style={styles.title}>
+              {t('events.joinRequests.title', { count: requests.length })}
+            </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Feather name="x" size={24} color={theme.text} />
             </TouchableOpacity>
@@ -146,7 +150,9 @@ export default function JoinRequestsModal({
                         onPress={() => item.image_url && setPreviewImage(item.image_url)}
                       >
                         <Feather name="image" size={14} color={theme.infoText} />
-                        <Text style={styles.attachmentLinkText}>View Attachment</Text>
+                        <Text style={styles.attachmentLinkText}>
+                          {t('events.joinRequests.viewAttachment')}
+                        </Text>
                       </TouchableOpacity>
                     ) : null}
                   </View>
@@ -170,12 +176,16 @@ export default function JoinRequestsModal({
               </View>
             )}
             ListEmptyComponent={
-              <Text style={styles.empty}>{loading ? 'Loading requests...' : 'No pending requests.'}</Text>
+              <Text style={styles.empty}>
+                {loading
+                  ? t('events.joinRequests.loading')
+                  : t('events.joinRequests.empty')}
+              </Text>
             }
             ListFooterComponent={
               hasMore ? (
                 <TouchableOpacity style={styles.loadMoreBtn} onPress={onLoadMore}>
-                  <Text style={styles.loadMoreText}>Load more</Text>
+                  <Text style={styles.loadMoreText}>{t('common.loadMore')}</Text>
                 </TouchableOpacity>
               ) : null
             }

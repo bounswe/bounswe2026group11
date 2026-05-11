@@ -22,6 +22,7 @@ import EventMapView from '@/components/home/EventMapView';
 import { useHomeViewModel } from '@/viewmodels/home/useHomeViewModel';
 import LocationPickerPanel from '@/components/home/LocationPickerPanel';
 import { useUnreadNotificationCount } from '@/viewmodels/notifications/useUnreadNotificationCount';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -32,6 +33,7 @@ export default function HomeView() {
   const vm = useHomeViewModel();
   const { unreadCount, refresh: refreshUnreadCount } = useUnreadNotificationCount();
   const { theme, isDark, setThemePreference } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme, isDark), [theme, isDark]);
   const isMapMode = vm.viewMode === 'MAP';
   const insets = useSafeAreaInsets();
@@ -131,7 +133,7 @@ export default function HomeView() {
                 style={styles.mapLocationPill}
                 onPress={handleOpenLocationPicker}
                 accessibilityRole="button"
-                accessibilityLabel="Select location"
+                accessibilityLabel={t('home.locationPicker.selectAccessibility')}
               >
                 <Feather name="map-pin" size={16} color={styles.mapLocationIconColor.color} />
                 <Text style={styles.mapLocationText} numberOfLines={1}>
@@ -154,7 +156,7 @@ export default function HomeView() {
                   value={vm.searchText}
                   onChangeText={vm.updateSearchText}
                   onSubmitEditing={vm.submitSearch}
-                  placeholder="Search events on map…"
+                  placeholder={t('home.searchPlaceholder')}
                   placeholderTextColor={theme.placeholder}
                   style={styles.mapSearchInput}
                   autoCapitalize="none"
@@ -202,7 +204,7 @@ export default function HomeView() {
                 onPress={handleOpenLocationPicker}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Select location"
+                accessibilityLabel={t('home.locationPicker.selectAccessibility')}
               >
                 <Feather name="map-pin" size={18} color={isDark ? theme.text : theme.textOnPrimary} />
                 <Text style={styles.locationPillText} numberOfLines={1}>

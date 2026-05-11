@@ -14,6 +14,7 @@ import {
   getEventStatusBadgeColors,
 } from '@/utils/eventStatus';
 import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 
@@ -43,6 +44,7 @@ export default function ProfileEventCard({
   onPress,
 }: ProfileEventCardProps) {
   const { theme, isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const statusColors = getEventStatusBadgeColors(status);
@@ -93,7 +95,9 @@ export default function ProfileEventCard({
                   color={privacyIconColor}
                 />
                 <Text style={[styles.visibilityBadgeText, { color: privacyText }]}>
-                  {formatPrivacyLabel(privacyLevel)}
+                  {t(`events.privacy.${privacyLevel}`, {
+                    defaultValue: formatPrivacyLabel(privacyLevel),
+                  })}
                 </Text>
               </View>
             ) : null}

@@ -9,7 +9,10 @@ import {
 } from '@/models/event';
 import { FavoriteLocation } from '@/models/favorite';
 import { ApiError } from '@/services/api';
-import { getCurrentLocationSuggestion } from '@/services/deviceLocationService';
+import {
+  CURRENT_LOCATION_LABEL,
+  getCurrentLocationSuggestion,
+} from '@/services/deviceLocationService';
 import { listCategories, listEvents, searchLocation } from '@/services/eventService';
 import { listFavoriteLocations } from '@/services/favoriteService';
 import {
@@ -19,6 +22,8 @@ import {
 import { getMyProfile } from '@/services/profileService';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 
 const PAGE_SIZE = 50;
 const MAX_FAVORITE_LOCATION_OPTIONS = 3;
@@ -104,14 +109,14 @@ function sortFavoriteLocations(locations: FavoriteLocation[]): FavoriteLocation[
 
 function getFavoriteLocationsErrorMessage(error: unknown): string {
   if (error instanceof ApiError && error.status === 401) {
-    return 'You must be logged in to view favorite locations.';
+    return i18n.t('home.locationPicker.favoriteLocationsLoginRequired');
   }
 
   if (error instanceof ApiError) {
     return error.message;
   }
 
-  return 'Failed to load favorite locations. Please try again.';
+  return i18n.t('home.locationPicker.favoriteLocationsLoadFailed');
 }
 
 function getDefaultLocationSubtitle(
@@ -120,16 +125,28 @@ function getDefaultLocationSubtitle(
   isResolving: boolean,
 ): string {
   if (!location) {
-    return isResolving ? 'Resolving your location...' : 'Location unavailable.';
+    return isResolving
+      ? i18n.t('home.locationPicker.resolvingDefaultLocation')
+      : i18n.t('home.locationPicker.locationUnavailable');
   }
 
   if (source === 'LIVE') {
-    return location.display_name === 'Current location'
-      ? 'Using your current live location.'
-      : `Current location: ${location.display_name}`;
+    return location.display_name === CURRENT_LOCATION_LABEL
+      ? i18n.t('home.locationPicker.currentLiveLocation')
+      : i18n.t('home.locationPicker.currentLocationPrefix', {
+        location: location.display_name,
+      });
   }
 
   return location.display_name;
+}
+
+function formatLocationLabel(location: LocationSuggestion): string {
+  if (location.display_name === CURRENT_LOCATION_LABEL) {
+    return i18n.t('home.locationPicker.currentLocation');
+  }
+
+  return formatEventLocation(location.display_name);
 }
 
 function locationsMatch(
@@ -385,6 +402,8 @@ export interface HomeViewModel {
 
 export function useHomeViewModel(): HomeViewModel {
   const { token, user } = useAuth();
+  // Subscribe so derived location picker copy updates when the app language changes.
+  useTranslation();
   const locationSelectionScope = user?.id ?? token ?? 'anonymous';
   const storedLocationSelection = getHomeLocationSelection(locationSelectionScope);
 
@@ -1020,9 +1039,9 @@ export function useHomeViewModel(): HomeViewModel {
 
   return {
     locationLabel: selectedLocation
-      ? formatEventLocation(selectedLocation.display_name)
+      ? formatLocationLabel(selectedLocation)
       : isResolvingDefaultLocation
-        ? 'Locating...'
+        ? i18n.t('home.locationPicker.locating')
         : DEFAULT_LOCATION_LABEL,
     locationQuery,
     categories,
@@ -1054,7 +1073,7 @@ export function useHomeViewModel(): HomeViewModel {
       : null,
     toggleViewMode,
     defaultLocationOption: {
-      title: 'Use Default Location',
+      title: i18n.t('home.locationPicker.useDefaultLocation'),
       subtitle: getDefaultLocationSubtitle(
         defaultLocationSource,
         defaultLocation,

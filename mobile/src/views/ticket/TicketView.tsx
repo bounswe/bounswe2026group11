@@ -11,11 +11,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import DecorativeQrCode from '@/components/ticket/DecorativeQrCode';
 import CircularTimer from '@/components/ticket/CircularTimer';
 import { useTicketViewModel } from '@/viewmodels/ticket/useTicketViewModel';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import {
+  formatTicketStatusLabel,
   getTicketStatusBadgeColors,
 } from '@/utils/ticketStatus';
 import { useTheme, type Theme } from '@/theme';
@@ -27,6 +29,7 @@ interface TicketViewProps {
 export default function TicketView({ ticketId }: TicketViewProps) {
   const vm = useTicketViewModel(ticketId);
   const { theme, isDark } = useTheme();
+  const { t } = useTranslation();
 
   const showLiveQr = vm.ticket?.ticket.status === 'ACTIVE' && !!vm.qrToken;
   const styles = useMemo(() => makeStyles(theme, isDark), [theme, isDark]);
@@ -45,7 +48,7 @@ export default function TicketView({ ticketId }: TicketViewProps) {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingPanel}>
           <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={styles.loadingText}>Fetching your pass...</Text>
+          <Text style={styles.loadingText}>{t('tickets.detail.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -59,15 +62,15 @@ export default function TicketView({ ticketId }: TicketViewProps) {
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Ticket</Text>
+            <Text style={styles.headerTitle}>{t('tickets.detail.title')}</Text>
           </View>
           <View style={styles.errorPanel}>
-            <Text style={styles.errorTitle}>Pass not found</Text>
+            <Text style={styles.errorTitle}>{t('tickets.detail.passNotFound')}</Text>
             <Text style={styles.errorText}>
-              {vm.apiError || 'We could not find this ticket in your wallet.'}
+              {vm.apiError || t('tickets.detail.ticketNotFound')}
             </Text>
             <TouchableOpacity style={styles.retryButton} onPress={vm.refresh}>
-              <Text style={styles.retryButtonText}>Refresh</Text>
+              <Text style={styles.retryButtonText}>{t('tickets.detail.refresh')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -78,7 +81,7 @@ export default function TicketView({ ticketId }: TicketViewProps) {
   const { ticket, secondsRemaining } = vm;
   const colors = getTicketStatusBadgeColors(ticket.ticket.status);
   const tokenValue = vm.qrToken?.token ?? '';
-  const lockedMessage = vm.qrMessage ?? 'You must be near the event location to show this ticket QR.';
+  const lockedMessage = vm.qrMessage ?? t('tickets.qr.proximityRequired');
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
@@ -86,7 +89,7 @@ export default function TicketView({ ticketId }: TicketViewProps) {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Ticket</Text>
+        <Text style={styles.headerTitle}>{t('tickets.detail.title')}</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -154,15 +157,15 @@ export default function TicketView({ ticketId }: TicketViewProps) {
                 ) : ticket.ticket.status === 'USED' ? (
                   <View style={styles.lockedBox}>
                     <Ionicons name="checkmark-circle" size={56} color={theme.successText} />
-                    <Text style={styles.lockedTitle}>Ticket used</Text>
+                    <Text style={styles.lockedTitle}>{t('tickets.detail.ticketUsed')}</Text>
                     <Text style={styles.lockedText}>
-                      This ticket was successfully validated.
+                      {t('tickets.detail.ticketUsedDescription')}
                     </Text>
                   </View>
                 ) : (
                   <View style={styles.lockedBox}>
                     <Ionicons name="lock-closed-outline" size={48} color={theme.textTertiary} />
-                    <Text style={styles.lockedTitle}>Live QR locked</Text>
+                    <Text style={styles.lockedTitle}>{t('tickets.detail.liveQrLocked')}</Text>
                     <Text style={styles.lockedText}>{lockedMessage}</Text>
                   </View>
                 )}
@@ -184,9 +187,7 @@ export default function TicketView({ ticketId }: TicketViewProps) {
                     color={colors.textColor}
                   />
                   <Text style={[styles.statusBadgeText, { color: colors.textColor }]}>
-                    {ticket.ticket.status === 'ACTIVE'
-                      ? 'Valid'
-                      : ticket.ticket.status.charAt(0) + ticket.ticket.status.slice(1).toLowerCase()}
+                    {formatTicketStatusLabel(ticket.ticket.status)}
                   </Text>
                 </View>
               </View>
@@ -196,8 +197,8 @@ export default function TicketView({ ticketId }: TicketViewProps) {
               {!showLiveQr && (
                 <Text style={styles.footerHelper}>
                   {ticket.ticket.status === 'ACTIVE'
-                    ? 'You must be near the event location to show this ticket QR.'
-                    : 'This ticket is no longer valid for entry.'}
+                    ? t('tickets.qr.proximityRequired')
+                    : t('tickets.detail.noLongerValid')}
                 </Text>
               )}
 
@@ -208,7 +209,7 @@ export default function TicketView({ ticketId }: TicketViewProps) {
                   activeOpacity={0.7}
                 >
                   <Feather name="refresh-cw" size={16} color={theme.text} />
-                  <Text style={styles.refreshBtnText}>Refresh Code</Text>
+                  <Text style={styles.refreshBtnText}>{t('tickets.detail.refreshCode')}</Text>
                 </TouchableOpacity>
               )}
             </View>

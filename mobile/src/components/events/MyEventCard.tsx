@@ -8,6 +8,7 @@ import {
   formatEventStatusLabel,
   getEventStatusBadgeColors,
 } from '@/utils/eventStatus';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 import { getTicketStatusBadgeColors } from '@/utils/ticketStatus';
@@ -33,6 +34,7 @@ function getLocationLabel(address?: string | null) {
 
 export default function MyEventCard({ event, onPress }: MyEventCardProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   function formatPrivacyLabel(value: string) {
@@ -121,19 +123,21 @@ export default function MyEventCard({ event, onPress }: MyEventCardProps) {
                 { backgroundColor: privacyColors.backgroundColor },
               ]}
             >
-              <Feather 
-                name={privacyIcon as any} 
-                size={12} 
-                color={privacyColors.textColor} 
+              <Feather
+                name={privacyIcon as any}
+                size={12}
+                color={privacyColors.textColor}
                 style={{ marginRight: 4 }}
               />
-              <Text
-                style={[
-                  styles.statusBadgeText,
-                  { color: privacyColors.textColor },
-                ]}
-              >
-                {formatPrivacyLabel(event.privacy_level)}
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    { color: privacyColors.textColor },
+                  ]}
+                >
+                {t(`events.privacy.${event.privacy_level}`, {
+                  defaultValue: formatPrivacyLabel(event.privacy_level),
+                })}
               </Text>
             </View>
           </View>
@@ -168,7 +172,7 @@ export default function MyEventCard({ event, onPress }: MyEventCardProps) {
                     />
                   ) : null}
                   <Text style={[styles.contextBadgeText, badgeStyle.text]}>
-                    {badge.label}
+                    {badge.type === 'HOST' ? t('events.detail.host') : badge.label}
                   </Text>
                 </View>
               );

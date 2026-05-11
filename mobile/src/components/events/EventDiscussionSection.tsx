@@ -13,6 +13,8 @@ import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
 import { EventComment } from '@/models/comment';
 import { EventDiscussionViewModel } from '@/viewmodels/event/useEventDiscussionViewModel';
+import { useTranslation } from 'react-i18next';
+import { formatRelativeTime } from '@/utils/relativeTime';
 
 interface Props {
   vm: EventDiscussionViewModel;
@@ -22,22 +24,6 @@ interface Props {
   canPostReview: boolean;
   hasExistingReview: boolean;
   reviewWindowClosed?: boolean;
-}
-
-function formatRelativeTime(iso: string): string {
-  try {
-    const diff = Date.now() - new Date(iso).getTime();
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days < 30) return `${days}d ago`;
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  } catch {
-    return '';
-  }
 }
 
 function renderStars(rating: number): string {
@@ -110,12 +96,12 @@ function DiscussionCommentItem({
   isAuthenticated: boolean;
   canPost: boolean;
 }) {
+  const { t, i18n } = useTranslation();
   const replies = vm.repliesMap[comment.id];
   const isReplying = vm.replyingToId === comment.id;
   const [isExpanded, setIsExpanded] = React.useState(false);
   const showReplies = isExpanded && Boolean(replies);
   const replyCount = replies ? replies.items.length : comment.reply_count;
-  const replyCountLabel = `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`;
 
   const handleToggleReplies = () => {
     if (isExpanded) {
@@ -136,7 +122,9 @@ function DiscussionCommentItem({
           <Text style={styles.commentDisplayName}>
             {comment.user.display_name ?? comment.user.username}
           </Text>
-          <Text style={styles.commentTimestamp}>{formatRelativeTime(comment.created_at)}</Text>
+          <Text style={styles.commentTimestamp}>
+            {formatRelativeTime(comment.created_at, t, i18n.language)}
+          </Text>
         </View>
       </View>
 
@@ -155,7 +143,9 @@ function DiscussionCommentItem({
               color="#6366F1"
             />
             <Text style={styles.replyToggleText}>
-              {isExpanded ? `Hide ${replyCountLabel}` : `View ${replyCountLabel}`}
+              {isExpanded
+                ? t('events.discussion.hideReplies', { count: replyCount })
+                : t('events.discussion.viewReplies', { count: replyCount })}
             </Text>
           </TouchableOpacity>
         )}
@@ -168,7 +158,7 @@ function DiscussionCommentItem({
             style={styles.replyBtn}
           >
             <Feather name="corner-down-right" size={13} color="#94A3B8" />
-            <Text style={styles.replyBtnText}>Reply</Text>
+            <Text style={styles.replyBtnText}>{t('events.discussion.reply')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -177,7 +167,7 @@ function DiscussionCommentItem({
         <View style={styles.replyInputContainer}>
           <TextInput
             style={styles.replyInput}
-            placeholder="Write a reply…"
+            placeholder={t('events.discussion.replyPlaceholder')}
             placeholderTextColor="#94A3B8"
             value={vm.replyMessage}
             onChangeText={vm.setReplyMessage}
@@ -194,7 +184,7 @@ function DiscussionCommentItem({
               style={styles.replyCancelBtn}
               disabled={vm.discussionSubmitting}
             >
-              <Text style={styles.replyCancelText}>Cancel</Text>
+              <Text style={styles.replyCancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => void vm.submitReply(comment.id)}
@@ -207,7 +197,7 @@ function DiscussionCommentItem({
               {vm.discussionSubmitting ? (
                 <ActivityIndicator size="small" color="white" />
               ) : (
-                <Text style={styles.replySubmitText}>Post</Text>
+                <Text style={styles.replySubmitText}>{t('common.post')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -228,7 +218,7 @@ function DiscussionCommentItem({
                       {reply.user.display_name ?? reply.user.username}
                     </Text>
                     <Text style={styles.commentTimestamp}>
-                      {formatRelativeTime(reply.created_at)}
+                      {formatRelativeTime(reply.created_at, t, i18n.language)}
                     </Text>
                   </View>
                 </View>
@@ -245,7 +235,7 @@ function DiscussionCommentItem({
               {replies.loading ? (
                 <ActivityIndicator size="small" color="#6366F1" />
               ) : (
-                <Text style={styles.loadMoreText}>Load more replies</Text>
+                <Text style={styles.loadMoreText}>{t('events.discussion.loadMoreReplies')}</Text>
               )}
             </TouchableOpacity>
           )}
@@ -262,6 +252,8 @@ function ReviewCommentItem({
   comment: EventComment;
   styles: ReturnType<typeof makeStyles>;
 }) {
+  const { t, i18n } = useTranslation();
+
   return (
     <View style={styles.commentCard}>
       <View style={styles.commentHeader}>
@@ -270,7 +262,9 @@ function ReviewCommentItem({
           <Text style={styles.commentDisplayName}>
             {comment.user.display_name ?? comment.user.username}
           </Text>
-          <Text style={styles.commentTimestamp}>{formatRelativeTime(comment.created_at)}</Text>
+          <Text style={styles.commentTimestamp}>
+            {formatRelativeTime(comment.created_at, t, i18n.language)}
+          </Text>
         </View>
         {comment.rating != null && (
           <Text style={styles.reviewStars}>{renderStars(comment.rating)}</Text>
@@ -294,6 +288,7 @@ export default function EventDiscussionSection({
   reviewWindowClosed = false,
 }: Props) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [activeTab, setActiveTab] = React.useState<'qa' | 'reviews'>('qa');
 
@@ -307,7 +302,7 @@ export default function EventDiscussionSection({
           onPress={() => setActiveTab('qa')}
         >
           <Text style={[styles.tabText, activeTab === 'qa' && styles.tabTextActive]}>
-            Q&A ({vm.discussions.items.length})
+            {t('events.detail.qaLabel', { count: vm.discussions.items.length })}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -315,7 +310,7 @@ export default function EventDiscussionSection({
           onPress={() => setActiveTab('reviews')}
         >
           <Text style={[styles.tabText, activeTab === 'reviews' && styles.tabTextActive]}>
-            Reviews ({vm.reviews.items.length})
+            {t('events.detail.reviewsLabel', { count: vm.reviews.items.length })}
           </Text>
         </TouchableOpacity>
       </View>
@@ -326,7 +321,7 @@ export default function EventDiscussionSection({
             <View style={styles.inputCard}>
               <TextInput
                 style={styles.messageInput}
-                placeholder="Ask a question or start a discussion…"
+                placeholder={t('events.discussion.askPlaceholder')}
                 placeholderTextColor="#94A3B8"
                 value={vm.newDiscussionMessage}
                 onChangeText={vm.setNewDiscussionMessage}
@@ -348,7 +343,7 @@ export default function EventDiscussionSection({
                   {vm.discussionSubmitting ? (
                     <ActivityIndicator size="small" color="white" />
                   ) : (
-                    <Text style={styles.submitBtnText}>Post</Text>
+                    <Text style={styles.submitBtnText}>{t('common.post')}</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -366,7 +361,7 @@ export default function EventDiscussionSection({
           {!isAuthenticated && (
             <View style={styles.authNotice}>
               <Feather name="lock" size={14} color="#94A3B8" />
-              <Text style={styles.authNoticeText}>Sign in to join the discussion.</Text>
+              <Text style={styles.authNoticeText}>{t('events.discussion.signInToJoin')}</Text>
             </View>
           )}
 
@@ -374,7 +369,7 @@ export default function EventDiscussionSection({
             <View style={styles.closedNotice}>
               <Feather name="info" size={14} color={theme.warningText} />
               <Text style={styles.closedNoticeText}>
-                This event has ended. New Q&A comments are closed.
+                {t('events.discussion.closedQa')}
               </Text>
             </View>
           )}
@@ -384,7 +379,7 @@ export default function EventDiscussionSection({
           ) : vm.discussions.items.length === 0 ? (
             <View style={styles.emptyState}>
               <Feather name="message-circle" size={32} color="#CBD5E1" />
-              <Text style={styles.emptyStateText}>No questions yet. Be the first to ask!</Text>
+              <Text style={styles.emptyStateText}>{t('events.discussion.emptyQuestions')}</Text>
             </View>
           ) : (
             vm.discussions.items.map((comment) => (
@@ -408,7 +403,7 @@ export default function EventDiscussionSection({
               {vm.discussions.loading ? (
                 <ActivityIndicator size="small" color={theme.primary} />
               ) : (
-                <Text style={styles.loadMoreText}>Load more questions</Text>
+                <Text style={styles.loadMoreText}>{t('events.discussion.loadMoreQuestions')}</Text>
               )}
             </TouchableOpacity>
           )}
@@ -420,7 +415,9 @@ export default function EventDiscussionSection({
           {canPostReview && (
             <View style={styles.inputCard}>
               <Text style={styles.reviewInputLabel}>
-                {hasExistingReview ? 'Update your review' : 'Leave a review'}
+                {hasExistingReview
+                  ? t('events.discussion.updateReview')
+                  : t('events.discussion.leaveReview')}
               </Text>
               <StarRatingInput
                 value={vm.newReviewRating}
@@ -430,7 +427,7 @@ export default function EventDiscussionSection({
               />
               <TextInput
                 style={styles.messageInput}
-                placeholder="Share your experience…"
+                placeholder={t('events.discussion.reviewPlaceholder')}
                 placeholderTextColor="#94A3B8"
                 value={vm.newReviewMessage}
                 onChangeText={vm.setNewReviewMessage}
@@ -455,7 +452,7 @@ export default function EventDiscussionSection({
                     <ActivityIndicator size="small" color="white" />
                   ) : (
                     <Text style={styles.submitBtnText}>
-                      {hasExistingReview ? 'Update' : 'Submit'}
+                      {hasExistingReview ? t('common.update') : t('common.submit')}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -474,7 +471,7 @@ export default function EventDiscussionSection({
           {!isAuthenticated && (
             <View style={styles.authNotice}>
               <Feather name="lock" size={14} color="#94A3B8" />
-              <Text style={styles.authNoticeText}>Sign in to leave a review.</Text>
+              <Text style={styles.authNoticeText}>{t('events.discussion.signInToReview')}</Text>
             </View>
           )}
 
@@ -482,7 +479,7 @@ export default function EventDiscussionSection({
             <View style={styles.closedNotice}>
               <Feather name="clock" size={14} color={theme.warningText} />
               <Text style={styles.closedNoticeText}>
-                The feedback window has closed. New reviews are no longer accepted.
+                {t('events.discussion.reviewsClosed')}
               </Text>
             </View>
           )}
@@ -492,7 +489,7 @@ export default function EventDiscussionSection({
           ) : vm.reviews.items.length === 0 ? (
             <View style={styles.emptyState}>
               <Feather name="star" size={32} color="#CBD5E1" />
-              <Text style={styles.emptyStateText}>No reviews yet.</Text>
+              <Text style={styles.emptyStateText}>{t('events.discussion.emptyReviews')}</Text>
             </View>
           ) : (
             vm.reviews.items.map((comment) => (
@@ -509,7 +506,7 @@ export default function EventDiscussionSection({
               {vm.reviews.loading ? (
                 <ActivityIndicator size="small" color={theme.primary} />
               ) : (
-                <Text style={styles.loadMoreText}>Load more reviews</Text>
+                <Text style={styles.loadMoreText}>{t('events.discussion.loadMoreReviews')}</Text>
               )}
             </TouchableOpacity>
           )}

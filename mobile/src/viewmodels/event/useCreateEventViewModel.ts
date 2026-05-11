@@ -26,6 +26,7 @@ import {
   EventConstraint,
   EventCategory,
 } from '@/models/event';
+import i18n from '@/i18n';
 
 export const ROUTE_MIN_POINTS = 2;
 export const ROUTE_MAX_POINTS = 50;
@@ -80,9 +81,9 @@ export const CATEGORIES: EventCategory[] = [
 export const CATEGORY_PREVIEW_COUNT = 6;
 
 export const PRIVACY_OPTIONS: { label: string; value: PrivacyLevel }[] = [
-  { label: 'Public', value: 'PUBLIC' },
-  { label: 'Protected', value: 'PROTECTED' },
-  { label: 'Private', value: 'PRIVATE' },
+  { label: 'PUBLIC', value: 'PUBLIC' },
+  { label: 'PROTECTED', value: 'PROTECTED' },
+  { label: 'PRIVATE', value: 'PRIVATE' },
 ];
 
 export const CONSTRAINT_TYPES = ['gender', 'age', 'capacity', 'other'] as const;
@@ -527,9 +528,9 @@ function validateForm(formData: CreateEventFormData): CreateEventFormErrors {
 
   if (formData.locationType === 'ROUTE') {
     if (formData.routePoints.length < ROUTE_MIN_POINTS) {
-      errors.location = `Add at least ${ROUTE_MIN_POINTS} waypoints to create a route`;
+      errors.location = i18n.t('events.create.errors.routeMinPoints', { count: ROUTE_MIN_POINTS });
     } else if (formData.routePoints.length > ROUTE_MAX_POINTS) {
-      errors.location = `A route can have at most ${ROUTE_MAX_POINTS} waypoints`;
+      errors.location = i18n.t('events.create.errors.routeMaxPoints', { count: ROUTE_MAX_POINTS });
     }
   } else if (formData.lat === null || formData.lon === null) {
     errors.location = 'Please select a location';
@@ -911,7 +912,10 @@ export function useCreateEventViewModel(): CreateEventViewModel {
       if (prev.constraints.length >= MAX_CONSTRAINTS) return prev;
       const genderCount = prev.constraints.filter((c) => c.type === 'gender').length;
       if (genderCount >= CONSTRAINT_TYPE_LIMITS.gender) return prev;
-      const info = gender === 'MALE' ? 'Males only' : 'Females only';
+      const info =
+        gender === 'MALE'
+          ? i18n.t('events.create.constraintActions.malesOnly')
+          : i18n.t('events.create.constraintActions.femalesOnly');
       return {
         ...prev,
         constraints: [...prev.constraints, { type: 'gender', info }],
@@ -946,7 +950,10 @@ export function useCreateEventViewModel(): CreateEventViewModel {
       switch (type) {
         case 'gender': {
           if (!prev.genderConstraintValue) return prev;
-          info = prev.genderConstraintValue === 'MALE' ? 'Males only' : 'Females only';
+          info =
+            prev.genderConstraintValue === 'MALE'
+              ? i18n.t('events.create.constraintActions.malesOnly')
+              : i18n.t('events.create.constraintActions.femalesOnly');
           updates.genderConstraintValue = null;
           break;
         }
@@ -1070,7 +1077,10 @@ export function useCreateEventViewModel(): CreateEventViewModel {
 
   const addInvitedUser = useCallback((username: string) => {
     if (user && username === user.username) {
-      Alert.alert('Invalid Invitation', 'You cannot invite yourself to your own event.');
+      Alert.alert(
+        i18n.t('events.create.invites.invalidTitle'),
+        i18n.t('events.create.invites.invalidSelf'),
+      );
       return;
     }
     setInvitedUsers((prev) => {

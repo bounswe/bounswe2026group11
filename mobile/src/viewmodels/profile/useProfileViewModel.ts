@@ -33,6 +33,7 @@ import { uploadFileToPresignedUrl } from '@/services/eventService';
 import { acceptInvitation, declineInvitation, listMyInvitations } from '@/services/invitationService';
 import type { ReceivedInvitation } from '@/models/invitation';
 import { shouldShowProfileEvent } from '@/utils/eventStatus';
+import i18n from '@/i18n';
 
 export interface ProfileEventItem {
   id: string;
@@ -204,7 +205,7 @@ function normalizeInvitationsResponse(
 }
 
 function getInvitationErrorMessage(error: unknown): string {
-  return error instanceof ApiError ? error.message : 'Failed to load invitations.';
+  return error instanceof ApiError ? error.message : i18n.t('profile.invitations.loadFailed');
 }
 
 export function useProfileViewModel(): ProfileViewModel {
@@ -219,9 +220,9 @@ export function useProfileViewModel(): ProfileViewModel {
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageUploadSuccessMessage, setImageUploadSuccessMessage] = useState<string | null>(null);
   const imageUploadSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [overallRatingLabel, setOverallRatingLabel] = useState('New');
-  const [hostRatingLabel, setHostRatingLabel] = useState('New');
-  const [participantRatingLabel, setParticipantRatingLabel] = useState('New');
+  const [overallRatingLabel, setOverallRatingLabel] = useState(i18n.t('profile.new'));
+  const [hostRatingLabel, setHostRatingLabel] = useState(i18n.t('profile.new'));
+  const [participantRatingLabel, setParticipantRatingLabel] = useState(i18n.t('profile.new'));
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [invitations, setInvitations] = useState<ReceivedInvitation[]>([]);
   const [badges, setBadges] = useState<BadgeItem[]>([]);
@@ -237,12 +238,12 @@ export function useProfileViewModel(): ProfileViewModel {
         setProfile(null);
         setHostedEvents([]);
         setAttendedEvents([]);
-        setOverallRatingLabel('New');
-        setHostRatingLabel('New');
-        setParticipantRatingLabel('New');
+        setOverallRatingLabel(i18n.t('profile.new'));
+        setHostRatingLabel(i18n.t('profile.new'));
+        setParticipantRatingLabel(i18n.t('profile.new'));
         setInvitations([]);
         setInvitationError(null);
-        setApiError('You must be logged in to view your profile.');
+        setApiError(i18n.t('profile.errors.loginRequired'));
         setIsLoading(false);
         return;
       }
@@ -320,30 +321,30 @@ export function useProfileViewModel(): ProfileViewModel {
         setOverallRatingLabel(
           profileResult.final_score != null && totalCount > 0
             ? `${profileResult.final_score.toFixed(1)} (${totalCount})`
-            : 'New',
+            : i18n.t('profile.new'),
         );
         setHostRatingLabel(
           profileResult.host_score?.score != null && profileResult.host_score.rating_count > 0
             ? `${profileResult.host_score.score.toFixed(1)} (${profileResult.host_score.rating_count})`
-            : 'New',
+            : i18n.t('profile.new'),
         );
         setParticipantRatingLabel(
           profileResult.participant_score?.score != null && profileResult.participant_score.rating_count > 0
             ? `${profileResult.participant_score.score.toFixed(1)} (${profileResult.participant_score.rating_count})`
-            : 'New',
+            : i18n.t('profile.new'),
         );
       } catch (err) {
         setHostedEvents([]);
         setAttendedEvents([]);
         setInvitations([]);
         setInvitationError(null);
-        setOverallRatingLabel('New');
-        setHostRatingLabel('New');
-        setParticipantRatingLabel('New');
+        setOverallRatingLabel(i18n.t('profile.new'));
+        setHostRatingLabel(i18n.t('profile.new'));
+        setParticipantRatingLabel(i18n.t('profile.new'));
         if (err instanceof ApiError) {
           setApiError(err.message);
         } else {
-          setApiError('Failed to load profile. Please try again.');
+          setApiError(i18n.t('profile.errors.loadFailed'));
         }
       } finally {
         setIsLoading(false);
@@ -376,7 +377,7 @@ export function useProfileViewModel(): ProfileViewModel {
       setInvitations((prev) => prev.filter((invitation) => invitation.invitation_id !== invitationId));
       await refresh();
     } catch (err) {
-      setInvitationError(err instanceof ApiError ? err.message : 'Failed to accept invitation.');
+      setInvitationError(err instanceof ApiError ? err.message : i18n.t('profile.invitations.acceptFailed'));
     } finally {
       setIsInvitationActionLoading(null);
     }
@@ -390,7 +391,7 @@ export function useProfileViewModel(): ProfileViewModel {
       await declineInvitation(invitationId, token);
       setInvitations((prev) => prev.filter((invitation) => invitation.invitation_id !== invitationId));
     } catch (err) {
-      setInvitationError(err instanceof ApiError ? err.message : 'Failed to decline invitation.');
+      setInvitationError(err instanceof ApiError ? err.message : i18n.t('profile.invitations.declineFailed'));
     } finally {
       setIsInvitationActionLoading(null);
     }

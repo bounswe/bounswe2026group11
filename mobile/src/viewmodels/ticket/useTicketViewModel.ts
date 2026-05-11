@@ -7,6 +7,7 @@ import { getMyTicket, getTicketQrTokenOnce } from '@/services/ticketService';
 import type { EventDetail } from '@/models/event';
 import type { TicketDetailResponse, TicketQrToken } from '@/models/ticket';
 import { getTicketQrAccessMessage } from '@/utils/ticketStatus';
+import i18n from '@/i18n';
 
 // GLOBAL REGISTRY: Keep track of active stream controllers across the whole app
 // to prevent "ghost" connections when navigating back and forth.
@@ -59,7 +60,7 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
       if (err instanceof ApiError) {
         setApiError(err.message);
       } else {
-        setApiError('An unexpected error occurred. Please try again.');
+        setApiError(i18n.t('tickets.detail.errors.unexpected'));
       }
     } finally {
       setIsLoading(false);
@@ -82,7 +83,7 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
 
   const startPolling = useCallback(async () => {
     if (!token || !ticketId || pollingRef.current) return;
-    
+
     pollingRef.current = true;
     const abortController = new AbortController();
     activeStreams.set(ticketId, abortController);
@@ -97,7 +98,7 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
             accuracy: ExpoLocation.Accuracy.Balanced,
           });
         } catch {
-          setQrMessage('Please enable location services in your device settings to access your live ticket.');
+          setQrMessage(i18n.t('tickets.qr.enableLocationServices'));
           pollingTimeoutRef.current = setTimeout(poll, 10000);
           return;
         }
@@ -110,14 +111,14 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
 
         setQrMessage(null);
         setQrToken(tokenData);
-        
+
         // Setup countdown
         const expiresAt = new Date(tokenData.expires_at).getTime();
         const updateCountdown = () => {
           const now = Date.now();
           const diff = Math.max(0, Math.floor((expiresAt - now) / 1000));
           setSecondsRemaining(diff);
-          
+
           if (diff <= 0) {
             if (countdownIntervalRef.current) {
               clearInterval(countdownIntervalRef.current);
@@ -136,10 +137,10 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
         pollingTimeoutRef.current = setTimeout(poll, 10000);
       } catch (err) {
         if (err instanceof Error && err.message === 'AbortError') return;
-        
-        const message = err instanceof ApiError ? err.message : 'Connection lost. Retrying...';
+
+        const message = err instanceof ApiError ? err.message : i18n.t('tickets.qr.connectionLost');
         setQrMessage(getTicketQrAccessMessage(message));
-        
+
         // Retry later on error
         pollingTimeoutRef.current = setTimeout(poll, 15000);
       }

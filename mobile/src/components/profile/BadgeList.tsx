@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { BadgeItem } from '@/models/profile';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+import { getBadgeName } from '@/utils/badgePresentation';
 import BadgeDetailModal from './BadgeDetailModal';
 import BadgeCatalogModal from './BadgeCatalogModal';
 
@@ -21,6 +23,7 @@ export default function BadgeList({
   onToggleCatalog
 }: BadgeListProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = makeStyles(theme);
 
   const [selectedBadge, setSelectedBadge] = useState<BadgeItem | null>(null);
@@ -32,7 +35,7 @@ export default function BadgeList({
   if (badges.length === 0 && !showCatalogButton) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No badges earned yet.</Text>
+        <Text style={styles.emptyText}>{t('publicProfile.empty.badges')}</Text>
       </View>
     );
   }
@@ -63,7 +66,7 @@ export default function BadgeList({
                 </View>
               )}
             </View>
-            <Text style={styles.badgeName} numberOfLines={1}>{badge.name}</Text>
+            <Text style={styles.badgeName} numberOfLines={1}>{getBadgeName(badge)}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>

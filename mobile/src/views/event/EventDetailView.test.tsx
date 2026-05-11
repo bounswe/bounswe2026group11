@@ -422,7 +422,7 @@ describe('EventDetailView', () => {
 
     render(<EventDetailView eventId="event-1" />);
 
-    fireEvent.click(screen.getByLabelText('Edit event'));
+    fireEvent.click(screen.getByLabelText('Edit Event'));
 
     expect(mockRouterPush).toHaveBeenCalledWith('/event/event-1/edit');
   });

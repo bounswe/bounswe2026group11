@@ -4,6 +4,7 @@ import {
   getCurrentSession,
   refreshSession,
 } from '@/services/sessionManager';
+import { getCurrentLocale } from '@/contexts/LocaleContext';
 
 export const BASE_URL = API_BASE_URL;
 
@@ -46,6 +47,7 @@ async function requestJson<T>(
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'Accept-Language': getCurrentLocale(),
     ...(init.headers as Record<string, string> | undefined),
   };
 

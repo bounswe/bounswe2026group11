@@ -7,6 +7,7 @@ import {
 } from '@/services/profileService';
 import { ApiError } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import i18n from '@/i18n';
 
 export interface PublicProfileViewModel {
   profile: PublicProfile | null;
@@ -34,7 +35,7 @@ export function usePublicProfileViewModel(userId: string): PublicProfileViewMode
 
   const fetchData = useCallback(async () => {
     if (!token) {
-      setError('You must be logged in to view profiles.');
+      setError(i18n.t('publicProfile.errors.loginRequired'));
       setIsLoading(false);
       return;
     }
@@ -67,7 +68,7 @@ export function usePublicProfileViewModel(userId: string): PublicProfileViewMode
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('Failed to load user profile. Please try again.');
+        setError(i18n.t('publicProfile.errors.loadFailed'));
       }
     } finally {
       setIsLoading(false);
@@ -84,16 +85,25 @@ export function usePublicProfileViewModel(userId: string): PublicProfileViewMode
 
   const totalCount = (profile?.host_rating_count || 0) + (profile?.participant_rating_count || 0);
   const overallRatingLabel = profile?.final_score != null && totalCount > 0
-    ? `${profile.final_score.toFixed(1)} (${totalCount})`
-    : 'New';
+    ? i18n.t('publicProfile.ratingWithCount', {
+        rating: profile.final_score.toFixed(1),
+        count: totalCount,
+      })
+    : i18n.t('profile.new');
   
   const hostRatingLabel = profile?.final_score != null && profile.host_rating_count > 0
-    ? `${profile.final_score.toFixed(1)} (${profile.host_rating_count})`
-    : 'New';
+    ? i18n.t('publicProfile.ratingWithCount', {
+        rating: profile.final_score.toFixed(1),
+        count: profile.host_rating_count,
+      })
+    : i18n.t('profile.new');
 
   const participantRatingLabel = profile?.final_score != null && profile.participant_rating_count > 0
-    ? `${profile.final_score.toFixed(1)} (${profile.participant_rating_count})`
-    : 'New';
+    ? i18n.t('publicProfile.ratingWithCount', {
+        rating: profile.final_score.toFixed(1),
+        count: profile.participant_rating_count,
+      })
+    : i18n.t('profile.new');
 
   return {
     profile,

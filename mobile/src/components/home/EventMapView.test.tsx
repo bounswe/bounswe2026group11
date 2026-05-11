@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import i18n from '@/i18n';
 import EventMapView from './EventMapView';
 import type { MapRegion } from './EventMapView';
 import type { EventSummary } from '@/models/event';
@@ -313,6 +314,12 @@ describe('EventMapView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockImagePrefetch.mockResolvedValue(true);
+  });
+
+  afterEach(async () => {
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
   });
 
   describe('loading state', () => {
@@ -697,6 +704,27 @@ describe('EventMapView', () => {
       selectMarker();
 
       expect(screen.getByText(/Belgrad Forest/)).toBeTruthy();
+    });
+
+    it('localizes the callout details hint', async () => {
+      await act(async () => {
+        await i18n.changeLanguage('tr');
+      });
+
+      render(
+        <EventMapView
+          events={[makeEvent()]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      selectMarker();
+
+      expect(screen.getByText('Detayları görmek için dokun →')).toBeTruthy();
+      expect(screen.queryByText('Tap to view details →')).toBeNull();
     });
 
     it('shows a small event image in the native callout when available', async () => {

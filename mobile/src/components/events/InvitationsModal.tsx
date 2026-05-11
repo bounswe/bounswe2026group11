@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -16,6 +16,7 @@ import {
   Alert,
 } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { EventDetailInvitation } from '@/models/event';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme, type Theme } from '@/theme';
@@ -53,6 +54,7 @@ export default function InvitationsModal({
 }: InvitationsModalProps) {
   const { user } = useAuth();
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = React.useMemo(() => makeStyles(theme), [theme]);
   const [error, setError] = useState<string | null>(null);
   const [inviteMessage, setInviteMessage] = useState('');
@@ -115,7 +117,7 @@ export default function InvitationsModal({
       setSelectedUsers([]);
       setInviteMessage('');
     } catch (err: any) {
-      setError(err.message || 'Failed to send invitation');
+      setError(err.message || t('events.invitations.sendFailed'));
     }
   };
 
@@ -134,13 +136,35 @@ export default function InvitationsModal({
   const getStatusStyle = (status: string) => {
     switch (status) {
       case 'ACCEPTED':
-        return { bg: theme.successBg, text: theme.successText, label: 'Accepted' };
+        return {
+          bg: theme.successBg,
+          text: theme.successText,
+          label: t('events.invitations.status.ACCEPTED'),
+        };
       case 'DECLINED':
-        return { bg: theme.errorBg, text: theme.errorText, label: 'Declined' };
+        return {
+          bg: theme.errorBg,
+          text: theme.errorText,
+          label: t('events.invitations.status.DECLINED'),
+        };
       case 'CANCELED':
-        return { bg: theme.surfaceAlt, text: theme.textSecondary, label: 'Revoked' };
+        return {
+          bg: theme.surfaceAlt,
+          text: theme.textSecondary,
+          label: t('events.invitations.status.CANCELED'),
+        };
+      case 'EXPIRED':
+        return {
+          bg: theme.surfaceAlt,
+          text: theme.textSecondary,
+          label: t('events.invitations.status.EXPIRED'),
+        };
       default:
-        return { bg: theme.warningBg, text: theme.warningText, label: 'Pending' };
+        return {
+          bg: theme.warningBg,
+          text: theme.warningText,
+          label: t('events.invitations.status.PENDING'),
+        };
     }
   };
 
@@ -171,7 +195,7 @@ export default function InvitationsModal({
             </View>
 
             <View style={styles.header}>
-              <Text style={styles.title}>Manage Invitations</Text>
+              <Text style={styles.title}>{t('events.invitations.title')}</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
                 <Feather name="x" size={24} color={theme.text} />
               </TouchableOpacity>
@@ -180,13 +204,13 @@ export default function InvitationsModal({
             {/* Invite Form */}
             <View style={styles.inviteForm}>
               <View style={styles.labelRow}>
-                <Text style={styles.label}>Invite by Username</Text>
+                <Text style={styles.label}>{t('events.invitations.inviteByUsername')}</Text>
               </View>
               <View style={styles.inputWrapper}>
                 <View style={{ flex: 1 }}>
                   <TextInput
                     style={[styles.input, !!error && styles.inputError]}
-                    placeholder="e.g. janesmith, bob"
+                    placeholder={t('events.invitations.usernamePlaceholder')}
                     placeholderTextColor={theme.placeholder}
                     value={userSearchQuery}
                     onChangeText={(val) => {
@@ -199,15 +223,15 @@ export default function InvitationsModal({
                   />
                   {userSuggestions && userSuggestions.length > 0 && (
                     <View style={styles.suggestionsContainer}>
-                      {userSuggestions.map((user) => (
+                      {userSuggestions.map((suggestion) => (
                         <TouchableOpacity
-                          key={user.id}
+                          key={suggestion.id}
                           style={styles.suggestionItem}
-                          onPress={() => handleSelectSuggestion(user.username)}
+                          onPress={() => handleSelectSuggestion(suggestion.username)}
                         >
-                          <Text style={styles.suggestionText}>@{user.username}</Text>
-                          {user.display_name && (
-                            <Text style={styles.suggestionSubtext}>{user.display_name}</Text>
+                          <Text style={styles.suggestionText}>@{suggestion.username}</Text>
+                          {suggestion.display_name && (
+                            <Text style={styles.suggestionSubtext}>{suggestion.display_name}</Text>
                           )}
                         </TouchableOpacity>
                       ))}
@@ -215,14 +239,22 @@ export default function InvitationsModal({
                   )}
                 </View>
                 <TouchableOpacity
-                  style={[styles.inviteBtn, (selectedUsers.length === 0 && !userSearchQuery.trim() || isInviting) && styles.inviteBtnDisabled]}
+                  style={[
+                    styles.inviteBtn,
+                    ((selectedUsers.length === 0 && !userSearchQuery.trim()) ||
+                      isInviting) &&
+                      styles.inviteBtnDisabled,
+                  ]}
                   onPress={handleInvite}
-                  disabled={selectedUsers.length === 0 && !userSearchQuery.trim() || isInviting}
+                  disabled={
+                    (selectedUsers.length === 0 && !userSearchQuery.trim()) ||
+                    isInviting
+                  }
                 >
                   {isInviting ? (
                     <ActivityIndicator size="small" color={theme.textOnPrimary} />
                   ) : (
-                    <Text style={styles.inviteBtnText}>Invite</Text>
+                    <Text style={styles.inviteBtnText}>{t('events.invitations.inviteAction')}</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -243,13 +275,13 @@ export default function InvitationsModal({
                 </View>
               )}
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
-              <Text style={styles.hint}>Separate usernames with a space or comma.</Text>
+              <Text style={styles.hint}>{t('events.invitations.hint')}</Text>
 
               <View style={styles.messageInputContainer}>
-                <Text style={styles.label}>Add a Note (Optional)</Text>
+                <Text style={styles.label}>{t('events.invitations.noteLabel')}</Text>
                 <TextInput
                   style={styles.messageInput}
-                  placeholder="e.g. Hope to see you there!"
+                  placeholder={t('events.invitations.notePlaceholder')}
                   placeholderTextColor={theme.placeholder}
                   value={inviteMessage}
                   onChangeText={setInviteMessage}
@@ -262,8 +294,8 @@ export default function InvitationsModal({
             </View>
 
             <View style={styles.divider} />
-            
-            <Text style={styles.sectionTitle}>Current Invitations</Text>
+
+            <Text style={styles.sectionTitle}>{t('events.invitations.currentTitle')}</Text>
 
             <FlatList
               data={invitations}
@@ -304,12 +336,12 @@ export default function InvitationsModal({
                         style={styles.revokeBtn}
                         onPress={() => {
                           Alert.alert(
-                            'Revoke Invitation',
-                            `Are you sure you want to revoke the invitation for @${item.user.username}?`,
+                            t('events.invitations.revokeTitle'),
+                            t('events.invitations.revokeBody', { username: item.user.username }),
                             [
-                              { text: 'Cancel', style: 'cancel' },
+                              { text: t('common.cancel'), style: 'cancel' },
                               {
-                                text: 'Revoke',
+                                text: t('events.invitations.revokeAction'),
                                 style: 'destructive',
                                 onPress: () => void onRevoke(item.invitation_id),
                               },
@@ -327,7 +359,9 @@ export default function InvitationsModal({
                 <View style={styles.emptyContainer}>
                   <MaterialIcons name="mail-outline" size={40} color={theme.textTertiary} />
                   <Text style={styles.emptyText}>
-                    {loading ? 'Loading invitations...' : 'No invitations sent yet.'}
+                    {loading
+                      ? t('events.invitations.loading')
+                      : t('events.invitations.empty')}
                   </Text>
                 </View>
               }
@@ -337,7 +371,7 @@ export default function InvitationsModal({
                     {loading ? (
                       <ActivityIndicator size="small" color={theme.infoText} />
                     ) : (
-                      <Text style={styles.loadMoreText}>Load more</Text>
+                      <Text style={styles.loadMoreText}>{t('common.loadMore')}</Text>
                     )}
                   </TouchableOpacity>
                 ) : null

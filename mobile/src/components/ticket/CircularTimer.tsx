@@ -22,7 +22,7 @@ export default function CircularTimer({
 }: CircularTimerProps & { textColor?: string }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  
+
   // Ensure progress is between 0 and 1
   const progress = Math.min(Math.max(remaining / total, 0), 1);
   const strokeDashoffset = circumference * (1 - progress);

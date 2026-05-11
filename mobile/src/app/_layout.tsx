@@ -5,6 +5,7 @@ import { Stack, router, usePathname, type Href } from 'expo-router';
 import { useEffect } from 'react';
 import { SystemUIHandler } from '@/components/common/SystemUIHandler';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { LocaleProvider } from '@/contexts/LocaleContext';
 import { ThemeProvider } from '@/theme';
 
 const AUTH_ROUTES = new Set(['/', '/register', '/forgot-password']);
@@ -37,12 +38,14 @@ function AppStack() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <SystemUIHandler />
-      <AuthProvider>
-        <PushMessagingHost />
-        <AppStack />
-      </AuthProvider>
-    </ThemeProvider>
+    <LocaleProvider>
+      <ThemeProvider>
+        <SystemUIHandler />
+        <AuthProvider>
+          <PushMessagingHost />
+          <AppStack />
+        </AuthProvider>
+      </ThemeProvider>
+    </LocaleProvider>
   );
 }

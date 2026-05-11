@@ -5,6 +5,7 @@ import { getEventDetail } from '@/services/eventService';
 import { listMyTickets } from '@/services/ticketService';
 import type { EventDetail } from '@/models/event';
 import type { TicketListItem } from '@/models/ticket';
+import i18n from '@/i18n';
 
 export interface EventActionsViewModel {
   event: EventDetail | null;
@@ -20,14 +21,14 @@ export interface EventActionsViewModel {
 
 function getLoadErrorMessage(error: unknown): string {
   if (error instanceof ApiError && error.status === 401) {
-    return 'You must be logged in to manage tickets for this event.';
+    return i18n.t('tickets.actions.errors.loginRequired');
   }
 
   if (error instanceof ApiError) {
     return error.message;
   }
 
-  return 'Failed to load event actions. Please try again.';
+  return i18n.t('tickets.actions.errors.loadFailed');
 }
 
 export function useEventActionsViewModel(eventId: string): EventActionsViewModel {
@@ -41,7 +42,7 @@ export function useEventActionsViewModel(eventId: string): EventActionsViewModel
     if (!token) {
       setEvent(null);
       setTicket(null);
-      setErrorMessage('You must be logged in to manage tickets for this event.');
+      setErrorMessage(i18n.t('tickets.actions.errors.loginRequired'));
       setIsLoading(false);
       return;
     }
@@ -58,7 +59,7 @@ export function useEventActionsViewModel(eventId: string): EventActionsViewModel
       let ticketsResponse = await listMyTickets(token).catch(() => ({ items: [] }));
       let foundTicket = findTicket(ticketsResponse.items);
 
-      // RETRY LOGIC: If joined a PUBLIC event but ticket is not yet in the list, 
+      // RETRY LOGIC: If joined a PUBLIC event but ticket is not yet in the list,
       // the server might still be processing the async ticket creation.
       // We retry up to 2 times with a 1s delay (3 attempts total).
       if (!foundTicket && eventDetail.viewer_context.participation_status === 'JOINED' && eventDetail.privacy_level === 'PUBLIC') {
@@ -93,8 +94,8 @@ export function useEventActionsViewModel(eventId: string): EventActionsViewModel
   );
 
   const primaryActionLabel = useMemo(() => {
-    if (canScanTicket) return 'Scan Ticket';
-    if (canOpenTicket) return 'View Ticket';
+    if (canScanTicket) return i18n.t('tickets.actions.scanTicket');
+    if (canOpenTicket) return i18n.t('tickets.actions.viewTicket');
     return null;
   }, [canOpenTicket, canScanTicket]);
 
