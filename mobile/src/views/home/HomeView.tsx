@@ -88,6 +88,9 @@ export default function HomeView() {
             isLoading={vm.isLoading}
             apiError={vm.apiError}
             region={mapRegion}
+            filterCenter={vm.activeLocation}
+            filterRadiusMeters={vm.filterDraft.radiusKm * 1000}
+            currentLocation={vm.currentLocation}
             onMarkerPress={(id) => router.push(`/event/${id}` as Href)}
             headerTopInset={insets.top}
           />
