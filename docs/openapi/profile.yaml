@@ -64,6 +64,42 @@ paths:
         "401":
           description: Missing or invalid access token.
 
+  /me/change-password:
+    post:
+      summary: Change current user's password
+      description: >
+        Verifies the authenticated user's current password and replaces it with
+        the supplied new password. The new password must be 8-128 characters and
+        must differ from the current password.
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+            example:
+              old_password: "old-password-123"
+              new_password: "new-password-456"
+      responses:
+        "204":
+          description: Password changed successfully.
+        "400":
+          description: Invalid JSON body or password validation error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Missing or invalid access token, or current password mismatch.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /users/{user_id}/profile:
     get:
       summary: Get another user's public profile
@@ -1166,6 +1202,21 @@ components:
             requests omit Accept-Language. Region tags such as "tr-TR" are
             accepted on input but normalized to the base language.
           example: tr
+
+    ChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [old_password, new_password]
+      properties:
+        old_password:
+          type: string
+          minLength: 1
+          description: Current account password.
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: New account password. Must differ from old_password.
 
     ImageUploadInitResponse:
       type: object
