@@ -229,11 +229,88 @@ describe('reverseGeocode', () => {
     });
   });
 
+  it('keeps standard reverse geocoded names unless area-level formatting is requested', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        features: [
+          {
+            geometry: { coordinates: [28.969129, 41.0502944] },
+            properties: {
+              name: 'Sonsuz Nakliyat & TIR Parkı',
+              street: 'İslambol Caddesi',
+              locality: 'Paşa',
+              district: 'Yeşilbayır',
+              city: 'Istanbul',
+              country: 'Turkey',
+            },
+          },
+        ],
+      }),
+    );
+
+    const result = await reverseGeocode(41.0503, 28.9687);
+
+    expect(result).toEqual({
+      display_name: 'Sonsuz Nakliyat & TIR Parkı İslambol Caddesi, Yeşilbayır, Istanbul, Turkey',
+      lat: '41.0503',
+      lon: '28.9687',
+    });
+  });
+
+  it('prefers area-level names for map-selection reverse geocoding', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        features: [
+          {
+            geometry: { coordinates: [28.969129, 41.0502944] },
+            properties: {
+              name: 'Sonsuz Nakliyat & TIR Parkı',
+              street: 'İslambol Caddesi',
+              locality: 'Paşa',
+              district: 'Yeşilbayır',
+              city: 'Istanbul',
+              country: 'Turkey',
+            },
+          },
+        ],
+      }),
+    );
+
+    const result = await reverseGeocode(41.0503, 28.9687, { areaLevel: true });
+
+    expect(result).toEqual({
+      display_name: 'Paşa, Yeşilbayır, Istanbul, Turkey',
+      lat: '41.0503',
+      lon: '28.9687',
+    });
+  });
+
   it('falls back to original coordinates when the feature lacks geometry', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         features: [
           {
+            properties: { name: 'Istanbul', country: 'Turkey' },
+          },
+        ],
+      }),
+    );
+
+    const result = await reverseGeocode(41.5, 29.5);
+
+    expect(result).toEqual({
+      display_name: 'Istanbul, Turkey',
+      lat: '41.5',
+      lon: '29.5',
+    });
+  });
+
+  it('keeps the original clicked coordinates when Photon returns a snapped feature', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        features: [
+          {
+            geometry: { coordinates: [28.9784, 41.0082] },
             properties: { name: 'Istanbul', country: 'Turkey' },
           },
         ],
