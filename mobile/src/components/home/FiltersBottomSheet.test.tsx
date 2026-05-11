@@ -143,6 +143,13 @@ jest.mock('react-native', () => {
           onChangeText?.(event.target.value),
         ...stripReactNativeOnlyProps(props),
       }),
+    Switch: ({ value, onValueChange, accessibilityLabel }: { value: boolean; onValueChange: (v: boolean) => void; accessibilityLabel?: string }) =>
+      ReactLocal.createElement('input', {
+        type: 'checkbox',
+        checked: value,
+        'aria-label': accessibilityLabel,
+        onChange: (e: any) => onValueChange(e.target.checked),
+      }),
     TouchableOpacity: createButton,
     View: createContainer('div'),
   };
@@ -190,6 +197,8 @@ function buildProps() {
       endDate: '',
       radiusKm: 10,
       sortBy: 'START_TIME' as const,
+      childFriendly: false,
+      familyOriented: false,
     },
     errorMessage: null,
     onClose: jest.fn(),
@@ -201,6 +210,8 @@ function buildProps() {
     onChangeEndDate: jest.fn(),
     onChangeRadius: jest.fn(),
     onChangeSortBy: jest.fn(),
+    onToggleChildFriendly: jest.fn(),
+    onToggleFamilyOriented: jest.fn(),
   };
 }
 
@@ -243,5 +254,21 @@ describe('FiltersBottomSheet', () => {
     expect((screen.getByText('Nearest').closest('button') as HTMLButtonElement).style.backgroundColor).toBe(
       'rgb(99, 102, 241)',
     );
+  });
+
+  it('allows toggling audience filters', () => {
+    const props = buildProps();
+    render(<FiltersBottomSheet {...props} />);
+
+    expect(screen.getByText('Audience')).toBeTruthy();
+
+    const childFriendlySwitch = screen.getByLabelText('Child Friendly');
+    const familyOrientedSwitch = screen.getByLabelText('Family Oriented');
+
+    fireEvent.click(childFriendlySwitch);
+    expect(props.onToggleChildFriendly).toHaveBeenCalled();
+
+    fireEvent.click(familyOrientedSwitch);
+    expect(props.onToggleFamilyOriented).toHaveBeenCalled();
   });
 });

@@ -156,6 +156,8 @@ describe('useCreateEventViewModel', () => {
     expect(result.current.formData.lat).toBeNull();
     expect(result.current.formData.startDate).toBe(formatDateForForm(new Date()));
     expect(result.current.formData.privacyLevel).toBe('PUBLIC');
+    expect(result.current.formData.childFriendly).toBe(false);
+    expect(result.current.formData.familyOriented).toBe(false);
     expect(result.current.isLoading).toBe(false);
     expect(result.current.apiError).toBeNull();
     expect(result.current.errors).toEqual({});

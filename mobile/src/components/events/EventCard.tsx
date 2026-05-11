@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { EventSummary } from '@/models/event';
 import { getFavoriteCountForDisplay } from '@/utils/eventFavoriteCount';
 import { formatEventDateLabel } from '@/utils/eventDate';
@@ -75,7 +75,18 @@ export default function EventCard({ event, onPress }: EventCardProps) {
 
         <View style={styles.imageOverlay}>
           <View style={styles.imageTopRow}>
-            <View style={styles.topSpacer} />
+            <View style={styles.audienceContainer}>
+              {event.child_friendly && (
+                <View style={[styles.audienceBadge, { backgroundColor: theme.surface }]}>
+                  <MaterialIcons name="child-care" size={14} color={theme.primary} />
+                </View>
+              )}
+              {event.family_oriented && (
+                <View style={[styles.audienceBadge, { backgroundColor: theme.surface }]}>
+                  <MaterialIcons name="family-restroom" size={14} color={theme.primary} />
+                </View>
+              )}
+            </View>
             <View style={[styles.visibilityBadge, { backgroundColor: badgeBg }]}>
               <Feather name={iconName} size={12} color={iconColor} />
               <Text style={[styles.visibilityBadgeText, { color: badgeText }]}>
@@ -187,9 +198,21 @@ function makeStyles(t: Theme) {
       justifyContent: 'space-between',
       alignItems: 'flex-start',
     },
-    topSpacer: {
-      width: 1,
-      height: 1,
+    audienceContainer: {
+      flexDirection: 'row',
+      gap: 6,
+    },
+    audienceBadge: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
     },
     imageBottomRow: {
       flexDirection: 'row',

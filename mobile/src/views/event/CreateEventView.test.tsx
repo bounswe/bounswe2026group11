@@ -13,6 +13,22 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useCreateEventViewModel } from '@/viewmodels/event/useCreateEventViewModel';
 
+jest.mock('react-native', () => {
+  const actual = jest.requireActual('react-native') as any;
+  const ReactLocal = require('react');
+  return {
+    ...actual,
+    Switch: ({ trackColor, onValueChange, value, accessibilityLabel, ...props }: any) =>
+      ReactLocal.createElement('input', {
+        type: 'checkbox',
+        checked: value,
+        'aria-label': accessibilityLabel,
+        onChange: (e: any) => onValueChange?.(e.target.checked),
+        ...props,
+      }),
+  };
+});
+
 jest.mock('expo-router', () => ({
   router: {
     back: jest.fn(),
@@ -120,6 +136,8 @@ function buildViewModel(
       capacityInput: '',
       otherConstraintInput: '',
       invitationMessage: '',
+      childFriendly: false,
+      familyOriented: false,
     },
     errors: {},
     isLoading: false,
@@ -308,5 +326,30 @@ describe('CreateEventView', () => {
     );
     rerender(<CreateEventView />);
     expect(screen.getByText(/Only visible to invited users. People can join only if you invite them./i)).toBeTruthy();
+  });
+
+  it('allows toggling audience attributes', () => {
+    const updateField = jest.fn();
+    mockUseCreateEventViewModel.mockReturnValue(
+      buildViewModel({
+        updateField,
+        formData: {
+          ...buildViewModel().formData,
+          childFriendly: false,
+          familyOriented: false,
+        },
+      }),
+    );
+
+    render(<CreateEventView />);
+
+    const childFriendlyToggle = screen.getByLabelText('Child Friendly');
+    const familyOrientedToggle = screen.getByLabelText('Family Oriented');
+
+    fireEvent.click(childFriendlyToggle);
+    expect(updateField).toHaveBeenCalledWith('childFriendly', true);
+
+    fireEvent.click(familyOrientedToggle);
+    expect(updateField).toHaveBeenCalledWith('familyOriented', true);
   });
 });

@@ -10,7 +10,7 @@ interface EmptyStateProps {
 
 export default function EmptyState({
   title = 'No events found',
-  subtitle = 'Try changing your search or category filter.',
+  subtitle = 'Try adjusting your filters. Note that some events may be hidden due to age or gender restrictions.',
 }: EmptyStateProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);

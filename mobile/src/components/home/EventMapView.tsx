@@ -483,7 +483,7 @@ export default function EventMapView({
         <View style={styles.emptyOverlay} testID="map-empty">
           <Text style={styles.emptyTitle}>No events on the map</Text>
           <Text style={styles.emptySubtitle}>
-            Events will appear here once location data is available.
+            Try panning the map or adjusting filters. Some events may be hidden due to age or gender restrictions.
           </Text>
         </View>
       )}

@@ -101,6 +101,28 @@ function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
   );
 }
 
+function AudienceBadges({ event }: { event: EventDetail }) {
+  const { theme } = useTheme();
+  if (!event.child_friendly && !event.family_oriented) return null;
+
+  return (
+    <>
+      {event.child_friendly && (
+        <View style={[badgeBase, { backgroundColor: theme.surface, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }]}>
+          <MaterialIcons name="child-care" size={14} color={theme.primary} />
+          <Text style={[badgeTextBase, { color: theme.text }]}>Child Friendly</Text>
+        </View>
+      )}
+      {event.family_oriented && (
+        <View style={[badgeBase, { backgroundColor: theme.surface, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }]}>
+          <MaterialIcons name="family-restroom" size={14} color={theme.primary} />
+          <Text style={[badgeTextBase, { color: theme.text }]}>Family Friendly</Text>
+        </View>
+      )}
+    </>
+  );
+}
+
 // Minimal static styles shared by badge components (no theme dependency)
 const badgeBase: object = {
   flexDirection: 'row',
@@ -1199,6 +1221,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           )}
           <View style={styles.heroBadgeRow}>
             <PrivacyBadge level={event.privacy_level} />
+            <AudienceBadges event={event} />
             <StatusBadge status={event.status} />
           </View>
         </View>
