@@ -5,6 +5,7 @@ import { useFavoritesViewModel } from '@/viewmodels/favorites/useFavoritesViewMo
 import FavoriteLocationsTab from './FavoriteLocationsTab';
 import type { FavoriteEventItem } from '@/models/event';
 import { EventCoverImage } from '@/components/EventCoverImage';
+import { RatingWithCount } from '@/components/RatingWithCount';
 import { getEventCardBadgePresentation } from '@/utils/eventStatus';
 import '@/styles/my-events.css';
 import '@/styles/discover.css';
@@ -79,10 +80,12 @@ function FavoriteCard({ item }: { item: FavoriteEventItem }) {
           <span className="dc-card-participants">
             {item.approved_participant_count ?? 0} participant{item.approved_participant_count === 1 ? '' : 's'}
           </span>
-          {item.host_score?.final_score != null && (
-            <span className="dc-card-score">
-              {'★'} {item.host_score.final_score.toFixed(1)}
-            </span>
+          {item.host_score && (
+            <RatingWithCount
+              score={item.host_score.final_score}
+              count={item.host_score.hosted_event_rating_count}
+              className="dc-card-score"
+            />
           )}
         </div>
       </div>
