@@ -5,10 +5,13 @@ import {
   Platform,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import MapView, {
   Callout,
+  Circle,
   Marker,
   PROVIDER_GOOGLE,
   type MapMarker,
@@ -33,11 +36,19 @@ export interface MapRegion {
   longitudeDelta: number;
 }
 
+export interface MapCoordinate {
+  lat: number;
+  lon: number;
+}
+
 interface EventMapViewProps {
   events: EventSummary[];
   isLoading: boolean;
   apiError: string | null;
   region: MapRegion;
+  filterCenter?: MapCoordinate;
+  filterRadiusMeters?: number;
+  currentLocation?: MapCoordinate | null;
   onMarkerPress: (eventId: string) => void;
   /** Extra top pixels to add to map padding (e.g. safe-area inset when map is full-screen). */
   headerTopInset?: number;
@@ -49,9 +60,21 @@ interface MappableEvent {
     latitude: number;
     longitude: number;
   };
-  presentation: EventCategoryPresentation; 
-  groupSize: number;
+  presentation: EventCategoryPresentation;
 }
+
+interface MapCluster {
+  id: string;
+  coordinate: {
+    latitude: number;
+    longitude: number;
+  };
+  events: EventWithCoordinates[];
+}
+
+type MapItem =
+  | { type: 'EVENT'; item: MappableEvent }
+  | { type: 'CLUSTER'; cluster: MapCluster };
 
 type EventWithCoordinates = EventSummary & {
   location_lat: number;
@@ -65,6 +88,10 @@ const DISCOVERY_MAP_PADDING_BASE = {
   left: 20,
 };
 
+const CLUSTER_DISTANCE_RATIO = 0.08;
+const MIN_CLUSTER_DELTA = 0.0001;
+const MIN_CLUSTER_ZOOM_DELTA = 0.006;
+
 function hasMappableCoordinate(
   event: EventSummary,
 ): event is EventWithCoordinates {
@@ -76,65 +103,88 @@ function hasMappableCoordinate(
   );
 }
 
-function getDenseCoordinateKey(event: {
-  location_lat: number;
-  location_lon: number;
-}): string {
-  return `${event.location_lat.toFixed(4)}:${event.location_lon.toFixed(4)}`;
-}
-
-function getDenseMarkerOffset(
-  groupIndex: number,
-  groupSize: number,
+function getClusterDistanceRatio(
+  event: EventWithCoordinates,
+  cluster: MapCluster,
   region: MapRegion,
-): { latitude: number; longitude: number } {
-  if (groupSize <= 1) {
-    return { latitude: 0, longitude: 0 };
-  }
+): number {
+  const latitudeDelta = Math.max(Math.abs(region.latitudeDelta), MIN_CLUSTER_DELTA);
+  const longitudeDelta = Math.max(Math.abs(region.longitudeDelta), MIN_CLUSTER_DELTA);
+  const latitudeRatio = (event.location_lat - cluster.coordinate.latitude) / latitudeDelta;
+  const longitudeRatio = (event.location_lon - cluster.coordinate.longitude) / longitudeDelta;
 
-  const markersPerRing = 8;
-  const ring = Math.floor(groupIndex / markersPerRing) + 1;
-  const ringPosition = groupIndex % markersPerRing;
-  const visibleInRing = Math.min(groupSize, markersPerRing);
-  const angle = (Math.PI * 2 * ringPosition) / visibleInRing - Math.PI / 2;
-  const regionScale = Math.min(region.latitudeDelta, region.longitudeDelta);
-  const baseRadius = Math.min(Math.max(regionScale * 0.002, 0.00006), 0.00035);
-  const radius = baseRadius * Math.min(ring, 2.5);
-
-  return {
-    latitude: Math.sin(angle) * radius,
-    longitude: Math.cos(angle) * radius,
-  };
+  return Math.sqrt(latitudeRatio * latitudeRatio + longitudeRatio * longitudeRatio);
 }
 
-function buildMappableEvents(
+function addEventToCluster(cluster: MapCluster, event: EventWithCoordinates): void {
+  const nextSize = cluster.events.length + 1;
+
+  cluster.coordinate = {
+    latitude:
+      (cluster.coordinate.latitude * cluster.events.length + event.location_lat) /
+      nextSize,
+    longitude:
+      (cluster.coordinate.longitude * cluster.events.length + event.location_lon) /
+      nextSize,
+  };
+  cluster.events.push(event);
+}
+
+function buildMapItems(
   events: EventSummary[],
   region: MapRegion,
   isDark: boolean,
-): MappableEvent[] {
+): MapItem[] {
   const eventsWithCoordinates = events.filter(hasMappableCoordinate);
-  const denseGroups = new Map<string, EventWithCoordinates[]>();
+  const clusters: MapCluster[] = [];
 
   eventsWithCoordinates.forEach((event) => {
-    const key = getDenseCoordinateKey(event);
-    const group = denseGroups.get(key) ?? [];
-    group.push(event);
-    denseGroups.set(key, group);
+    const cluster = clusters.find(
+      (candidate) =>
+        getClusterDistanceRatio(event, candidate, region) <=
+        CLUSTER_DISTANCE_RATIO,
+    );
+
+    if (cluster) {
+      addEventToCluster(cluster, event);
+      return;
+    }
+
+    clusters.push({
+      id: event.id,
+      coordinate: {
+        latitude: event.location_lat,
+        longitude: event.location_lon,
+      },
+      events: [event],
+    });
   });
 
-  return eventsWithCoordinates.map((event) => {
-    const group = denseGroups.get(getDenseCoordinateKey(event)) ?? [event];
-    const groupIndex = group.indexOf(event);
-    const offset = getDenseMarkerOffset(groupIndex, group.length, region);
+  return clusters.map((cluster) => {
+    if (cluster.events.length > 1) {
+      const id = cluster.events.map((event) => event.id).sort().join('-');
+
+      return {
+        type: 'CLUSTER',
+        cluster: {
+          ...cluster,
+          id,
+        },
+      };
+    }
+
+    const event = cluster.events[0];
 
     return {
-      event,
-      coordinate: {
-        latitude: event.location_lat + offset.latitude,
-        longitude: event.location_lon + offset.longitude,
+      type: 'EVENT',
+      item: {
+        event,
+        coordinate: {
+          latitude: event.location_lat,
+          longitude: event.location_lon,
+        },
+        presentation: getEventCategoryPresentation(event.category_name, isDark),
       },
-      presentation: getEventCategoryPresentation(event.category_name, isDark),
-      groupSize: group.length,
     };
   });
 }
@@ -169,7 +219,7 @@ function EventMapMarker({
   const [hasImageRenderError, setHasImageRenderError] = useState(false);
   // Tracks whether the image inside the callout has finished loading.
   const [isImageLoaded, setIsImageLoaded] = useState(false);
-  const { event, coordinate, presentation, groupSize } = item;
+  const { event, coordinate, presentation } = item;
   const imageUrl = getImageUrl(event);
   // Hide the callout image if the render raised an error OR the prefetch
   // explicitly failed (resolved to false) — show the category placeholder instead.
@@ -247,11 +297,6 @@ function EventMapMarker({
           testID={`marker-bubble-${event.id}`}
         >
           <Text style={styles.markerEmoji}>{presentation.emoji}</Text>
-          {groupSize > 1 ? (
-            <View style={styles.markerCountBadge}>
-              <Text style={styles.markerCountText}>{groupSize}</Text>
-            </View>
-          ) : null}
         </View>
         <View
           style={[
@@ -367,11 +412,71 @@ function EventMapMarker({
   );
 }
 
+interface ClusterMapMarkerProps {
+  cluster: MapCluster;
+  styles: ReturnType<typeof makeStyles>;
+  onPress: (cluster: MapCluster) => void;
+}
+
+function ClusterMapMarker({
+  cluster,
+  styles,
+  onPress,
+}: ClusterMapMarkerProps) {
+  return (
+    <Marker
+      key={cluster.id}
+      identifier={`cluster-${cluster.id}`}
+      coordinate={cluster.coordinate}
+      anchor={{ x: 0.5, y: 0.5 }}
+      zIndex={500}
+      onPress={() => onPress(cluster)}
+      stopPropagation
+      testID={`cluster-marker-${cluster.id}`}
+    >
+      <View style={styles.clusterBubble}>
+        <Text style={styles.clusterCount}>{cluster.events.length}</Text>
+      </View>
+    </Marker>
+  );
+}
+
+interface CurrentLocationMarkerProps {
+  coordinate: MapCoordinate;
+  styles: ReturnType<typeof makeStyles>;
+}
+
+function CurrentLocationMarker({
+  coordinate,
+  styles,
+}: CurrentLocationMarkerProps) {
+  return (
+    <Marker
+      identifier="current-location"
+      coordinate={{
+        latitude: coordinate.lat,
+        longitude: coordinate.lon,
+      }}
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={false}
+      zIndex={1001}
+      testID="current-location-marker"
+    >
+      <View style={styles.currentLocationOuter}>
+        <View style={styles.currentLocationDot} />
+      </View>
+    </Marker>
+  );
+}
+
 export default function EventMapView({
   events,
   isLoading,
   apiError,
   region,
+  filterCenter,
+  filterRadiusMeters = 0,
+  currentLocation = null,
   onMarkerPress,
   headerTopInset = 0,
 }: EventMapViewProps) {
@@ -395,15 +500,26 @@ export default function EventMapView({
     mapRef.current?.animateToRegion(region, 250);
   }, [region]);
 
-  const mappableEvents = useMemo(
-    () => buildMappableEvents(events, visibleRegion, isDark),
+  const mapItems = useMemo(
+    () => buildMapItems(events, visibleRegion, isDark),
     [events, visibleRegion, isDark],
+  );
+  const eventItems = useMemo(
+    () =>
+      mapItems.flatMap((item) =>
+        item.type === 'EVENT' ? [item.item] : [],
+      ),
+    [mapItems],
+  );
+  const hasMappableEvents = useMemo(
+    () => events.some(hasMappableCoordinate),
+    [events],
   );
 
   const selectedEvent = useMemo(
     () =>
-      mappableEvents.find((item) => item.event.id === selectedEventId) ?? null,
-    [mappableEvents, selectedEventId],
+      eventItems.find((item) => item.event.id === selectedEventId) ?? null,
+    [eventItems, selectedEventId],
   );
 
   // Eagerly prefetch event images so the Android InfoWindow bitmap snapshot
@@ -411,7 +527,7 @@ export default function EventMapView({
   useEffect(() => {
     const urls = Array.from(
       new Set(
-        mappableEvents
+        eventItems
           .map((item) => getImageUrl(item.event))
           .filter((url): url is string => url !== null),
       ),
@@ -426,7 +542,7 @@ export default function EventMapView({
           setImageStatusByUrl((prev) => ({ ...prev, [url]: 'FAILED' }));
         });
     });
-  }, [imageStatusByUrl, mappableEvents]);
+  }, [eventItems, imageStatusByUrl]);
 
   useEffect(() => {
     if (selectedEventId && !selectedEvent) {
@@ -434,6 +550,56 @@ export default function EventMapView({
     }
   }, [selectedEvent, selectedEventId]);
 
+  const handleClusterPress = useCallback(
+    (cluster: MapCluster) => {
+      setSelectedEventId(null);
+
+      const nextRegion = {
+        latitude: cluster.coordinate.latitude,
+        longitude: cluster.coordinate.longitude,
+        latitudeDelta: Math.max(
+          visibleRegion.latitudeDelta * 0.45,
+          MIN_CLUSTER_ZOOM_DELTA,
+        ),
+        longitudeDelta: Math.max(
+          visibleRegion.longitudeDelta * 0.45,
+          MIN_CLUSTER_ZOOM_DELTA,
+        ),
+      };
+
+      setVisibleRegion(nextRegion);
+      mapRef.current?.animateToRegion(nextRegion, 250);
+    },
+    [visibleRegion],
+  );
+
+  const handleLocateCurrentLocation = useCallback(() => {
+    if (!currentLocation) return;
+
+    const nextRegion = {
+      latitude: currentLocation.lat,
+      longitude: currentLocation.lon,
+      latitudeDelta: visibleRegion.latitudeDelta,
+      longitudeDelta: visibleRegion.longitudeDelta,
+    };
+
+    setVisibleRegion(nextRegion);
+    mapRef.current?.animateToRegion(nextRegion, 250);
+  }, [currentLocation, visibleRegion]);
+
+  const filterCenterCoordinate = useMemo(
+    () => ({
+      latitude: filterCenter?.lat ?? region.latitude,
+      longitude: filterCenter?.lon ?? region.longitude,
+    }),
+    [filterCenter?.lat, filterCenter?.lon, region.latitude, region.longitude],
+  );
+  const radiusFillColor = isDark
+    ? 'rgba(96, 165, 250, 0.16)'
+    : 'rgba(37, 99, 235, 0.12)';
+  const radiusStrokeColor = isDark
+    ? 'rgba(147, 197, 253, 0.9)'
+    : 'rgba(37, 99, 235, 0.65)';
 
   if (isLoading) {
     return (
@@ -473,24 +639,72 @@ export default function EventMapView({
         onPress={() => setSelectedEventId(null)}
         testID="map-surface"
       >
-        {mappableEvents.map((item) => {
-          const imgUrl = getImageUrl(item.event);
+        {filterRadiusMeters > 0 ? (
+          <Circle
+            center={filterCenterCoordinate}
+            radius={filterRadiusMeters}
+            strokeWidth={2}
+            strokeColor={radiusStrokeColor}
+            fillColor={radiusFillColor}
+            testID="filter-radius-circle"
+          />
+        ) : null}
+
+        {mapItems.map((item) => {
+          if (item.type === 'CLUSTER') {
+            return (
+              <ClusterMapMarker
+                key={`cluster-${item.cluster.id}`}
+                cluster={item.cluster}
+                styles={styles}
+                onPress={handleClusterPress}
+              />
+            );
+          }
+
+          const imgUrl = getImageUrl(item.item.event);
           return (
             <EventMapMarker
-              key={item.event.id}
-              item={item}
+              key={item.item.event.id}
+              item={item.item}
               styles={styles}
-              isSelected={item.event.id === selectedEventId}
+              isSelected={item.item.event.id === selectedEventId}
               imageStatus={imgUrl ? imageStatusByUrl[imgUrl] : 'READY'}
               onSelect={(eventId) => setSelectedEventId(eventId || null)}
               onOpen={onMarkerPress}
             />
           );
         })}
+
+        {currentLocation ? (
+          <CurrentLocationMarker
+            coordinate={currentLocation}
+            styles={styles}
+          />
+        ) : null}
       </MapView>
 
-      {!isLoading && mappableEvents.length === 0 && (
-        <View style={styles.emptyOverlay} testID="map-empty">
+      {currentLocation ? (
+        <TouchableOpacity
+          style={styles.locateButton}
+          onPress={handleLocateCurrentLocation}
+          accessibilityRole="button"
+          accessibilityLabel="Go to current location"
+          activeOpacity={0.85}
+          testID="current-location-button"
+        >
+          <Feather name="navigation" size={20} color={theme.primary} />
+        </TouchableOpacity>
+      ) : null}
+
+      {!isLoading && !hasMappableEvents && (
+        <View
+          style={[
+            styles.emptyOverlay,
+            currentLocation && styles.emptyOverlayWithLocateButton,
+          ]}
+          testID="map-empty"
+        >
           <Text style={styles.emptyTitle}>{t('home.map.emptyTitle')}</Text>
           <Text style={styles.emptySubtitle}>
             {t('home.map.emptySubtitle')}
@@ -537,6 +751,9 @@ function makeStyles(t: Theme) {
       shadowRadius: 8,
       elevation: 4,
     },
+    emptyOverlayWithLocateButton: {
+      bottom: 90,
+    },
     emptyTitle: {
       fontSize: 15,
       fontWeight: '700',
@@ -547,6 +764,24 @@ function makeStyles(t: Theme) {
       fontSize: 13,
       color: t.textSecondary,
       textAlign: 'center',
+    },
+    locateButton: {
+      position: 'absolute',
+      right: 18,
+      bottom: 28,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderColor: t.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.18,
+      shadowRadius: 8,
+      elevation: 6,
     },
     markerWrap: {
       alignItems: 'center',
@@ -588,24 +823,48 @@ function makeStyles(t: Theme) {
       borderLeftColor: 'transparent',
       borderRightColor: 'transparent',
     },
-    markerCountBadge: {
-      position: 'absolute',
-      top: -6,
-      right: -6,
-      minWidth: 19,
-      height: 19,
-      borderRadius: 10,
-      paddingHorizontal: 4,
-      backgroundColor: t.surface,
-      borderWidth: 1,
-      borderColor: t.border,
+    clusterBubble: {
+      minWidth: 54,
+      height: 54,
+      borderRadius: 27,
+      paddingHorizontal: 10,
+      backgroundColor: t.primary,
+      borderWidth: 3,
+      borderColor: t.surface,
       alignItems: 'center',
       justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 5 },
+      shadowOpacity: 0.24,
+      shadowRadius: 8,
+      elevation: 7,
     },
-    markerCountText: {
-      fontSize: 10,
+    clusterCount: {
+      fontSize: 22,
+      lineHeight: 26,
       fontWeight: '800',
-      color: t.text,
+      color: t.textOnPrimary,
+    },
+    currentLocationOuter: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: 'rgba(37, 99, 235, 0.18)',
+      borderWidth: 2,
+      borderColor: t.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 5,
+    },
+    currentLocationDot: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: '#2563EB',
     },
     callout: {
       width: 296,

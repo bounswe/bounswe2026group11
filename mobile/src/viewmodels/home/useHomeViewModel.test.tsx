@@ -250,6 +250,10 @@ describe('useHomeViewModel', () => {
       'mock-token',
     );
     expect(result.current.locationLabel).toBe('Moda, Kadikoy');
+    expect(result.current.currentLocation).toEqual({
+      lat: 40.9869,
+      lon: 29.0287,
+    });
   });
 
   it('uses the profile default location when live location is unavailable', async () => {
@@ -293,6 +297,7 @@ describe('useHomeViewModel', () => {
       'mock-token',
     );
     expect(result.current.locationLabel).toContain('Kadikoy');
+    expect(result.current.currentLocation).toBeNull();
   });
 
   it('keeps showing the resolved default location after silent refresh', async () => {
@@ -360,6 +365,10 @@ describe('useHomeViewModel', () => {
       'mock-token',
     );
     expect(result.current.locationLabel).toBe('Moda, Kadikoy');
+    expect(result.current.currentLocation).toEqual({
+      lat: 40.9869,
+      lon: 29.0287,
+    });
     expect(result.current.defaultLocationOption.subtitle).toContain(
       'Current location:',
     );

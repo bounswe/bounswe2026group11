@@ -351,6 +351,7 @@ export interface HomeViewModel {
   filterError: string | null;
   viewMode: HomeViewMode;
   activeLocation: { lat: number; lon: number };
+  currentLocation: { lat: number; lon: number } | null;
   toggleViewMode: () => void;
   updateSearchText: (value: string) => void;
   submitSearch: () => void;
@@ -400,6 +401,7 @@ export function useHomeViewModel(): HomeViewModel {
       : null,
   );
   const [defaultLocation, setDefaultLocation] = useState<LocationSuggestion | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<LocationSuggestion | null>(null);
   const [defaultLocationSource, setDefaultLocationSource] =
     useState<DefaultLocationSource>('FALLBACK');
   const [pendingLocation, setPendingLocation] = useState<LocationSuggestion | null>(null);
@@ -479,6 +481,7 @@ export function useHomeViewModel(): HomeViewModel {
     setIsResolvingDefaultLocation(true);
 
     if (!token) {
+      setCurrentLocation(null);
       setDefaultLocation(FALLBACK_LOCATION);
       setDefaultLocationSource('FALLBACK');
       syncSelectedLocationWithDefault(FALLBACK_LOCATION);
@@ -491,6 +494,7 @@ export function useHomeViewModel(): HomeViewModel {
       const liveLocation = await getCurrentLocationSuggestion();
 
       if (liveLocation) {
+        setCurrentLocation(liveLocation);
         setDefaultLocation(liveLocation);
         setDefaultLocationSource('LIVE');
         syncSelectedLocationWithDefault(liveLocation);
@@ -499,6 +503,8 @@ export function useHomeViewModel(): HomeViewModel {
     } catch {
       // Fall through to profile and fallback location resolution.
     }
+
+    setCurrentLocation(null);
 
     try {
       const profile = await getMyProfile(token);
@@ -1040,6 +1046,12 @@ export function useHomeViewModel(): HomeViewModel {
       lat: Number(effectiveLocation.lat),
       lon: Number(effectiveLocation.lon),
     },
+    currentLocation: currentLocation
+      ? {
+        lat: Number(currentLocation.lat),
+        lon: Number(currentLocation.lon),
+      }
+      : null,
     toggleViewMode,
     defaultLocationOption: {
       title: 'Use Default Location',

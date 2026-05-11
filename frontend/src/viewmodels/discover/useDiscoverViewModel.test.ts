@@ -39,7 +39,7 @@ describe('useDiscoverViewModel persistence', () => {
       JSON.stringify({
         filters: {
           q: 'jazz',
-          categoryId: 3,
+          categoryIds: [3, 4],
           sortBy: 'DISTANCE',
           radiusMeters: 10000,
           privacy: 'PROTECTED',
@@ -60,7 +60,7 @@ describe('useDiscoverViewModel persistence', () => {
     await waitFor(() => expect(mockDiscoverEvents).toHaveBeenCalled());
 
     expect(result.current.filters.q).toBe('jazz');
-    expect(result.current.filters.categoryId).toBe(3);
+    expect(result.current.filters.categoryIds).toEqual([3, 4]);
     expect(result.current.filters.sortBy).toBe('DISTANCE');
     expect(result.current.filters.radiusMeters).toBe(10000);
     expect(result.current.filters.privacy).toBe('PROTECTED');
@@ -70,7 +70,7 @@ describe('useDiscoverViewModel persistence', () => {
         lat: 40.9919,
         lon: 29.0278,
         q: 'jazz',
-        category_ids: '3',
+        category_ids: '3,4',
         sort_by: 'DISTANCE',
         radius_meters: 10000,
         privacy_levels: 'PROTECTED',
