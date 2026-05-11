@@ -309,7 +309,7 @@ export default function DiscoverPage() {
     vm.filters.startFrom !== '' ||
     vm.filters.startTo !== '' ||
     vm.filters.radiusMeters !== 50000 ||
-    vm.filters.categoryId !== null;
+    vm.filters.categoryIds.length > 0;
 
   useEffect(() => {
     if (!vm.isLocationModalOpen) return;
@@ -533,10 +533,16 @@ export default function DiscoverPage() {
     </div>
   );
 
-  const visibleCategories =
-    categoryChipsNeedExpand && !categoriesExpanded
-      ? vm.categories.slice(0, CATEGORY_COLLAPSED_COUNT)
-      : vm.categories;
+  let visibleCategories = vm.categories;
+  if (categoryChipsNeedExpand && !categoriesExpanded) {
+    const selectedIds = new Set(vm.filters.categoryIds);
+    const selected = vm.categories.filter((c) => selectedIds.has(c.id));
+    const unselected = vm.categories.filter((c) => !selectedIds.has(c.id));
+    visibleCategories = [...selected, ...unselected].slice(
+      0,
+      Math.max(CATEGORY_COLLAPSED_COUNT, selected.length)
+    );
+  }
 
   const categoriesBlock = vm.categories.length > 0 && (
     <div className="dc-category-block">
@@ -547,16 +553,34 @@ export default function DiscoverPage() {
         role="group"
         aria-label="Event categories"
       >
-        {visibleCategories.map((cat) => (
+        {visibleCategories.map((cat) => {
+          const isSelected = vm.filters.categoryIds.includes(cat.id);
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              className={`dc-category-chip ${isSelected ? 'selected' : ''}`}
+              onClick={() => vm.updateCategory(cat.id)}
+            >
+              {cat.name}
+              {isSelected && (
+                <span className="dc-category-chip-remove" aria-hidden="true" style={{ marginLeft: '4px' }}>
+                  ×
+                </span>
+              )}
+            </button>
+          );
+        })}
+        {vm.filters.categoryIds.length > 0 && (
           <button
-            key={cat.id}
             type="button"
-            className={`dc-category-chip ${vm.filters.categoryId === cat.id ? 'selected' : ''}`}
-            onClick={() => vm.updateCategory(cat.id)}
+            className="dc-category-chip"
+            style={{ fontWeight: 600 }}
+            onClick={() => vm.updateFilter('categoryIds', [])}
           >
-            {cat.name}
+            Clear categories
           </button>
-        ))}
+        )}
         {categoryChipsNeedExpand && (
           <button
             type="button"

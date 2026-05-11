@@ -54,7 +54,7 @@ export type PrivacyFilter = 'ALL' | 'PUBLIC' | 'PROTECTED';
 
 export interface DiscoverFilters {
   q: string;
-  categoryId: number | null;
+  categoryIds: number[];
   sortBy: DiscoverSortBy;
   radiusMeters: number;
   privacy: PrivacyFilter;
@@ -64,7 +64,7 @@ export interface DiscoverFilters {
 
 const INITIAL_FILTERS: DiscoverFilters = {
   q: '',
-  categoryId: null,
+  categoryIds: [],
   sortBy: 'START_TIME',
   radiusMeters: DEFAULT_RADIUS,
   privacy: 'ALL',
@@ -139,7 +139,7 @@ function readStoredDiscoverState(): StoredDiscoverState | null {
 
     const restoredFilters: DiscoverFilters = {
       q: typeof filters.q === 'string' ? filters.q : INITIAL_FILTERS.q,
-      categoryId: typeof filters.categoryId === 'number' ? filters.categoryId : null,
+      categoryIds: Array.isArray(filters.categoryIds) ? filters.categoryIds : [],
       sortBy: filters.sortBy === 'DISTANCE' ? 'DISTANCE' : 'START_TIME',
       radiusMeters:
         typeof filters.radiusMeters === 'number'
@@ -402,7 +402,9 @@ export function useDiscoverViewModel(token: string | null) {
         sort_by: filters.sortBy,
       };
       if (debouncedQ.trim()) params.q = debouncedQ.trim();
-      if (filters.categoryId) params.category_ids = String(filters.categoryId);
+      if (filters.categoryIds && filters.categoryIds.length > 0) {
+        params.category_ids = filters.categoryIds.join(',');
+      }
       if (filters.privacy !== 'ALL') params.privacy_levels = filters.privacy;
       if (filters.startFrom) params.start_from = new Date(filters.startFrom).toISOString();
       if (filters.startTo) params.start_to = new Date(filters.startTo).toISOString();
@@ -412,7 +414,7 @@ export function useDiscoverViewModel(token: string | null) {
     [
       selectedLocation,
       filters.sortBy,
-      filters.categoryId,
+      filters.categoryIds,
       filters.radiusMeters,
       filters.privacy,
       filters.startFrom,
@@ -483,11 +485,16 @@ export function useDiscoverViewModel(token: string | null) {
     [],
   );
 
-  const updateCategory = useCallback((categoryId: number | null) => {
-    setFilters((prev) => ({
-      ...prev,
-      categoryId: prev.categoryId === categoryId ? null : categoryId,
-    }));
+  const updateCategory = useCallback((categoryId: number) => {
+    setFilters((prev) => {
+      const isSelected = prev.categoryIds.includes(categoryId);
+      return {
+        ...prev,
+        categoryIds: isSelected
+          ? prev.categoryIds.filter((id) => id !== categoryId)
+          : [...prev.categoryIds, categoryId],
+      };
+    });
   }, []);
 
   const updateSort = useCallback((sortBy: DiscoverSortBy) => {
