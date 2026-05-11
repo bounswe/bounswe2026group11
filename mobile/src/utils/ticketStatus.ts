@@ -16,8 +16,8 @@ const TICKET_STATUS_COLORS: Record<TicketStatus, TicketStatusBadgeColors> = {
     textColor: '#D97706',
   },
   EXPIRED: {
-    backgroundColor: '#E2E8F0',
-    textColor: '#64748B',
+    backgroundColor: '#FEF3C7',
+    textColor: '#D97706',
   },
   USED: {
     backgroundColor: '#E2E8F0',
@@ -61,7 +61,7 @@ const QR_ACCESS_MESSAGES: Record<string, string> = {
   EVENT_NOT_ACTIVE: 'The event is not currently accepting ticket access.',
   EVENT_CANCELED: 'This event has been canceled, so tickets are disabled.',
   EVENT_COMPLETED: 'This event has already ended.',
-  EVENT_NOT_PROTECTED: 'This event type does not support mobile tickets.',
+  EVENT_NOT_PROTECTED: 'This event type does not currently support live ticket tokens.',
   PROXIMITY_REQUIRED: 'Move closer to the event location to reveal your live QR token.',
 };
 
@@ -71,6 +71,13 @@ export function getTicketStatusBadgeColors(status: TicketStatus): TicketStatusBa
 
 export function formatTicketStatusLabel(status: TicketStatus): string {
   return TICKET_STATUS_LABELS[status];
+}
+
+export function getAttendeeLabel(count?: number | null) {
+  if (count == null) {
+    return 'N/A';
+  }
+  return String(count);
 }
 
 export function getTicketScanRejectMessage(reason?: TicketRejectReason | null): string {

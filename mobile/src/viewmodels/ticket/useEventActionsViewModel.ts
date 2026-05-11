@@ -50,13 +50,27 @@ export function useEventActionsViewModel(eventId: string): EventActionsViewModel
     setErrorMessage(null);
 
     try {
-      const [eventDetail, ticketsResponse] = await Promise.all([
-        getEventDetail(eventId, token),
-        listMyTickets(token).catch(() => ({ items: [] })),
-      ]);
-
+      const eventDetail = await getEventDetail(eventId, token);
       setEvent(eventDetail);
-      setTicket(ticketsResponse?.items?.find((item) => item.event.id === eventId) ?? null);
+
+      const findTicket = (items: TicketListItem[]) => items.find((item) => item.event.id === eventId) ?? null;
+
+      let ticketsResponse = await listMyTickets(token).catch(() => ({ items: [] }));
+      let foundTicket = findTicket(ticketsResponse.items);
+
+      // RETRY LOGIC: If joined a PUBLIC event but ticket is not yet in the list, 
+      // the server might still be processing the async ticket creation.
+      // We retry up to 2 times with a 1s delay (3 attempts total).
+      if (!foundTicket && eventDetail.viewer_context.participation_status === 'JOINED' && eventDetail.privacy_level === 'PUBLIC') {
+        for (let i = 0; i < 2; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          ticketsResponse = await listMyTickets(token).catch(() => ({ items: [] }));
+          foundTicket = findTicket(ticketsResponse.items);
+          if (foundTicket) break;
+        }
+      }
+
+      setTicket(foundTicket);
     } catch (error) {
       setEvent(null);
       setTicket(null);

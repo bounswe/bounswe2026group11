@@ -3,9 +3,15 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -24,7 +30,6 @@ import BadgeList from '@/components/profile/BadgeList';
 import EquipmentList from '@/components/profile/EquipmentList';
 import ShowcaseImageGrid from '@/components/profile/ShowcaseImageGrid';
 import { EquipmentItem } from '@/models/profile';
-import { Modal, TextInput } from 'react-native';
 
 type ProfileEventTab = 'hosted' | 'attended';
 
@@ -287,7 +292,7 @@ export default function ProfileView() {
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <View>
+              <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={styles.sectionTitle}>Showcase</Text>
                 <Text style={styles.sectionSubtitle}>Moments, snapshots, and visual highlights shared on the profile</Text>
               </View>
@@ -534,8 +539,11 @@ export default function ProfileView() {
         animationType="fade"
         onRequestClose={() => setEquipmentModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <Pressable 
+          style={styles.modalOverlay} 
+          onPress={Keyboard.dismiss}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
             <Text style={styles.modalTitle}>
               {editingEquipment ? 'Edit Equipment' : 'Add Equipment'}
             </Text>
@@ -558,6 +566,7 @@ export default function ProfileView() {
               placeholderTextColor={theme.textMuted}
               multiline
               numberOfLines={3}
+              textAlignVertical="top"
             />
 
             <View style={styles.modalActions}>
@@ -573,14 +582,14 @@ export default function ProfileView() {
                 disabled={!eqName.trim() || vm.isActionLoading}
               >
                 {vm.isActionLoading ? (
-                  <ActivityIndicator size="small" color="#FFF" />
+                  <ActivityIndicator size="small" color={theme.textOnPrimary} />
                 ) : (
                   <Text style={styles.modalSaveText}>Save</Text>
                 )}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );
@@ -985,7 +994,7 @@ function makeStyles(t: Theme) {
       opacity: 0.5,
     },
     modalSaveText: {
-      color: '#FFF',
+      color: t.textOnPrimary,
       fontSize: 16,
       fontWeight: '700',
     },
