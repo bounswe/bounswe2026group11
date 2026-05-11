@@ -19,7 +19,15 @@ jest.mock('react-native', () => {
   const ReactLocal = require('react');
   return {
     ...actual,
-    Switch: ({ trackColor, onValueChange, value, accessibilityLabel, ...props }: any) =>
+    Switch: ({
+      trackColor,
+      onValueChange,
+      value,
+      accessibilityLabel,
+      thumbColor,
+      ios_backgroundColor,
+      ...props
+    }: any) =>
       ReactLocal.createElement('input', {
         type: 'checkbox',
         checked: value,
