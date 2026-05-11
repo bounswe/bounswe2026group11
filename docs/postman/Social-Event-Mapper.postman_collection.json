@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "35eb75ee-d1d6-4d66-8f3c-7e2563e98f3d",
+    "_postman_id": "56b6182b-a2e0-4485-beb1-e094a5b2cb0e",
     "name": "Social Event Mapper API",
     "description": "Generated from docs/openapi/*.yaml — run docs/postman/generate_from_openapi.py to refresh.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -83,6 +83,48 @@
           }
         },
         {
+          "name": "Deactivate a user account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/users/{{user_id}}/deactivate",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "users",
+                "{{user_id}}",
+                "deactivate"
+              ],
+              "variable": [
+                {
+                  "key": "user_id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `adminDeactivateUser`\n\nDeactivate a user account\n\nSets the account status to `deactivated`, revokes active sessions and push\ndevices, cancels hosted active/in-progress events, cancels active/pending\nnon-host participations and linked tickets, and cancels pending invitations\nand join requests involving the user. Repeating the request is idempotent."
+          }
+        },
+        {
           "name": "List events",
           "request": {
             "method": "GET",
@@ -138,6 +180,271 @@
               ]
             },
             "description": "operationId: `adminListEvents`\n\nList events"
+          }
+        },
+        {
+          "name": "Change event status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/events/{{event_id}}/status",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "events",
+                "{{event_id}}",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "event_id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `adminUpdateEventStatus`\n\nChange event status"
+          }
+        },
+        {
+          "name": "Cancel an event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/events/{{event_id}}/cancel",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "events",
+                "{{event_id}}",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "event_id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `adminCancelEvent`\n\nCancel an event\n\nCancels the event plus active/pending participations, linked tickets, pending invitations, and pending join requests in one application transaction."
+          }
+        },
+        {
+          "name": "List event reports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/event-reports",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "event-reports"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "report_category",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "event_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "reporter_user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "created_from",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "created_to",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListEventReports`\n\nList event reports"
+          }
+        },
+        {
+          "name": "Change event report moderation status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/event-reports/{{report_id}}/status",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "event-reports",
+                "{{report_id}}",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "report_id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `adminUpdateEventReportStatus`\n\nChange event report moderation status"
+          }
+        },
+        {
+          "name": "List event categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/categories",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "categories"
+              ]
+            },
+            "description": "operationId: `adminListCategories`\n\nList event categories"
+          }
+        },
+        {
+          "name": "Create event category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/categories",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "categories"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `adminCreateCategory`\n\nCreate event category"
+          }
+        },
+        {
+          "name": "Delete event category",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/categories/{{category_id}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "categories",
+                "{{category_id}}"
+              ],
+              "variable": [
+                {
+                  "key": "category_id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `adminDeleteCategory`\n\nDelete event category\n\nReturns `409 category_in_use` when any event still references the category."
           }
         },
         {
@@ -324,6 +631,536 @@
               ]
             },
             "description": "operationId: `adminListTickets`\n\nList tickets"
+          }
+        },
+        {
+          "name": "List invitations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/invitations",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "invitations"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "event_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "host_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "invited_user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListInvitations`\n\nList invitations"
+          }
+        },
+        {
+          "name": "Change invitation status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/invitations/{{invitation_id}}/status",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "invitations",
+                "{{invitation_id}}",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "invitation_id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `adminUpdateInvitationStatus`\n\nChange invitation status\n\nAdmins may cancel pending invitations. Non-pending rows return a conflict."
+          }
+        },
+        {
+          "name": "List join requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/join-requests",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "join-requests"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "event_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "host_user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListJoinRequests`\n\nList join requests"
+          }
+        },
+        {
+          "name": "Change join request status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/join-requests/{{join_request_id}}/status",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "join-requests",
+                "{{join_request_id}}",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "join_request_id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "operationId: `adminUpdateJoinRequestStatus`\n\nChange join request status\n\nAdmins may cancel or reject pending join requests. Non-pending rows return a conflict."
+          }
+        },
+        {
+          "name": "List discussion and review comments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/comments",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "kind",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "event_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListComments`\n\nList discussion and review comments"
+          }
+        },
+        {
+          "name": "Delete a comment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/comments/{{comment_id}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "comments",
+                "{{comment_id}}"
+              ],
+              "variable": [
+                {
+                  "key": "comment_id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `adminDeleteComment`\n\nDelete a comment\n\nHard-deletes the comment because the current schema has no comment soft-delete status."
+          }
+        },
+        {
+          "name": "List event ratings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/ratings/events",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "ratings",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "event_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListEventRatings`\n\nList event ratings"
+          }
+        },
+        {
+          "name": "Delete an event rating",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/ratings/events/{{rating_id}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "ratings",
+                "events",
+                "{{rating_id}}"
+              ],
+              "variable": [
+                {
+                  "key": "rating_id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `adminDeleteEventRating`\n\nDelete an event rating"
+          }
+        },
+        {
+          "name": "List participant ratings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/ratings/participants",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "ratings",
+                "participants"
+              ],
+              "query": [
+                {
+                  "key": "event_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "rater_user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "rated_user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListParticipantRatings`\n\nList participant ratings"
+          }
+        },
+        {
+          "name": "Delete a participant rating",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/ratings/participants/{{rating_id}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "ratings",
+                "participants",
+                "{{rating_id}}"
+              ],
+              "variable": [
+                {
+                  "key": "rating_id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `adminDeleteParticipantRating`\n\nDelete a participant rating"
+          }
+        },
+        {
+          "name": "List favorite events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/favorites/events",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "favorites",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "event_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListFavoriteEvents`\n\nList favorite events"
+          }
+        },
+        {
+          "name": "List favorite locations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/favorites/locations",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "favorites",
+                "locations"
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListFavoriteLocations`\n\nList favorite locations"
+          }
+        },
+        {
+          "name": "List user badges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/badges/users",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "badges",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListUserBadges`\n\nList user badges"
+          }
+        },
+        {
+          "name": "List push devices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/push-devices",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "push-devices"
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "active",
+                  "value": "true",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "operationId: `adminListPushDevices`\n\nList push devices"
+          }
+        },
+        {
+          "name": "Revoke a push device",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/admin/push-devices/{{device_id}}/revoke",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "push-devices",
+                "{{device_id}}",
+                "revoke"
+              ],
+              "variable": [
+                {
+                  "key": "device_id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "operationId: `adminRevokePushDevice`\n\nRevoke a push device"
           }
         },
         {
@@ -933,7 +1770,7 @@
                 }
               ]
             },
-            "description": "operationId: `getEventDetail`\n\nGet event detail\n\nReturns the full event-detail payload for the caller. Authentication is optional —\nboth unauthenticated and authenticated requests are accepted.\n\nVisibility rules:\n- `PUBLIC` and `PROTECTED` events are readable by any caller, authenticated or not.\n- `PRIVATE` events are readable only by the host, users with an `APPROVED`\n  participation, users with an `ACCEPTED` invitation, or users with a `PENDING`\n  invitation (so invited users can review the event before responding). Anonymous\n  callers cannot read `PRIVATE` events.\n- When a `PRIVATE` event is not readable by the caller, the API responds with\n  `404 event_not_found` to avoid leaking the event's existence.\n\nResponse notes:\n- `status` is returned exactly as stored on the event row; canceled and completed\n  events remain readable.\n- `host_score` returns the host's cached aggregate rating summary used by discovery cards.\n- `rating_window` describes the event-specific 7-day mutation window computed from `COALESCE(end_time, start_time)`.\n- `viewer_event_rating` returns the authenticated participant's current rating for the event, if one exists.\n- `viewer_context` is always present. For unauthenticated callers, `participation_status`\n  is `NONE` and `is_favorited` is `false`.\n- Responses are viewer-specific when a bearer token is supplied, so the endpoint returns\n  `Cache-Control: private, no-store` and `Vary: Authorization`.\n- Host management collections are no longer embedded in this response. Hosts should use\n  `GET /events/{id}/host-context`, `GET /events/{id}/participants`,\n  `GET /events/{id}/join-requests`, and `GET /events/{id}/invitations`."
+            "description": "operationId: `getEventDetail`\n\nGet event detail\n\nReturns the full event-detail payload for the caller. Authentication is optional —\nboth unauthenticated and authenticated requests are accepted.\n\nVisibility rules:\n- `PUBLIC` and `PROTECTED` events are readable by any caller, authenticated or not.\n- `PRIVATE` events are readable only by the host, users with an `APPROVED`\n  participation, users with an `ACCEPTED` invitation, or users with a `PENDING`\n  invitation (so invited users can review the event before responding). Anonymous\n  callers cannot read `PRIVATE` events.\n- When a `PRIVATE` event is not readable by the caller, the API responds with\n  `404 event_not_found` to avoid leaking the event's existence.\n\nResponse notes:\n- `status` is returned exactly as stored on the event row; canceled and completed\n  events remain readable.\n- `host_score` returns the host's cached aggregate rating summary used by discovery cards.\n- `rating_window` describes the event-specific 7-day mutation window computed from `COALESCE(end_time, start_time)`.\n- `viewer_event_rating` returns the authenticated participant's current rating for the event, if one exists.\n- `viewer_context` is always present. For unauthenticated callers, `participation_status`\n  is `null`, `join_request_status` is `null`, and `is_favorited` is `false`.\n- `viewer_context.participation_status` contains only real participation rows:\n  `APPROVED`, `PENDING`, `LEAVED`, `CANCELED`, or `null`. Pending join requests\n  are exposed separately as `viewer_context.join_request_status`.\n- When an accepted participant must reconfirm edited event details,\n  `viewer_context.needs_reconfirmation` is `true` and `viewer_context.event_diff`\n  compares the user's `last_confirmed_event_version` with the latest event version.\n- Responses are viewer-specific when a bearer token is supplied, so the endpoint returns\n  `Cache-Control: private, no-store` and `Vary: Authorization`.\n- Host management collections are no longer embedded in this response. Hosts should use\n  `GET /events/{id}/host-context`, `GET /events/{id}/participants`,\n  `GET /events/{id}/join-requests`, and `GET /events/{id}/invitations`."
           }
         },
         {
@@ -988,7 +1825,7 @@
                 }
               ]
             },
-            "description": "operationId: `reconfirmEventParticipation`\n\nReconfirm participation after event details changed\n\nAllows an authenticated participant with `PENDING` participation status to\nreconfirm attendance for the latest event details. On success the\nparticipation becomes `APPROVED`, `reconfirmed_at` and\n`last_confirmed_event_version` are updated, and protected/private event\ntickets are reactivated as `ACTIVE`."
+            "description": "operationId: `reconfirmEventParticipation`\n\nReconfirm participation after event details changed\n\nAllows an authenticated participant with `PENDING` participation status to\nreconfirm attendance for the latest event details. On success the\nparticipation becomes `APPROVED`, `reconfirmed_at` and\n`last_confirmed_event_version` are updated, and the participant's ticket,\nincluding an existing `PENDING` ticket created by an event edit, is\nreactivated as `ACTIVE`."
           }
         },
         {
@@ -1669,7 +2506,7 @@
                 }
               ]
             },
-            "description": "operationId: `joinEvent`\n\nJoin a public event\n\nDirectly joins a **PUBLIC** event. Creates an APPROVED participation record for the\nauthenticated user.\n\nRules:\n- The event must exist and have `privacy_level: PUBLIC`.\n- The authenticated user must not be the event host.\n- A user can only join the same event once; a second attempt returns `409`.\n- If the user previously left before `start_time`, the backend reactivates the same participation row as `APPROVED`.\n- If the user left at or after `start_time`, later direct join attempts return `409 already_participating`.\n- Calling this endpoint on a `PROTECTED` event returns `409 event_join_not_allowed`."
+            "description": "operationId: `joinEvent`\n\nJoin a public event\n\nDirectly joins a **PUBLIC** event. Creates an APPROVED participation record for the\nauthenticated user and provisions an `ACTIVE` ticket for event entry flows.\n\nRules:\n- The event must exist and have `privacy_level: PUBLIC`.\n- The authenticated user must not be the event host.\n- A user can only join the same event once; a second attempt returns `409`.\n- If the user previously left before `start_time`, the backend reactivates the same participation row as `APPROVED`.\n- If the user left at or after `start_time`, later direct join attempts return `409 already_participating`.\n- Calling this endpoint on a `PROTECTED` event returns `409 event_join_not_allowed`."
           }
         },
         {
@@ -1917,7 +2754,13 @@
                 {
                   "key": "category_ids",
                   "value": "",
-                  "description": "Optional comma-separated category ids. Matches events whose `category_id` is in the provided set.",
+                  "description": "Optional comma-separated category ids. Matches events whose `category_id` is in the provided set.\n\nFor backward compatibility with the legacy single-category contract, the `category_id` (singular, integer) query parameter is also accepted and treated as a one-element list. When both `category_ids` and `category_id` are present, `category_ids` takes precedence and the singular value is ignored. Non-integer values in either parameter return `400` with the offending field name in `error.details`.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "category_id",
+                  "value": "0",
+                  "description": "Legacy alias for a one-element `category_ids`. Prefer `category_ids` for new clients.",
                   "disabled": true
                 },
                 {
@@ -1976,7 +2819,7 @@
                 }
               ]
             },
-            "description": "operationId: `discoverEvents`\n\nDiscover nearby events\n\nReturns a cursor-paginated list of nearby discoverable events. Authentication is optional —\nboth unauthenticated and authenticated requests are accepted.\n\nDiscovery rules:\n- Only events with `status: ACTIVE` are returned.\n- Only events with `privacy_level: PUBLIC` or `PROTECTED` are returned. `PRIVATE` events\n  are never included in discovery results regardless of authentication state.\n- The caller must provide `lat` and `lon`; the server filters within a radius around that origin.\n- Text search (`q`) and structured filters can be combined in the same request.\n- `is_favorited` is resolved for the authenticated caller; unauthenticated callers always\n  receive `is_favorited: false`.\n\nSorting defaults:\n- If `q` is omitted and `sort_by` is omitted, sorting defaults to `START_TIME`.\n- If `q` is present and `sort_by` is omitted, sorting defaults to `RELEVANCE`.\n- `sort_by=RELEVANCE` is only valid when `q` is present.\n- When sorting by distance, `ROUTE` events use the first route point as their anchor location.\n\nPagination:\n- Uses opaque keyset cursors returned in `page_info.next_cursor`.\n- Reuse the same filters and sort order when requesting the next page."
+            "description": "operationId: `discoverEvents`\n\nDiscover nearby events\n\nReturns a cursor-paginated list of nearby discoverable events. Authentication is optional —\nboth unauthenticated and authenticated requests are accepted.\n\nDiscovery rules:\n- Only events with `status: ACTIVE` are returned.\n- Only events with `privacy_level: PUBLIC` or `PROTECTED` are returned. `PRIVATE` events\n  are never included in discovery results regardless of authentication state.\n- The caller must provide `lat` and `lon`; the server filters within a radius around that origin.\n- Text search (`q`) and structured filters can be combined in the same request.\n- `is_favorited` is resolved for the authenticated caller; unauthenticated callers always\n  receive `is_favorited: false`.\n\nEligibility filtering (issue #501):\n- **Anonymous callers** see only events with no `minimum_age` or `preferred_gender` restriction.\n  Events with any audience restriction are completely hidden until the caller authenticates.\n- **Authenticated callers** see events whose restrictions they satisfy (age computed from\n  `birth_date`; gender matched directly), AND — generously — events whose restriction is on a\n  dimension the viewer hasn't filled in (e.g. `minimum_age=21` with `birth_date IS NULL`). The\n  join attempt for those events will then return `400 profile_incomplete`, surfacing the gap to\n  the user instead of silently hiding the event.\n- Filtering happens in SQL before pagination, so cursors and page sizes remain consistent.\n\nSorting defaults:\n- If `q` is omitted and `sort_by` is omitted, sorting defaults to `START_TIME`.\n- If `q` is present and `sort_by` is omitted, sorting defaults to `RELEVANCE`.\n- `sort_by=RELEVANCE` is only valid when `q` is present.\n- When sorting by distance, `ROUTE` events use the first route point as their anchor location.\n\nPagination:\n- Uses opaque keyset cursors returned in `page_info.next_cursor`.\n- Reuse the same filters and sort order when requesting the next page."
           }
         },
         {
@@ -2481,6 +3324,7 @@
     },
     {
       "name": "Profile",
+      "description": "Localization: every error response and notification body honors the request's locale, resolved in this order: (1) `Accept-Language` header (q-weighted, region tags stripped), (2) the authenticated user's `locale` preference, (3) the default `en`. The `code` field on error envelopes is locale-stable; clients must switch on `code`, not on `message`. Notification rows persist text already rendered in the recipient's locale; switching `locale` afterwards does not retranslate historical notifications.",
       "item": [
         {
           "name": "Get current user's profile",
@@ -2532,6 +3376,238 @@
               }
             },
             "description": "Update current user's profile\n\nPartially updates the editable fields of the authenticated user's profile. Only the fields included in the request body are changed; omitted fields are left unchanged."
+          }
+        },
+        {
+          "name": "Get another user's public profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/users/{{user_id}}/profile",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{user_id}}",
+                "profile"
+              ],
+              "variable": [
+                {
+                  "key": "user_id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get another user's public profile\n\nReturns a public-safe profile projection for the requested user. This surface intentionally excludes private account fields such as email, phone number, default location, verification state, and account status."
+          }
+        },
+        {
+          "name": "List the authenticated user's equipment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/equipment",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "equipment"
+              ]
+            },
+            "description": "List the authenticated user's equipment\n\nReturns the caller's equipment items in reverse chronological order."
+          }
+        },
+        {
+          "name": "Create an equipment item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/equipment",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "equipment"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Create an equipment item\n\nCreates one equipment item for the authenticated user."
+          }
+        },
+        {
+          "name": "Update an equipment item",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/equipment/{{equipment_id}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "equipment",
+                "{{equipment_id}}"
+              ],
+              "variable": [
+                {
+                  "key": "equipment_id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Update an equipment item\n\nUpdates one equipment item owned by the authenticated user."
+          }
+        },
+        {
+          "name": "Delete an equipment item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/equipment/{{equipment_id}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "equipment",
+                "{{equipment_id}}"
+              ],
+              "variable": [
+                {
+                  "key": "equipment_id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Delete an equipment item\n\nDeletes one equipment item owned by the authenticated user."
+          }
+        },
+        {
+          "name": "Create direct-upload URLs for a showcase image",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/showcase-images/upload-url",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "showcase-images",
+                "upload-url"
+              ]
+            },
+            "description": "Create direct-upload URLs for a showcase image\n\nReuses the same two-step presigned upload flow as avatar uploads, but persists the confirmed image as a standalone showcase entry instead of replacing the profile avatar."
+          }
+        },
+        {
+          "name": "Confirm an uploaded showcase image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/showcase-images/confirm",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "showcase-images",
+                "confirm"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Confirm an uploaded showcase image\n\nConfirms a previously presigned showcase image upload and persists the resulting image as a user-owned showcase entry."
+          }
+        },
+        {
+          "name": "Delete a showcase image",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/showcase-images/{{showcase_image_id}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "showcase-images",
+                "{{showcase_image_id}}"
+              ],
+              "variable": [
+                {
+                  "key": "showcase_image_id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Delete a showcase image\n\nDeletes one showcase image owned by the authenticated user."
           }
         },
         {
@@ -2619,7 +3695,7 @@
           }
         },
         {
-          "name": "Get current private-event invitations",
+          "name": "Get the authenticated user's invitations",
           "request": {
             "method": "GET",
             "header": [],
@@ -2633,9 +3709,50 @@
                 "api",
                 "me",
                 "invitations"
+              ],
+              "query": [
+                {
+                  "key": "past_cursor",
+                  "value": "",
+                  "description": "Opaque pagination cursor for the past bucket. Echo back the `past.page_info.next_cursor` value from the previous response. Omit on the first page. Returns `validation_error` (400) when the cursor is malformed.",
+                  "disabled": true
+                },
+                {
+                  "key": "past_limit",
+                  "value": "25",
+                  "description": "Page size for the past bucket. Pending bucket ignores this parameter.",
+                  "disabled": true
+                }
               ]
             },
-            "description": "Get current private-event invitations\n\nReturns the authenticated user's current `PENDING` invitations for active private events."
+            "description": "Get the authenticated user's invitations\n\nReturns the authenticated user's invitations split into two buckets:\n\n- `pending`: actionable invitations — `status = PENDING`, `event.privacy_level = PRIVATE`, event status in `ACTIVE` or `IN_PROGRESS`. Ordered `created_at ASC, id ASC`. Always returned in full (unpaginated).\n- `past`: history of `DECLINED` and `EXPIRED` invitations for `PRIVATE` events, regardless of event status (so a declined invitation for a now-ended event is still visible). Ordered `updated_at DESC, id DESC`. Paginated via `past_cursor` / `past_limit`.\n\n`ACCEPTED` invitations are intentionally absent from `past` because the resulting participation is already visible via `GET /me/events/upcoming` and `/me/events/completed`. `CANCELED` invitations (host-revoked) are also absent so the recipient is not confronted with host-side decisions."
+          }
+        },
+        {
+          "name": "Get the latest state of a single received invitation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{base_host}}/api/me/invitations/{{invitation_id}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{base_host}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "invitations",
+                "{{invitation_id}}"
+              ],
+              "variable": [
+                {
+                  "key": "invitation_id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get the latest state of a single received invitation\n\nReturns the latest state of one invitation addressed to the authenticated user. Used by clients to refresh modal content opened from a (possibly stale) notification — the response can carry any status (`PENDING`, `ACCEPTED`, `DECLINED`, `EXPIRED`, `CANCELED`) so the client can render an appropriate banner before letting the user act.\n\nReturns `404` (`invitation_not_found`) when the invitation does not exist, when it is addressed to a different user, or when its event is not `PRIVATE` — the response shape is identical for all three so the API does not leak the existence of rows belonging to other users."
           }
         },
         {
@@ -2782,7 +3899,7 @@
     },
     {
       "name": "Tickets",
-      "description": "Ticket endpoints for protected-event mobile entry flows.\n\nQR display and QR scanning are product-supported only in the mobile app. QR\nstream and scan endpoints require `X-Client-Surface: MOBILE` in addition to\nbearer authentication.",
+      "description": "Ticket endpoints for mobile entry flows across public, protected, and private events.\n\nQR display and QR scanning are product-supported only in the mobile app. QR\nstream and scan endpoints require `X-Client-Surface: MOBILE` in addition to\nbearer authentication.",
       "item": [
         {
           "name": "List my tickets",
@@ -2870,7 +3987,7 @@
                 }
               ]
             },
-            "description": "operationId: `streamTicketQR`\n\nStream short-lived QR tokens\n\nOpens a Server-Sent Events stream and emits an initial `qr_token`, then a\nrefreshed token every 10 seconds. The backend validates ticket ownership,\nACTIVE ticket status, APPROVED participation, ACTIVE/IN_PROGRESS protected\nevent status, ticket business expiry, and 200-meter proximity before issuing\neach token."
+            "description": "operationId: `streamTicketQR`\n\nStream short-lived QR tokens\n\nOpens a Server-Sent Events stream and emits an initial `qr_token`, then a\nrefreshed token every 10 seconds. The backend validates ticket ownership,\nACTIVE ticket status, APPROVED participation, ACTIVE/IN_PROGRESS\nevent status, ticket business expiry, and 200-meter proximity before issuing\neach token."
           }
         },
         {
