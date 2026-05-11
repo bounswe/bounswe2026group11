@@ -1,3 +1,4 @@
+import { RatingWithCount } from '@/components/RatingWithCount';
 import type { ProfileEquipmentItem, PublicProfile, ShowcaseImageItem } from '@/models/profile';
 
 function getProfileInitial(profile: Pick<PublicProfile, 'display_name' | 'username'>): string {
@@ -21,6 +22,8 @@ export function ProfilePublicHero({
   >;
   eyebrow?: string;
 }) {
+  const totalRatings = profile.host_rating_count + profile.participant_rating_count;
+
   return (
     <section className="profile-public-hero">
       <div className="profile-public-avatar" aria-hidden={!profile.avatar_url}>
@@ -41,9 +44,11 @@ export function ProfilePublicHero({
       </div>
 
       <div className="profile-public-rating-card" aria-label="Profile rating">
-        <span className="profile-public-rating-value">
-          {profile.final_score != null ? `★ ${profile.final_score.toFixed(1)}` : 'New'}
-        </span>
+        <RatingWithCount
+          score={profile.final_score}
+          count={totalRatings}
+          className="profile-public-rating-value"
+        />
         <span className="profile-public-rating-summary">{formatRatingSummary(profile)}</span>
         <span className="profile-public-rating-breakdown">
           Host: {profile.host_rating_count} · Participant: {profile.participant_rating_count}

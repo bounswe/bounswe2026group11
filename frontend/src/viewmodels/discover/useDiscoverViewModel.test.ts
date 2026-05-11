@@ -45,6 +45,8 @@ describe('useDiscoverViewModel persistence', () => {
           privacy: 'PROTECTED',
           startFrom: '2026-05-10',
           startTo: '',
+          childFriendly: true,
+          familyOriented: true,
         },
         debouncedQ: 'jazz',
         selectedLocation: {
@@ -64,6 +66,8 @@ describe('useDiscoverViewModel persistence', () => {
     expect(result.current.filters.sortBy).toBe('DISTANCE');
     expect(result.current.filters.radiusMeters).toBe(10000);
     expect(result.current.filters.privacy).toBe('PROTECTED');
+    expect(result.current.filters.childFriendly).toBe(true);
+    expect(result.current.filters.familyOriented).toBe(true);
     expect(result.current.mapCenter).toEqual({ lat: 40.9919, lon: 29.0278 });
     expect(mockDiscoverEvents).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -75,6 +79,8 @@ describe('useDiscoverViewModel persistence', () => {
         radius_meters: 10000,
         privacy_levels: 'PROTECTED',
         start_from: new Date('2026-05-10').toISOString(),
+        child_friendly: true,
+        family_oriented: true,
       }),
       null,
     );

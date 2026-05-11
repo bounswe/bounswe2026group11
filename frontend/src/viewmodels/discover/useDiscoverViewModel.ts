@@ -60,6 +60,8 @@ export interface DiscoverFilters {
   privacy: PrivacyFilter;
   startFrom: string;
   startTo: string;
+  childFriendly: boolean;
+  familyOriented: boolean;
 }
 
 const INITIAL_FILTERS: DiscoverFilters = {
@@ -70,6 +72,8 @@ const INITIAL_FILTERS: DiscoverFilters = {
   privacy: 'ALL',
   startFrom: '',
   startTo: '',
+  childFriendly: false,
+  familyOriented: false,
 };
 
 interface StoredDiscoverState {
@@ -151,6 +155,14 @@ function readStoredDiscoverState(): StoredDiscoverState | null {
           : INITIAL_FILTERS.privacy,
       startFrom: typeof filters.startFrom === 'string' ? filters.startFrom : '',
       startTo: typeof filters.startTo === 'string' ? filters.startTo : '',
+      childFriendly:
+        typeof filters.childFriendly === 'boolean'
+          ? filters.childFriendly
+          : INITIAL_FILTERS.childFriendly,
+      familyOriented:
+        typeof filters.familyOriented === 'boolean'
+          ? filters.familyOriented
+          : INITIAL_FILTERS.familyOriented,
     };
 
     return {
@@ -408,6 +420,8 @@ export function useDiscoverViewModel(token: string | null) {
       if (filters.privacy !== 'ALL') params.privacy_levels = filters.privacy;
       if (filters.startFrom) params.start_from = new Date(filters.startFrom).toISOString();
       if (filters.startTo) params.start_to = new Date(filters.startTo).toISOString();
+      if (filters.childFriendly) params.child_friendly = true;
+      if (filters.familyOriented) params.family_oriented = true;
       if (cursor) params.cursor = cursor;
       return params;
     },
@@ -419,6 +433,8 @@ export function useDiscoverViewModel(token: string | null) {
       filters.privacy,
       filters.startFrom,
       filters.startTo,
+      filters.childFriendly,
+      filters.familyOriented,
       debouncedQ,
     ],
   );

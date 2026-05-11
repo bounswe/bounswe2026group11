@@ -628,6 +628,38 @@ function CreateEventForm() {
           )}
         </div>
 
+        <fieldset className="ce-constraints-section ce-audience-section">
+          <legend className="field-label">
+            Audience Attributes <span className="optional">(optional)</span>
+          </legend>
+          <div className="ce-audience-grid">
+            <label className={`ce-audience-toggle ${vm.form.childFriendly ? 'selected' : ''}`}>
+              <input
+                type="checkbox"
+                checked={vm.form.childFriendly}
+                onChange={(e) => vm.updateField('childFriendly', e.target.checked)}
+                disabled={busy}
+              />
+              <span className="ce-audience-toggle-text">
+                <span className="ce-audience-toggle-title">Child-friendly</span>
+                <span className="ce-audience-toggle-copy">Suitable for children</span>
+              </span>
+            </label>
+            <label className={`ce-audience-toggle ${vm.form.familyOriented ? 'selected' : ''}`}>
+              <input
+                type="checkbox"
+                checked={vm.form.familyOriented}
+                onChange={(e) => vm.updateField('familyOriented', e.target.checked)}
+                disabled={busy}
+              />
+              <span className="ce-audience-toggle-text">
+                <span className="ce-audience-toggle-title">Family-oriented</span>
+                <span className="ce-audience-toggle-copy">Built for families</span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
         {/* Participation Constraints */}
         <fieldset className="ce-constraints-section">
           <legend className="field-label">
