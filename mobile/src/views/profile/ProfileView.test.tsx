@@ -263,7 +263,7 @@ describe('ProfileView', () => {
 
     render(<ProfileView />);
 
-    fireEvent.click(screen.getByLabelText('Add equipment'));
+    fireEvent.click(screen.getByLabelText('Add Equipment'));
     fireEvent.click(screen.getByTestId('equipment-modal-dismiss-layer'));
 
     expect(Keyboard.dismiss).toHaveBeenCalled();
