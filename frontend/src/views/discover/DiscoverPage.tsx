@@ -9,6 +9,7 @@ import {
 } from '@/viewmodels/discover/useDiscoverViewModel';
 import type { DiscoverEventItem, DiscoverSortBy } from '@/models/event';
 import { EventCoverImage } from '@/components/EventCoverImage';
+import { RatingWithCount } from '@/components/RatingWithCount';
 import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
 import DiscoverMapView from './DiscoverMapView';
@@ -239,11 +240,11 @@ function EventCard({ event }: { event: DiscoverEventItem }) {
           <span className="dc-card-participants">
             {event.approved_participant_count} participant{event.approved_participant_count !== 1 ? 's' : ''}
           </span>
-          {event.host_score.final_score != null && (
-            <span className="dc-card-score">
-              {'★'} {event.host_score.final_score.toFixed(1)}
-            </span>
-          )}
+          <RatingWithCount
+            score={event.host_score.final_score}
+            count={event.host_score.hosted_event_rating_count}
+            className="dc-card-score"
+          />
         </div>
       </div>
     </Link>

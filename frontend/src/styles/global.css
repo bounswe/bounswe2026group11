@@ -86,6 +86,10 @@ body {
   border: 0;
 }
 
+.rating-with-count {
+  white-space: nowrap;
+}
+
 :root[data-theme='dark'] input,
 :root[data-theme='dark'] textarea,
 :root[data-theme='dark'] select {
