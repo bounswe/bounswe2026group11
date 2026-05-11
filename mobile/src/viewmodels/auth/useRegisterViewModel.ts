@@ -17,7 +17,7 @@ import {
 
 export type RegisterStep = 'details' | 'otp';
 
-export type Gender = 'male' | 'female' | 'other' | 'prefer_not_to_say' | '';
+export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY' | '';
 
 export interface RegisterFormData {
   email: string;
@@ -35,6 +35,7 @@ export interface RegisterFormErrors {
   username?: string | null;
   password?: string | null;
   phone_number?: string | null;
+  gender?: string | null;
   birth_date?: string | null;
 }
 
@@ -65,6 +66,15 @@ const INITIAL_FORM_DATA: RegisterFormData = {
 
 const OTP_ERROR_CODES = new Set(['invalid_otp', 'otp_attempts_exceeded']);
 
+function validateRequiredGender(gender: Gender): string | null {
+  return gender ? null : 'Gender is required.';
+}
+
+function validateRequiredBirthDate(date: string): string | null {
+  if (!date.trim()) return 'Birth date is required.';
+  return validateBirthDate(date);
+}
+
 export function useRegisterViewModel(): RegisterViewModel {
   const [step, setStep] = useState<RegisterStep>('details');
   const [formData, setFormData] = useState<RegisterFormData>(INITIAL_FORM_DATA);
@@ -87,7 +97,8 @@ export function useRegisterViewModel(): RegisterViewModel {
       username: validateUsername(formData.username),
       password: validatePassword(formData.password),
       phone_number: validatePhoneNumber(formData.phone_number),
-      birth_date: validateBirthDate(formData.birth_date),
+      gender: validateRequiredGender(formData.gender),
+      birth_date: validateRequiredBirthDate(formData.birth_date),
     };
 
     const hasErrors = Object.values(newErrors).some((e) => e != null);

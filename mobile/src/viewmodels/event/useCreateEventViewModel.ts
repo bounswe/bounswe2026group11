@@ -124,6 +124,8 @@ export interface CreateEventFormData {
   capacityInput: string;
   otherConstraintInput: string;
   invitationMessage: string;
+  childFriendly: boolean;
+  familyOriented: boolean;
 }
 
 export interface CreateEventFormErrors {
@@ -266,6 +268,8 @@ export const INITIAL_FORM_DATA: CreateEventFormData = {
   capacityInput: '',
   otherConstraintInput: '',
   invitationMessage: '',
+  childFriendly: false,
+  familyOriented: false,
 };
 
 export function formatTimeInput(current: string, previous: string): string {
@@ -1277,6 +1281,8 @@ export function useCreateEventViewModel(): CreateEventViewModel {
           preferred_gender: preferredGender,
           minimum_age: minimumAge,
           capacity,
+          child_friendly: formData.childFriendly || undefined,
+          family_oriented: formData.familyOriented || undefined,
         };
 
         const result = await createEvent(request, token);

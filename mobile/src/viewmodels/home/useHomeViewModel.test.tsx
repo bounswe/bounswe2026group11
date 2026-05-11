@@ -938,6 +938,8 @@ describe('useHomeViewModel', () => {
         endDate: '',
         radiusKm: 10,
         sortBy: 'START_TIME',
+        childFriendly: false,
+        familyOriented: false,
       });
 
       expect(mockListEvents.mock.calls.length).toBe(initialCallCount);

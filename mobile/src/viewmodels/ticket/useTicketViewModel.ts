@@ -3,10 +3,11 @@ import * as ExpoLocation from 'expo-location';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiError } from '@/services/api';
 import { getEventDetail } from '@/services/eventService';
-import { getMyTicket, getTicketQrTokenOnce, getTicketQrTokenStream } from '@/services/ticketService';
+import { getMyTicket, getTicketQrTokenOnce } from '@/services/ticketService';
 import type { EventDetail } from '@/models/event';
 import type { TicketDetailResponse, TicketQrToken } from '@/models/ticket';
 import { getTicketQrAccessMessage } from '@/utils/ticketStatus';
+import i18n from '@/i18n';
 
 // GLOBAL REGISTRY: Keep track of active stream controllers across the whole app
 // to prevent "ghost" connections when navigating back and forth.
@@ -15,311 +16,178 @@ const activeStreams = new Map<string, AbortController>();
 export interface TicketViewModel {
   ticket: TicketDetailResponse | null;
   eventImageUrl: string | null;
-  qrToken: TicketQrToken | null;
   isLoading: boolean;
-  isRefreshingQr: boolean;
-  errorMessage: string | null;
+  apiError: string | null;
+  qrToken: TicketQrToken | null;
   qrMessage: string | null;
-  canRetryQr: boolean;
-  reload: () => Promise<void>;
-  refreshQr: () => Promise<void>;
-}
-
-function getLoadErrorMessage(error: unknown): string {
-  if (error instanceof ApiError && error.status === 401) {
-    return 'You must be logged in to view this ticket.';
-  }
-
-  if (error instanceof ApiError) {
-    return error.message;
-  }
-
-  return 'Failed to load the ticket. Please try again.';
-}
-
-function getInitialQrMessage(ticketDetail: TicketDetailResponse): string | null {
-  if (ticketDetail.ticket.status === 'USED') {
-    return null;
-  }
-
-  if (!ticketDetail.qr_access.eligible_now) {
-    return getTicketQrAccessMessage(ticketDetail.qr_access.reason);
-  }
-
-  return null;
-}
-
-async function getCurrentCoordinates() {
-  const permission = await ExpoLocation.requestForegroundPermissionsAsync();
-  if (permission.status !== ExpoLocation.PermissionStatus.GRANTED) {
-    throw new Error('Location permission is required to reveal this live ticket QR.');
-  }
-
-  let position;
-  try {
-    position = await ExpoLocation.getCurrentPositionAsync({
-      accuracy: ExpoLocation.Accuracy.High,
-    });
-  } catch (error) {
-    // Fallback to balanced if high accuracy fails
-    position = await ExpoLocation.getCurrentPositionAsync({
-      accuracy: ExpoLocation.Accuracy.Balanced,
-    });
-  }
-
-  return {
-    lat: position.coords.latitude,
-    lon: position.coords.longitude,
-  };
+  isActionLoading: boolean;
+  secondsRemaining: number | null;
+  refresh: () => Promise<void>;
+  resetError: () => void;
 }
 
 export function useTicketViewModel(ticketId: string): TicketViewModel {
-  const { token } = useAuth();
+  const { user, token } = useAuth();
   const [ticket, setTicket] = useState<TicketDetailResponse | null>(null);
-  const [eventImageUrl, setEventImageUrl] = useState<string | null>(null);
-  const [qrToken, setQrToken] = useState<TicketQrToken | null>(null);
+  const [event, setEvent] = useState<EventDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshingQr, setIsRefreshingQr] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [qrToken, setQrToken] = useState<TicketQrToken | null>(null);
   const [qrMessage, setQrMessage] = useState<string | null>(null);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
 
-  const loadTicket = useCallback(async () => {
-    if (!token) {
-      setTicket(null);
-      setEventImageUrl(null);
-      setQrToken(null);
-      setErrorMessage('You must be logged in to view this ticket.');
-      setIsLoading(false);
-      return;
-    }
+  const pollingRef = useRef<boolean>(false);
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const fetchTicketAndEvent = useCallback(async () => {
+    if (!token) return;
     setIsLoading(true);
-    setErrorMessage(null);
+    setApiError(null);
 
     try {
-      // Fetch ticket details first
-      const ticketDetail = await getMyTicket(ticketId, token);
-      setTicket(ticketDetail);
+      const ticketData = await getMyTicket(ticketId, token);
+      setTicket(ticketData);
 
-      setQrMessage(getInitialQrMessage(ticketDetail));
-      
-      // OPTIMIZATION: Hide loading spinner as soon as we have ticket data
-      // The image can continue loading in the background
-      setIsLoading(false);
-
-      try {
-        const eventDetail = await getEventDetail(ticketDetail.event.id, token);
-        setEventImageUrl(eventDetail?.image_url ?? null);
-      } catch (e) {
-        setEventImageUrl(null);
+      if (!ticketData.qr_access.eligible_now) {
+        setQrMessage(getTicketQrAccessMessage(ticketData.qr_access.reason));
       }
-    } catch (error) {
-      setTicket(null);
-      setEventImageUrl(null);
-      setQrToken(null);
-      setErrorMessage(getLoadErrorMessage(error));
-      setIsLoading(false); // Make sure to stop loading on error too
+
+      const eventData = await getEventDetail(ticketData.event.id, token);
+      setEvent(eventData);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setApiError(err.message);
+      } else {
+        setApiError(i18n.t('tickets.detail.errors.unexpected'));
+      }
+    } finally {
+      setIsLoading(false);
     }
   }, [ticketId, token]);
 
-  const isRefreshingRef = useRef(false);
-  const ticketRef = useRef(ticket);
-  const tokenRef = useRef(token);
+  const resetError = useCallback(() => setApiError(null), []);
 
-  useEffect(() => {
-    ticketRef.current = ticket;
-    tokenRef.current = token;
-  }, [ticket, token]);
-
-  const refreshQr = useCallback(async () => {
-    let currentTicket = ticketRef.current;
-    const currentToken = tokenRef.current;
-
-    if (!currentToken || !currentTicket || isRefreshingRef.current) return;
-
-    if (!currentTicket.qr_access.eligible_now) {
-      try {
-        const refreshedTicket = await getMyTicket(currentTicket.ticket.id, currentToken);
-        currentTicket = refreshedTicket;
-        ticketRef.current = refreshedTicket;
-        setTicket(refreshedTicket);
-        setQrMessage(getInitialQrMessage(refreshedTicket));
-      } catch (error) {
-        setQrToken(null);
-        setQrMessage(getLoadErrorMessage(error));
-        return;
-      }
+  const stopPolling = useCallback(() => {
+    pollingRef.current = false;
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
     }
-
-    if (!currentTicket.qr_access.eligible_now) {
-      setQrToken(null);
-      setQrMessage(getTicketQrAccessMessage(currentTicket.qr_access.reason));
-      return;
-    }
-
-    isRefreshingRef.current = true;
-    setIsRefreshingQr(true);
-    setQrMessage(null);
-
-    try {
-      const coords = await getCurrentCoordinates();
-      const tokenPayload = await getTicketQrTokenOnce(currentTicket.ticket.id, coords, currentToken);
-      setQrToken(tokenPayload);
-    } catch (error) {
-      setQrToken(null);
-      setQrMessage(
-        error instanceof Error
-          ? error.message
-          : 'Failed to refresh the live QR token.',
-      );
-    } finally {
-      isRefreshingRef.current = false;
-      setIsRefreshingQr(false);
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
     }
   }, []);
 
-  useEffect(() => {
-    void loadTicket();
-  }, [loadTicket]);
+  const startPolling = useCallback(async () => {
+    if (!token || !ticketId || pollingRef.current) return;
 
-  // Handle the streaming QR token
-  useEffect(() => {
-    // We only want to start the stream if:
-    // 1. Ticket is ACTIVE
-    // 2. User is ELIGIBLE (proximity etc. checks passed on backend)
-    // 3. Auth token exists
-    const canStream =
-      ticket?.ticket.id &&
-      ticket.ticket.status === 'ACTIVE' &&
-      ticket.qr_access.eligible_now &&
-      token;
-
-    if (!canStream) {
-      return;
-    }
-
-    const currentTicketId = ticket.ticket.id;
-    let active = true;
-
-    // KILL any existing stream for this specific ticket ID before starting a new one
-    const existing = activeStreams.get(currentTicketId);
-    if (existing) {
-      existing.abort();
-      activeStreams.delete(currentTicketId);
-    }
-
+    pollingRef.current = true;
     const abortController = new AbortController();
-    activeStreams.set(currentTicketId, abortController);
+    activeStreams.set(ticketId, abortController);
 
-    const startStream = async () => {
-      const streamId = Math.random().toString(36).substring(7);
+    const poll = async () => {
+      if (!pollingRef.current) return;
 
       try {
-        // [P1 FIX] Check permission status BEFORE starting the stream loop.
-        // We use getPermissions instead of requestPermissions to avoid "surprise" popups on mount.
-        const permission = await ExpoLocation.getForegroundPermissionsAsync();
-        if (permission.status !== ExpoLocation.PermissionStatus.GRANTED) {
-          // If permission is not granted, we don't start the auto-stream.
-          // The UI will show the "locked" state and the user can manually "Refresh"
-          // which WILL trigger the requestPermission popup.
+        let location = null;
+        try {
+          location = await ExpoLocation.getCurrentPositionAsync({
+            accuracy: ExpoLocation.Accuracy.Balanced,
+          });
+        } catch {
+          setQrMessage(i18n.t('tickets.qr.enableLocationServices'));
+          pollingTimeoutRef.current = setTimeout(poll, 10000);
           return;
         }
 
-        const coords = await getCurrentCoordinates();
-
-        if (!active || abortController.signal.aborted) return;
-
-        const stream = getTicketQrTokenStream(
-          currentTicketId,
-          coords,
-          token,
-          abortController.signal,
-          streamId,
+        const tokenData = await getTicketQrTokenOnce(
+          ticketId,
+          { lat: location.coords.latitude, lon: location.coords.longitude },
+          token
         );
 
-        for await (const tokenData of stream) {
-          if (!active || abortController.signal.aborted) break;
-          setQrToken(tokenData);
-          setQrMessage(null);
-        }
+        setQrMessage(null);
+        setQrToken(tokenData);
 
-        // Stream ended normally — likely means the ticket was scanned/used.
-        // Reload ticket data so participant sees the updated status immediately.
-        if (active && !abortController.signal.aborted) {
-          try {
-            const updatedTicket = await getMyTicket(currentTicketId, token);
-            setTicket(updatedTicket);
-          } catch {
-            // Silently ignore — the user can always pull-to-refresh
-          }
-        }
-      } catch (err) {
-        if (active && !abortController.signal.aborted && err instanceof Error && err.name !== 'AbortError') {
-          // Stream closed — always reload the ticket to check if it was used.
-          try {
-            const updatedTicket = await getMyTicket(currentTicketId, token);
-            setTicket(updatedTicket);
+        // Setup countdown
+        const expiresAt = new Date(tokenData.expires_at).getTime();
+        const updateCountdown = () => {
+          const now = Date.now();
+          const diff = Math.max(0, Math.floor((expiresAt - now) / 1000));
+          setSecondsRemaining(diff);
 
-            // If the ticket was used, clear the QR and stop retrying.
-            if (updatedTicket.ticket.status === 'USED') {
-              setQrToken(null);
-              setQrMessage(null);
-              return;
+          if (diff <= 0) {
+            if (countdownIntervalRef.current) {
+              clearInterval(countdownIntervalRef.current);
             }
-          } catch {
-            // Ignore reload errors — fall through to normal error handling
           }
+        };
 
-          const message = err.message;
-          setQrMessage(message);
-
-          // Permanent errors (Proximity, Privacy, etc.) usually include a specific status or message.
-          // If it's a permanent error, we stop the aggressive retry loop.
-          const isPermanentError =
-            message.includes('Status 403') ||
-            message.includes('Status 409') ||
-            message.includes('near the event location') ||
-            message.includes('support mobile tickets') ||
-            message.includes('ACTIVE tickets');
-
-          if (isPermanentError) {
-            return;
-          }
-
-          // For actual network interruptions, we still retry but with a backoff
-          setTimeout(() => {
-            if (active && !abortController.signal.aborted) void startStream();
-          }, 15000);
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
         }
+        updateCountdown();
+        countdownIntervalRef.current = setInterval(updateCountdown, 1000);
+
+        // Schedule next poll - backend generates new tokens every 10s usually
+        // We poll slightly before expiration or every 10s.
+        pollingTimeoutRef.current = setTimeout(poll, 10000);
+      } catch (err) {
+        if (err instanceof Error && err.message === 'AbortError') return;
+
+        const message = err instanceof ApiError ? err.message : i18n.t('tickets.qr.connectionLost');
+        setQrMessage(getTicketQrAccessMessage(message));
+
+        // Retry later on error
+        pollingTimeoutRef.current = setTimeout(poll, 15000);
       }
     };
 
-    void startStream();
+    void poll();
+  }, [ticketId, token]);
 
+  useEffect(() => {
+    void fetchTicketAndEvent();
     return () => {
-      active = false;
-      abortController.abort();
-      if (activeStreams.get(currentTicketId) === abortController) {
-        activeStreams.delete(currentTicketId);
+      stopPolling();
+      const controller = activeStreams.get(ticketId);
+      if (controller) {
+        controller.abort();
+        activeStreams.delete(ticketId);
       }
     };
-  }, [ticket?.ticket.id, ticket?.ticket.status, ticket?.qr_access.eligible_now, token]);
+  }, [fetchTicketAndEvent, stopPolling, ticketId]);
 
-  const canRetryQr = useMemo(
-    () => ticket?.ticket.status === 'ACTIVE',
-    [ticket?.ticket.status],
-  );
+  useEffect(() => {
+    if (ticket && ticket.ticket.status === 'ACTIVE' && ticket.qr_access.eligible_now) {
+      void startPolling();
+    } else {
+      stopPolling();
+    }
+  }, [ticket, startPolling, stopPolling]);
+
+  const refresh = useCallback(async () => {
+    stopPolling();
+    setTicket(null);
+    setQrToken(null);
+    setQrMessage(null);
+    setSecondsRemaining(null);
+    await fetchTicketAndEvent();
+  }, [fetchTicketAndEvent, stopPolling]);
 
   return {
     ticket,
-    eventImageUrl,
-    qrToken,
+    eventImageUrl: event?.image_url ?? null,
     isLoading,
-    isRefreshingQr,
-    errorMessage,
+    apiError,
+    qrToken,
     qrMessage,
-    canRetryQr,
-    reload: loadTicket,
-    refreshQr,
+    isActionLoading,
+    secondsRemaining,
+    refresh,
+    resetError,
   };
 }

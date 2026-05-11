@@ -37,6 +37,28 @@ afterEach(() => {
 });
 
 describe('AppShell admin entry', () => {
+  it('shows non-admin header actions as locked when unauthenticated', () => {
+    mockUseAuth.mockReturnValue({
+      token: null,
+      refreshToken: null,
+      username: null,
+      role: null,
+      avatarUrl: null,
+      displayName: null,
+      clearAuth: vi.fn(),
+    });
+
+    renderShell();
+
+    for (const name of ['My Events', 'Favorites', 'My Tickets', 'Invitations', 'Notifications', '+ Create Event']) {
+      const link = screen.getByRole('link', { name });
+      expect(link.getAttribute('aria-disabled')).toBe('true');
+      expect(link.getAttribute('title')).toBe('You must sign in');
+      expect(link.className).toContain('locked');
+    }
+    expect(screen.queryByRole('link', { name: 'Admin Panel' })).toBeNull();
+  });
+
   it('shows Admin Panel for authenticated admins', () => {
     mockUseAuth.mockReturnValue({
       token: 'token',

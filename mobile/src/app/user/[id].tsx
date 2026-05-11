@@ -11,6 +11,7 @@ import {
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { usePublicProfileViewModel } from '@/viewmodels/profile/usePublicProfileViewModel';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
@@ -22,6 +23,7 @@ export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const vm = usePublicProfileViewModel(id);
   const { theme, isDark } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   if (vm.isLoading) {
@@ -29,7 +31,7 @@ export default function UserProfileScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.text} />
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          <Text style={styles.loadingText}>{t('publicProfile.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -40,9 +42,9 @@ export default function UserProfileScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color={theme.errorText} />
-          <Text style={styles.errorText}>{vm.error || 'Profile not found'}</Text>
+          <Text style={styles.errorText}>{vm.error || t('publicProfile.profileNotFound')}</Text>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>Go Back</Text>
+            <Text style={styles.backButtonText}>{t('common.back')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -100,10 +102,15 @@ export default function UserProfileScreen() {
             </View>
             <View style={styles.ratingRight}>
               <Text style={styles.ratingCount}>
-                {profile.host_rating_count + profile.participant_rating_count} ratings collected
+                {t('publicProfile.ratingsCollected', {
+                  count: profile.host_rating_count + profile.participant_rating_count,
+                })}
               </Text>
               <Text style={styles.ratingBreakdown}>
-                Host: {profile.host_rating_count} · Participant: {profile.participant_rating_count}
+                {t('publicProfile.ratingBreakdown', {
+                  host: profile.host_rating_count,
+                  participant: profile.participant_rating_count,
+                })}
               </Text>
             </View>
           </View>
@@ -112,11 +119,11 @@ export default function UserProfileScreen() {
         <View style={styles.section}>
           <View style={[styles.sectionHeader, { alignItems: 'flex-start' }]}>
             <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={styles.sectionTitle}>Badges</Text>
-              <Text style={styles.sectionSubtitle}>Achievements earned through hosting, participation, and social activity</Text>
+              <Text style={styles.sectionTitle}>{t('publicProfile.sections.badges')}</Text>
+              <Text style={styles.sectionSubtitle}>{t('publicProfile.sections.badgesSubtitle')}</Text>
             </View>
             <TouchableOpacity onPress={() => vm.setCatalogVisible(true)} style={{ marginTop: 2 }}>
-              <Text style={styles.viewAllActionText}>View All Badges</Text>
+              <Text style={styles.viewAllActionText}>{t('publicProfile.viewAllBadges')}</Text>
             </TouchableOpacity>
           </View>
           <BadgeList 
@@ -129,8 +136,8 @@ export default function UserProfileScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View>
-              <Text style={styles.sectionTitle}>Equipment</Text>
-              <Text style={styles.sectionSubtitle}>Gear and essentials this member wants to highlight</Text>
+              <Text style={styles.sectionTitle}>{t('publicProfile.sections.equipment')}</Text>
+              <Text style={styles.sectionSubtitle}>{t('publicProfile.sections.equipmentSubtitle')}</Text>
             </View>
           </View>
           <EquipmentList equipment={profile.equipment} isOwner={false} />
@@ -139,8 +146,8 @@ export default function UserProfileScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View>
-              <Text style={styles.sectionTitle}>Showcase</Text>
-              <Text style={styles.sectionSubtitle}>Moments, snapshots, and visual highlights shared on the profile</Text>
+              <Text style={styles.sectionTitle}>{t('publicProfile.sections.showcase')}</Text>
+              <Text style={styles.sectionSubtitle}>{t('publicProfile.sections.showcaseSubtitle')}</Text>
             </View>
           </View>
           <ShowcaseImageGrid images={profile.showcase_images || []} isOwner={false} />

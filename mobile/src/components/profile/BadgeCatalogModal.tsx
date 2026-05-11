@@ -10,6 +10,7 @@ import {
   Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { BadgeItem } from '@/models/profile';
 import { getBadgeCatalog } from '@/services/profileService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,6 +27,7 @@ interface BadgeCatalogModalProps {
 export default function BadgeCatalogModal({ visible, onClose, earnedBadges }: BadgeCatalogModalProps) {
   const { token } = useAuth();
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = makeStyles(theme);
 
   const [allBadges, setAllBadges] = useState<BadgeItem[]>([]);
@@ -79,7 +81,9 @@ export default function BadgeCatalogModal({ visible, onClose, earnedBadges }: Ba
         )}
       </View>
       <Text style={styles.badgeName} numberOfLines={1}>{item.name}</Text>
-      <Text style={styles.badgeStatus}>{item.earned ? 'Earned' : 'Locked'}</Text>
+      <Text style={styles.badgeStatus}>
+        {item.earned ? t('publicProfile.badges.earned') : t('publicProfile.badges.locked')}
+      </Text>
     </TouchableOpacity>
   );
 
@@ -94,7 +98,7 @@ export default function BadgeCatalogModal({ visible, onClose, earnedBadges }: Ba
           <TouchableOpacity onPress={onClose} style={styles.backButton}>
             <Ionicons name="chevron-down" size={28} color={theme.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Badge Catalog</Text>
+          <Text style={styles.title}>{t('publicProfile.badges.catalogTitle')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -111,7 +115,7 @@ export default function BadgeCatalogModal({ visible, onClose, earnedBadges }: Ba
             contentContainerStyle={styles.listContent}
             columnWrapperStyle={styles.columnWrapper}
             ListEmptyComponent={
-              <Text style={styles.emptyText}>No badges found in catalog.</Text>
+              <Text style={styles.emptyText}>{t('publicProfile.empty.badgeCatalog')}</Text>
             }
           />
         )}

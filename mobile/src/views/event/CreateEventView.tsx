@@ -11,6 +11,7 @@ import {
   Platform,
   Image,
   Alert,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -834,6 +835,31 @@ export default function CreateEventView() {
           )}
         </View>
 
+        {/* Audience */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Audience</Text>
+          <View style={styles.switchRow}>
+            <Text style={styles.switchLabel}>Child Friendly</Text>
+            <Switch
+              value={vm.formData.childFriendly}
+              onValueChange={(v) => vm.updateField('childFriendly', v)}
+                trackColor={{ true: theme.primary }}
+                disabled={vm.isLoading}
+                accessibilityLabel="Child Friendly"
+              />
+          </View>
+          <View style={styles.switchRow}>
+            <Text style={styles.switchLabel}>Family Oriented</Text>
+            <Switch
+              value={vm.formData.familyOriented}
+              onValueChange={(v) => vm.updateField('familyOriented', v)}
+                trackColor={{ true: theme.primary }}
+                disabled={vm.isLoading}
+                accessibilityLabel="Family Oriented"
+              />
+          </View>
+        </View>
+
         {/* Participation Constraints */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>{t('events.create.fields.constraints')}</Text>
@@ -1261,6 +1287,24 @@ function makeStyles(t: Theme) {
     },
     chipTextUsed: {
       color: t.textTertiary,
+    },
+    switchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: t.surfaceVariant,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      minHeight: 56,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    switchLabel: {
+      fontSize: 15,
+      fontWeight: '500',
+      color: t.text,
     },
     showMoreBtn: {
       marginTop: 8,

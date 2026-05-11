@@ -12,6 +12,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -44,6 +45,8 @@ interface FiltersBottomSheetProps {
   onChangeSortBy: (
     value: Extract<DiscoverEventsSortBy, 'START_TIME' | 'DISTANCE'>,
   ) => void;
+  onToggleChildFriendly: () => void;
+  onToggleFamilyOriented: () => void;
 }
 
 const CATEGORY_PREVIEW_COUNT = 6;
@@ -92,6 +95,8 @@ export default function FiltersBottomSheet({
   onChangeEndDate,
   onChangeRadius,
   onChangeSortBy,
+  onToggleChildFriendly,
+  onToggleFamilyOriented,
 }: FiltersBottomSheetProps) {
   const { theme } = useTheme();
   const { t } = useTranslation();
@@ -411,6 +416,26 @@ export default function FiltersBottomSheet({
                 </TouchableOpacity>
               </View>
 
+              <Text style={styles.sectionTitle}>{t('home.filtersSheet.audience')}</Text>
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>{t('home.filtersSheet.childFriendly')}</Text>
+                <Switch
+                  value={draftFilters.childFriendly}
+                  onValueChange={onToggleChildFriendly}
+                  trackColor={{ true: theme.primary }}
+                  accessibilityLabel={t('home.filtersSheet.childFriendly')}
+                />
+              </View>
+              <View style={[styles.switchRow, { marginBottom: 14 }]}>
+                <Text style={styles.switchLabel}>{t('home.filtersSheet.familyOriented')}</Text>
+                <Switch
+                  value={draftFilters.familyOriented}
+                  onValueChange={onToggleFamilyOriented}
+                  trackColor={{ true: theme.primary }}
+                  accessibilityLabel={t('home.filtersSheet.familyOriented')}
+                />
+              </View>
+
               <Text style={styles.sectionTitle}>{t('home.filtersSheet.dateRange')}</Text>
               <View style={styles.row}>
                 <View style={styles.dateColumn}>
@@ -722,6 +747,24 @@ function makeStyles(t: Theme) {
       fontWeight: '600',
       color: t.textSecondary,
       marginBottom: 8,
+    },
+    switchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 18,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      minHeight: 56,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    switchLabel: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: t.text,
     },
     inputLabelError: {
       color: t.errorText,

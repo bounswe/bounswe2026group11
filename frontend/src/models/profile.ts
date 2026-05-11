@@ -10,6 +10,7 @@ export interface EventSummary {
   location_address?: string | null;
   privacy_level?: 'PUBLIC' | 'PROTECTED' | 'PRIVATE';
   approved_participant_count?: number;
+  participants_count?: number;
   host_score?: {
     final_score: number | null;
     hosted_event_rating_count: number;

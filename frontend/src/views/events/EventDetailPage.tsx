@@ -10,6 +10,7 @@ import type {
   EventDetailPendingJoinRequest,
   EventDetailResponse,
   EventHostContextSummary,
+  EventVersionChange,
 } from '@/models/event';
 import type {
   CreateEventInvitationsResponse,
@@ -20,6 +21,7 @@ import { EventCoverImage } from '@/components/EventCoverImage';
 import { UserAvatar } from '@/components/UserAvatar';
 import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/utils/eventStatus';
 import { getApproximateLocationText } from '@/utils/locationApproximation';
+import { formatEventLocation } from '@/utils/eventLocation';
 import NotFoundView from '../fallback/NotFoundView';
 import AccessDeniedView from '../fallback/AccessDeniedView';
 import EventInteractionPanel from './EventInteractionPanel';
@@ -77,6 +79,209 @@ function formatShortDate(iso: string): string {
     month: 'short',
     day: 'numeric',
   });
+}
+
+const ATTENDANCE_CRITICAL_FIELDS = new Set([
+  'title',
+  'description',
+  'category',
+  'category_id',
+  'location',
+  'start_time',
+  'end_time',
+  'privacy_level',
+  'capacity',
+  'minimum_age',
+  'maximum_age',
+  'preferred_gender',
+  'constraints',
+]);
+
+function formatTitleCaseValue(value: string): string {
+  return value
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function formatConstraintType(value: unknown): string {
+  if (typeof value !== 'string' || value.trim() === '') return 'Requirement';
+  const normalized = value.trim().toUpperCase();
+  const labels: Record<string, string> = {
+    AGE: 'Age',
+    MINIMUM_AGE: 'Minimum age',
+    MAXIMUM_AGE: 'Maximum age',
+    GENDER: 'Gender',
+    PREFERRED_GENDER: 'Preferred gender',
+    CAPACITY: 'Capacity',
+    EQUIPMENT: 'Equipment',
+    EXPERIENCE: 'Experience',
+    SKILL: 'Skill',
+    ACCESSIBILITY: 'Accessibility',
+    CUSTOM: 'Other',
+    OTHER: 'Other',
+  };
+  return labels[normalized] ?? formatTitleCaseValue(normalized);
+}
+
+function formatConstraintList(value: unknown): string {
+  if (!Array.isArray(value) || value.length === 0) return 'None';
+  return value
+    .map((item) => {
+      if (isRecord(item)) {
+        const type = formatConstraintType(item.type);
+        const info = typeof item.info === 'string' ? item.info.trim() : '';
+        return info ? `${type}: ${info}` : type;
+      }
+      return String(item);
+    })
+    .join(' · ');
+}
+
+function formatHistoryLocation(value: unknown): string {
+  if (!isRecord(value)) return value == null ? 'Not set' : String(value);
+  const type = typeof value.type === 'string' ? value.type : null;
+  const address = typeof value.address === 'string' && value.address.trim() ? value.address : null;
+  if (type === 'ROUTE') {
+    const routePoints = Array.isArray(value.route_points) ? value.route_points.length : 0;
+    return [address, routePoints ? `${routePoints} route point${routePoints === 1 ? '' : 's'}` : null]
+      .filter(Boolean)
+      .join(' · ') || 'Route';
+  }
+  const point = isRecord(value.point) ? value.point : null;
+  const lat = typeof point?.lat === 'number' ? point.lat : null;
+  const lon = typeof point?.lon === 'number' ? point.lon : null;
+  return [address, lat != null && lon != null ? `${lat.toFixed(4)}, ${lon.toFixed(4)}` : null]
+    .filter(Boolean)
+    .join(' · ') || 'Point location';
+}
+
+function formatDiffValue(field: string, value: unknown): string {
+  if (value == null) return field === 'capacity' ? 'Unlimited' : 'Not set';
+  if (field === 'start_time' || field === 'end_time') {
+    return typeof value === 'string' ? formatDateTime(value) : String(value);
+  }
+  if (field === 'location') return formatHistoryLocation(value);
+  if (field === 'constraints') return formatConstraintList(value);
+  if (field === 'privacy_level' || field === 'preferred_gender' || field === 'status') {
+    return typeof value === 'string' ? formatTitleCaseValue(value) : String(value);
+  }
+  if (field === 'capacity') return typeof value === 'number' ? `${value} participants` : String(value);
+  if (field === 'minimum_age') return typeof value === 'number' ? `${value}+` : String(value);
+  if (field === 'maximum_age') return typeof value === 'number' ? `Up to ${value}` : String(value);
+  if (field === 'category' || field === 'category_id') {
+    if (isRecord(value) && typeof value.name === 'string') return value.name;
+    return String(value);
+  }
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'string') return value.trim() || 'Not set';
+  if (typeof value === 'number') return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function getChangeFieldLabel(field: string): string {
+  const labels: Record<string, string> = {
+    title: 'Title',
+    description: 'Description',
+    category: 'Category',
+    category_id: 'Category',
+    location: 'Location or route',
+    start_time: 'Start time',
+    end_time: 'End time',
+    privacy_level: 'Privacy',
+    capacity: 'Capacity',
+    minimum_age: 'Minimum age',
+    maximum_age: 'Maximum age',
+    preferred_gender: 'Preferred gender',
+    constraints: 'Participation requirements',
+  };
+  return labels[field] ?? formatTitleCaseValue(field);
+}
+
+function VersionChangeValues({ change }: { change: EventVersionChange }) {
+  const isConstraintField = change.field === 'constraints';
+  const beforeValue = formatDiffValue(change.field, change.old_value);
+  const nowValue = formatDiffValue(change.field, change.new_value);
+
+  return (
+    <div className={`ed-version-values ${isConstraintField ? 'ed-version-values-constraints' : ''}`}>
+      <div>
+        <span>Before</span>
+        <p>{beforeValue}</p>
+      </div>
+      <span className="ed-version-flow-arrow" aria-hidden>
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M5 12h14" />
+          <path d="m13 6 6 6-6 6" />
+        </svg>
+      </span>
+      <div>
+        <span>Now</span>
+        <p>{nowValue}</p>
+      </div>
+    </div>
+  );
+}
+
+function VersionChangeList({ changes, compact = false }: { changes: EventVersionChange[]; compact?: boolean }) {
+  return (
+    <ul className={compact ? 'ed-version-change-list ed-version-change-list-compact' : 'ed-version-change-list'}>
+      {changes.map((change: EventVersionChange, index) => {
+        const isCritical = ATTENDANCE_CRITICAL_FIELDS.has(change.field);
+        return (
+          <li key={`${change.field}-${index}`} className="ed-version-change">
+            <div className="ed-version-change-title">
+              <strong>{getChangeFieldLabel(change.field)}</strong>
+              {isCritical && <span>Attendance impact</span>}
+            </div>
+            <VersionChangeValues change={change} />
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function summarizeChangedFields(changedFields: string[]): string[] {
+  const summaries: string[] = [];
+  const add = (summary: string) => {
+    if (!summaries.includes(summary)) summaries.push(summary);
+  };
+  if (changedFields.includes('start_time') || changedFields.includes('end_time')) add('Time changed');
+  if (changedFields.includes('location')) add('Location or route changed');
+  if (changedFields.includes('privacy_level')) add('Privacy changed');
+  if (
+    changedFields.includes('capacity') ||
+    changedFields.includes('minimum_age') ||
+    changedFields.includes('maximum_age') ||
+    changedFields.includes('preferred_gender') ||
+    changedFields.includes('constraints')
+  ) {
+    add('Participation rules changed');
+  }
+  changedFields.forEach((field) => {
+    if (!ATTENDANCE_CRITICAL_FIELDS.has(field)) add(`${getChangeFieldLabel(field)} changed`);
+  });
+  return summaries.length > 0 ? summaries : ['Event details changed'];
+}
+
+function getViewerParticipationState(event: EventDetailResponse): 'JOINED' | 'PENDING' | 'INVITED' | 'NONE' | 'LEAVED' | 'CANCELED' {
+  const status = event.viewer_context.participation_status;
+  if (status === 'APPROVED' || status === 'JOINED') return 'JOINED';
+  if (status === 'PENDING' || event.viewer_context.join_request_status === 'PENDING') return 'PENDING';
+  if (status === 'INVITED' || event.viewer_context.invitation_status === 'PENDING') return 'INVITED';
+  if (status === 'LEAVED') return 'LEAVED';
+  if (status === 'CANCELED') return 'CANCELED';
+  return 'NONE';
 }
 
 function getDisplayName(user: { display_name: string | null; username: string }): string {
@@ -146,6 +351,137 @@ function ExpiryWarningBanner({ event }: { event: EventDetailResponse }) {
   );
 }
 
+function ReconfirmationBanner({
+  event,
+  loading,
+  error,
+  successMessage,
+  onReconfirm,
+  onLeave,
+  onDismissError,
+  onDismissSuccess,
+}: {
+  event: EventDetailResponse;
+  loading: boolean;
+  error: string | null;
+  successMessage: string | null;
+  onReconfirm: () => void;
+  onLeave: () => void;
+  onDismissError: () => void;
+  onDismissSuccess: () => void;
+}) {
+  if (!event.viewer_context.needs_reconfirmation && !successMessage) return null;
+
+  const diff = event.viewer_context.event_diff ?? null;
+  const changes = diff?.changes ?? [];
+  const summaries = summarizeChangedFields(
+    diff?.changed_fields ?? changes.map((change) => change.field),
+  );
+
+  return (
+    <div className="ed-reconfirm-panel" data-testid="ed-reconfirmation-banner">
+      {event.viewer_context.needs_reconfirmation ? (
+        <>
+          <div>
+            <h2>Attendance needs reconfirmation</h2>
+            <p>
+              Event details changed since the version you last confirmed. Review what changed and reconfirm if you can still attend.
+            </p>
+          </div>
+          {diff && (
+            <div className="ed-reconfirm-diff" data-testid="ed-reconfirmation-diff">
+              <div className="ed-reconfirm-diff-header">
+                <strong>Changes since your last confirmation</strong>
+                <span>v{diff.from_version_no} to v{diff.to_version_no}</span>
+              </div>
+              <div className="ed-version-summary-row ed-reconfirm-summary-row">
+                {summaries.map((summary) => (
+                  <span key={summary} className="ed-version-summary-pill">{summary}</span>
+                ))}
+              </div>
+              {changes.length > 0 ? (
+                <VersionChangeList changes={changes} compact />
+              ) : (
+                <p className="ed-mgmt-empty">No detailed changes are available for this update.</p>
+              )}
+            </div>
+          )}
+          {error && (
+            <div className="ed-join-error">
+              <span>{error}</span>
+              <button type="button" className="ed-join-error-dismiss" onClick={onDismissError}>&times;</button>
+            </div>
+          )}
+          <div className="ed-reconfirm-actions">
+            <button type="button" className="ed-reconfirm-btn" onClick={onReconfirm} disabled={loading}>
+              {loading ? 'Reconfirming...' : 'Reconfirm Attendance'}
+            </button>
+            <button type="button" className="ed-reconfirm-secondary-btn" onClick={onLeave} disabled={loading}>
+              Leave Event
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="ed-cover-upload-success" role="status">
+          <span>{successMessage}</span>
+          <button type="button" className="ed-join-error-dismiss" onClick={onDismissSuccess}>&times;</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EventVersionHistorySection({ event }: { event: EventDetailResponse }) {
+  const diff = event.viewer_context.event_diff ?? null;
+  const changes = diff?.changes ?? [];
+  const versionNo =
+    event.version_no ??
+    event.viewer_context.latest_event_version ??
+    diff?.to_version_no ??
+    null;
+  const status = getViewerParticipationState(event);
+  const canViewHistory = event.viewer_context.is_host || status === 'JOINED' || status === 'PENDING';
+
+  if (!canViewHistory || (!diff && versionNo == null)) return null;
+
+  const summaries = summarizeChangedFields(
+    diff?.changed_fields ?? changes.map((change) => change.field),
+  );
+
+  return (
+    <div className="ed-section ed-version-history" data-testid="ed-version-history">
+      <div className="ed-version-header">
+        <h2 className="ed-section-title">Version History</h2>
+        {versionNo != null && <span className="ed-version-pill">v{versionNo}</span>}
+      </div>
+      <div className="ed-version-card">
+        {event.viewer_context.needs_reconfirmation && (
+          <div className="ed-version-attention">
+            Review these changes before confirming that you can still attend.
+          </div>
+        )}
+        {diff ? (
+          <p className="ed-version-range">
+            Changes from version {diff.from_version_no} to {diff.to_version_no}
+          </p>
+        ) : (
+          <p className="ed-version-range">Current event version{versionNo != null ? ` ${versionNo}` : ''}</p>
+        )}
+        <div className="ed-version-summary-row">
+          {summaries.map((summary) => (
+            <span key={summary} className="ed-version-summary-pill">{summary}</span>
+          ))}
+        </div>
+        {changes.length > 0 ? (
+          <VersionChangeList changes={changes} />
+        ) : (
+          <p className="ed-mgmt-empty">No changes need review right now.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PencilCoverIcon() {
   return (
     <svg
@@ -207,6 +543,9 @@ function LocationSection({ location }: { location: EventDetailResponse['location
 
   const hasMap = anchor !== null;
   const isApproximate = location.is_location_approximate;
+  const approximateAreaLabel = location.address
+    ? formatEventLocation(location.address)
+    : 'Approximate area';
 
   return (
     <div className="ed-section">
@@ -225,7 +564,7 @@ function LocationSection({ location }: { location: EventDetailResponse['location
           {location.address && !isApproximate ? (
             <p className="ed-info-primary">{location.address}</p>
           ) : isApproximate ? (
-            <p className="ed-info-primary">Approximate area</p>
+            <p className="ed-info-primary">{approximateAreaLabel}</p>
           ) : (
             <p className="ed-info-secondary">No address provided</p>
           )}
@@ -608,12 +947,15 @@ function JoinActionSection({
   const requestImageInputRef = useRef<HTMLInputElement>(null);
   const [showCancelRequestModal, setShowCancelRequestModal] = useState(false);
   const ctx = event.viewer_context;
+  const viewerState = getViewerParticipationState(event);
 
   // Host doesn't see join actions
   if (ctx.is_host) return null;
 
+  if (ctx.needs_reconfirmation) return null;
+
   // Already participating states
-  if (ctx.participation_status === 'JOINED') {
+  if (viewerState === 'JOINED') {
     const isCompletedOrCanceled = event.status === 'COMPLETED' || event.status === 'CANCELED';
     const joinedBannerClass = event.status === 'COMPLETED'
       ? 'ed-participation-attended'
@@ -675,7 +1017,7 @@ function JoinActionSection({
     );
   }
 
-  if (ctx.participation_status === 'PENDING') {
+  if (viewerState === 'PENDING') {
     return (
       <div className="ed-section">
         <div className="ed-participation-banner ed-participation-pending">
@@ -721,7 +1063,7 @@ function JoinActionSection({
     );
   }
 
-  if (ctx.participation_status === 'INVITED') {
+  if (viewerState === 'INVITED') {
     return (
       <div className="ed-section">
         <div className="ed-participation-banner ed-participation-invited">
@@ -1008,7 +1350,7 @@ function ParticipantRatingSection({
   const trimmedLength = message.trim().length;
   const isEligibleParticipant = (
     !event.viewer_context.is_host
-    && event.viewer_context.participation_status === 'JOINED'
+    && getViewerParticipationState(event) === 'JOINED'
     && event.status === 'COMPLETED'
     && event.rating_window.is_active
   );
@@ -1498,6 +1840,41 @@ function ReportEventModal({
   );
 }
 
+function HostPendingReconfirmationItem({ participant }: { participant: EventDetailApprovedParticipant }) {
+  return (
+    <li className="ed-mgmt-item ed-mgmt-item-pending-reconfirmation">
+      <Link
+        to={`/users/${participant.user.id}`}
+        className="ed-mgmt-avatar-link"
+        aria-label={`View ${getDisplayName(participant.user)}'s profile`}
+      >
+        <UserAvatar
+          username={participant.user.username}
+          displayName={participant.user.display_name}
+          avatarUrl={participant.user.avatar_url}
+          size="sm"
+          variant="muted"
+        />
+      </Link>
+      <Link to={`/users/${participant.user.id}`} className="ed-mgmt-user-link">
+        <div className="ed-mgmt-user-info">
+          <div className="ed-mgmt-user-topline">
+            <span className="ed-mgmt-name">{getDisplayName(participant.user)}</span>
+            {participant.user.final_score != null && (
+              <span className="ed-mgmt-user-score">
+                {'★'} {participant.user.final_score.toFixed(1)} ({participant.user.rating_count})
+              </span>
+            )}
+          </div>
+          <span className="ed-mgmt-username">@{participant.user.username}</span>
+          <span className="ed-mgmt-message">Waiting since {formatShortDate(participant.updated_at)}</span>
+        </div>
+      </Link>
+      <span className="ed-reconfirm-status-pill">Needs reconfirmation</span>
+    </li>
+  );
+}
+
 function LeaveConfirmModal({
   onConfirm,
   onClose,
@@ -1626,12 +2003,21 @@ function EventContent({
   onReportEvent,
   onDismissReportError,
   onDismissReportSuccess,
+  reconfirmLoading,
+  reconfirmError,
+  reconfirmSuccessMessage,
+  onReconfirmParticipation,
+  onDismissReconfirmError,
+  onDismissReconfirmSuccess,
   isAuthenticated,
   token,
   hostContextSummary,
   approvedParticipants,
   approvedParticipantsLoading,
   approvedParticipantsHasNext,
+  pendingParticipants,
+  pendingParticipantsLoading,
+  pendingParticipantsHasNext,
   pendingJoinRequests,
   pendingJoinRequestsLoading,
   pendingJoinRequestsHasNext,
@@ -1639,6 +2025,7 @@ function EventContent({
   invitationsLoading,
   invitationsHasNext,
   onLoadMoreApprovedParticipants,
+  onLoadMorePendingParticipants,
   onLoadMorePendingJoinRequests,
   onLoadMoreInvitations,
   inviteLoading,
@@ -1697,12 +2084,21 @@ function EventContent({
   onReportEvent: (category: EventReportCategory, message?: string) => Promise<boolean>;
   onDismissReportError: () => void;
   onDismissReportSuccess: () => void;
+  reconfirmLoading: boolean;
+  reconfirmError: string | null;
+  reconfirmSuccessMessage: string | null;
+  onReconfirmParticipation: () => void;
+  onDismissReconfirmError: () => void;
+  onDismissReconfirmSuccess: () => void;
   isAuthenticated: boolean;
   token: string | null;
   hostContextSummary: EventHostContextSummary | null;
   approvedParticipants: EventDetailApprovedParticipant[];
   approvedParticipantsLoading: boolean;
   approvedParticipantsHasNext: boolean;
+  pendingParticipants: EventDetailApprovedParticipant[];
+  pendingParticipantsLoading: boolean;
+  pendingParticipantsHasNext: boolean;
   pendingJoinRequests: EventDetailPendingJoinRequest[];
   pendingJoinRequestsLoading: boolean;
   pendingJoinRequestsHasNext: boolean;
@@ -1710,6 +2106,7 @@ function EventContent({
   invitationsLoading: boolean;
   invitationsHasNext: boolean;
   onLoadMoreApprovedParticipants: () => void;
+  onLoadMorePendingParticipants: () => void;
   onLoadMorePendingJoinRequests: () => void;
   onLoadMoreInvitations: () => void;
   inviteLoading: boolean;
@@ -1739,6 +2136,10 @@ function EventContent({
     event.viewer_context.is_host
     && event.status === 'COMPLETED'
     && event.rating_window.is_active
+  );
+  const pendingReconfirmationCount = Math.max(
+    event.pending_participant_count,
+    pendingParticipants.length,
   );
 
   const showCoverImageEdit = isAuthenticated && event.viewer_context.is_host;
@@ -1885,6 +2286,17 @@ function EventContent({
       {/* Expiry warning — shown in last 7 days before auto-completion */}
       <ExpiryWarningBanner event={event} />
 
+      <ReconfirmationBanner
+        event={event}
+        loading={reconfirmLoading}
+        error={reconfirmError}
+        successMessage={reconfirmSuccessMessage}
+        onReconfirm={onReconfirmParticipation}
+        onLeave={onLeave}
+        onDismissError={onDismissReconfirmError}
+        onDismissSuccess={onDismissReconfirmSuccess}
+      />
+
       {/* Join action — prominent position */}
       <JoinActionSection
         event={event}
@@ -2028,6 +2440,8 @@ function EventContent({
           </div>
         )}
 
+        <EventVersionHistorySection event={event} />
+
         {/* Host management section — only visible to host */}
         {event.viewer_context.is_host && (
           <div className="ed-section">
@@ -2035,7 +2449,14 @@ function EventContent({
 
             {/* Cancel event button */}
             {event.status === 'ACTIVE' && (
-              <div className="ed-mgmt-group">
+              <div className="ed-mgmt-group ed-host-action-group">
+                <Link
+                  to={`/events/${event.id}/edit`}
+                  className="ed-edit-event-link"
+                  data-testid="ed-edit-event-link"
+                >
+                  Edit Event
+                </Link>
                 {cancelError && (
                   <div className="ed-join-error" style={{ marginBottom: 10 }}>
                     <span>{cancelError}</span>
@@ -2071,6 +2492,45 @@ function EventContent({
                 </button>
               </div>
             )}
+
+            <div className="ed-mgmt-group ed-reconfirmation-mgmt-group">
+              <h3 className="ed-mgmt-title">
+                Reconfirmation Needed ({pendingReconfirmationCount})
+              </h3>
+              {pendingReconfirmationCount > 0 ? (
+                <>
+                  <div className="ed-reconfirmation-mgmt-card">
+                    <strong>{pendingReconfirmationCount}</strong>
+                    <span>
+                      Participant{pendingReconfirmationCount === 1 ? '' : 's'} must approve the latest event version before they are fully confirmed again.
+                    </span>
+                  </div>
+                  {pendingParticipantsLoading && pendingParticipants.length === 0 ? (
+                    <p className="ed-mgmt-empty">Loading participants awaiting reconfirmation...</p>
+                  ) : pendingParticipants.length === 0 ? (
+                    <p className="ed-mgmt-empty">No participant details are available yet.</p>
+                  ) : (
+                    <ul className="ed-mgmt-list">
+                      {pendingParticipants.map((p) => (
+                        <HostPendingReconfirmationItem key={p.participation_id} participant={p} />
+                      ))}
+                    </ul>
+                  )}
+                  {pendingParticipantsHasNext && (
+                    <button
+                      type="button"
+                      className="ed-secondary-btn"
+                      onClick={onLoadMorePendingParticipants}
+                      disabled={pendingParticipantsLoading}
+                    >
+                      {pendingParticipantsLoading ? 'Loading...' : 'Load More Reconfirmations'}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <p className="ed-mgmt-empty">No participants need reconfirmation.</p>
+              )}
+            </div>
 
             {/* Approved participants */}
             <div className="ed-mgmt-group">
@@ -2363,10 +2823,19 @@ export default function EventDetailPage() {
       onReportEvent={vm.handleReportEvent}
       onDismissReportError={vm.dismissReportError}
       onDismissReportSuccess={vm.dismissReportSuccess}
+      reconfirmLoading={vm.reconfirmLoading}
+      reconfirmError={vm.reconfirmError}
+      reconfirmSuccessMessage={vm.reconfirmSuccessMessage}
+      onReconfirmParticipation={vm.handleReconfirmParticipation}
+      onDismissReconfirmError={vm.dismissReconfirmError}
+      onDismissReconfirmSuccess={vm.dismissReconfirmSuccess}
       hostContextSummary={vm.hostContextSummary}
       approvedParticipants={vm.approvedParticipants}
       approvedParticipantsLoading={vm.approvedParticipantsLoading}
       approvedParticipantsHasNext={vm.approvedParticipantsHasNext}
+      pendingParticipants={vm.pendingParticipants}
+      pendingParticipantsLoading={vm.pendingParticipantsLoading}
+      pendingParticipantsHasNext={vm.pendingParticipantsHasNext}
       pendingJoinRequests={vm.pendingJoinRequests}
       pendingJoinRequestsLoading={vm.pendingJoinRequestsLoading}
       pendingJoinRequestsHasNext={vm.pendingJoinRequestsHasNext}
@@ -2374,6 +2843,7 @@ export default function EventDetailPage() {
       invitationsLoading={vm.invitationsLoading}
       invitationsHasNext={vm.invitationsHasNext}
       onLoadMoreApprovedParticipants={vm.loadMoreApprovedParticipants}
+      onLoadMorePendingParticipants={vm.loadMorePendingParticipants}
       onLoadMorePendingJoinRequests={vm.loadMorePendingJoinRequests}
       onLoadMoreInvitations={vm.loadMoreInvitations}
       inviteLoading={vm.inviteLoading}

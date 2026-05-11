@@ -12,6 +12,8 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -100,6 +102,28 @@ function PrivacyBadge({ level }: { level: EventDetail['privacy_level'] }) {
       <Feather name={iconName} size={12} color={color} />
       <Text style={[badgeTextBase, { color }]}>{label}</Text>
     </View>
+  );
+}
+
+function AudienceBadges({ event }: { event: EventDetail }) {
+  const { theme } = useTheme();
+  if (!event.child_friendly && !event.family_oriented) return null;
+
+  return (
+    <>
+      {event.child_friendly && (
+        <View style={[badgeBase, { backgroundColor: theme.surface, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }]}>
+          <MaterialIcons name="child-care" size={14} color={theme.primary} />
+          <Text style={[badgeTextBase, { color: theme.text }]}>Child Friendly</Text>
+        </View>
+      )}
+      {event.family_oriented && (
+        <View style={[badgeBase, { backgroundColor: theme.surface, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }]}>
+          <MaterialIcons name="family-restroom" size={14} color={theme.primary} />
+          <Text style={[badgeTextBase, { color: theme.text }]}>Family Friendly</Text>
+        </View>
+      )}
+    </>
   );
 }
 
@@ -1206,6 +1230,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           )}
           <View style={styles.heroBadgeRow}>
             <PrivacyBadge level={event.privacy_level} />
+            <AudienceBadges event={event} />
             <StatusBadge status={event.status} />
           </View>
         </View>
@@ -1670,98 +1695,100 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
         transparent
         onRequestClose={vm.closeJoinRequestModal}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHandle} />
+        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHandle} />
 
-            <Text style={styles.modalTitle}>Request to Join</Text>
-            <Text style={styles.modalSubtitle}>
-              Send a message to the host explaining why you&apos;d like to join.
-            </Text>
+              <Text style={styles.modalTitle}>Request to Join</Text>
+              <Text style={styles.modalSubtitle}>
+                Send a message to the host explaining why you&apos;d like to join.
+              </Text>
 
-            <Text style={styles.label}>Message (optional)</Text>
-            <TextInput
-              style={styles.messageInput}
-              placeholder="I have experience with similar events and would love to participate…"
-              placeholderTextColor={theme.placeholder}
-              value={vm.joinRequestMessage}
-              onChangeText={vm.setJoinRequestMessage}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              maxLength={500}
-              editable={vm.actionState !== 'requesting'}
-            />
-            <Text style={styles.charCount}>{vm.joinRequestMessage.length}/500</Text>
+              <Text style={styles.label}>Message (optional)</Text>
+              <TextInput
+                style={styles.messageInput}
+                placeholder="I have experience with similar events and would love to participate…"
+                placeholderTextColor={theme.placeholder}
+                value={vm.joinRequestMessage}
+                onChangeText={vm.setJoinRequestMessage}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                maxLength={500}
+                editable={vm.actionState !== 'requesting'}
+              />
+              <Text style={styles.charCount}>{vm.joinRequestMessage.length}/500</Text>
 
-            <View style={styles.attachmentSection}>
-              <Text style={styles.label}>Attachment (Evidence)</Text>
-              {vm.selectedImageUri ? (
-                <View style={styles.attachmentPreviewContainer}>
-                  <Image source={{ uri: vm.selectedImageUri }} style={styles.attachmentPreview} />
+              <View style={styles.attachmentSection}>
+                <Text style={styles.label}>Attachment (Evidence)</Text>
+                {vm.selectedImageUri ? (
+                  <View style={styles.attachmentPreviewContainer}>
+                    <Image source={{ uri: vm.selectedImageUri }} style={styles.attachmentPreview} />
+                    <TouchableOpacity
+                      style={styles.removeAttachmentBtn}
+                      onPress={vm.removeImage}
+                      disabled={vm.isUploadingImage}
+                    >
+                      <Feather name="x" size={16} color="white" />
+                    </TouchableOpacity>
+                    {vm.isUploadingImage && (
+                      <View style={styles.attachmentLoadingOverlay}>
+                        <ActivityIndicator color="white" size="small" />
+                      </View>
+                    )}
+                  </View>
+                ) : (
                   <TouchableOpacity
-                    style={styles.removeAttachmentBtn}
-                    onPress={vm.removeImage}
-                    disabled={vm.isUploadingImage}
+                    style={styles.addAttachmentBtn}
+                    onPress={vm.pickImage}
+                    activeOpacity={0.7}
                   >
-                    <Feather name="x" size={16} color="white" />
+                    <Feather name="image" size={20} color={theme.primary} />
+                    <Text style={styles.addAttachmentText}>Add Photo Evidence</Text>
                   </TouchableOpacity>
-                  {vm.isUploadingImage && (
-                    <View style={styles.attachmentLoadingOverlay}>
-                      <ActivityIndicator color="white" size="small" />
-                    </View>
-                  )}
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.addAttachmentBtn}
-                  onPress={vm.pickImage}
-                  activeOpacity={0.7}
-                >
-                  <Feather name="image" size={20} color={theme.primary} />
-                  <Text style={styles.addAttachmentText}>Add Photo Evidence</Text>
-                </TouchableOpacity>
-              )}
-              {vm.imageError ? (
-                <Text style={styles.attachmentErrorText}>{vm.imageError}</Text>
-              ) : null}
-            </View>
-
-            {vm.actionError ? (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorBannerText}>{vm.actionError}</Text>
+                )}
+                {vm.imageError ? (
+                  <Text style={styles.attachmentErrorText}>{vm.imageError}</Text>
+                ) : null}
               </View>
-            ) : null}
 
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                styles.actionButtonProtected,
-                vm.actionState === 'requesting' && styles.actionButtonLoading,
-              ]}
-              onPress={vm.handleRequestJoin}
-              disabled={vm.actionState === 'requesting'}
-              activeOpacity={0.8}
-            >
-              {vm.actionState === 'requesting' ? (
-                <ActivityIndicator color={theme.textOnPrimary} size="small" />
-              ) : (
-                <>
-                  <Feather name="send" size={18} color={theme.textOnPrimary} />
-                  <Text style={styles.actionButtonText}>Send Request</Text>
-                </>
-              )}
-            </TouchableOpacity>
+              {vm.actionError ? (
+                <View style={styles.errorBanner}>
+                  <Text style={styles.errorBannerText}>{vm.actionError}</Text>
+                </View>
+              ) : null}
 
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={vm.closeJoinRequestModal}
-              disabled={vm.actionState === 'requesting'}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  styles.actionButtonProtected,
+                  vm.actionState === 'requesting' && styles.actionButtonLoading,
+                ]}
+                onPress={vm.handleRequestJoin}
+                disabled={vm.actionState === 'requesting'}
+                activeOpacity={0.8}
+              >
+                {vm.actionState === 'requesting' ? (
+                  <ActivityIndicator color={theme.textOnPrimary} size="small" />
+                ) : (
+                  <>
+                    <Feather name="send" size={18} color={theme.textOnPrimary} />
+                    <Text style={styles.actionButtonText}>Send Request</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={vm.closeJoinRequestModal}
+                disabled={vm.actionState === 'requesting'}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Host Modals */}

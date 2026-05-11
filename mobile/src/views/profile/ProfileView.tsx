@@ -3,9 +3,15 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -27,7 +33,6 @@ import BadgeList from '@/components/profile/BadgeList';
 import EquipmentList from '@/components/profile/EquipmentList';
 import ShowcaseImageGrid from '@/components/profile/ShowcaseImageGrid';
 import { EquipmentItem } from '@/models/profile';
-import { Modal, TextInput } from 'react-native';
 
 type ProfileEventTab = 'hosted' | 'attended';
 
@@ -270,8 +275,8 @@ export default function ProfileView() {
                 <Text style={styles.viewAllActionText}>View All Badges</Text>
               </TouchableOpacity>
             </View>
-            <BadgeList 
-              badges={vm.badges} 
+            <BadgeList
+              badges={vm.badges}
               catalogVisible={vm.catalogVisible}
               onToggleCatalog={vm.setCatalogVisible}
             />
@@ -287,17 +292,17 @@ export default function ProfileView() {
                 <Ionicons name="add-circle-outline" size={24} color={theme.primaryAlt} />
               </TouchableOpacity>
             </View>
-            <EquipmentList 
-              equipment={vm.equipment} 
-              isOwner 
-              onEdit={openEditEquipment} 
-              onDelete={vm.removeEquipment} 
+            <EquipmentList
+              equipment={vm.equipment}
+              isOwner
+              onEdit={openEditEquipment}
+              onDelete={vm.removeEquipment}
             />
           </View>
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <View>
+              <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={styles.sectionTitle}>Showcase</Text>
                 <Text style={styles.sectionSubtitle}>Moments, snapshots, and visual highlights shared on the profile</Text>
               </View>
@@ -305,10 +310,10 @@ export default function ProfileView() {
                 <Ionicons name="add-circle-outline" size={24} color={theme.primaryAlt} />
               </TouchableOpacity>
             </View>
-            <ShowcaseImageGrid 
-              images={vm.showcaseImages} 
-              isOwner 
-              onDelete={vm.removeShowcaseImage} 
+            <ShowcaseImageGrid
+              images={vm.showcaseImages}
+              isOwner
+              onDelete={vm.removeShowcaseImage}
             />
           </View>
 
@@ -566,12 +571,15 @@ export default function ProfileView() {
         animationType="fade"
         onRequestClose={() => setEquipmentModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={Keyboard.dismiss}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
             <Text style={styles.modalTitle}>
               {editingEquipment ? 'Edit Equipment' : 'Add Equipment'}
             </Text>
-            
+
             <Text style={styles.label}>Name</Text>
             <TextInput
               style={styles.input}
@@ -590,29 +598,30 @@ export default function ProfileView() {
               placeholderTextColor={theme.textMuted}
               multiline
               numberOfLines={3}
+              textAlignVertical="top"
             />
 
             <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={styles.modalCancel} 
+              <TouchableOpacity
+                style={styles.modalCancel}
                 onPress={() => setEquipmentModalVisible(false)}
               >
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalSave, !eqName.trim() && styles.modalSaveDisabled]} 
+              <TouchableOpacity
+                style={[styles.modalSave, !eqName.trim() && styles.modalSaveDisabled]}
                 onPress={handleSaveEquipment}
                 disabled={!eqName.trim() || vm.isActionLoading}
               >
                 {vm.isActionLoading ? (
-                  <ActivityIndicator size="small" color="#FFF" />
+                  <ActivityIndicator size="small" color={theme.textOnPrimary} />
                 ) : (
                   <Text style={styles.modalSaveText}>Save</Text>
                 )}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );
@@ -1017,7 +1026,7 @@ function makeStyles(t: Theme) {
       opacity: 0.5,
     },
     modalSaveText: {
-      color: '#FFF',
+      color: t.textOnPrimary,
       fontSize: 16,
       fontWeight: '700',
     },

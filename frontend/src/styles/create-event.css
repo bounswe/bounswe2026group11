@@ -540,8 +540,140 @@
   min-width: 120px;
 }
 
+.ce-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.edit-event-page {
+  max-width: 680px;
+}
+
+.edit-event-page .create-event-subtitle {
+  margin-bottom: 32px;
+}
+
+.edit-event-form {
+  gap: 0;
+}
+
+.edit-event-form > .ce-row {
+  display: flex;
+}
+
+.edit-event-form > .ce-row .field-group {
+  margin-bottom: 20px;
+}
+
+.edit-event-form .field-textarea {
+  min-height: 130px;
+}
+
+.ce-edit-back-link {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 18px;
+  color: #4b5563;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ce-edit-back-link:hover {
+  color: #111827;
+  text-decoration: underline;
+}
+
+.ce-edit-warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.ce-edit-critical-list {
+  margin: -8px 0 20px;
+  padding-left: 20px;
+  text-align: left;
+  color: #92400e;
+  font-size: 14px;
+}
+
+.ce-edit-modal-actions,
+.ce-edit-form-actions,
+.ce-edit-constraint-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.ce-edit-modal-actions,
+.ce-edit-form-actions {
+  justify-content: flex-end;
+  padding: 16px 0 0;
+}
+
+.ce-edit-constraint-row {
+  align-items: flex-start;
+}
+
+.ce-edit-constraint-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ce-edit-constraint-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+  font-size: 14px;
+  color: #374151;
+}
+
+.ce-chip-remove {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #fecaca;
+  border-radius: 50%;
+  background: #fff;
+  color: #b91c1c;
+  cursor: pointer;
+}
+
+.ce-chip-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
+  .ce-header,
+  .ce-edit-modal-actions,
+  .ce-edit-form-actions,
+  .ce-edit-constraint-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .edit-event-form > .ce-row {
+    grid-template-columns: 1fr;
+  }
+
   .create-event-title {
     font-size: 22px;
   }

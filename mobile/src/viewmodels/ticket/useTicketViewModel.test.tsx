@@ -36,7 +36,6 @@ jest.mock('@/contexts/AuthContext', () => ({
 
 const mockGetMyTicket = jest.mocked(ticketService.getMyTicket);
 const mockGetTicketQrTokenOnce = jest.mocked(ticketService.getTicketQrTokenOnce);
-const mockGetTicketQrTokenStream = jest.mocked(ticketService.getTicketQrTokenStream);
 const mockGetEventDetail = jest.mocked(eventService.getEventDetail);
 const mockLocation = jest.mocked(ExpoLocation);
 
@@ -79,18 +78,18 @@ const baseTicket: TicketDetailResponse = {
 
 const qrTokenFixture: TicketQrToken = {
   token: 'live-qr-token',
-  expires_at: '2026-05-10T16:00:10Z',
+  expires_at: new Date(Date.now() + 10000).toISOString(),
   version: 7,
 };
 
 describe('useTicketViewModel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
 
     mockGetEventDetail.mockResolvedValue({ image_url: null } as never);
-    mockGetTicketQrTokenStream.mockImplementation(async function* () {});
     mockLocation.getForegroundPermissionsAsync.mockResolvedValue({
-      status: ExpoLocation.PermissionStatus.DENIED,
+      status: ExpoLocation.PermissionStatus.GRANTED,
     } as never);
     mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({
       status: ExpoLocation.PermissionStatus.GRANTED,
@@ -101,6 +100,10 @@ describe('useTicketViewModel', () => {
         longitude: 28.985,
       },
     } as never);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('shows the backend qr access reason immediately when ticket access is not yet eligible', async () => {
@@ -120,58 +123,48 @@ describe('useTicketViewModel', () => {
     expect(result.current.qrMessage).toBe('The event is not currently accepting ticket access.');
   });
 
-  it('re-fetches ticket access on refresh and reveals qr when eligibility has changed', async () => {
-    mockGetMyTicket
-      .mockResolvedValueOnce({
-        ...baseTicket,
-        qr_access: {
-          ...baseTicket.qr_access,
-          eligible_now: false,
-          reason: 'EVENT_NOT_ACTIVE',
-        },
-      })
-      .mockResolvedValueOnce(baseTicket);
+  it('fetches qr token automatically via polling when ticket is active', async () => {
+    mockGetMyTicket.mockResolvedValue(baseTicket);
     mockGetTicketQrTokenOnce.mockResolvedValue(qrTokenFixture);
 
     const { result } = renderHook(() => useTicketViewModel('ticket-1'));
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.qrMessage).toBe('The event is not currently accepting ticket access.');
-
-    await act(async () => {
-      await result.current.refreshQr();
-    });
-
-    expect(mockGetMyTicket).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(result.current.qrToken).toEqual(qrTokenFixture));
     expect(mockGetTicketQrTokenOnce).toHaveBeenCalledWith(
       'ticket-1',
       { lat: 41.0369, lon: 28.985 },
-      'mock-token',
+      'mock-token'
     );
-    expect(result.current.qrToken).toEqual(qrTokenFixture);
-    expect(result.current.qrMessage).toBeNull();
   });
 
-  it('uses the live stream directly for automatic qr updates', async () => {
+  it('polls for a new token after 10 seconds', async () => {
     mockGetMyTicket.mockResolvedValue(baseTicket);
-    mockLocation.getForegroundPermissionsAsync.mockResolvedValue({
-      status: ExpoLocation.PermissionStatus.GRANTED,
-    } as never);
-    mockGetTicketQrTokenStream.mockImplementation(async function* () {
-      yield qrTokenFixture;
+    mockGetTicketQrTokenOnce.mockResolvedValue(qrTokenFixture);
+
+    renderHook(() => useTicketViewModel('ticket-1'));
+
+    await waitFor(() => expect(mockGetTicketQrTokenOnce).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      jest.advanceTimersByTime(10000);
     });
+
+    await waitFor(() => expect(mockGetTicketQrTokenOnce).toHaveBeenCalledTimes(2));
+  });
+
+  it('handles refresh by resetting state and re-fetching', async () => {
+    mockGetMyTicket.mockImplementation(() => Promise.resolve({ ...baseTicket }));
+    mockGetTicketQrTokenOnce.mockResolvedValue(qrTokenFixture);
 
     const { result } = renderHook(() => useTicketViewModel('ticket-1'));
 
     await waitFor(() => expect(result.current.qrToken).toEqual(qrTokenFixture));
 
-    expect(mockGetTicketQrTokenOnce).not.toHaveBeenCalled();
-    expect(mockGetTicketQrTokenStream).toHaveBeenCalledWith(
-      'ticket-1',
-      { lat: 41.0369, lon: 28.985 },
-      'mock-token',
-      expect.any(AbortSignal),
-      expect.any(String),
-    );
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(mockGetMyTicket).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(mockGetTicketQrTokenOnce).toHaveBeenCalledTimes(2));
   });
 });

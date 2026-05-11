@@ -20,7 +20,8 @@
     "language": "Dil",
     "english": "English",
     "turkish": "Türkçe",
-    "tryAgain": "Lütfen tekrar deneyin."
+    "tryAgain": "Lütfen tekrar deneyin.",
+    "notAvailable": "Yok"
   },
   "auth": {
     "login": {
@@ -126,6 +127,9 @@
       "privacy": "Gizlilik Seviyesi",
       "privacyPublic": "Herkese Açık",
       "privacyProtected": "Korumalı",
+      "audience": "Hedef Kitle",
+      "childFriendly": "Çocuk Dostu",
+      "familyOriented": "Aile Odaklı",
       "dateRange": "Tarih Aralığı",
       "from": "Başlangıç",
       "to": "Bitiş",
@@ -236,6 +240,88 @@
         "femalesOnly": "Sadece kadınlar"
       }
     },
+    "edit": {
+      "title": "Etkinliği Düzenle",
+      "loading": "Etkinlik düzenleme için yükleniyor...",
+      "blockedTitle": "Bu etkinlik düzenlenemez",
+      "blockedDescription": "Yalnızca başlamamış aktif ev sahipliği yaptığın etkinlikler güncellenebilir.",
+      "viewEvent": "Etkinliği Gör",
+      "warning": "Başlık, açıklama, kategori, zaman, yer, rota veya yeni gereksinim değişiklikleri katılımcıların tekrar onay vermesini gerektirebilir.",
+      "saveChanges": "Değişiklikleri Kaydet",
+      "confirmTitle": "Kaydetmeden önce gözden geçir",
+      "confirmBody": "Bu güncelleme yeni bir etkinlik sürümü oluşturur. Katılımcıların vurgulanan değişiklikleri tekrar onaylaması gerekebilir.",
+      "keepEditing": "Düzenlemeye Devam Et",
+      "saveAnyway": "Yine de Kaydet",
+      "currentParticipants": "Mevcut onaylı ve bekleyen katılımcılar: {{count}}",
+      "noRequirements": "Katılım gereksinimi yok.",
+      "success": "Etkinlik başarıyla güncellendi.",
+      "successWithReconfirmation": "Etkinlik güncellendi. {{count}} katılımcı tekrar onaylamalı.",
+      "successWithReconfirmation_other": "Etkinlik güncellendi. {{count}} katılımcı tekrar onaylamalı.",
+      "sections": {
+        "basics": "Temel Bilgiler",
+        "location": "Konum",
+        "schedule": "Program",
+        "participation": "Katılım"
+      },
+      "fields": {
+        "titleLabel": "Başlık",
+        "titlePlaceholder": "Etkinlik başlığı",
+        "descriptionLabel": "Açıklama",
+        "descriptionPlaceholder": "Katılımcılar ne bilmeli?",
+        "category": "Kategori",
+        "locationOrRoute": "Konum veya rota",
+        "locationTypePoint": "Tek nokta",
+        "locationTypeRoute": "Rota",
+        "locationSearchPlaceholder": "Bir yer ara ya da haritaya dokun",
+        "clearLocation": "Seçili konumu temizle",
+        "startDate": "Başlangıç tarihi",
+        "startTime": "Başlangıç saati",
+        "end": "Bitiş",
+        "endTime": "Bitiş saati",
+        "pickStartDate": "Başlangıç tarihini seç",
+        "pickStartTime": "Başlangıç saatini seç",
+        "pickEndDate": "Bitiş tarihini seç",
+        "pickEndTime": "Bitiş saatini seç",
+        "timePlaceholder": "Saat",
+        "clear": "Temizle",
+        "capacity": "Kapasite",
+        "unlimited": "Sınırsız",
+        "requirements": "Katılım gereksinimleri",
+        "removeRequirement": "Gereksinimi kaldır",
+        "requirementType": "Tür",
+        "requirementDetails": "Detaylar",
+        "addRequirement": "Gereksinim ekle"
+      },
+      "errors": {
+        "loginRequired": "Bu etkinliği düzenlemek için giriş yapmalısın.",
+        "loadFailed": "Etkinlik detayları yüklenemedi. Lütfen tekrar dene.",
+        "titleRequired": "Başlık gerekli",
+        "titleMin": "Başlık en az {{count}} karakter olmalı",
+        "titleMax": "Başlık en fazla {{count}} karakter olabilir",
+        "descriptionMin": "Açıklama en az {{count}} karakter olmalı",
+        "descriptionMax": "Açıklama en fazla {{count}} karakter olabilir",
+        "categoryRequired": "Lütfen bir kategori seç",
+        "locationRequired": "Lütfen bir konum seç",
+        "routeMin": "Rota oluşturmak için en az {{count}} durak ekle",
+        "routeMax": "Bir rota en fazla {{count}} durak içerebilir",
+        "startDateRequired": "Başlangıç tarihi gerekli",
+        "startTimeRequired": "Başlangıç saati gerekli",
+        "invalidStartDate": "Geçersiz başlangıç tarihi",
+        "startFuture": "Başlangıç tarihi gelecekte olmalı",
+        "endDateRequired": "Bitiş tarihi gerekli",
+        "endTimeRequired": "Bitiş saati gerekli",
+        "invalidEndDate": "Geçersiz bitiş tarihi",
+        "endAfterStart": "Bitiş başlangıçtan sonra olmalı",
+        "capacityWhole": "Kapasite tam sayı olmalı",
+        "capacityMin": "Kapasite en az {{count}} olmalı",
+        "capacityBelowCurrent": "Kapasite mevcut onaylı ve bekleyen katılımcı sayısından düşük olamaz",
+        "requirementComplete": "Her gereksinim için tür ve detay gerekli",
+        "onlyActiveFuture": "Yalnızca başlamamış aktif etkinlikler düzenlenebilir.",
+        "noChanges": "Kaydedilecek değişiklik yok.",
+        "updateFailed": "Etkinlik güncellenemedi. Lütfen tekrar dene.",
+        "maxRequirements": "En fazla 5 gereksinim eklenebilir"
+      }
+    },
     "detail": {
       "headerTitle": "Etkinlik Detayı",
       "joinEvent": "Etkinliğe Katıl",
@@ -322,6 +408,7 @@
     "ratingOverall": "Genel",
     "ratingHost": "Organizatör",
     "ratingParticipant": "Katılımcı",
+    "new": "Yeni",
     "hostedTab": "Düzenlenen",
     "attendedTab": "Katılınan",
     "noHostedEvents": "Henüz düzenlenmiş etkinlik yok.",
@@ -356,6 +443,134 @@
       "gender": "Cinsiyet",
       "birthDate": "Doğum Tarihi",
       "defaultLocation": "Varsayılan Konum"
+    }
+  },
+  "tickets": {
+    "status": {
+      "ACTIVE": "Geçerli",
+      "PENDING": "Beklemede",
+      "EXPIRED": "Süresi Doldu",
+      "USED": "Kullanıldı",
+      "CANCELED": "İptal Edildi"
+    },
+    "detail": {
+      "title": "Bilet",
+      "loading": "Biletin getiriliyor...",
+      "passNotFound": "Bilet bulunamadı",
+      "ticketNotFound": "Bu bileti cüzdanında bulamadık.",
+      "refresh": "Yenile",
+      "refreshCode": "Kodu Yenile",
+      "ticketUsed": "Bilet kullanıldı",
+      "ticketUsedDescription": "Bu bilet başarıyla doğrulandı.",
+      "liveQrLocked": "Canlı QR kilitli",
+      "noLongerValid": "Bu bilet giriş için artık geçerli değil.",
+      "errors": {
+        "unexpected": "Beklenmeyen bir hata oluştu. Lütfen tekrar dene."
+      }
+    },
+    "qr": {
+      "proximityRequired": "Bilet QR kodunu göstermek için etkinlik konumuna yakın olmalısın.",
+      "enableLocationServices": "Canlı biletine erişmek için cihaz ayarlarından konum servislerini etkinleştir.",
+      "connectionLost": "Bağlantı koptu. Yeniden deneniyor...",
+      "accessUnavailable": "Bilet erişimi henüz kullanılamıyor.",
+      "accessReasons": {
+        "PARTICIPATION_PENDING_REAPPROVAL": "Bilet erişimi açılmadan önce katılımın onay bekliyor.",
+        "PARTICIPATION_REJECTED": "Katılım isteğin reddedildi.",
+        "PARTICIPATION_CANCELED": "Katılımını iptal ettin.",
+        "TICKET_NOT_ACTIVE": "Bu bilet şu anda aktif değil.",
+        "TICKET_CANCELED": "Bu bilet iptal edildi ve artık geçerli değil.",
+        "TICKET_USED": "Bu bilet giriş için zaten kullanıldı.",
+        "TICKET_EXPIRED": "Bu biletin süresi doldu.",
+        "EVENT_NOT_ACTIVE": "Etkinlik şu anda bilet erişimi kabul etmiyor.",
+        "EVENT_CANCELED": "Bu etkinlik iptal edildiği için biletler devre dışı.",
+        "EVENT_COMPLETED": "Bu etkinlik sona erdi.",
+        "EVENT_NOT_PROTECTED": "Bu etkinlik türü şu anda canlı bilet kodlarını desteklemiyor.",
+        "PROXIMITY_REQUIRED": "Canlı QR kodunu görmek için etkinlik konumuna yaklaş."
+      }
+    },
+    "actions": {
+      "loading": "Etkinlik detayları yükleniyor...",
+      "unableToOpen": "Bu etkinlik açılamıyor",
+      "eventDetails": "Etkinlik Detayları",
+      "eventHost": "Etkinlik sahibi",
+      "scanTicket": "Bilet Tara",
+      "viewTicket": "Bileti Gör",
+      "viewFullEvent": "Tüm Etkinliği Gör",
+      "participants": "{{count}} katılımcı",
+      "participantsWithCapacity": "{{count}} katılımcı / {{capacity}}",
+      "errors": {
+        "loginRequired": "Bu etkinliğin biletlerini yönetmek için giriş yapmalısın.",
+        "loadFailed": "Etkinlik işlemleri yüklenemedi. Lütfen tekrar dene."
+      }
+    },
+    "scan": {
+      "title": "Bilet Tara",
+      "loading": "Tarama araçları yükleniyor...",
+      "unableToOpen": "Tarayıcı açılamıyor",
+      "accessDenied": "Erişim Reddedildi",
+      "hostOnly": "Yalnızca etkinlik sahibi biletleri tarayabilir. Etkinlik sahibiysen doğru hesapla giriş yaptığından emin ol.",
+      "eventFallback": "Etkinlik",
+      "accepted": "Bilet kabul edildi",
+      "rejected": "Bilet reddedildi",
+      "acceptedDescription": "Katılımcı etkinliğe girebilir.",
+      "scanAnother": "Başka Bilet Tara",
+      "validating": "Bilet doğrulanıyor...",
+      "cameraDenied": "Kamera erişimi reddedildi. Bilet taramak için lütfen ayarlardan etkinleştir.",
+      "cameraPrompt": "Kamera erişimi, etkinlik sahiplerinin biletleri anında taramasını sağlar.",
+      "enableCamera": "Kamerayı Etkinleştir",
+      "requestAgain": "Tekrar İste",
+      "scanHint": "Girişi doğrulamak için katılımcının QR kodunu kameranla tara.",
+      "rejectDefault": "Bu bilet doğrulanamadı.",
+      "rejectReasons": {
+        "INVALID_TOKEN": "Bu QR kodu geçersiz.",
+        "TICKET_NOT_FOUND": "Bu kod için bilet bulunamadı.",
+        "TICKET_ALREADY_USED": "Bu bilet zaten kullanıldı.",
+        "TICKET_NOT_ACTIVE": "Bu bilet aktif değil.",
+        "PARTICIPATION_INVALID": "Bu katılımcı giriş için uygun değil.",
+        "EVENT_INVALID": "Bu etkinlik şu anda bilet girişi kabul etmiyor.",
+        "TOKEN_OLD_VERSION": "Bu QR kodu güncel değil.",
+        "TOKEN_NOT_LATEST": "Daha yeni bir QR kodu oluşturulmuş.",
+        "EVENT_MISMATCH": "Bu QR kodu farklı bir etkinliğe ait.",
+        "PARTICIPATION_MISMATCH": "Bu bilet artık katılımcısıyla eşleşmiyor."
+      }
+    }
+  },
+  "publicProfile": {
+    "loading": "Profil yükleniyor...",
+    "profileNotFound": "Profil bulunamadı",
+    "ratingsCollected": "{{count}} puan toplandı",
+    "ratingBreakdown": "Organizatör: {{host}} · Katılımcı: {{participant}}",
+    "hostRatingCount": "Organizatör ({{count}})",
+    "guestRatingCount": "Misafir ({{count}})",
+    "newHost": "Yeni Organizatör",
+    "newGuest": "Yeni Misafir",
+    "viewAllBadges": "Tüm Rozetleri Gör",
+    "sections": {
+      "badges": "Rozetler",
+      "badgesSubtitle": "Organizatörlük, katılım ve sosyal aktivitelerle kazanılan başarılar",
+      "equipment": "Ekipman",
+      "equipmentSubtitle": "Bu üyenin öne çıkarmak istediği ekipman ve temel malzemeler",
+      "showcase": "Vitrin",
+      "showcaseSubtitle": "Profilde paylaşılan anlar, kareler ve görsel öne çıkanlar"
+    },
+    "empty": {
+      "badges": "Henüz rozet kazanılmadı.",
+      "badgeCatalog": "Katalogda rozet bulunamadı.",
+      "equipment": "Henüz ekipman listelenmedi.",
+      "showcase": "Henüz vitrin görseli yüklenmedi."
+    },
+    "badges": {
+      "catalogTitle": "Rozet Kataloğu",
+      "earned": "Kazanıldı",
+      "locked": "Kilitli",
+      "notEarned": "Henüz kazanılmadı",
+      "earnedOn": "{{date}} tarihinde kazanıldı",
+      "achievement": "Başarı",
+      "howToEarn": "Nasıl kazanılır:"
+    },
+    "errors": {
+      "loginRequired": "Profilleri görüntülemek için giriş yapmalısın.",
+      "loadFailed": "Kullanıcı profili yüklenemedi. Lütfen tekrar dene."
     }
   }
 }

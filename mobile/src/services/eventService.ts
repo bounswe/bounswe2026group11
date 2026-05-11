@@ -510,6 +510,14 @@ export async function listEvents(
     params.set('sort_by', query.sort_by);
   }
 
+  if (query.child_friendly != null) {
+    params.set('child_friendly', String(query.child_friendly));
+  }
+
+  if (query.family_oriented != null) {
+    params.set('family_oriented', String(query.family_oriented));
+  }
+
   if (query.limit != null) {
     params.set('limit', String(query.limit));
   }

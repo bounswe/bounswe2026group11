@@ -7,6 +7,7 @@ import {
 } from '@/services/profileService';
 import { ApiError } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import i18n from '@/i18n';
 
 export interface PublicProfileViewModel {
   profile: PublicProfile | null;
@@ -34,7 +35,7 @@ export function usePublicProfileViewModel(userId: string): PublicProfileViewMode
 
   const fetchData = useCallback(async () => {
     if (!token) {
-      setError('You must be logged in to view profiles.');
+      setError(i18n.t('publicProfile.errors.loginRequired'));
       setIsLoading(false);
       return;
     }
@@ -67,7 +68,7 @@ export function usePublicProfileViewModel(userId: string): PublicProfileViewMode
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('Failed to load user profile. Please try again.');
+        setError(i18n.t('publicProfile.errors.loadFailed'));
       }
     } finally {
       setIsLoading(false);
@@ -84,15 +85,15 @@ export function usePublicProfileViewModel(userId: string): PublicProfileViewMode
 
   const overallRatingLabel = profile?.final_score != null 
     ? profile.final_score.toFixed(1) 
-    : 'New';
+    : i18n.t('profile.new');
   
   const hostRatingLabel = profile?.final_score != null // Note: Backend currently returns final_score but might need more specific host/participant count
-    ? `Host (${profile.host_rating_count})`
-    : 'New Host';
+    ? i18n.t('publicProfile.hostRatingCount', { count: profile.host_rating_count })
+    : i18n.t('publicProfile.newHost');
 
   const participantRatingLabel = profile?.final_score != null
-    ? `Guest (${profile.participant_rating_count})`
-    : 'New Guest';
+    ? i18n.t('publicProfile.guestRatingCount', { count: profile.participant_rating_count })
+    : i18n.t('publicProfile.newGuest');
 
   return {
     profile,

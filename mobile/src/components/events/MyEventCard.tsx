@@ -22,7 +22,7 @@ function getAttendeeLabel(count?: number | null) {
   if (count == null) {
     return 'N/A';
   }
-  return `${count} attendees`;
+  return String(count);
 }
 
 function getLocationLabel(address?: string | null) {
@@ -38,7 +38,35 @@ export default function MyEventCard({ event, onPress }: MyEventCardProps) {
   useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
-  const statusColors = getEventStatusBadgeColors(event.status);
+  function formatPrivacyLabel(value: string) {
+    return value.charAt(0) + value.slice(1).toLowerCase();
+  }
+
+  const getPrivacyDisplay = (level: string) => {
+    switch (level) {
+      case 'PROTECTED':
+        return {
+          backgroundColor: theme.badgeProtectedBg,
+          textColor: theme.badgeProtectedText,
+          icon: 'lock',
+        };
+      case 'PRIVATE':
+        return {
+          backgroundColor: theme.badgePrivateBg,
+          textColor: theme.badgePrivateText,
+          icon: 'lock',
+        };
+      default:
+        return {
+          backgroundColor: theme.badgePublicBg,
+          textColor: theme.badgePublicText,
+          icon: 'globe',
+        };
+    }
+  };
+
+  const { backgroundColor, textColor, icon: privacyIcon } = getPrivacyDisplay(event.privacy_level);
+  const privacyColors = { backgroundColor, textColor };
 
   function getBadgeStyle(
     type: MyEventBadge['type'],
@@ -93,16 +121,22 @@ export default function MyEventCard({ event, onPress }: MyEventCardProps) {
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: statusColors.backgroundColor },
+                { backgroundColor: privacyColors.backgroundColor },
               ]}
             >
+              <Feather
+                name={privacyIcon as any}
+                size={12}
+                color={privacyColors.textColor}
+                style={{ marginRight: 4 }}
+              />
               <Text
                 style={[
                   styles.statusBadgeText,
-                  { color: statusColors.textColor },
+                  { color: privacyColors.textColor },
                 ]}
               >
-                {formatEventStatusLabel(event.status)}
+                {formatPrivacyLabel(event.privacy_level)}
               </Text>
             </View>
           </View>
@@ -213,6 +247,8 @@ function makeStyles(t: Theme) {
       gap: 8,
     },
     statusBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
       paddingHorizontal: 10,
       paddingVertical: 6,
       borderRadius: 999,

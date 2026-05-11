@@ -131,6 +131,7 @@ describe('MyEventsView', () => {
     ).toBeTruthy();
     expect(screen.getByText('Bebek Sahili, Istanbul')).toBeTruthy();
     expect(screen.getByText('Host')).toBeTruthy();
+    expect(screen.getByText('Public')).toBeTruthy();
   });
 
   it('opens the event actions screen when an event card is pressed', () => {

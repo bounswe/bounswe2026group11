@@ -41,6 +41,8 @@ const DEFAULT_FILTERS: HomeFiltersDraft = {
   endDate: '',
   radiusKm: 10,
   sortBy: 'START_TIME',
+  childFriendly: false,
+  familyOriented: false,
 };
 
 type DefaultLocationSource = 'PROFILE' | 'LIVE' | 'FALLBACK';
@@ -365,6 +367,8 @@ export interface HomeViewModel {
   updateDraftSortBy: (
     value: Extract<DiscoverEventsSortBy, 'START_TIME' | 'DISTANCE'>,
   ) => void;
+  toggleDraftChildFriendly: () => void;
+  toggleDraftFamilyOriented: () => void;
   loadMoreEvents: () => Promise<void>;
   refreshEvents: () => Promise<void>;
   silentRefresh: () => Promise<void>;
@@ -601,6 +605,8 @@ export function useHomeViewModel(): HomeViewModel {
             start_from: parseStrictDateToIso(appliedFilters.startDate, 'start'),
             start_to: parseStrictDateToIso(appliedFilters.endDate, 'end'),
             sort_by: appliedFilters.sortBy,
+            child_friendly: appliedFilters.childFriendly || undefined,
+            family_oriented: appliedFilters.familyOriented || undefined,
             limit: PAGE_SIZE,
             cursor:
               mode === 'loadMore' ? cursorOverride ?? undefined : undefined,
@@ -902,6 +908,14 @@ export function useHomeViewModel(): HomeViewModel {
     }));
   }, []);
 
+  const toggleDraftChildFriendly = useCallback(() => {
+    setFilterDraft((prev) => ({ ...prev, childFriendly: !prev.childFriendly }));
+  }, []);
+
+  const toggleDraftFamilyOriented = useCallback(() => {
+    setFilterDraft((prev) => ({ ...prev, familyOriented: !prev.familyOriented }));
+  }, []);
+
   const loadMoreEvents = useCallback(async () => {
     if (isLoading || isLoadingMore || isRefreshing || !hasMore || !nextCursor) {
       return;
@@ -1047,6 +1061,8 @@ export function useHomeViewModel(): HomeViewModel {
     updateDraftEndDate,
     updateDraftRadiusKm,
     updateDraftSortBy,
+    toggleDraftChildFriendly,
+    toggleDraftFamilyOriented,
     openLocationModal,
     closeLocationModal,
     updateLocationQuery,

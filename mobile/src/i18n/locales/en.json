@@ -20,7 +20,8 @@
     "language": "Language",
     "english": "English",
     "turkish": "Türkçe",
-    "tryAgain": "Please try again."
+    "tryAgain": "Please try again.",
+    "notAvailable": "N/A"
   },
   "auth": {
     "login": {
@@ -126,6 +127,9 @@
       "privacy": "Privacy Level",
       "privacyPublic": "Public",
       "privacyProtected": "Protected",
+      "audience": "Audience",
+      "childFriendly": "Child Friendly",
+      "familyOriented": "Family Oriented",
       "dateRange": "Date Range",
       "from": "From",
       "to": "To",
@@ -236,6 +240,88 @@
         "femalesOnly": "Females only"
       }
     },
+    "edit": {
+      "title": "Edit Event",
+      "loading": "Loading event for editing...",
+      "blockedTitle": "This event cannot be edited",
+      "blockedDescription": "Only active hosted events that have not started can be updated.",
+      "viewEvent": "View Event",
+      "warning": "Saving a title, description, category, time, place, route, or new requirement change can require attendees to reconfirm.",
+      "saveChanges": "Save Changes",
+      "confirmTitle": "Review before saving",
+      "confirmBody": "This update creates a new event version. Attendees may need to reconfirm the highlighted changes.",
+      "keepEditing": "Keep Editing",
+      "saveAnyway": "Save Anyway",
+      "currentParticipants": "Current approved plus pending participants: {{count}}",
+      "noRequirements": "No participation requirements.",
+      "success": "Event updated successfully.",
+      "successWithReconfirmation": "Event updated. {{count}} participant must reconfirm.",
+      "successWithReconfirmation_other": "Event updated. {{count}} participants must reconfirm.",
+      "sections": {
+        "basics": "Basics",
+        "location": "Location",
+        "schedule": "Schedule",
+        "participation": "Participation"
+      },
+      "fields": {
+        "titleLabel": "Title",
+        "titlePlaceholder": "Event title",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "What should attendees know?",
+        "category": "Category",
+        "locationOrRoute": "Location or route",
+        "locationTypePoint": "Single point",
+        "locationTypeRoute": "Route",
+        "locationSearchPlaceholder": "Search for a place or tap the map",
+        "clearLocation": "Clear selected location",
+        "startDate": "Start date",
+        "startTime": "Start time",
+        "end": "End",
+        "endTime": "End time",
+        "pickStartDate": "Pick start date",
+        "pickStartTime": "Pick start time",
+        "pickEndDate": "Pick end date",
+        "pickEndTime": "Pick end time",
+        "timePlaceholder": "Time",
+        "clear": "Clear",
+        "capacity": "Capacity",
+        "unlimited": "Unlimited",
+        "requirements": "Participation requirements",
+        "removeRequirement": "Remove requirement",
+        "requirementType": "Type",
+        "requirementDetails": "Details",
+        "addRequirement": "Add requirement"
+      },
+      "errors": {
+        "loginRequired": "You must be logged in to edit this event.",
+        "loadFailed": "Failed to load event details. Please try again.",
+        "titleRequired": "Title is required",
+        "titleMin": "Title must be at least {{count}} characters",
+        "titleMax": "Title must be at most {{count}} characters",
+        "descriptionMin": "Description must be at least {{count}} characters",
+        "descriptionMax": "Description must be at most {{count}} characters",
+        "categoryRequired": "Please select a category",
+        "locationRequired": "Please select a location",
+        "routeMin": "Add at least {{count}} waypoints to create a route",
+        "routeMax": "A route can have at most {{count}} waypoints",
+        "startDateRequired": "Start date is required",
+        "startTimeRequired": "Start time is required",
+        "invalidStartDate": "Invalid start date",
+        "startFuture": "Start date must be in the future",
+        "endDateRequired": "End date is required",
+        "endTimeRequired": "End time is required",
+        "invalidEndDate": "Invalid end date",
+        "endAfterStart": "End must be after start",
+        "capacityWhole": "Capacity must be a whole number",
+        "capacityMin": "Capacity must be at least {{count}}",
+        "capacityBelowCurrent": "Capacity cannot be below current approved plus pending participants",
+        "requirementComplete": "Every requirement needs a type and details",
+        "onlyActiveFuture": "Only active events that have not started can be edited.",
+        "noChanges": "No changes to save.",
+        "updateFailed": "Failed to update event. Please try again.",
+        "maxRequirements": "Maximum 5 requirements allowed"
+      }
+    },
     "detail": {
       "headerTitle": "Event Details",
       "joinEvent": "Join Event",
@@ -322,6 +408,7 @@
     "ratingOverall": "Overall",
     "ratingHost": "Host",
     "ratingParticipant": "Participant",
+    "new": "New",
     "hostedTab": "Hosted",
     "attendedTab": "Attended",
     "noHostedEvents": "No hosted events yet.",
@@ -356,6 +443,134 @@
       "gender": "Gender",
       "birthDate": "Birth Date",
       "defaultLocation": "Default Location"
+    }
+  },
+  "tickets": {
+    "status": {
+      "ACTIVE": "Valid",
+      "PENDING": "Pending",
+      "EXPIRED": "Expired",
+      "USED": "Used",
+      "CANCELED": "Canceled"
+    },
+    "detail": {
+      "title": "Ticket",
+      "loading": "Fetching your pass...",
+      "passNotFound": "Pass not found",
+      "ticketNotFound": "We could not find this ticket in your wallet.",
+      "refresh": "Refresh",
+      "refreshCode": "Refresh Code",
+      "ticketUsed": "Ticket used",
+      "ticketUsedDescription": "This ticket was successfully validated.",
+      "liveQrLocked": "Live QR locked",
+      "noLongerValid": "This ticket is no longer valid for entry.",
+      "errors": {
+        "unexpected": "An unexpected error occurred. Please try again."
+      }
+    },
+    "qr": {
+      "proximityRequired": "You must be near the event location to show this ticket QR.",
+      "enableLocationServices": "Please enable location services in your device settings to access your live ticket.",
+      "connectionLost": "Connection lost. Retrying...",
+      "accessUnavailable": "Ticket access is not available yet.",
+      "accessReasons": {
+        "PARTICIPATION_PENDING_REAPPROVAL": "Your participation is pending approval before ticket access is enabled.",
+        "PARTICIPATION_REJECTED": "Your participation request was rejected.",
+        "PARTICIPATION_CANCELED": "You have canceled your participation.",
+        "TICKET_NOT_ACTIVE": "This ticket is not active right now.",
+        "TICKET_CANCELED": "This ticket has been canceled and is no longer valid.",
+        "TICKET_USED": "This ticket has already been used for entry.",
+        "TICKET_EXPIRED": "This ticket has expired.",
+        "EVENT_NOT_ACTIVE": "The event is not currently accepting ticket access.",
+        "EVENT_CANCELED": "This event has been canceled, so tickets are disabled.",
+        "EVENT_COMPLETED": "This event has already ended.",
+        "EVENT_NOT_PROTECTED": "This event type does not currently support live ticket tokens.",
+        "PROXIMITY_REQUIRED": "Move closer to the event location to reveal your live QR token."
+      }
+    },
+    "actions": {
+      "loading": "Loading event details...",
+      "unableToOpen": "Unable to open this event",
+      "eventDetails": "Event Details",
+      "eventHost": "Event host",
+      "scanTicket": "Scan Ticket",
+      "viewTicket": "View Ticket",
+      "viewFullEvent": "View Full Event",
+      "participants": "{{count}} participants",
+      "participantsWithCapacity": "{{count}} participants / {{capacity}}",
+      "errors": {
+        "loginRequired": "You must be logged in to manage tickets for this event.",
+        "loadFailed": "Failed to load event actions. Please try again."
+      }
+    },
+    "scan": {
+      "title": "Scan Ticket",
+      "loading": "Loading scan tools...",
+      "unableToOpen": "Unable to open scanner",
+      "accessDenied": "Access Denied",
+      "hostOnly": "Only the event host is authorized to scan tickets. If you are the host, please make sure you are logged into the correct account.",
+      "eventFallback": "Event",
+      "accepted": "Ticket accepted",
+      "rejected": "Ticket rejected",
+      "acceptedDescription": "The attendee can enter the event.",
+      "scanAnother": "Scan Another Ticket",
+      "validating": "Validating ticket...",
+      "cameraDenied": "Camera access is denied. Please enable it in settings to scan tickets.",
+      "cameraPrompt": "Camera access lets hosts scan tickets instantly.",
+      "enableCamera": "Enable Camera",
+      "requestAgain": "Request Again",
+      "scanHint": "Scan the attendee QR code with your camera to validate their entry.",
+      "rejectDefault": "This ticket could not be validated.",
+      "rejectReasons": {
+        "INVALID_TOKEN": "This QR token is invalid.",
+        "TICKET_NOT_FOUND": "No ticket was found for this token.",
+        "TICKET_ALREADY_USED": "This ticket was already used.",
+        "TICKET_NOT_ACTIVE": "This ticket is not active.",
+        "PARTICIPATION_INVALID": "This participant is not eligible for entry.",
+        "EVENT_INVALID": "This event is not accepting ticket entry right now.",
+        "TOKEN_OLD_VERSION": "This QR code is outdated.",
+        "TOKEN_NOT_LATEST": "A newer QR token has already been issued.",
+        "EVENT_MISMATCH": "This QR code belongs to a different event.",
+        "PARTICIPATION_MISMATCH": "This ticket no longer matches its participant."
+      }
+    }
+  },
+  "publicProfile": {
+    "loading": "Loading profile...",
+    "profileNotFound": "Profile not found",
+    "ratingsCollected": "{{count}} ratings collected",
+    "ratingBreakdown": "Host: {{host}} · Participant: {{participant}}",
+    "hostRatingCount": "Host ({{count}})",
+    "guestRatingCount": "Guest ({{count}})",
+    "newHost": "New Host",
+    "newGuest": "New Guest",
+    "viewAllBadges": "View All Badges",
+    "sections": {
+      "badges": "Badges",
+      "badgesSubtitle": "Achievements earned through hosting, participation, and social activity",
+      "equipment": "Equipment",
+      "equipmentSubtitle": "Gear and essentials this member wants to highlight",
+      "showcase": "Showcase",
+      "showcaseSubtitle": "Moments, snapshots, and visual highlights shared on the profile"
+    },
+    "empty": {
+      "badges": "No badges earned yet.",
+      "badgeCatalog": "No badges found in catalog.",
+      "equipment": "No equipment listed yet.",
+      "showcase": "No showcase images uploaded yet."
+    },
+    "badges": {
+      "catalogTitle": "Badge Catalog",
+      "earned": "Earned",
+      "locked": "Locked",
+      "notEarned": "Not yet earned",
+      "earnedOn": "Earned on {{date}}",
+      "achievement": "Achievement",
+      "howToEarn": "How to earn:"
+    },
+    "errors": {
+      "loginRequired": "You must be logged in to view profiles.",
+      "loadFailed": "Failed to load user profile. Please try again."
     }
   }
 }

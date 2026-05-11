@@ -32,6 +32,8 @@ export interface CreateEventRequest {
   constraints?: EventConstraint[];
   minimum_age?: number;
   preferred_gender?: PreferredGender;
+  child_friendly?: boolean;
+  family_oriented?: boolean;
 }
 
 export interface UpdateEventRequest {
@@ -107,6 +109,8 @@ export interface EventSummary {
   favorite_count?: number;
   status?: string;
   is_location_approximate?: boolean | null;
+  child_friendly?: boolean;
+  family_oriented?: boolean;
 }
 
 export type MyEventStatus =
@@ -163,6 +167,8 @@ export interface ListEventsQuery {
   sort_by?: DiscoverEventsSortBy;
   limit?: number;
   cursor?: string;
+  child_friendly?: boolean;
+  family_oriented?: boolean;
 }
 
 export interface DiscoverEventsPageInfo {
@@ -348,6 +354,8 @@ export interface EventDetail {
   viewer_event_rating?: EventDetailEmbeddedRating | null;
   viewer_context: EventDetailViewerContext;
   host_context?: EventDetailHostContext | null;
+  child_friendly?: boolean;
+  family_oriented?: boolean;
 }
 
 export interface EventApprovedParticipantsResponse {
@@ -414,6 +422,8 @@ export interface HomeFiltersDraft {
   endDate: string;
   radiusKm: number;
   sortBy: Extract<DiscoverEventsSortBy, 'START_TIME' | 'DISTANCE'>;
+  childFriendly: boolean;
+  familyOriented: boolean;
 }
 
 // Image upload types (presigned URL flow)

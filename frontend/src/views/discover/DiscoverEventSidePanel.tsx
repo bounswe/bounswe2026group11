@@ -145,26 +145,24 @@ export default function DiscoverEventSidePanel({
           imgClassName="dc-side-panel-image-img"
           variant="card"
         />
-        <div className="dc-side-panel-image-badges">
+        <span
+          className="dc-side-panel-category"
+          style={{ background: presentation.color, color: presentation.textColor }}
+        >
+          <span aria-hidden>{presentation.emoji}</span>
+          <span>{presentation.label}</span>
+        </span>
+        {lifecycle && (
           <span
-            className="dc-side-panel-category"
-            style={{ background: presentation.color, color: presentation.textColor }}
+            className={`dc-side-panel-lifecycle ${
+              lifecycle.variant === 'upcoming'
+                ? 'dc-side-panel-lifecycle-upcoming'
+                : 'dc-side-panel-lifecycle-in-progress'
+            }`}
           >
-            <span aria-hidden>{presentation.emoji}</span>
-            <span>{presentation.label}</span>
+            {lifecycle.label}
           </span>
-          {lifecycle && (
-            <span
-              className={`dc-side-panel-lifecycle ${
-                lifecycle.variant === 'upcoming'
-                  ? 'dc-side-panel-lifecycle-upcoming'
-                  : 'dc-side-panel-lifecycle-in-progress'
-              }`}
-            >
-              {lifecycle.label}
-            </span>
-          )}
-        </div>
+        )}
       </div>
 
       <div className="dc-side-panel-body">
@@ -247,7 +245,7 @@ export default function DiscoverEventSidePanel({
 
         {tags.length > 0 && (
           <div className="dc-side-panel-tags">
-            {tags.slice(0, 8).map((tag) => (
+            {tags.map((tag) => (
               <span key={tag} className="dc-side-panel-tag">
                 #{tag}
               </span>

@@ -2,6 +2,10 @@ declare namespace NodeJS {
   interface ProcessEnv {
     /** Optional override, e.g. `http://192.168.1.10/api` for a physical device. */
     EXPO_PUBLIC_API_BASE_URL?: string;
+    /** Set to `production` for release builds that should use the production API URL. */
+    EXPO_PUBLIC_APP_ENV?: 'production' | 'development' | string;
+    /** Android Maps SDK key, restricted by package name and signing certificate SHA-1. */
+    EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY?: string;
   }
 }
 

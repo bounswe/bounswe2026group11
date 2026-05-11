@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useEventActionsViewModel } from '@/viewmodels/ticket/useEventActionsViewModel';
 import { formatEventDateLabel } from '@/utils/eventDate';
 import { formatEventLocation } from '@/utils/eventLocation';
@@ -23,8 +24,18 @@ interface EventActionsViewProps {
 
 export default function EventActionsView({ eventId }: EventActionsViewProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const vm = useEventActionsViewModel(eventId);
+
+  const isSameDay = useMemo(() => {
+    if (!vm.event?.start_time || !vm.event?.end_time) return true;
+    const start = new Date(vm.event.start_time);
+    const end = new Date(vm.event.end_time);
+    return start.getFullYear() === end.getFullYear() &&
+           start.getMonth() === end.getMonth() &&
+           start.getDate() === end.getDate();
+  }, [vm.event?.start_time, vm.event?.end_time]);
 
   const handlePrimaryAction = React.useCallback(() => {
     if (vm.canScanTicket) {
@@ -42,7 +53,7 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <View style={styles.loadingPanel}>
           <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={styles.loadingText}>Loading event details...</Text>
+          <Text style={styles.loadingText}>{t('tickets.actions.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -53,7 +64,7 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <View style={styles.container}>
           <TouchableOpacity
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.back')}
             activeOpacity={0.8}
             onPress={() => router.back()}
             style={styles.backButton}
@@ -62,17 +73,17 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
           </TouchableOpacity>
 
           <View style={styles.errorPanel}>
-            <Text style={styles.errorTitle}>Unable to open this event</Text>
+            <Text style={styles.errorTitle}>{t('tickets.actions.unableToOpen')}</Text>
             <Text style={styles.errorText}>
-              {vm.errorMessage ?? 'Something went wrong while loading event actions.'}
+              {vm.errorMessage ?? t('tickets.actions.errors.loadFailed')}
             </Text>
             <TouchableOpacity
-              accessibilityLabel="Try again"
+              accessibilityLabel={t('common.retry')}
               activeOpacity={0.85}
               onPress={() => void vm.reload()}
               style={styles.retryButton}
             >
-              <Text style={styles.retryButtonText}>Try Again</Text>
+              <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -89,14 +100,14 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
         <View style={styles.container}>
           <View style={styles.headerRow}>
             <TouchableOpacity
-              accessibilityLabel="Go back"
+              accessibilityLabel={t('common.back')}
               activeOpacity={0.8}
               onPress={() => router.back()}
               style={styles.backButton}
             >
               <Ionicons name="arrow-back" size={26} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Event Details</Text>
+            <Text style={styles.headerTitle}>{t('tickets.actions.eventDetails')}</Text>
           </View>
 
           <View style={styles.heroCard}>
@@ -123,9 +134,16 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
           <View style={styles.metaGroup}>
             <View style={styles.metaRow}>
               <Feather name="calendar" size={21} color={theme.textSecondary} />
-              <Text style={styles.metaText}>
-                {formatEventDateLabel(event.start_time, event.end_time)}
-              </Text>
+              <View style={styles.dateCol}>
+                <Text style={styles.metaText}>
+                  {formatEventDateLabel(event.start_time, isSameDay ? event.end_time : null)}
+                </Text>
+                {!isSameDay && event.end_time && (
+                  <Text style={styles.metaTextSecondary}>
+                    • {formatEventDateLabel(event.end_time, null)}
+                  </Text>
+                )}
+              </View>
             </View>
             <View style={styles.metaRow}>
               <Feather name="map-pin" size={21} color={theme.textSecondary} />
@@ -136,8 +154,14 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
             <View style={styles.metaRow}>
               <Feather name="users" size={21} color={theme.textSecondary} />
               <Text style={styles.metaText}>
-                {event.approved_participant_count}
-                {event.capacity ? ` participants / ${event.capacity}` : ' participants'}
+                {event.capacity
+                  ? t('tickets.actions.participantsWithCapacity', {
+                      count: event.approved_participant_count,
+                      capacity: event.capacity,
+                    })
+                  : t('tickets.actions.participants', {
+                      count: event.approved_participant_count,
+                    })}
               </Text>
             </View>
           </View>
@@ -156,8 +180,9 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
             </View>
             <View style={styles.hostInfo}>
               <Text style={styles.hostName}>{hostName}</Text>
-              <Text style={styles.hostLabel}>Event host</Text>
+              <Text style={styles.hostLabel}>{t('tickets.actions.eventHost')}</Text>
             </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
           </TouchableOpacity>
 
           {vm.primaryActionLabel ? (
@@ -178,23 +203,23 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
 
           {vm.canEditEvent ? (
             <TouchableOpacity
-              accessibilityLabel="Edit event"
+              accessibilityLabel={t('events.edit.title')}
               activeOpacity={0.9}
               onPress={() => router.push(`/event/${eventId}/edit` as Href)}
               style={styles.editButton}
             >
               <Feather name="edit-3" size={20} color={theme.textOnPrimary} />
-              <Text style={styles.editButtonText}>Edit Event</Text>
+              <Text style={styles.editButtonText}>{t('events.edit.title')}</Text>
             </TouchableOpacity>
           ) : null}
 
           <TouchableOpacity
-            accessibilityLabel="View full event"
+            accessibilityLabel={t('tickets.actions.viewFullEvent')}
             activeOpacity={0.9}
             onPress={() => router.push(`/event/${eventId}` as Href)}
             style={styles.secondaryButton}
           >
-            <Text style={styles.secondaryButtonText}>View Full Event</Text>
+            <Text style={styles.secondaryButtonText}>{t('tickets.actions.viewFullEvent')}</Text>
             <Ionicons name="chevron-forward" size={22} color={theme.text} />
           </TouchableOpacity>
         </View>
@@ -273,8 +298,18 @@ function makeStyles(t: Theme) {
       flex: 1,
       fontSize: 17,
       lineHeight: 24,
+      fontWeight: '600',
+      color: t.text,
+    },
+    metaTextSecondary: {
+      fontSize: 15,
+      lineHeight: 20,
       fontWeight: '500',
       color: t.textSecondary,
+      marginTop: 2,
+    },
+    dateCol: {
+      flex: 1,
     },
     descriptionText: {
       marginTop: 26,

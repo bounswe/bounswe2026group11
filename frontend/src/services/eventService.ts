@@ -7,6 +7,8 @@ import type {
 import {
   CreateEventRequest,
   CreateEventResponse,
+  UpdateEventRequest,
+  UpdateEventResponse,
   ListCategoriesResponse,
   LocationSuggestion,
   DiscoverEventsParams,
@@ -18,6 +20,7 @@ import {
   RequestJoinRequestBody,
   ApproveJoinRequestResponse,
   RejectJoinRequestResponse,
+  ReconfirmParticipationResponse,
   FavoriteEventsResponse,
   FavoriteEventItem,
   EventApprovedParticipantsResponse,
@@ -91,6 +94,14 @@ export function createEvent(
   return apiPostAuth<CreateEventResponse>('/events/', request, token);
 }
 
+export function updateEvent(
+  eventId: string,
+  request: UpdateEventRequest,
+  token: string,
+): Promise<UpdateEventResponse> {
+  return apiPatchAuth<UpdateEventResponse>(`/events/${eventId}`, request, token);
+}
+
 export function listCategories(): Promise<ListCategoriesResponse> {
   return apiGet<ListCategoriesResponse>('/categories/');
 }
@@ -138,6 +149,18 @@ function buildCollectionPath(eventId: string, resource: string, limit?: number, 
   return query === '' ? `/events/${eventId}/${resource}` : `/events/${eventId}/${resource}?${query}`;
 }
 
+function buildParticipantsPath(
+  eventId: string,
+  options: { limit?: number; cursor?: string | null; status?: 'APPROVED' | 'PENDING' } = {},
+) {
+  const qs = new URLSearchParams();
+  if (options.limit != null) qs.set('limit', String(options.limit));
+  if (options.cursor) qs.set('cursor', options.cursor);
+  if (options.status) qs.set('status', options.status);
+  const query = qs.toString();
+  return query === '' ? `/events/${eventId}/participants` : `/events/${eventId}/participants?${query}`;
+}
+
 export function getEventHostContextSummary(
   eventId: string,
   token: string,
@@ -148,10 +171,10 @@ export function getEventHostContextSummary(
 export function listEventApprovedParticipants(
   eventId: string,
   token: string,
-  options: { limit?: number; cursor?: string | null } = {},
+  options: { limit?: number; cursor?: string | null; status?: 'APPROVED' | 'PENDING' } = {},
 ): Promise<EventApprovedParticipantsResponse> {
   return apiGetAuth<EventApprovedParticipantsResponse>(
-    buildCollectionPath(eventId, 'participants', options.limit, options.cursor),
+    buildParticipantsPath(eventId, options),
     token,
   );
 }
@@ -217,6 +240,17 @@ export function leaveEvent(
   token: string,
 ): Promise<void> {
   return apiPatchAuth<void>(`/events/${eventId}/leave`, {}, token);
+}
+
+export function reconfirmEventParticipation(
+  eventId: string,
+  token: string,
+): Promise<ReconfirmParticipationResponse> {
+  return apiPostAuth<ReconfirmParticipationResponse>(
+    `/events/${eventId}/participation/reconfirm`,
+    {},
+    token,
+  );
 }
 
 export function requestJoinEvent(

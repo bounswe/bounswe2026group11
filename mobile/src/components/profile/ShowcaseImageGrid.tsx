@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, Image, TouchableOpacity, Dimensions, Text, Modal, PanResponder, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ShowcaseImageItem } from '@/models/profile';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
@@ -18,6 +19,7 @@ interface ShowcaseImageGridProps {
 
 export default function ShowcaseImageGrid({ images, onDelete, isOwner }: ShowcaseImageGridProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = makeStyles(theme);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [imageSize, setImageSize] = useState({ width: width, height: height * 0.8 });
@@ -59,7 +61,7 @@ export default function ShowcaseImageGrid({ images, onDelete, isOwner }: Showcas
       <View style={styles.emptyContainer}>
         <View style={styles.emptyTextWrapper}>
           <Ionicons name="images-outline" size={32} color={theme.textMuted} style={{ marginBottom: 8 }} />
-          <Text style={styles.emptyText}>No showcase images uploaded yet.</Text>
+          <Text style={styles.emptyText}>{t('publicProfile.empty.showcase')}</Text>
         </View>
       </View>
     );

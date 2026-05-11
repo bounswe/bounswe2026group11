@@ -159,6 +159,8 @@ function buildViewModel(
       capacityInput: '12',
       otherConstraintInput: '',
       invitationMessage: '',
+      childFriendly: false,
+      familyOriented: false,
     },
     errors: {},
     isLoading: false,

@@ -120,9 +120,13 @@ function makeReadyViewModel(event: EventDetailResponse) {
     reportLoading: false,
     reportError: null,
     reportSuccessMessage: null,
+    reconfirmLoading: false,
+    reconfirmError: null,
+    reconfirmSuccessMessage: null,
     retry: vi.fn(),
     handleJoin: vi.fn(),
     handleLeave: vi.fn(),
+    handleReconfirmParticipation: vi.fn(),
     handleRequestJoin: vi.fn(),
     handleViewerRatingSubmit: vi.fn(),
     handleParticipantRatingSubmit: vi.fn(),
@@ -141,6 +145,8 @@ function makeReadyViewModel(event: EventDetailResponse) {
     dismissCompleteError: vi.fn(),
     dismissReportError: vi.fn(),
     dismissReportSuccess: vi.fn(),
+    dismissReconfirmError: vi.fn(),
+    dismissReconfirmSuccess: vi.fn(),
     coverImageUploading: false,
     coverImageError: null,
     coverImageSuccessMessage: null,
@@ -148,6 +154,10 @@ function makeReadyViewModel(event: EventDetailResponse) {
     dismissCoverImageError: vi.fn(),
     dismissCoverImageSuccess: vi.fn(),
     loadMoreApprovedParticipants: vi.fn(),
+    pendingParticipants: [],
+    pendingParticipantsLoading: false,
+    pendingParticipantsHasNext: false,
+    loadMorePendingParticipants: vi.fn(),
     loadMorePendingJoinRequests: vi.fn(),
     loadMoreInvitations: vi.fn(),
     inviteLoading: false,
@@ -380,6 +390,27 @@ describe('EventDetailPage ratings', () => {
     expect(screen.queryByTestId('ed-directions-link')).toBeNull();
   });
 
+  it('shows the approximate district and province when protected location address is available', () => {
+    const event = makeBaseEvent();
+    event.privacy_level = 'PROTECTED';
+    event.viewer_context.participation_status = 'NONE';
+    event.location = {
+      type: 'POINT',
+      address: 'Kadikoy, Istanbul, Turkiye',
+      point: { lat: 40.981, lon: 29.032 },
+      route_points: [],
+      is_location_approximate: true,
+    };
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.getByText('Kadikoy, Istanbul')).toBeDefined();
+    expect(screen.queryByText(/^approximate area$/i)).toBeNull();
+    expect(screen.queryByTestId('ed-directions-link')).toBeNull();
+  });
+
   it('shows the map fallback and hides the directions link when coordinates are missing', () => {
     const event = makeBaseEvent();
     event.location = {
@@ -602,6 +633,33 @@ describe('EventDetailPage ratings', () => {
 
     renderPage();
 
+    expect(screen.queryByTestId('ed-cancel-request-btn')).toBeNull();
+  });
+
+  it('does not show a Cancel Request button when attendance needs reconfirmation', () => {
+    const event = makeBaseEvent();
+    event.status = 'ACTIVE';
+    event.privacy_level = 'PROTECTED';
+    event.viewer_context.participation_status = 'PENDING';
+    event.viewer_context.needs_reconfirmation = true;
+    event.viewer_context.event_diff = {
+      from_version_no: 1,
+      to_version_no: 2,
+      changed_fields: ['start_time'],
+      changes: [
+        {
+          field: 'start_time',
+          old_value: '2026-04-01T17:00:00Z',
+          new_value: '2026-04-01T18:00:00Z',
+        },
+      ],
+    };
+
+    mockUseEventDetailViewModel.mockReturnValue(makeReadyViewModel(event));
+
+    renderPage();
+
+    expect(screen.getByTestId('ed-reconfirmation-banner')).toBeDefined();
     expect(screen.queryByTestId('ed-cancel-request-btn')).toBeNull();
   });
 

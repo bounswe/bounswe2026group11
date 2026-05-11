@@ -21,14 +21,15 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+import SemLogo from '@/components/common/SemLogo';
 
 type GenderChoice = Exclude<Gender, ''>;
-const GENDER_VALUES: GenderChoice[] = ['male', 'female', 'other', 'prefer_not_to_say'];
+const GENDER_VALUES: GenderChoice[] = ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'];
 const GENDER_LABEL_KEYS: Record<GenderChoice, string> = {
-  male: 'auth.register.genderMale',
-  female: 'auth.register.genderFemale',
-  other: 'auth.register.genderOther',
-  prefer_not_to_say: 'auth.register.genderPreferNotToSay',
+  MALE: 'auth.register.genderMale',
+  FEMALE: 'auth.register.genderFemale',
+  OTHER: 'auth.register.genderOther',
+  PREFER_NOT_TO_SAY: 'auth.register.genderPreferNotToSay',
 };
 
 const STEPS: RegisterStep[] = ['details', 'otp'];
@@ -69,30 +70,33 @@ export default function RegisterView() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.title}>{t('auth.register.title')}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
-
-        <View style={styles.stepIndicator}>
-          {STEPS.map((s, i) => (
-            <View
-              key={s}
-              style={[
-                styles.stepDot,
-                STEPS.indexOf(vm.step) >= i && styles.stepDotActive,
-              ]}
-            />
-          ))}
-        </View>
-
-        {vm.apiError && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{vm.apiError}</Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.brand}>
+            <SemLogo height={76} color={theme.text} />
           </View>
-        )}
+          <Text style={styles.title}>{t('auth.register.title')}</Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
+
+          <View style={styles.stepIndicator}>
+            {STEPS.map((s, i) => (
+              <View
+                key={s}
+                style={[
+                  styles.stepDot,
+                  STEPS.indexOf(vm.step) >= i && styles.stepDotActive,
+                ]}
+              />
+            ))}
+          </View>
+
+          {vm.apiError && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{vm.apiError}</Text>
+            </View>
+          )}
 
         {vm.step === 'details' && (
           <>
@@ -171,9 +175,7 @@ export default function RegisterView() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>
-                {t('auth.register.gender')} <Text style={styles.optional}>{t('auth.register.optional')}</Text>
-              </Text>
+              <Text style={styles.label}>{t('auth.register.gender')}</Text>
               <View style={styles.genderRow}>
                 {GENDER_VALUES.map((value) => (
                   <TouchableOpacity
@@ -201,12 +203,13 @@ export default function RegisterView() {
                   </TouchableOpacity>
                 ))}
               </View>
+              {vm.errors.gender && (
+                <Text style={styles.fieldError}>{vm.errors.gender}</Text>
+              )}
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>
-                {t('auth.register.birthDate')} <Text style={styles.optional}>{t('auth.register.optional')}</Text>
-              </Text>
+              <Text style={styles.label}>{t('auth.register.birthDate')}</Text>
               <TextInput
                 style={[
                   styles.input,
@@ -299,6 +302,10 @@ function makeStyles(t: Theme) {
       flexGrow: 1,
       padding: 24,
       paddingTop: 60,
+    },
+    brand: {
+      alignItems: 'center',
+      marginBottom: 20,
     },
     title: {
       fontSize: 28,
