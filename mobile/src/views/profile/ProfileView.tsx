@@ -19,6 +19,7 @@ import { router, type Href, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ProfileEventCard from '@/components/profile/ProfileEventCard';
+import InvitationCard from '@/components/invitation/InvitationCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLogoutViewModel } from '@/viewmodels/auth/useLogoutViewModel';
 import { usePushNotificationPreference } from '@/viewmodels/notifications/usePushNotificationPreference';
@@ -32,6 +33,7 @@ import ShowcaseImageGrid from '@/components/profile/ShowcaseImageGrid';
 import { EquipmentItem } from '@/models/profile';
 
 type ProfileEventTab = 'hosted' | 'attended';
+const INVITATION_PROFILE_PREVIEW_LIMIT = 1;
 
 export default function ProfileView() {
   const { refreshToken, clearAuth } = useAuth();
@@ -94,8 +96,14 @@ export default function ProfileView() {
     setEquipmentModalVisible(true);
   };
 
+  const closeEquipmentModal = () => {
+    Keyboard.dismiss();
+    setEquipmentModalVisible(false);
+  };
+
   const handleSaveEquipment = async () => {
     if (!eqName.trim()) return;
+    Keyboard.dismiss();
     if (editingEquipment) {
       await vm.editEquipment(editingEquipment.id, eqName, eqDesc);
     } else {
@@ -104,8 +112,12 @@ export default function ProfileView() {
     setEquipmentModalVisible(false);
   };
 
-  const renderHeader = () => (
-    <View>
+  const renderHeader = () => {
+    const previewInvitations = vm.invitations.slice(0, INVITATION_PROFILE_PREVIEW_LIMIT);
+    const hasMoreInvitations = vm.invitationCount > INVITATION_PROFILE_PREVIEW_LIMIT;
+
+    return (
+      <View>
       <Text style={styles.screenTitle}>Profile</Text>
 
       {vm.apiError ? (
@@ -274,11 +286,75 @@ export default function ProfileView() {
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.sectionTitle}>Invitations</Text>
+                <Text style={styles.sectionSubtitle}>Private event invites awaiting your response</Text>
+              </View>
+              {vm.invitationCount > 0 ? (
+                <View style={styles.sectionCountBadge}>
+                  <Text style={styles.sectionCountText}>{vm.invitationCount}</Text>
+                </View>
+              ) : null}
+            </View>
+
+            {vm.invitationError ? (
+              <View style={styles.sectionMessageCard}>
+                <Text style={styles.sectionErrorText}>{vm.invitationError}</Text>
+                <TouchableOpacity
+                  onPress={vm.refresh}
+                  style={styles.sectionRetryButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry loading invitations"
+                >
+                  <Text style={styles.sectionRetryButtonText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : previewInvitations.length > 0 ? (
+              <>
+                {previewInvitations.map((invitation) => (
+                  <InvitationCard
+                    key={invitation.invitation_id}
+                    invitation={invitation}
+                    onAccept={vm.handleAcceptInvitation}
+                    onDecline={vm.handleDeclineInvitation}
+                    onPress={(eventId) => router.push(`/event/${eventId}` as Href)}
+                    isActionLoading={vm.isInvitationActionLoading === invitation.invitation_id}
+                    compact
+                  />
+                ))}
+
+                {hasMoreInvitations ? (
+                  <TouchableOpacity
+                    style={styles.viewAllInvitationsButton}
+                    onPress={() => router.push('/profile/invitations' as Href)}
+                    accessibilityRole="button"
+                    accessibilityLabel="View all invitations"
+                  >
+                    <Text style={styles.viewAllInvitationsText}>
+                      View all {vm.invitationCount} invitations
+                    </Text>
+                    <Ionicons name="chevron-forward" size={18} color={theme.primaryAlt} />
+                  </TouchableOpacity>
+                ) : null}
+              </>
+            ) : (
+              <View style={styles.sectionMessageCard}>
+                <Text style={styles.sectionMessageText}>No pending invitations.</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionTitle}>Equipment</Text>
                 <Text style={styles.sectionSubtitle}>Gear and essentials this member wants to highlight</Text>
               </View>
-              <TouchableOpacity onPress={openAddEquipment}>
+              <TouchableOpacity
+                onPress={openAddEquipment}
+                accessibilityRole="button"
+                accessibilityLabel="Add equipment"
+              >
                 <Ionicons name="add-circle-outline" size={24} color={theme.primaryAlt} />
               </TouchableOpacity>
             </View>
@@ -486,7 +562,8 @@ export default function ProfileView() {
         </>
       ) : null}
     </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
@@ -537,59 +614,65 @@ export default function ProfileView() {
         visible={equipmentModalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setEquipmentModalVisible(false)}
+        onRequestClose={closeEquipmentModal}
       >
-        <Pressable 
-          style={styles.modalOverlay} 
-          onPress={Keyboard.dismiss}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
         >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>
-              {editingEquipment ? 'Edit Equipment' : 'Add Equipment'}
-            </Text>
-            
-            <Text style={styles.label}>Name</Text>
-            <TextInput
-              style={styles.input}
-              value={eqName}
-              onChangeText={setEqName}
-              placeholder="e.g. Mountain Bike"
-              placeholderTextColor={theme.textMuted}
-            />
+          <Pressable
+            testID="equipment-modal-dismiss-layer"
+            style={styles.modalDismissLayer}
+            onPress={Keyboard.dismiss}
+          >
+            <Pressable style={styles.modalContent} onPress={Keyboard.dismiss}>
+              <Text style={styles.modalTitle}>
+                {editingEquipment ? 'Edit Equipment' : 'Add Equipment'}
+              </Text>
 
-            <Text style={styles.label}>Description (Optional)</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={eqDesc}
-              onChangeText={setEqDesc}
-              placeholder="Brief details about the item..."
-              placeholderTextColor={theme.textMuted}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
+              <Text style={styles.label}>Name</Text>
+              <TextInput
+                style={styles.input}
+                value={eqName}
+                onChangeText={setEqName}
+                placeholder="e.g. Mountain Bike"
+                placeholderTextColor={theme.textMuted}
+              />
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={styles.modalCancel} 
-                onPress={() => setEquipmentModalVisible(false)}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalSave, !eqName.trim() && styles.modalSaveDisabled]} 
-                onPress={handleSaveEquipment}
-                disabled={!eqName.trim() || vm.isActionLoading}
-              >
-                {vm.isActionLoading ? (
-                  <ActivityIndicator size="small" color={theme.textOnPrimary} />
-                ) : (
-                  <Text style={styles.modalSaveText}>Save</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Pressable>
+              <Text style={styles.label}>Description (Optional)</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={eqDesc}
+                onChangeText={setEqDesc}
+                placeholder="Brief details about the item..."
+                placeholderTextColor={theme.textMuted}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.modalCancel}
+                  onPress={closeEquipmentModal}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalSave, !eqName.trim() && styles.modalSaveDisabled]}
+                  onPress={handleSaveEquipment}
+                  disabled={!eqName.trim() || vm.isActionLoading}
+                >
+                  {vm.isActionLoading ? (
+                    <ActivityIndicator size="small" color={theme.textOnPrimary} />
+                  ) : (
+                    <Text style={styles.modalSaveText}>Save</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -931,11 +1014,80 @@ function makeStyles(t: Theme) {
       fontWeight: '700',
       color: t.primaryAlt,
     },
+    viewAllInvitationsButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      backgroundColor: t.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: t.border,
+      paddingVertical: 12,
+      marginTop: 2,
+    },
+    viewAllInvitationsText: {
+      color: t.primaryAlt,
+      fontSize: 14,
+      fontWeight: '800',
+    },
+    sectionCountBadge: {
+      minWidth: 28,
+      height: 28,
+      borderRadius: 14,
+      paddingHorizontal: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: t.primaryAlt,
+    },
+    sectionCountText: {
+      color: t.textOnPrimary,
+      fontSize: 13,
+      fontWeight: '800',
+    },
+    sectionMessageCard: {
+      backgroundColor: t.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: t.border,
+      paddingHorizontal: 16,
+      paddingVertical: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    sectionMessageText: {
+      fontSize: 14,
+      color: t.textSecondary,
+      fontWeight: '500',
+      textAlign: 'center',
+    },
+    sectionErrorText: {
+      fontSize: 14,
+      color: t.errorText,
+      fontWeight: '500',
+      textAlign: 'center',
+    },
+    sectionRetryButton: {
+      backgroundColor: t.errorBorder,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 10,
+    },
+    sectionRetryButtonText: {
+      color: t.errorText,
+      fontSize: 14,
+      fontWeight: '700',
+    },
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',
       justifyContent: 'center',
       padding: 20,
+    },
+    modalDismissLayer: {
+      flex: 1,
+      justifyContent: 'center',
     },
     modalContent: {
       backgroundColor: t.surface,

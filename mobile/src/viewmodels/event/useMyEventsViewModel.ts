@@ -1,23 +1,18 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   MyEventStatus,
   MyEventSummary,
 } from '@/models/event';
 import { useAuth } from '@/contexts/AuthContext';
 import { listMyEvents } from '@/services/eventService';
-import { listMyInvitations, acceptInvitation, declineInvitation } from '@/services/invitationService';
-import { ReceivedInvitation } from '@/models/invitation';
 import { ApiError } from '@/services/api';
 import { listMyTickets } from '@/services/ticketService';
 import type { TicketListItem } from '@/models/ticket';
 
-type ExtendedStatus = MyEventStatus | 'INVITATIONS';
-
-const STATUS_OPTIONS: Array<{ value: ExtendedStatus; label: string }> = [
+const STATUS_OPTIONS: Array<{ value: MyEventStatus; label: string }> = [
   { value: 'ACTIVE', label: 'Active' },
   { value: 'IN_PROGRESS', label: 'In Progress' },
   { value: 'COMPLETED', label: 'Completed' },
-  { value: 'INVITATIONS', label: 'Invites' },
   { value: 'CANCELED', label: 'Canceled' },
 ];
 
@@ -44,7 +39,7 @@ const EMPTY_STATE_COPY: Record<
 };
 
 export interface MyEventsStatusTab {
-  value: ExtendedStatus;
+  value: MyEventStatus;
   label: string;
   count: number;
 }
@@ -52,25 +47,20 @@ export interface MyEventsStatusTab {
 
 
 export interface MyEventsViewModel {
-  activeStatus: ExtendedStatus;
+  activeStatus: MyEventStatus;
   statusTabs: MyEventsStatusTab[];
   hostedEvents: MyEventSummary[];
   attendedEvents: MyEventSummary[];
-  invitations: ReceivedInvitation[];
   visibleEvents: MyEventSummary[];
   hostedCount: number;
   attendedCount: number;
-  invitationCount: number;
   isLoading: boolean;
-  isActionLoading: string | null;
   errorMessage: string | null;
   canRetry: boolean;
   emptyTitle: string;
   emptySubtitle: string;
-  setActiveStatus: (status: ExtendedStatus) => void;
+  setActiveStatus: (status: MyEventStatus) => void;
   reload: () => Promise<void>;
-  handleAccept: (invitationId: string) => Promise<void>;
-  handleDecline: (invitationId: string) => Promise<void>;
 }
 
 function getTimeValue(value: string) {
@@ -104,32 +94,19 @@ function sortVisibleEvents(
   return sorted;
 }
 
-function normalizeInvitationsResponse(
-  response: { pending?: ReceivedInvitation[]; items?: ReceivedInvitation[] } | null | undefined,
-): ReceivedInvitation[] {
-  if (Array.isArray(response?.pending)) return response.pending;
-  if (Array.isArray(response?.items)) return response.items;
-  return [];
-}
-
 export function useMyEventsViewModel(): MyEventsViewModel {
   const { token } = useAuth();
 
-  const [activeStatus, setActiveStatus] = useState<ExtendedStatus>('ACTIVE');
+  const [activeStatus, setActiveStatus] = useState<MyEventStatus>('ACTIVE');
   const [hostedEvents, setHostedEvents] = useState<MyEventSummary[]>([]);
   const [attendedEvents, setAttendedEvents] = useState<MyEventSummary[]>([]);
-  const [invitations, setInvitations] = useState<ReceivedInvitation[]>([]);
-  const [invitationCount, setInvitationCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const reload = React.useCallback(async () => {
     if (!token) {
       setHostedEvents([]);
       setAttendedEvents([]);
-      setInvitations([]);
-      setInvitationCount(0);
       setErrorMessage('You must be logged in to manage your events.');
       setIsLoading(false);
       return;
@@ -148,9 +125,8 @@ export function useMyEventsViewModel(): MyEventsViewModel {
     };
 
     try {
-      const [eventsResponse, invitationsResponse, ticketsResponse] = await Promise.all([
+      const [eventsResponse, ticketsResponse] = await Promise.all([
         withTimeout(listMyEvents(token)),
-        withTimeout(listMyInvitations(token)).catch(() => ({ pending: [] })),
         withTimeout(listMyTickets(token)).catch(() => ({ items: [] })),
       ]);
 
@@ -178,18 +154,13 @@ export function useMyEventsViewModel(): MyEventsViewModel {
       });
 
       const nextHostedEvents = eventsResponse?.hosted_events ?? [];
-      const nextInvitations = normalizeInvitationsResponse(invitationsResponse);
 
       setHostedEvents(nextHostedEvents);
       setAttendedEvents(decoratedAttendedEvents);
-      setInvitations(nextInvitations);
-      setInvitationCount(nextInvitations.length);
     } catch (error) {
       console.error('Failed to load events:', error);
       setHostedEvents([]);
       setAttendedEvents([]);
-      setInvitations([]);
-      setInvitationCount(0);
       
       const message = error instanceof ApiError ? error.message : 
                      error instanceof Error ? error.message : 
@@ -200,73 +171,28 @@ export function useMyEventsViewModel(): MyEventsViewModel {
     }
   }, [token]);
 
-  const handleAccept = useCallback(
-    async (invitationId: string) => {
-      if (!token) return;
-      setIsActionLoading(invitationId);
-      try {
-        await acceptInvitation(invitationId, token);
-        setInvitations((prev) => prev.filter((i) => i.invitation_id !== invitationId));
-        setInvitationCount((prev) => prev - 1);
-        await reload();
-      } catch (err) {
-        setErrorMessage(err instanceof ApiError ? err.message : 'Failed to accept invitation');
-      } finally {
-        setIsActionLoading(null);
-      }
-    },
-    [token],
-  );
-
-  const handleDecline = useCallback(
-    async (invitationId: string) => {
-      if (!token) return;
-      setIsActionLoading(invitationId);
-      try {
-        await declineInvitation(invitationId, token);
-        setInvitations((prev) => prev.filter((i) => i.invitation_id !== invitationId));
-        setInvitationCount((prev) => prev - 1);
-      } catch (err) {
-        setErrorMessage(err instanceof ApiError ? err.message : 'Failed to decline invitation');
-      } finally {
-        setIsActionLoading(null);
-      }
-    },
-    [token],
-  );
-
   useEffect(() => {
     void reload();
   }, [token]);
 
   const allEvents = [...hostedEvents, ...attendedEvents];
-  const visibleEvents = activeStatus !== 'INVITATIONS'
-    ? sortVisibleEvents(
-      allEvents.filter((event) => event.status === activeStatus),
-      activeStatus as MyEventStatus,
-    )
-    : [];
+  const visibleEvents = sortVisibleEvents(
+    allEvents.filter((event) => event.status === activeStatus),
+    activeStatus,
+  );
 
   const statusTabs = STATUS_OPTIONS.map((statusOption) => {
-    let count = 0;
-    if (statusOption.value === 'INVITATIONS') {
-      count = invitationCount;
-    } else {
-      count = allEvents.filter((event) => event.status === statusOption.value).length;
-    }
+    const count = allEvents.filter((event) => event.status === statusOption.value).length;
     return { ...statusOption, count };
   });
 
-  const hasAnyEvents = allEvents.length > 0 || invitations.length > 0;
+  const hasAnyEvents = allEvents.length > 0;
 
   let emptyTitle = 'No events to manage yet';
   let emptySubtitle = 'Events you host or join will appear here once your plans start coming together.';
 
-  if (activeStatus === 'INVITATIONS') {
-    emptyTitle = 'No invitations yet';
-    emptySubtitle = 'Private event invites from your friends and hosts will appear here.';
-  } else if (hasAnyEvents) {
-    const currentStatus = activeStatus as MyEventStatus;
+  if (hasAnyEvents) {
+    const currentStatus = activeStatus;
     emptyTitle = EMPTY_STATE_COPY[currentStatus].title;
     emptySubtitle = EMPTY_STATE_COPY[currentStatus].subtitle;
   }
@@ -276,20 +202,15 @@ export function useMyEventsViewModel(): MyEventsViewModel {
     statusTabs,
     hostedEvents,
     attendedEvents,
-    invitations,
     visibleEvents,
     hostedCount: hostedEvents.length,
     attendedCount: attendedEvents.length,
-    invitationCount,
     isLoading,
-    isActionLoading,
     errorMessage,
     canRetry: Boolean(token),
     emptyTitle,
     emptySubtitle,
     setActiveStatus,
     reload,
-    handleAccept,
-    handleDecline,
   };
 }

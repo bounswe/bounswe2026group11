@@ -3,6 +3,7 @@
  */
 import { renderHook, act } from '@testing-library/react';
 import * as profileService from '@/services/profileService';
+import * as invitationService from '@/services/invitationService';
 import { ApiError } from '@/services/api';
 import type {
   ProfileEventSummary,
@@ -11,6 +12,7 @@ import type {
 import { useProfileViewModel } from './useProfileViewModel';
 
 jest.mock('@/services/profileService');
+jest.mock('@/services/invitationService');
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
@@ -28,6 +30,9 @@ const mockGetBadgeCatalog = jest.mocked(profileService.getBadgeCatalog);
 const mockGetShowcaseImageUploadUrl = jest.mocked(profileService.getShowcaseImageUploadUrl);
 const mockConfirmShowcaseImageUpload = jest.mocked(profileService.confirmShowcaseImageUpload);
 const mockDeleteShowcaseImage = jest.mocked(profileService.deleteShowcaseImage);
+const mockListMyInvitations = jest.mocked(invitationService.listMyInvitations);
+const mockAcceptInvitation = jest.mocked(invitationService.acceptInvitation);
+const mockDeclineInvitation = jest.mocked(invitationService.declineInvitation);
 const mockUseAuth = jest.mocked(useAuth);
 
 function createDeferred<T>() {
@@ -118,6 +123,33 @@ const profileFixture: UserProfile = {
   locale: 'en',
 };
 
+const invitationFixture = {
+  invitation_id: 'inv-1',
+  status: 'PENDING' as const,
+  event: {
+    id: 'event-1',
+    title: 'Private Picnic',
+    start_time: '2026-05-10T10:00:00Z',
+    image_url: null,
+  },
+  host: {
+    username: 'host_user',
+    display_name: 'Host User',
+    profile_image_url: null,
+  },
+  message: 'Join us!',
+  created_at: '2026-05-01T10:00:00Z',
+  updated_at: '2026-05-01T10:00:00Z',
+};
+
+const invitationsResponse = {
+  pending: [invitationFixture],
+  past: {
+    items: [],
+    page_info: { next_cursor: null, has_next: false },
+  },
+};
+
 describe('useProfileViewModel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -173,6 +205,9 @@ describe('useProfileViewModel', () => {
         }
       ]
     });
+    mockListMyInvitations.mockResolvedValue(invitationsResponse as any);
+    mockAcceptInvitation.mockResolvedValue({} as any);
+    mockDeclineInvitation.mockResolvedValue({} as any);
   });
 
   it('starts in loading state', () => {
@@ -201,8 +236,11 @@ describe('useProfileViewModel', () => {
     expect(mockGetMyUpcomingEvents).toHaveBeenCalledWith('test-token');
     expect(mockGetMyCompletedEvents).toHaveBeenCalledWith('test-token');
     expect(mockGetMyCanceledEvents).toHaveBeenCalledWith('test-token');
+    expect(mockListMyInvitations).toHaveBeenCalledWith('test-token');
     expect(result.current.profile).toEqual(profileFixture);
     expect(result.current.equipment).toHaveLength(1);
+    expect(result.current.invitations).toEqual([invitationFixture]);
+    expect(result.current.invitationCount).toBe(1);
     expect(result.current.badges).toHaveLength(1);
     expect(result.current.apiError).toBeNull();
   });
@@ -420,6 +458,7 @@ describe('useProfileViewModel', () => {
     expect(mockGetMyUpcomingEvents).not.toHaveBeenCalled();
     expect(mockGetMyCompletedEvents).not.toHaveBeenCalled();
     expect(mockGetMyCanceledEvents).not.toHaveBeenCalled();
+    expect(mockListMyInvitations).not.toHaveBeenCalled();
   });
 
   it('can refresh profile data', async () => {
@@ -442,6 +481,54 @@ describe('useProfileViewModel', () => {
     expect(mockGetMyProfile).toHaveBeenCalledTimes(2);
     expect(result.current.profile?.display_name).toBe('Jane Doe');
     expect(result.current.primaryName).toBe('Jane Doe');
+  });
+
+  it('keeps profile usable when invitations fail to load', async () => {
+    mockListMyInvitations.mockRejectedValueOnce(
+      new ApiError(500, {
+        error: {
+          code: 'internal_error',
+          message: 'Invitations unavailable.',
+        },
+      }),
+    );
+
+    const { result } = await renderProfileViewModel();
+
+    expect(result.current.profile).toEqual(profileFixture);
+    expect(result.current.invitations).toEqual([]);
+    expect(result.current.invitationError).toBe('Invitations unavailable.');
+    expect(result.current.apiError).toBeNull();
+  });
+
+  it('handles accepting an invitation from profile', async () => {
+    mockListMyInvitations
+      .mockResolvedValueOnce(invitationsResponse as any)
+      .mockResolvedValueOnce({
+        pending: [],
+        past: { items: [], page_info: { next_cursor: null, has_next: false } },
+      } as any);
+
+    const { result } = await renderProfileViewModel();
+
+    await act(async () => {
+      await result.current.handleAcceptInvitation('inv-1');
+    });
+
+    expect(mockAcceptInvitation).toHaveBeenCalledWith('inv-1', 'test-token');
+    expect(result.current.invitations).toEqual([]);
+    expect(mockGetMyProfile).toHaveBeenCalledTimes(2);
+  });
+
+  it('handles declining an invitation from profile', async () => {
+    const { result } = await renderProfileViewModel();
+
+    await act(async () => {
+      await result.current.handleDeclineInvitation('inv-1');
+    });
+
+    expect(mockDeclineInvitation).toHaveBeenCalledWith('inv-1', 'test-token');
+    expect(result.current.invitations).toEqual([]);
   });
 
   it('handles equipment addition', async () => {
