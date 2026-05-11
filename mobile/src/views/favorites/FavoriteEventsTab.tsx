@@ -44,9 +44,7 @@ export default function FavoriteEventsTab() {
           <ProfileEventCard
             title={item.title}
             imageUrl={item.image_url}
-            categoryLabel={t(`events.categories.${item.category}`, {
-              defaultValue: item.category ?? t('events.categories.Event'),
-            })}
+            categoryLabel={item.category ?? t('events.categories.Event')}
             startTime={item.start_time}
             locationAddress={item.location_address ?? null}
             status={item.status}

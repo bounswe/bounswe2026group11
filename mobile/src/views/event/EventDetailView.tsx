@@ -18,7 +18,7 @@ import {
 import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
-import { Feather, Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
@@ -267,6 +267,21 @@ function formatTitleCaseValue(value: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ');
+}
+
+function formatConstraintTypeLabel(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) return normalized;
+
+  const upper = normalized.toUpperCase();
+  const lower = normalized.toLowerCase();
+
+  return (
+    i18n.t(`events.create.constraintTypes.${lower}`, { defaultValue: '' }) ||
+    i18n.t(`events.create.constraintTypes.${upper}`, { defaultValue: '' }) ||
+    i18n.t(`events.version.fields.${lower}`, { defaultValue: '' }) ||
+    formatTitleCaseValue(normalized)
+  );
 }
 
 function formatCoordinates(value: unknown): string | null {
@@ -1236,9 +1251,9 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
   const { event } = vm;
   const ratingLabel =
-    event.host_score.final_score != null && event.host_score.hosted_event_rating_count > 0
+    event.host_score.final_score != null
       ? `${event.host_score.final_score.toFixed(1)} (${event.host_score.hosted_event_rating_count})`
-      : t('events.detail.noRatingsYet');
+      : 'New host';
   const hostDisplayName = event.host.display_name ?? event.host.username;
   const capacityLabel =
     event.capacity != null
@@ -1524,7 +1539,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               <Text style={styles.hostUsername}>@{event.host.username}</Text>
             </View>
             <View style={styles.hostRating}>
-              <MaterialCommunityIcons name="account-star" size={16} color="#F59E0B" />
+              <Feather name="star" size={14} color="#F59E0B" />
               <Text style={styles.hostRatingText}>{ratingLabel}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
@@ -1664,7 +1679,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 <View key={i} style={styles.constraintRow}>
                   <MaterialIcons name="check-circle-outline" size={16} color={theme.textTertiary} />
                   <View style={styles.constraintText}>
-                    <Text style={styles.constraintType}>{c.type}</Text>
+                    <Text style={styles.constraintType}>{formatConstraintTypeLabel(c.type)}</Text>
                     <Text style={styles.constraintInfo}>{c.info}</Text>
                   </View>
                 </View>
@@ -1678,20 +1693,26 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           <>
             <View style={styles.divider} />
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Participation criteria</Text>
+              <Text style={styles.sectionTitle}>{t('events.detail.participationCriteria')}</Text>
               {event.minimum_age != null && (
                 <View style={styles.metaRow}>
                   <Feather name="user-check" size={16} color={theme.textTertiary} />
-                  <Text style={styles.metaText}>Minimum age: {event.minimum_age}+</Text>
+                  <Text style={styles.metaText}>
+                    {t('events.detail.minimumAge', { age: event.minimum_age })}
+                  </Text>
                 </View>
               )}
               {event.preferred_gender != null && (
                 <View style={styles.metaRow}>
                   <Feather name="users" size={16} color={theme.textTertiary} />
                   <Text style={styles.metaText}>
-                    Preferred gender:{' '}
-                    {event.preferred_gender.charAt(0) +
-                      event.preferred_gender.slice(1).toLowerCase()}
+                    {t('events.detail.preferredGender', {
+                      gender: t(`profile.edit.genderOptions.${event.preferred_gender}`, {
+                        defaultValue:
+                          event.preferred_gender.charAt(0) +
+                          event.preferred_gender.slice(1).toLowerCase(),
+                      }),
+                    })}
                   </Text>
                 </View>
               )}

@@ -381,8 +381,6 @@
       "inviteAndManage": "Davet & Yönet",
       "cancelEvent": "Etkinliği İptal Et",
       "newHost": "Yeni organizatör",
-      "hostRatingLabel": "Organizatör: {{rating}}",
-      "noRatingsYet": "Henüz puan yok",
       "about": "Hakkında",
       "tags": "Etiketler",
       "requirements": "Gereksinimler",
@@ -563,6 +561,7 @@
         "approved": "Onaylandı",
         "rejected": "Reddedildi",
         "newRequest": "Yeni İstek",
+        "updated": "Güncellendi",
         "canceled": "İptal",
         "accepted": "Kabul Edildi",
         "declined": "Reddedildi"
@@ -572,6 +571,7 @@
         "joinApproved": "Katılım isteği onaylandı",
         "joinRejected": "Katılım isteği reddedildi",
         "joinSubmitted": "Katılım isteği gönderildi",
+        "eventDetailsChanged": "Etkinlik detayları değişti",
         "eventCanceled": "Etkinlik iptal edildi",
         "invitationAccepted": "Davet kabul edildi",
         "invitationDeclined": "Davet reddedildi"
@@ -585,6 +585,7 @@
         "joinRejected": "Katılım isteğin reddedildi.",
         "joinSubmittedBy": "{{actor}} etkinliğine katılmak istiyor.",
         "joinSubmitted": "Birisi etkinliğine katılmak istiyor.",
+        "eventDetailsChanged": "Sürüm geçmişini inceleyip hâlâ katılabiliyorsan yeniden onayla.",
         "eventCanceledNamed": "\"{{event}}\" etkinliği iptal edildi.",
         "eventCanceled": "İlgilendiğin bir etkinlik iptal edildi.",
         "invitationAcceptedBy": "{{actor}} davetini kabul etti.",
@@ -595,6 +596,7 @@
       "actions": {
         "viewEvent": "Etkinliği Gör",
         "reviewInvitation": "Daveti İncele",
+        "reviewChanges": "Değişiklikleri İncele",
         "openEvent": "Etkinliği Aç",
         "viewEventDetails": "Etkinlik Detaylarını Gör",
         "reviewRequest": "İsteği İncele"
@@ -851,7 +853,6 @@
     "profileNotFound": "Profil bulunamadı",
     "ratingsCollected": "{{count}} puan toplandı",
     "ratingBreakdown": "Organizatör: {{host}} · Katılımcı: {{participant}}",
-    "ratingWithCount": "{{rating}} ({{count}})",
     "hostRatingCount": "Organizatör ({{count}})",
     "guestRatingCount": "Misafir ({{count}})",
     "newHost": "Yeni Organizatör",

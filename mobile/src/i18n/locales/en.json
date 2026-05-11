@@ -381,8 +381,6 @@
       "inviteAndManage": "Invite & Manage",
       "cancelEvent": "Cancel Event",
       "newHost": "New host",
-      "hostRatingLabel": "Host: {{rating}}",
-      "noRatingsYet": "No ratings yet",
       "about": "About",
       "tags": "Tags",
       "requirements": "Requirements",
@@ -563,6 +561,7 @@
         "approved": "Approved",
         "rejected": "Rejected",
         "newRequest": "New Request",
+        "updated": "Updated",
         "canceled": "Canceled",
         "accepted": "Accepted",
         "declined": "Declined"
@@ -572,6 +571,7 @@
         "joinApproved": "Join request approved",
         "joinRejected": "Join request rejected",
         "joinSubmitted": "Join request submitted",
+        "eventDetailsChanged": "Event details changed",
         "eventCanceled": "Event canceled",
         "invitationAccepted": "Invitation accepted",
         "invitationDeclined": "Invitation declined"
@@ -585,6 +585,7 @@
         "joinRejected": "Your join request was rejected.",
         "joinSubmittedBy": "{{actor}} wants to join your event.",
         "joinSubmitted": "Someone wants to join your event.",
+        "eventDetailsChanged": "Review the version history and reconfirm if you can still attend.",
         "eventCanceledNamed": "The event \"{{event}}\" has been canceled.",
         "eventCanceled": "An event you were interested in has been canceled.",
         "invitationAcceptedBy": "{{actor}} accepted your invitation.",
@@ -595,6 +596,7 @@
       "actions": {
         "viewEvent": "View event",
         "reviewInvitation": "Review invitation",
+        "reviewChanges": "Review changes",
         "openEvent": "Open event",
         "viewEventDetails": "View event details",
         "reviewRequest": "Review request"
@@ -851,7 +853,6 @@
     "profileNotFound": "Profile not found",
     "ratingsCollected": "{{count}} ratings collected",
     "ratingBreakdown": "Host: {{host}} · Participant: {{participant}}",
-    "ratingWithCount": "{{rating}} ({{count}})",
     "hostRatingCount": "Host ({{count}})",
     "guestRatingCount": "Guest ({{count}})",
     "newHost": "New Host",

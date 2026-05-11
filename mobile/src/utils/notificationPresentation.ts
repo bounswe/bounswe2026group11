@@ -67,20 +67,36 @@ function buildFallbackPresentation(
   const eventTitle = firstNonEmpty(notification.data.event_title);
   const eventTime = formatEventTime(notification.data);
   const metadata: string[] = [];
+  const rawTitle = notification.title.trim();
+  const rawBody = notification.body.trim();
+  const normalizedTitle = rawTitle.toLowerCase();
+  const normalizedBody = rawBody.toLowerCase();
+
+  const title = normalizedTitle === 'event details changed'
+    ? i18n.t('notifications.presentation.titles.eventDetailsChanged')
+    : notification.title;
+  const summary = normalizedBody.includes('review the version history')
+    ? i18n.t('notifications.presentation.summaries.eventDetailsChanged')
+    : notification.body;
+  const badgeLabel = normalizedTitle === 'event details changed'
+    ? i18n.t('notifications.presentation.badges.updated')
+    : null;
+  const actionLabel = notification.event_id || notification.data.event_id
+    ? normalizedTitle === 'event details changed'
+      ? i18n.t('notifications.presentation.actions.reviewChanges')
+      : i18n.t('notifications.presentation.actions.viewEvent')
+    : null;
 
   return {
     accentColor: '#0F172A',
     accentBackgroundColor: '#E2E8F0',
-    badgeLabel: null,
-    title: notification.title,
+    badgeLabel,
+    title,
     eventTitle,
     iconName: 'notifications-outline',
-    summary: notification.body,
+    summary,
     metadata,
-    actionLabel:
-      notification.event_id || notification.data.event_id
-        ? i18n.t('notifications.presentation.actions.viewEvent')
-        : null,
+    actionLabel,
     actionTarget:
       notification.event_id || notification.data.event_id ? 'EVENT' : 'NONE',
   };
