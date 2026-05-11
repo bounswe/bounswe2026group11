@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiError } from '@/services/api';
 import { getEventDetail } from '@/services/eventService';
@@ -41,6 +41,8 @@ export function useTicketScanViewModel(eventId: string): TicketScanViewModel {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const isSubmittingRef = useRef(false);
+
 
   const reload = useCallback(async () => {
     if (!token) {
@@ -69,13 +71,14 @@ export function useTicketScanViewModel(eventId: string): TicketScanViewModel {
   }, [reload]);
 
   const submitToken = useCallback(async (value: string) => {
-    if (!token || isSubmitting) return;
+    if (!token || isSubmittingRef.current) return;
     const trimmed = value.trim();
     if (!trimmed) {
       setErrorMessage('Enter a QR token before validating the ticket.');
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     setErrorMessage(null);
     setScanResult(null);
@@ -85,13 +88,21 @@ export function useTicketScanViewModel(eventId: string): TicketScanViewModel {
       const result = await scanTicket(eventId, trimmed, token);
       setScanResult(result);
     } catch (error) {
-      setErrorMessage(
-        error instanceof ApiError ? error.message : 'Failed to validate the ticket.',
-      );
+      // If we already have a scan result from a parallel request that succeeded, 
+      // don't overwrite it with an error (like ALREADY_USED)
+      setScanResult((prev) => {
+        if (prev?.result === 'ACCEPTED') return prev;
+        
+        setErrorMessage(
+          error instanceof ApiError ? error.message : 'Failed to validate the ticket.',
+        );
+        return null;
+      });
     } finally {
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }
-  }, [eventId, isSubmitting, token]);
+  }, [eventId, token]);
 
   const submit = useCallback(async () => {
     await submitToken(qrToken);

@@ -164,7 +164,7 @@ describe('useTicketViewModel', () => {
       await result.current.refresh();
     });
 
-    expect(mockGetMyTicket).toHaveBeenCalledTimes(2);
+    expect(mockGetMyTicket).toHaveBeenCalledTimes(4);
     await waitFor(() => expect(mockGetTicketQrTokenOnce).toHaveBeenCalledTimes(2));
   });
 });

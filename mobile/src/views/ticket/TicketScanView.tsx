@@ -35,15 +35,19 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
   const vm = useTicketScanViewModel(eventId);
   const [permission, requestPermission] = useCameraPermissions();
   const [isScannerPaused, setIsScannerPaused] = React.useState(false);
+  const isScanningRef = React.useRef(false);
+
 
   const handleBarCodeScanned = React.useCallback(async ({ data }: { data: string }) => {
-    if (vm.isSubmitting || isScannerPaused) return;
+    if (vm.isSubmitting || isScannerPaused || isScanningRef.current) return;
+    isScanningRef.current = true;
     setIsScannerPaused(true);
     await vm.submitToken(data);
     // Camera stays paused until the user explicitly starts another scan.
   }, [isScannerPaused, vm]);
 
   const handleScanAnother = React.useCallback(() => {
+    isScanningRef.current = false;
     setIsScannerPaused(false);
     vm.clearResult();
   }, [vm]);
@@ -231,8 +235,8 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
               </TouchableOpacity>
             ) : null}
 
-            {/* Camera / permission */}
-            {!vm.scanResult && !vm.errorMessage ? (
+            {/* ── Camera / Permission ── */}
+            {!vm.scanResult && !vm.errorMessage && !isScannerPaused ? (
               cameraPermissionGranted ? (
                 <View style={styles.scanFrame}>
                   <CameraView
@@ -280,7 +284,15 @@ export default function TicketScanView({ eventId }: TicketScanViewProps) {
               )
             ) : null}
 
-            {/* Hint text (only when camera is active) */}
+            {/* ── Validating Overlay (shown when camera is hidden but request is in flight) ── */}
+            {isScannerPaused && vm.isSubmitting && !vm.scanResult && !vm.errorMessage ? (
+              <View style={[styles.scanFrame, styles.scanSubmittingOverlay, { position: 'relative' }]}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={styles.scanSubmittingText}>{t('tickets.scan.validating')}</Text>
+              </View>
+            ) : null}
+
+            {/* ── Hint text (only when camera is active) ── */}
             {!vm.scanResult && !vm.errorMessage ? (
               <Text style={styles.scanHint}>
                 {t('tickets.scan.scanHint')}
