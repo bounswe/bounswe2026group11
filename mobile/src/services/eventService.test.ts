@@ -397,7 +397,7 @@ describe('searchLocation', () => {
     expect(calledUrl).not.toContain('nominatim');
   });
 
-  it('maps Photon GeoJSON features to LocationSuggestion shape', async () => {
+  it('maps Photon GeoJSON business-flows to LocationSuggestion shape', async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
         features: [
@@ -460,7 +460,7 @@ describe('searchLocation', () => {
     expect(result[0].display_name).toBe('Bagdat Caddesi 42, Istanbul, Turkey');
   });
 
-  it('skips features with missing or invalid coordinates', async () => {
+  it('skips business-flows with missing or invalid coordinates', async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
         features: [
@@ -478,7 +478,7 @@ describe('searchLocation', () => {
     expect(result[0].display_name).toBe('Valid, Turkey');
   });
 
-  it('skips features whose properties produce an empty display_name', async () => {
+  it('skips business-flows whose properties produce an empty display_name', async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
         features: [
@@ -516,7 +516,7 @@ describe('searchLocation', () => {
     expect(result).toEqual([]);
   });
 
-  it('returns [] when response shape is missing features array', async () => {
+  it('returns [] when response shape is missing business-flows array', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ unexpected: 'shape' }));
 
     const result = await searchLocation('Istanbul');
@@ -591,7 +591,7 @@ describe('reverseGeocode', () => {
     });
   });
 
-  it('returns null when Photon returns no features', async () => {
+  it('returns null when Photon returns no business-flows', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ features: [] }));
     expect(await reverseGeocode(41.0, 29.0)).toBeNull();
   });

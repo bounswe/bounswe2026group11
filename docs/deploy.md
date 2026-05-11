@@ -239,7 +239,7 @@ Recommended CORS configuration:
 - Allowed headers: `Content-Type`, `Cache-Control`, `x-amz-acl`
 - Exposed headers: `ETag`
 
-For the end-to-end client flow, examples, and troubleshooting notes, see [docs/image-upload.md](feature-docs/image-upload.md).
+For the end-to-end client flow, examples, and troubleshooting notes, see [docs/backend/features/image-upload.md](backend/business-flows/image-upload.md).
 
 ## CI/CD
 

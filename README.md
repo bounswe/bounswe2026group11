@@ -1,4 +1,4 @@
-# Social Event Mapper
+# Social Event Mapper - Group 11
 
 A **CMPE354 Group 11** project for discovering and managing social events on a map.
 
@@ -106,5 +106,7 @@ By default the API listens on `http://localhost:8080`. Before finishing backend 
 
 - [Deployment (local vs dev droplet)](docs/deploy.md)
 - [Repository conventions](docs/conventions.md)
+- [Backend architecture](docs/backend/architecture.md)
+- [Backend database guide](docs/db/database.md)
 - [OpenAPI specs](docs/openapi/)
 - [Database schema reference](docs/db/schema.sql)

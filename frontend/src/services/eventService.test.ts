@@ -69,7 +69,7 @@ describe('searchLocation', () => {
     expect(calledUrl).not.toContain('nominatim');
   });
 
-  it('maps Photon GeoJSON features to LocationSuggestion shape', async () => {
+  it('maps Photon GeoJSON business-flows to LocationSuggestion shape', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         features: [
@@ -122,7 +122,7 @@ describe('searchLocation', () => {
     expect(suggestion.display_name).toBe('Kafe Bagdat Caddesi 12, Kadikoy, Turkey');
   });
 
-  it('skips features missing coordinates or display name', async () => {
+  it('skips business-flows missing coordinates or display name', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         features: [
@@ -249,7 +249,7 @@ describe('reverseGeocode', () => {
     });
   });
 
-  it('returns null when Photon returns no features', async () => {
+  it('returns null when Photon returns no business-flows', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ features: [] }));
 
     expect(await reverseGeocode(41, 29)).toBeNull();
