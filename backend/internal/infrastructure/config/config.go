@@ -19,6 +19,8 @@ var appEnvPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 // file first, then from the repository-root .env for secrets, then from OS environment variables.
 type Config struct {
 	AppPort                          int
+	CORSAllowedOrigins               []string
+	MaxRequestBodyBytes              int
 	DBHost                           string
 	DBPort                           int
 	DBName                           string
@@ -80,6 +82,8 @@ func Load() (*Config, error) {
 		_ = v.BindEnv(key, envVar)
 	}
 	bind("app_port", "APP_PORT")
+	bind("cors_allowed_origins", "CORS_ALLOWED_ORIGINS")
+	bind("max_request_body_bytes", "MAX_REQUEST_BODY_BYTES")
 	bind("db_host", "DB_HOST")
 	bind("db_port", "DB_PORT")
 	bind("db_name", "DB_NAME")
@@ -117,6 +121,8 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		AppPort:                          v.GetInt("app_port"),
+		CORSAllowedOrigins:               normalizeStringList(v.GetStringSlice("cors_allowed_origins")),
+		MaxRequestBodyBytes:              v.GetInt("max_request_body_bytes"),
 		DBHost:                           strings.TrimSpace(v.GetString("db_host")),
 		DBPort:                           v.GetInt("db_port"),
 		DBName:                           strings.TrimSpace(v.GetString("db_name")),
@@ -256,6 +262,25 @@ func findRepositoryRoot(start string) (string, error) {
 	}
 }
 
+func normalizeStringList(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		for _, part := range strings.Split(value, ",") {
+			item := strings.TrimSpace(part)
+			if item == "" {
+				continue
+			}
+			if _, ok := seen[item]; ok {
+				continue
+			}
+			seen[item] = struct{}{}
+			normalized = append(normalized, item)
+		}
+	}
+	return normalized
+}
+
 // validate ensures all required config values are present and within valid ranges.
 func validate(v *viper.Viper, c *Config) error {
 	missing := func(envVar string) error {
@@ -292,6 +317,9 @@ func validate(v *viper.Viper, c *Config) error {
 
 	if c.AppPort < 1 || c.AppPort > 65535 {
 		return fmt.Errorf("APP_PORT must be between 1 and 65535, got %d", c.AppPort)
+	}
+	if c.MaxRequestBodyBytes < 0 {
+		return fmt.Errorf("MAX_REQUEST_BODY_BYTES cannot be negative")
 	}
 	if c.DBPort < 1 || c.DBPort > 65535 {
 		return fmt.Errorf("DB_PORT must be between 1 and 65535, got %d", c.DBPort)

@@ -1,4 +1,14 @@
 app_port: 8080
+cors_allowed_origins:
+  - http://localhost:5173
+  - http://127.0.0.1:5173
+  - http://localhost:8081
+  - http://127.0.0.1:8081
+  - exp://localhost:8081
+  - https://socialeventmapper.com
+  - https://www.socialeventmapper.com
+  - https://*.socialeventmapper.com
+max_request_body_bytes: 4194304
 
 db_host: postgres
 db_port: 5432

@@ -19,6 +19,7 @@ const AUTH_NAV = [
 ];
 
 const LOGIN_REQUIRED_MESSAGE = 'You must sign in';
+const PRIMARY_NAV_ID = 'primary-navigation';
 
 export default function AppShell() {
   const { token, username, role, avatarUrl, displayName, refreshToken, clearAuth } = useAuth();
@@ -66,13 +67,20 @@ export default function AppShell() {
 
   return (
     <div className="shell">
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <header className="shell-header">
         <div className="shell-header-inner">
           <NavLink to="/discover" className="shell-logo" onClick={closeMobileMenu}>
             <SemLogo height={56} color={isDarkMode ? '#f9fafb' : '#111827'} />
           </NavLink>
 
-          <nav className={`shell-nav ${menuOpen ? 'open' : ''}`}>
+          <nav
+            id={PRIMARY_NAV_ID}
+            className={`shell-nav ${menuOpen ? 'open' : ''}`}
+            aria-label="Primary navigation"
+          >
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
@@ -104,6 +112,7 @@ export default function AppShell() {
                   className={`shell-view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
                   onClick={() => setViewMode('list')}
                   aria-pressed={viewMode === 'list'}
+                  aria-label="Show events as a list"
                   title="List view"
                 >
                   <svg
@@ -130,6 +139,7 @@ export default function AppShell() {
                   className={`shell-view-toggle-btn ${viewMode === 'map' ? 'active' : ''}`}
                   onClick={() => setViewMode('map')}
                   aria-pressed={viewMode === 'map'}
+                  aria-label="Show events on a map"
                   title="Map view"
                 >
                   <svg
@@ -233,8 +243,12 @@ export default function AppShell() {
             {isLoggedIn ? (
                 <div className="shell-user-menu" ref={userMenuRef}>
                   <button
+                    type="button"
                     className="shell-user-btn"
                     onClick={() => setUserMenuOpen((prev) => !prev)}
+                    aria-haspopup="menu"
+                    aria-expanded={userMenuOpen}
+                    aria-label="Open user menu"
                   >
                     <span className="shell-avatar">
                       <UserAvatar
@@ -248,11 +262,12 @@ export default function AppShell() {
                     <span className="shell-username">{username}</span>
                   </button>
                   {userMenuOpen && (
-                    <div className="shell-dropdown">
+                    <div className="shell-dropdown" role="menu">
                       <NavLink
                         to="/profile"
                         className="shell-dropdown-item"
                         onClick={() => setUserMenuOpen(false)}
+                        role="menuitem"
                       >
                         Profile
                       </NavLink>
@@ -260,6 +275,7 @@ export default function AppShell() {
                         to="/invitations"
                         className="shell-dropdown-item"
                         onClick={() => setUserMenuOpen(false)}
+                        role="menuitem"
                       >
                         Invitations
                       </NavLink>
@@ -267,6 +283,7 @@ export default function AppShell() {
                         to="/notifications"
                         className="shell-dropdown-item"
                         onClick={() => setUserMenuOpen(false)}
+                        role="menuitem"
                       >
                         Notifications
                       </NavLink>
@@ -274,12 +291,14 @@ export default function AppShell() {
                         to="/tickets"
                         className="shell-dropdown-item"
                         onClick={() => setUserMenuOpen(false)}
+                        role="menuitem"
                       >
                         My Tickets
                       </NavLink>
                       <button
                         className="shell-dropdown-item shell-dropdown-logout"
                         onClick={handleLogout}
+                        role="menuitem"
                       >
                         Sign Out
                       </button>
@@ -298,9 +317,12 @@ export default function AppShell() {
             )}
 
             <button
+              type="button"
               className="shell-hamburger"
               onClick={() => setMenuOpen((prev) => !prev)}
               aria-label="Toggle navigation"
+              aria-controls={PRIMARY_NAV_ID}
+              aria-expanded={menuOpen}
             >
               <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
               <span className={`hamburger-line ${menuOpen ? 'open' : ''}`} />
@@ -316,6 +338,8 @@ export default function AppShell() {
       />
 
       <main
+        id="main-content"
+        tabIndex={-1}
         className={`shell-main ${isAdminPanel ? 'admin-panel-main' : ''} ${
           isDiscoverRoute && viewMode === 'map' ? 'discover-map-main' : ''
         }`}

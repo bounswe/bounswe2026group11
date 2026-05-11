@@ -100,6 +100,8 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
         activeOpacity={0.85}
         style={styles.primaryWrapper}
         onPress={() => router.push('/event/create' as Href)}
+        accessibilityRole="button"
+        accessibilityLabel="Create event"
       >
         <View style={styles.primaryButton}>
           <Feather name="plus" size={28} color={theme.fabIcon} />
