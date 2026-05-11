@@ -1,5 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { discoverEvents, listCategories, searchLocation } from '@/services/eventService';
+import {
+  discoverEvents,
+  listCategories,
+  reverseGeocode,
+  searchLocation,
+} from '@/services/eventService';
 import { profileService } from '@/services/profileService';
 import type { FavoriteLocation } from '@/models/profile';
 import type {
@@ -242,6 +247,7 @@ export function useDiscoverViewModel(token: string | null) {
   );
   const [browserLocationRequestPending, setBrowserLocationRequestPending] = useState(false);
   const browserLocation = useRef<LocationSuggestion | null>(null);
+  const mapLocationRequestId = useRef(0);
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [pendingLocation, setPendingLocation] = useState<LocationSuggestion | null>(null);
@@ -611,6 +617,29 @@ export function useDiscoverViewModel(token: string | null) {
     setModalLocationResults([]);
   }, []);
 
+  const selectMapLocation = useCallback(async (lat: number, lon: number) => {
+    const requestId = mapLocationRequestId.current + 1;
+    mapLocationRequestId.current = requestId;
+    const pendingSelection = {
+      display_name: 'Finding address…',
+      lat: String(lat),
+      lon: String(lon),
+    };
+    setSelectedLocation(pendingSelection);
+    const resolved = await reverseGeocode(lat, lon, { areaLevel: true });
+    if (mapLocationRequestId.current === requestId) {
+      setSelectedLocation(
+        resolved
+          ? { ...resolved, lat: String(lat), lon: String(lon) }
+          : { ...pendingSelection, display_name: 'Selected map location' },
+      );
+    }
+    setPendingLocation(null);
+    setModalLocationQuery('');
+    setModalLocationResults([]);
+    setIsLocationModalOpen(false);
+  }, []);
+
   const applyModalLocation = useCallback(() => {
     setSelectedLocation(pendingLocation ?? defaultProfileLocation ?? null);
     setModalLocationQuery('');
@@ -668,6 +697,7 @@ export function useDiscoverViewModel(token: string | null) {
     selectFavoriteInModal,
     selectDefaultProfileInModal,
     selectBrowserLocationInModal,
+    selectMapLocation,
     applyModalLocation,
     resetModalLocationDraft,
     hasCustomLocationFilter,
