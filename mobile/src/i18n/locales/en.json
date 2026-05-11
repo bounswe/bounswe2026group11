@@ -379,6 +379,7 @@
     "attending": "Attending",
     "invitations": "Invites",
     "loading": "Loading your events...",
+    "errorTitle": "Unable to load your events",
     "noEventsTitle": "No events to manage yet",
     "noEventsSubtitle": "Events you host or join will appear here once your plans start coming together.",
     "noInvitationsTitle": "No invitations yet",
@@ -400,6 +401,10 @@
         "title": "No canceled events",
         "subtitle": "Canceled hosted or attended events will appear here when needed."
       }
+    },
+    "errors": {
+      "loginRequired": "You must be logged in to manage your events.",
+      "loadFailed": "Failed to load your events. Please try again."
     }
   },
   "profile": {
@@ -413,6 +418,32 @@
     "attendedTab": "Attended",
     "noHostedEvents": "No hosted events yet.",
     "noAttendedEvents": "No attended events yet.",
+    "emptyHostedSubtitle": "Events you create will show up here.",
+    "emptyAttendedSubtitle": "Events you join will show up here.",
+    "details": {
+      "genderNotSet": "Gender not set",
+      "birthDateNotSet": "Birth date not set",
+      "phoneNotSet": "Phone not set",
+      "locationNotSet": "Location not set",
+      "changePhoto": "Change profile photo",
+      "photo": "Profile photo"
+    },
+    "invitations": {
+      "title": "Invitations",
+      "subtitle": "Private event invites awaiting your response",
+      "retry": "Retry",
+      "viewAll": "View all invitations",
+      "viewAllCount": "View all {{count}} invitations",
+      "empty": "No pending invitations."
+    },
+    "equipment": {
+      "add": "Add Equipment",
+      "edit": "Edit Equipment",
+      "name": "Name",
+      "namePlaceholder": "e.g. Mountain Bike",
+      "descriptionOptional": "Description (Optional)",
+      "descriptionPlaceholder": "Brief details about the item..."
+    },
     "menu": {
       "editProfile": "Edit Profile",
       "notifications": "Notifications",

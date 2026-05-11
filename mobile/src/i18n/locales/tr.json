@@ -379,6 +379,7 @@
     "attending": "Katılım",
     "invitations": "Davetler",
     "loading": "Etkinlikleriniz yükleniyor...",
+    "errorTitle": "Etkinliklerin yüklenemedi",
     "noEventsTitle": "Henüz yönetilecek etkinlik yok",
     "noEventsSubtitle": "Düzenlediğin veya katıldığın etkinlikler planların belirginleştiğinde burada görünür.",
     "noInvitationsTitle": "Henüz davet yok",
@@ -400,6 +401,10 @@
         "title": "İptal edilmiş etkinlik yok",
         "subtitle": "İptal edilen düzenlediğin veya katıldığın etkinlikler burada görünecek."
       }
+    },
+    "errors": {
+      "loginRequired": "Etkinliklerini yönetmek için giriş yapmalısın.",
+      "loadFailed": "Etkinliklerin yüklenemedi. Lütfen tekrar dene."
     }
   },
   "profile": {
@@ -413,6 +418,32 @@
     "attendedTab": "Katılınan",
     "noHostedEvents": "Henüz düzenlenmiş etkinlik yok.",
     "noAttendedEvents": "Henüz katılınan etkinlik yok.",
+    "emptyHostedSubtitle": "Oluşturduğun etkinlikler burada görünecek.",
+    "emptyAttendedSubtitle": "Katıldığın etkinlikler burada görünecek.",
+    "details": {
+      "genderNotSet": "Cinsiyet ayarlanmadı",
+      "birthDateNotSet": "Doğum tarihi ayarlanmadı",
+      "phoneNotSet": "Telefon ayarlanmadı",
+      "locationNotSet": "Konum ayarlanmadı",
+      "changePhoto": "Profil fotoğrafını değiştir",
+      "photo": "Profil fotoğrafı"
+    },
+    "invitations": {
+      "title": "Davetler",
+      "subtitle": "Yanıtını bekleyen özel etkinlik davetleri",
+      "retry": "Tekrar Dene",
+      "viewAll": "Tüm davetleri gör",
+      "viewAllCount": "{{count}} davetin tümünü gör",
+      "empty": "Bekleyen davet yok."
+    },
+    "equipment": {
+      "add": "Ekipman Ekle",
+      "edit": "Ekipmanı Düzenle",
+      "name": "Ad",
+      "namePlaceholder": "örn. Dağ bisikleti",
+      "descriptionOptional": "Açıklama (İsteğe Bağlı)",
+      "descriptionPlaceholder": "Eşya hakkında kısa detaylar..."
+    },
     "menu": {
       "editProfile": "Profili Düzenle",
       "notifications": "Bildirimler",

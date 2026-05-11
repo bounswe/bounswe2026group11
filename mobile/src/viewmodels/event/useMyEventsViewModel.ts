@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   MyEventStatus,
   MyEventSummary,
@@ -6,20 +6,15 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { listMyEvents } from '@/services/eventService';
-import { listMyInvitations, acceptInvitation, declineInvitation } from '@/services/invitationService';
-import { ReceivedInvitation } from '@/models/invitation';
 import { ApiError } from '@/services/api';
 import { listMyTickets } from '@/services/ticketService';
 import type { TicketListItem } from '@/models/ticket';
 import i18n from '@/i18n';
 
-type ExtendedStatus = MyEventStatus | 'INVITATIONS';
-
-const STATUS_OPTIONS: Array<{ value: ExtendedStatus; labelKey: string }> = [
+const STATUS_OPTIONS: Array<{ value: MyEventStatus; labelKey: string }> = [
   { value: 'ACTIVE', labelKey: 'events.status.ACTIVE' },
   { value: 'IN_PROGRESS', labelKey: 'events.status.IN_PROGRESS' },
   { value: 'COMPLETED', labelKey: 'events.status.COMPLETED' },
-  { value: 'INVITATIONS', labelKey: 'myEvents.invitations' },
   { value: 'CANCELED', labelKey: 'events.status.CANCELED' },
 ];
 
@@ -31,7 +26,7 @@ function getEmptyStateCopy(status: MyEventStatus): { title: string; subtitle: st
 }
 
 export interface MyEventsStatusTab {
-  value: ExtendedStatus;
+  value: MyEventStatus;
   label: string;
   count: number;
 }
@@ -39,25 +34,20 @@ export interface MyEventsStatusTab {
 
 
 export interface MyEventsViewModel {
-  activeStatus: ExtendedStatus;
+  activeStatus: MyEventStatus;
   statusTabs: MyEventsStatusTab[];
   hostedEvents: MyEventSummary[];
   attendedEvents: MyEventSummary[];
-  invitations: ReceivedInvitation[];
   visibleEvents: MyEventSummary[];
   hostedCount: number;
   attendedCount: number;
-  invitationCount: number;
   isLoading: boolean;
-  isActionLoading: string | null;
   errorMessage: string | null;
   canRetry: boolean;
   emptyTitle: string;
   emptySubtitle: string;
-  setActiveStatus: (status: ExtendedStatus) => void;
+  setActiveStatus: (status: MyEventStatus) => void;
   reload: () => Promise<void>;
-  handleAccept: (invitationId: string) => Promise<void>;
-  handleDecline: (invitationId: string) => Promise<void>;
 }
 
 function getTimeValue(value: string) {
@@ -91,35 +81,22 @@ function sortVisibleEvents(
   return sorted;
 }
 
-function normalizeInvitationsResponse(
-  response: { pending?: ReceivedInvitation[]; items?: ReceivedInvitation[] } | null | undefined,
-): ReceivedInvitation[] {
-  if (Array.isArray(response?.pending)) return response.pending;
-  if (Array.isArray(response?.items)) return response.items;
-  return [];
-}
-
 export function useMyEventsViewModel(): MyEventsViewModel {
   const { token } = useAuth();
-  // Subscribe to locale so the tab labels and empty-state copy re-render on language change.
+  // Subscribe to locale so tab labels and empty-state copy re-render on language change.
   useTranslation();
 
-  const [activeStatus, setActiveStatus] = useState<ExtendedStatus>('ACTIVE');
+  const [activeStatus, setActiveStatus] = useState<MyEventStatus>('ACTIVE');
   const [hostedEvents, setHostedEvents] = useState<MyEventSummary[]>([]);
   const [attendedEvents, setAttendedEvents] = useState<MyEventSummary[]>([]);
-  const [invitations, setInvitations] = useState<ReceivedInvitation[]>([]);
-  const [invitationCount, setInvitationCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const reload = React.useCallback(async () => {
     if (!token) {
       setHostedEvents([]);
       setAttendedEvents([]);
-      setInvitations([]);
-      setInvitationCount(0);
-      setErrorMessage('You must be logged in to manage your events.');
+      setErrorMessage(i18n.t('myEvents.errors.loginRequired'));
       setIsLoading(false);
       return;
     }
@@ -137,9 +114,8 @@ export function useMyEventsViewModel(): MyEventsViewModel {
     };
 
     try {
-      const [eventsResponse, invitationsResponse, ticketsResponse] = await Promise.all([
+      const [eventsResponse, ticketsResponse] = await Promise.all([
         withTimeout(listMyEvents(token)),
-        withTimeout(listMyInvitations(token)).catch(() => ({ pending: [] })),
         withTimeout(listMyTickets(token)).catch(() => ({ items: [] })),
       ]);
 
@@ -156,7 +132,7 @@ export function useMyEventsViewModel(): MyEventsViewModel {
 
         const badges = event.badges.some((badge) => badge.type === 'TICKET')
           ? event.badges
-          : [...event.badges, { type: 'TICKET' as const, label: 'Ticket' }];
+          : [...event.badges, { type: 'TICKET' as const, label: i18n.t('tickets.detail.title') }];
 
         return {
           ...event,
@@ -167,82 +143,37 @@ export function useMyEventsViewModel(): MyEventsViewModel {
       });
 
       const nextHostedEvents = eventsResponse?.hosted_events ?? [];
-      const nextInvitations = normalizeInvitationsResponse(invitationsResponse);
 
       setHostedEvents(nextHostedEvents);
       setAttendedEvents(decoratedAttendedEvents);
-      setInvitations(nextInvitations);
-      setInvitationCount(nextInvitations.length);
     } catch (error) {
       console.error('Failed to load events:', error);
       setHostedEvents([]);
       setAttendedEvents([]);
-      setInvitations([]);
-      setInvitationCount(0);
       
-      const message = error instanceof ApiError ? error.message : 
-                     error instanceof Error ? error.message : 
-                     'Failed to load your events. Please try again.';
+      const message = error instanceof ApiError
+        ? error.message
+        : error instanceof Error
+          ? error.message
+          : i18n.t('myEvents.errors.loadFailed');
       setErrorMessage(message);
     } finally {
       setIsLoading(false);
     }
   }, [token]);
 
-  const handleAccept = useCallback(
-    async (invitationId: string) => {
-      if (!token) return;
-      setIsActionLoading(invitationId);
-      try {
-        await acceptInvitation(invitationId, token);
-        setInvitations((prev) => prev.filter((i) => i.invitation_id !== invitationId));
-        setInvitationCount((prev) => prev - 1);
-        await reload();
-      } catch (err) {
-        setErrorMessage(err instanceof ApiError ? err.message : 'Failed to accept invitation');
-      } finally {
-        setIsActionLoading(null);
-      }
-    },
-    [token],
-  );
-
-  const handleDecline = useCallback(
-    async (invitationId: string) => {
-      if (!token) return;
-      setIsActionLoading(invitationId);
-      try {
-        await declineInvitation(invitationId, token);
-        setInvitations((prev) => prev.filter((i) => i.invitation_id !== invitationId));
-        setInvitationCount((prev) => prev - 1);
-      } catch (err) {
-        setErrorMessage(err instanceof ApiError ? err.message : 'Failed to decline invitation');
-      } finally {
-        setIsActionLoading(null);
-      }
-    },
-    [token],
-  );
-
   useEffect(() => {
     void reload();
   }, [token]);
 
   const allEvents = [...hostedEvents, ...attendedEvents];
-  const visibleEvents = activeStatus !== 'INVITATIONS'
-    ? sortVisibleEvents(
-      allEvents.filter((event) => event.status === activeStatus),
-      activeStatus as MyEventStatus,
-    )
-    : [];
+  const visibleEvents = sortVisibleEvents(
+    allEvents.filter((event) => event.status === activeStatus),
+    activeStatus,
+  );
 
   const statusTabs = STATUS_OPTIONS.map((statusOption) => {
-    let count = 0;
-    if (statusOption.value === 'INVITATIONS') {
-      count = invitationCount;
-    } else {
-      count = allEvents.filter((event) => event.status === statusOption.value).length;
-    }
+    const count = allEvents.filter((event) => event.status === statusOption.value).length;
     return {
       value: statusOption.value,
       label: i18n.t(statusOption.labelKey),
@@ -250,16 +181,13 @@ export function useMyEventsViewModel(): MyEventsViewModel {
     };
   });
 
-  const hasAnyEvents = allEvents.length > 0 || invitations.length > 0;
+  const hasAnyEvents = allEvents.length > 0;
 
   let emptyTitle = i18n.t('myEvents.noEventsTitle');
   let emptySubtitle = i18n.t('myEvents.noEventsSubtitle');
 
-  if (activeStatus === 'INVITATIONS') {
-    emptyTitle = i18n.t('myEvents.noInvitationsTitle');
-    emptySubtitle = i18n.t('myEvents.noInvitationsSubtitle');
-  } else if (hasAnyEvents) {
-    const currentStatus = activeStatus as MyEventStatus;
+  if (hasAnyEvents) {
+    const currentStatus = activeStatus;
     const copy = getEmptyStateCopy(currentStatus);
     emptyTitle = copy.title;
     emptySubtitle = copy.subtitle;
@@ -270,20 +198,15 @@ export function useMyEventsViewModel(): MyEventsViewModel {
     statusTabs,
     hostedEvents,
     attendedEvents,
-    invitations,
     visibleEvents,
     hostedCount: hostedEvents.length,
     attendedCount: attendedEvents.length,
-    invitationCount,
     isLoading,
-    isActionLoading,
     errorMessage,
     canRetry: Boolean(token),
     emptyTitle,
     emptySubtitle,
     setActiveStatus,
     reload,
-    handleAccept,
-    handleDecline,
   };
 }

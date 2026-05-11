@@ -30,6 +30,8 @@ import { BadgeItem, EquipmentItem, ShowcaseImageItem } from '@/models/profile';
 import { ApiError } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadFileToPresignedUrl } from '@/services/eventService';
+import { acceptInvitation, declineInvitation, listMyInvitations } from '@/services/invitationService';
+import type { ReceivedInvitation } from '@/models/invitation';
 import { shouldShowProfileEvent } from '@/utils/eventStatus';
 
 export interface ProfileEventItem {
@@ -61,13 +63,19 @@ export interface ProfileViewModel {
   hostedCount: number;
   attendedCount: number;
   equipment: EquipmentItem[];
+  invitations: ReceivedInvitation[];
+  invitationCount: number;
   badges: BadgeItem[];
   showcaseImages: ShowcaseImageItem[];
   isActionLoading: boolean;
+  isInvitationActionLoading: string | null;
+  invitationError: string | null;
   catalogVisible: boolean;
   setCatalogVisible: (visible: boolean) => void;
   pickAvatar: () => Promise<void>;
   refresh: () => Promise<void>;
+  handleAcceptInvitation: (invitationId: string) => Promise<void>;
+  handleDeclineInvitation: (invitationId: string) => Promise<void>;
   addEquipment: (name: string, description?: string) => Promise<void>;
   editEquipment: (id: string, name: string, description?: string) => Promise<void>;
   removeEquipment: (id: string) => Promise<void>;
@@ -187,6 +195,18 @@ function excludeHostedEvents(
   return events.filter((event) => !hostedIds.has(event.id));
 }
 
+function normalizeInvitationsResponse(
+  response: { pending?: ReceivedInvitation[]; items?: ReceivedInvitation[] } | null | undefined,
+): ReceivedInvitation[] {
+  if (Array.isArray(response?.pending)) return response.pending;
+  if (Array.isArray(response?.items)) return response.items;
+  return [];
+}
+
+function getInvitationErrorMessage(error: unknown): string {
+  return error instanceof ApiError ? error.message : 'Failed to load invitations.';
+}
+
 export function useProfileViewModel(): ProfileViewModel {
   const { token } = useAuth();
 
@@ -203,9 +223,12 @@ export function useProfileViewModel(): ProfileViewModel {
   const [hostRatingLabel, setHostRatingLabel] = useState('New');
   const [participantRatingLabel, setParticipantRatingLabel] = useState('New');
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
+  const [invitations, setInvitations] = useState<ReceivedInvitation[]>([]);
   const [badges, setBadges] = useState<BadgeItem[]>([]);
   const [showcaseImages, setShowcaseImages] = useState<ShowcaseImageItem[]>([]);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [isInvitationActionLoading, setIsInvitationActionLoading] = useState<string | null>(null);
+  const [invitationError, setInvitationError] = useState<string | null>(null);
   const [catalogVisible, setCatalogVisible] = useState(false);
 
   const fetchProfile = useCallback(
@@ -217,6 +240,8 @@ export function useProfileViewModel(): ProfileViewModel {
         setOverallRatingLabel('New');
         setHostRatingLabel('New');
         setParticipantRatingLabel('New');
+        setInvitations([]);
+        setInvitationError(null);
         setApiError('You must be logged in to view your profile.');
         setIsLoading(false);
         return;
@@ -224,8 +249,10 @@ export function useProfileViewModel(): ProfileViewModel {
 
       if (mode === 'initial') setIsLoading(true);
       setApiError(null);
+      setInvitationError(null);
 
       try {
+        let nextInvitationError: string | null = null;
         const [
           profileResult,
           hostedResult,
@@ -235,6 +262,7 @@ export function useProfileViewModel(): ProfileViewModel {
           equipmentResult,
           earnedBadgesResult,
           catalogResult,
+          invitationsResult,
         ] = await Promise.all([
           getMyProfile(token),
           getMyHostedEvents(token),
@@ -244,9 +272,15 @@ export function useProfileViewModel(): ProfileViewModel {
           getMyEquipment(token),
           getMyBadges(token),
           getBadgeCatalog(token),
+          listMyInvitations(token).catch((err) => {
+            nextInvitationError = getInvitationErrorMessage(err);
+            return null;
+          }),
         ]);
         setProfile(profileResult);
         setEquipment(equipmentResult.items);
+        setInvitations(normalizeInvitationsResponse(invitationsResult));
+        setInvitationError(nextInvitationError);
 
         // Workaround: Showcase images are currently only returned by the public profile endpoint.
         // We fetch our own public profile to get the showcase images.
@@ -300,6 +334,8 @@ export function useProfileViewModel(): ProfileViewModel {
       } catch (err) {
         setHostedEvents([]);
         setAttendedEvents([]);
+        setInvitations([]);
+        setInvitationError(null);
         setOverallRatingLabel('New');
         setHostRatingLabel('New');
         setParticipantRatingLabel('New');
@@ -329,6 +365,35 @@ export function useProfileViewModel(): ProfileViewModel {
   const refresh = useCallback(async () => {
     await fetchProfile('refresh');
   }, [fetchProfile]);
+
+  const handleAcceptInvitation = useCallback(async (invitationId: string) => {
+    if (!token) return;
+    setIsInvitationActionLoading(invitationId);
+    setInvitationError(null);
+    try {
+      await acceptInvitation(invitationId, token);
+      setInvitations((prev) => prev.filter((invitation) => invitation.invitation_id !== invitationId));
+      await refresh();
+    } catch (err) {
+      setInvitationError(err instanceof ApiError ? err.message : 'Failed to accept invitation.');
+    } finally {
+      setIsInvitationActionLoading(null);
+    }
+  }, [refresh, token]);
+
+  const handleDeclineInvitation = useCallback(async (invitationId: string) => {
+    if (!token) return;
+    setIsInvitationActionLoading(invitationId);
+    setInvitationError(null);
+    try {
+      await declineInvitation(invitationId, token);
+      setInvitations((prev) => prev.filter((invitation) => invitation.invitation_id !== invitationId));
+    } catch (err) {
+      setInvitationError(err instanceof ApiError ? err.message : 'Failed to decline invitation.');
+    } finally {
+      setIsInvitationActionLoading(null);
+    }
+  }, [token]);
 
   const pickAvatar = useCallback(async () => {
     if (!token) {
@@ -566,13 +631,19 @@ export function useProfileViewModel(): ProfileViewModel {
     hostedCount: hostedEvents.length,
     attendedCount: attendedEvents.length,
     equipment,
+    invitations,
+    invitationCount: invitations.length,
     badges,
     showcaseImages,
     isActionLoading,
+    isInvitationActionLoading,
+    invitationError,
     catalogVisible,
     setCatalogVisible,
     pickAvatar,
     refresh,
+    handleAcceptInvitation,
+    handleDeclineInvitation,
     addEquipment,
     editEquipment,
     removeEquipment,

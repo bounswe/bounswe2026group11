@@ -12,6 +12,7 @@ interface InvitationCardProps {
   onDecline: (id: string) => void;
   onPress?: (eventId: string) => void;
   isActionLoading?: boolean;
+  compact?: boolean;
 }
 
 export default function InvitationCard({
@@ -20,6 +21,7 @@ export default function InvitationCard({
   onDecline,
   onPress,
   isActionLoading,
+  compact = false,
 }: InvitationCardProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -27,13 +29,13 @@ export default function InvitationCard({
   const { event, host, message } = invitation;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, compact && styles.compactCard]}>
       <TouchableOpacity
         activeOpacity={0.92}
-        style={styles.mainContent}
+        style={[styles.mainContent, compact && styles.compactMainContent]}
         onPress={() => onPress?.(event.id)}
       >
-        <View style={styles.imageWrapper}>
+        <View style={[styles.imageWrapper, compact && styles.compactImageWrapper]}>
           {event.image_url ? (
             <Image
               source={{ uri: event.image_url }}
@@ -42,7 +44,7 @@ export default function InvitationCard({
             />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Feather name="calendar" size={28} color={theme.textTertiary} />
+              <Feather name="calendar" size={compact ? 22 : 28} color={theme.textTertiary} />
             </View>
           )}
         </View>
@@ -72,21 +74,21 @@ export default function InvitationCard({
             </View>
           </View>
 
-          <Text style={styles.title} numberOfLines={2}>
+          <Text style={[styles.title, compact && styles.compactTitle]} numberOfLines={compact ? 1 : 2}>
             {event.title}
           </Text>
 
           <View style={styles.metaGroup}>
             <View style={styles.metaRow}>
               <Feather name="clock" size={16} color={theme.textMuted} />
-              <Text style={styles.metaText}>
+              <Text style={styles.metaText} numberOfLines={compact ? 1 : undefined}>
                 {formatEventDateLabel(event.start_time)}
               </Text>
             </View>
 
             <View style={styles.metaRow}>
               <Feather name="map-pin" size={16} color={theme.textMuted} />
-              <Text style={styles.metaText}>
+              <Text style={styles.metaText} numberOfLines={compact ? 1 : undefined}>
                 Location available on event page
               </Text>
             </View>
@@ -95,15 +97,17 @@ export default function InvitationCard({
       </TouchableOpacity>
 
       {message && (
-        <View style={styles.messageBox}>
+        <View style={[styles.messageBox, compact && styles.compactMessageBox]}>
           <Text style={styles.messageLabel}>Note from host:</Text>
-          <Text style={styles.messageText}>"{message}"</Text>
+          <Text style={styles.messageText} numberOfLines={compact ? 2 : undefined}>
+            "{message}"
+          </Text>
         </View>
       )}
 
-      <View style={styles.actions}>
+      <View style={[styles.actions, compact && styles.compactActions]}>
         <TouchableOpacity
-          style={[styles.actionButton, styles.declineButton]}
+          style={[styles.actionButton, compact && styles.compactActionButton, styles.declineButton]}
           onPress={() => onDecline(invitation.invitation_id)}
           disabled={isActionLoading}
         >
@@ -111,7 +115,7 @@ export default function InvitationCard({
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, styles.acceptButton]}
+          style={[styles.actionButton, compact && styles.compactActionButton, styles.acceptButton]}
           onPress={() => onAccept(invitation.invitation_id)}
           disabled={isActionLoading}
         >
@@ -139,9 +143,20 @@ function makeStyles(t: Theme) {
       shadowOffset: { width: 0, height: 8 },
       elevation: 3,
     },
+    compactCard: {
+      borderRadius: 18,
+      padding: 12,
+      marginBottom: 10,
+      shadowOpacity: 0.04,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+    },
     mainContent: {
       flexDirection: 'row',
       gap: 14,
+    },
+    compactMainContent: {
+      gap: 12,
     },
     imageWrapper: {
       width: 108,
@@ -149,6 +164,11 @@ function makeStyles(t: Theme) {
       borderRadius: 18,
       overflow: 'hidden',
       backgroundColor: t.imagePlaceholder,
+    },
+    compactImageWrapper: {
+      width: 76,
+      height: 92,
+      borderRadius: 14,
     },
     image: {
       width: '100%',
@@ -162,18 +182,21 @@ function makeStyles(t: Theme) {
     },
     content: {
       flex: 1,
+      minWidth: 0,
       justifyContent: 'space-between',
     },
     topRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
       gap: 10,
+      flexWrap: 'wrap',
     },
     statusBadgeRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
+      flexShrink: 0,
     },
     statusBadge: {
       paddingHorizontal: 10,
@@ -204,12 +227,16 @@ function makeStyles(t: Theme) {
       borderRadius: 999,
       paddingHorizontal: 10,
       paddingVertical: 6,
+      maxWidth: '100%',
+      minWidth: 0,
+      flexShrink: 1,
     },
     hostPillText: {
       color: t.textMuted,
       fontSize: 11,
       fontWeight: '700',
-      maxWidth: 70,
+      minWidth: 0,
+      flexShrink: 1,
     },
     title: {
       marginTop: 10,
@@ -217,6 +244,11 @@ function makeStyles(t: Theme) {
       lineHeight: 22,
       fontWeight: '800',
       color: t.text,
+    },
+    compactTitle: {
+      marginTop: 8,
+      fontSize: 16,
+      lineHeight: 20,
     },
     metaGroup: {
       marginTop: 12,
@@ -242,6 +274,11 @@ function makeStyles(t: Theme) {
       borderWidth: 1,
       borderColor: t.border,
     },
+    compactMessageBox: {
+      borderRadius: 12,
+      padding: 10,
+      marginTop: 10,
+    },
     messageLabel: {
       fontSize: 10,
       fontWeight: '700',
@@ -261,12 +298,20 @@ function makeStyles(t: Theme) {
       gap: 12,
       marginTop: 14,
     },
+    compactActions: {
+      gap: 10,
+      marginTop: 10,
+    },
     actionButton: {
       flex: 1,
       height: 44,
       borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    compactActionButton: {
+      height: 40,
+      borderRadius: 12,
     },
     declineButton: {
       backgroundColor: t.errorBg,

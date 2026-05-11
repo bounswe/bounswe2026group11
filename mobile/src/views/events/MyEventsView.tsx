@@ -11,7 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import MyEventCard from '@/components/events/MyEventCard';
-import InvitationCard from '@/components/invitation/InvitationCard';
 import { useTranslation } from 'react-i18next';
 import { useMyEventsViewModel } from '@/viewmodels/event/useMyEventsViewModel';
 import { useTheme } from '@/theme';
@@ -119,22 +118,14 @@ export default function MyEventsView() {
           ) : vm.errorMessage ? (
             <StatePanel
               icon="alert-circle"
-              title="Unable to load your events"
+              title={t('myEvents.errorTitle')}
               subtitle={vm.errorMessage}
-              actionLabel={vm.canRetry ? 'Try again' : undefined}
+              actionLabel={vm.canRetry ? t('common.retry') : undefined}
               onPressAction={vm.canRetry ? () => void vm.reload() : undefined}
               theme={theme}
               styles={styles}
             />
-          ) : vm.activeStatus === 'INVITATIONS' && vm.invitations.length === 0 ? (
-            <StatePanel
-              icon="mail"
-              title={vm.emptyTitle}
-              subtitle={vm.emptySubtitle}
-              theme={theme}
-              styles={styles}
-            />
-          ) : vm.activeStatus !== 'INVITATIONS' && vm.visibleEvents.length === 0 ? (
+          ) : vm.visibleEvents.length === 0 ? (
             <StatePanel
               icon="calendar"
               title={vm.emptyTitle}
@@ -147,26 +138,13 @@ export default function MyEventsView() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.listContent}
             >
-              {vm.activeStatus === 'INVITATIONS' ? (
-                vm.invitations.map((invitation) => (
-                  <InvitationCard
-                    key={invitation.invitation_id}
-                    invitation={invitation}
-                    onAccept={() => vm.handleAccept(invitation.invitation_id)}
-                    onDecline={() => vm.handleDecline(invitation.invitation_id)}
-                    onPress={(eventId) => router.push(`/event/${eventId}` as Href)}
-                    isActionLoading={vm.isActionLoading === invitation.invitation_id}
-                  />
-                ))
-              ) : (
-                vm.visibleEvents.map((event) => (
-                  <MyEventCard
-                    key={event.id}
-                    event={event}
-                    onPress={(eventId) => router.push(`/event-actions/${eventId}` as Href)}
-                  />
-                ))
-              )}
+              {vm.visibleEvents.map((event) => (
+                <MyEventCard
+                  key={event.id}
+                  event={event}
+                  onPress={(eventId) => router.push(`/event-actions/${eventId}` as Href)}
+                />
+              ))}
             </ScrollView>
           )}
         </View>
