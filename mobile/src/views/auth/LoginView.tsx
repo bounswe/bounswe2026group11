@@ -72,6 +72,8 @@ export default function LoginView() {
             autoCapitalize="none"
             autoComplete="username"
             editable={!vm.isLoading}
+            accessibilityLabel="Username"
+            accessibilityState={{ disabled: vm.isLoading }}
           />
           {vm.errors.username && (
             <Text style={styles.fieldError}>{vm.errors.username}</Text>
@@ -89,6 +91,8 @@ export default function LoginView() {
             secureTextEntry
             autoComplete="current-password"
             editable={!vm.isLoading}
+            accessibilityLabel="Password"
+            accessibilityState={{ disabled: vm.isLoading }}
           />
           {vm.errors.password && (
             <Text style={styles.fieldError}>{vm.errors.password}</Text>
@@ -99,6 +103,9 @@ export default function LoginView() {
           style={styles.forgotPasswordLink}
           onPress={() => router.push('/forgot-password' as Href)}
           disabled={vm.isLoading}
+          accessibilityRole="link"
+          accessibilityLabel="Forgot password"
+          accessibilityState={{ disabled: vm.isLoading }}
         >
           <Text style={styles.footerLink}>{t('auth.login.forgotPassword')}</Text>
         </TouchableOpacity>
@@ -108,6 +115,9 @@ export default function LoginView() {
           onPress={handleSubmit}
           disabled={vm.isLoading}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={vm.isLoading ? 'Signing in' : 'Sign in'}
+          accessibilityState={{ disabled: vm.isLoading, busy: vm.isLoading }}
         >
           {vm.isLoading ? (
             <ActivityIndicator color={theme.textOnPrimary} />
@@ -121,6 +131,9 @@ export default function LoginView() {
           <TouchableOpacity
             onPress={() => router.push('/register')}
             disabled={vm.isLoading}
+            accessibilityRole="link"
+            accessibilityLabel="Sign up"
+            accessibilityState={{ disabled: vm.isLoading }}
           >
             <Text style={styles.footerLink}>{t('auth.login.signUp')}</Text>
           </TouchableOpacity>

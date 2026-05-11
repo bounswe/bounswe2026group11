@@ -286,6 +286,8 @@ function EventMapMarker({
       }}
       stopPropagation
       testID={`marker-${event.id}`}
+      accessibilityLabel={`${event.title} map marker`}
+      accessibilityRole="button"
     >
       <View style={styles.markerWrap}>
         <View
@@ -308,6 +310,8 @@ function EventMapMarker({
 
       <Callout
         tooltip
+        accessibilityLabel={`Open ${event.title}`}
+        accessibilityRole="button"
         onPress={() => {
           // Mark that the next onDeselect should be suppressed — it fires as
           // the navigation transition starts and must not clear the selection.

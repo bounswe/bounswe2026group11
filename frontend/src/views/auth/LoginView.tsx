@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useLoginViewModel } from '@/viewmodels/auth/useLoginViewModel';
 import { useAuth } from '@/contexts/AuthContext';
 import SemLogo from '@/components/SemLogo';
@@ -29,7 +29,9 @@ export default function LoginView() {
         <p className="auth-subtitle">Sign in to continue to your account</p>
 
         {vm.apiError && (
-          <div className="error-banner">{vm.apiError}</div>
+          <div className="error-banner" role="alert" aria-live="assertive">
+            {vm.apiError}
+          </div>
         )}
 
         <form onSubmit={handleSubmit}>
@@ -46,9 +48,13 @@ export default function LoginView() {
               onChange={(e) => vm.updateField('username', e.target.value)}
               autoComplete="username"
               disabled={vm.isLoading}
+              aria-invalid={!!vm.errors.username}
+              aria-describedby={vm.errors.username ? 'username-error' : undefined}
             />
             {vm.errors.username && (
-              <p className="field-error">{vm.errors.username}</p>
+              <p className="field-error" id="username-error" role="alert">
+                {vm.errors.username}
+              </p>
             )}
           </div>
 
@@ -65,14 +71,18 @@ export default function LoginView() {
               onChange={(e) => vm.updateField('password', e.target.value)}
               autoComplete="current-password"
               disabled={vm.isLoading}
+              aria-invalid={!!vm.errors.password}
+              aria-describedby={vm.errors.password ? 'password-error' : undefined}
             />
             {vm.errors.password && (
-              <p className="field-error">{vm.errors.password}</p>
+              <p className="field-error" id="password-error" role="alert">
+                {vm.errors.password}
+              </p>
             )}
             <div style={{ textAlign: 'right', marginTop: '0.5rem', marginBottom: '1rem' }}>
-              <a onClick={() => navigate('/forgot-password')} className="link" style={{ fontSize: '0.875rem' }}>
+              <Link to="/forgot-password" className="link" style={{ fontSize: '0.875rem' }}>
                 Forgot Password?
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -87,9 +97,9 @@ export default function LoginView() {
 
         <div className="auth-footer">
           <span>Don&apos;t have an account?</span>
-          <a onClick={() => navigate('/register')} className="link">
+          <Link to="/register" className="link">
             Sign Up
-          </a>
+          </Link>
         </div>
       </div>
     </div>

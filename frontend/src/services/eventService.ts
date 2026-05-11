@@ -121,6 +121,8 @@ export function discoverEvents(
   if (params.start_to) qs.set('start_to', params.start_to);
   if (params.tag_names) qs.set('tag_names', params.tag_names);
   if (params.only_favorited) qs.set('only_favorited', 'true');
+  if (params.child_friendly != null) qs.set('child_friendly', String(params.child_friendly));
+  if (params.family_oriented != null) qs.set('family_oriented', String(params.family_oriented));
   if (params.sort_by) qs.set('sort_by', params.sort_by);
   if (params.limit != null) qs.set('limit', String(params.limit));
   if (params.cursor) qs.set('cursor', params.cursor);

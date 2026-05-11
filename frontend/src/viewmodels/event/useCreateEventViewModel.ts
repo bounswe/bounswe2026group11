@@ -80,6 +80,8 @@ export interface CreateEventFormData {
   minimumAge: string;
   maximumAge: string;
   preferredGender: PreferredGender | '';
+  childFriendly: boolean;
+  familyOriented: boolean;
   constraints: EventConstraint[];
   constraintType: ConstraintType;
   otherConstraintInput: string;
@@ -126,6 +128,8 @@ const INITIAL: CreateEventFormData = {
   minimumAge: '',
   maximumAge: '',
   preferredGender: '',
+  childFriendly: false,
+  familyOriented: false,
   constraints: [],
   constraintType: 'other',
   otherConstraintInput: '',
@@ -574,6 +578,8 @@ export function useCreateEventViewModel() {
           minimum_age: form.minimumAge ? parseInt(form.minimumAge, 10) : undefined,
           maximum_age: form.maximumAge ? parseInt(form.maximumAge, 10) : undefined,
           preferred_gender: form.preferredGender || undefined,
+          child_friendly: form.childFriendly,
+          family_oriented: form.familyOriented,
         };
 
         const result = await createEvent(request, token);

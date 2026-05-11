@@ -170,6 +170,13 @@ const PRIVACY_OPTIONS: { label: string; value: PrivacyFilter }[] = [
   { label: 'Protected', value: 'PROTECTED' },
 ];
 
+type AudienceFilterKey = 'childFriendly' | 'familyOriented';
+
+const AUDIENCE_FILTER_OPTIONS: { label: string; value: AudienceFilterKey }[] = [
+  { label: 'Child-friendly', value: 'childFriendly' },
+  { label: 'Family-oriented', value: 'familyOriented' },
+];
+
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, {
@@ -309,7 +316,9 @@ export default function DiscoverPage() {
     vm.filters.startFrom !== '' ||
     vm.filters.startTo !== '' ||
     vm.filters.radiusMeters !== 50000 ||
-    vm.filters.categoryIds.length > 0;
+    vm.filters.categoryIds.length > 0 ||
+    vm.filters.childFriendly ||
+    vm.filters.familyOriented;
 
   useEffect(() => {
     if (!vm.isLocationModalOpen) return;
@@ -488,6 +497,26 @@ export default function DiscoverPage() {
           </div>
 
           <div className="dc-filter-group">
+            <label className="dc-filter-label" id="dc-audience-filter-label">Audience</label>
+            <div className="dc-audience-filter-grid" role="group" aria-labelledby="dc-audience-filter-label">
+              {AUDIENCE_FILTER_OPTIONS.map((opt) => {
+                const selected = vm.filters[opt.value];
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`dc-filter-chip dc-audience-filter-chip ${selected ? 'selected' : ''}`}
+                    aria-pressed={selected}
+                    onClick={() => vm.updateFilter(opt.value, !selected)}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="dc-filter-group">
             <label className="dc-filter-label">Date Range</label>
             <div className="dc-date-row">
               <input
@@ -599,6 +628,29 @@ export default function DiscoverPage() {
           </button>
         )}
       </div>
+    </div>
+  );
+
+  const activeAudienceChips = (vm.filters.childFriendly || vm.filters.familyOriented) && (
+    <div className="dc-active-filter-row" aria-label="Active audience filters">
+      {vm.filters.childFriendly && (
+        <button
+          type="button"
+          className="dc-active-filter-chip"
+          onClick={() => vm.updateFilter('childFriendly', false)}
+        >
+          Child-friendly <span aria-hidden="true">×</span>
+        </button>
+      )}
+      {vm.filters.familyOriented && (
+        <button
+          type="button"
+          className="dc-active-filter-chip"
+          onClick={() => vm.updateFilter('familyOriented', false)}
+        >
+          Family-oriented <span aria-hidden="true">×</span>
+        </button>
+      )}
     </div>
   );
 
@@ -869,6 +921,7 @@ export default function DiscoverPage() {
         >
           {titleBlock}
           {searchToolbar}
+          {!overlayCollapsed && activeAudienceChips}
           {!overlayCollapsed && browserLocationPrompt}
           {!overlayCollapsed && eventsListUnderSearch}
         </div>
@@ -906,6 +959,7 @@ export default function DiscoverPage() {
 
       <div className="dc-filters">
         {searchToolbar}
+        {activeAudienceChips}
         {categoriesBlock}
       </div>
 

@@ -470,6 +470,67 @@
   padding: 0 8px;
 }
 
+.ce-audience-section {
+  margin-top: 4px;
+}
+
+.ce-audience-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ce-audience-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 74px;
+  padding: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #f9fafb;
+  color: #374151;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
+}
+
+.ce-audience-toggle:hover {
+  border-color: #111827;
+}
+
+.ce-audience-toggle.selected {
+  border-color: #111827;
+  background: #f3f4f6;
+  box-shadow: inset 0 0 0 1px #111827;
+}
+
+.ce-audience-toggle input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: #111827;
+  flex: 0 0 auto;
+}
+
+.ce-audience-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ce-audience-toggle-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.ce-audience-toggle-copy {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.35;
+}
+
 .ce-sub-label {
   font-size: 13px;
   color: #6b7280;
@@ -706,6 +767,10 @@
 
   .ce-constraints-section {
     padding: 14px;
+  }
+
+  .ce-audience-grid {
+    grid-template-columns: 1fr;
   }
 
   .ce-popup {

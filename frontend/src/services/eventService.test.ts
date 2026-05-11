@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createEventReport,
+  discoverEvents,
   listEventApprovedParticipants,
   reconfirmEventParticipation,
   reverseGeocode,
@@ -266,6 +267,36 @@ describe('reverseGeocode', () => {
     );
 
     expect(await reverseGeocode(41, 29)).toBeNull();
+  });
+});
+
+describe('eventService.discoverEvents', () => {
+  it('passes selected audience filters to discovery requests', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        items: [],
+        page_info: {
+          next_cursor: null,
+          has_next: false,
+        },
+      }),
+    );
+
+    await discoverEvents(
+      {
+        lat: 41.0082,
+        lon: 28.9784,
+        radius_meters: 10000,
+        child_friendly: true,
+        family_oriented: true,
+      },
+      null,
+    );
+
+    const calledUrl = new URL(fetchSpy.mock.calls[0][0] as string);
+    expect(calledUrl.pathname).toBe('/events/');
+    expect(calledUrl.searchParams.get('child_friendly')).toBe('true');
+    expect(calledUrl.searchParams.get('family_oriented')).toBe('true');
   });
 });
 
