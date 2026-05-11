@@ -101,6 +101,7 @@ export interface DiscoverEventsParams {
   lat: number;
   lon: number;
   radius_meters?: number;
+  minimum_age?: number;
   q?: string;
   privacy_levels?: string;
   category_ids?: string;

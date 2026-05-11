@@ -50,6 +50,13 @@ func normalizeAndValidateDiscoverEventsInput(input DiscoverEventsInput) (Discove
 		errs["radius_meters"] = "radius_meters must be between 1 and 50000"
 	}
 
+	if input.MinimumAge != nil {
+		params.MinimumAge = input.MinimumAge
+		if *input.MinimumAge < 0 || *input.MinimumAge > 120 {
+			errs["minimum_age"] = "minimum_age must be between 0 and 120"
+		}
+	}
+
 	params.Limit = defaultDiscoverLimit
 	if input.Limit != nil {
 		params.Limit = *input.Limit

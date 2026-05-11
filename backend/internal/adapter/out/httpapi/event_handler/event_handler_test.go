@@ -393,7 +393,7 @@ func TestDiscoverEventsParsesQueryParamsBeforeCallingService(t *testing.T) {
 
 	req := httptest.NewRequest(
 		fiber.MethodGet,
-		"/events/?lat=41.01&lon=29.02&radius_meters=9000&q=trail&privacy_levels=PUBLIC,PROTECTED&category_ids=1,3&tag_names=hiking,outdoor&start_from="+startFrom+"&start_to="+startTo+"&only_favorited=true&sort_by=DISTANCE&limit=15&cursor=test-cursor",
+		"/events/?lat=41.01&lon=29.02&radius_meters=9000&minimum_age=18&q=trail&privacy_levels=PUBLIC,PROTECTED&category_ids=1,3&tag_names=hiking,outdoor&start_from="+startFrom+"&start_to="+startTo+"&only_favorited=true&sort_by=DISTANCE&limit=15&cursor=test-cursor",
 		nil,
 	)
 	req.Header.Set(fiber.HeaderAuthorization, "Bearer valid.token")
@@ -420,6 +420,9 @@ func TestDiscoverEventsParsesQueryParamsBeforeCallingService(t *testing.T) {
 	}
 	if svc.lastDiscoverInput.RadiusMeters == nil || *svc.lastDiscoverInput.RadiusMeters != 9000 {
 		t.Fatalf("expected parsed radius 9000, got %v", svc.lastDiscoverInput.RadiusMeters)
+	}
+	if svc.lastDiscoverInput.MinimumAge == nil || *svc.lastDiscoverInput.MinimumAge != 18 {
+		t.Fatalf("expected parsed minimum_age 18, got %v", svc.lastDiscoverInput.MinimumAge)
 	}
 	if svc.lastDiscoverInput.Query == nil || *svc.lastDiscoverInput.Query != "trail" {
 		t.Fatalf("expected parsed q %q, got %v", "trail", svc.lastDiscoverInput.Query)

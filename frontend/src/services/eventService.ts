@@ -136,6 +136,7 @@ export function discoverEvents(
   qs.set('lat', String(params.lat));
   qs.set('lon', String(params.lon));
   if (params.radius_meters != null) qs.set('radius_meters', String(params.radius_meters));
+  if (params.minimum_age != null) qs.set('minimum_age', String(params.minimum_age));
   if (params.q) qs.set('q', params.q);
   if (params.privacy_levels) qs.set('privacy_levels', params.privacy_levels);
   if (params.category_ids) qs.set('category_ids', params.category_ids);

@@ -122,6 +122,7 @@ type EventStatusTransitionRecord struct {
 type DiscoverEventsParams struct {
 	Origin               domain.GeoPoint
 	RadiusMeters         int
+	MinimumAge           *int
 	Query                string
 	SearchTSQuery        string
 	PrivacyLevels        []domain.EventPrivacyLevel
