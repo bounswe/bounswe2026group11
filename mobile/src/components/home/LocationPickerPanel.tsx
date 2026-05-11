@@ -135,8 +135,8 @@ export default function LocationPickerPanel({
   const isSearchMode = trimmedQuery.length > 0;
   const searchStateText =
     trimmedQuery.length < 2
-      ? 'Type at least 2 characters.'
-      : 'No locations found.';
+      ? t('home.locationPicker.typeAtLeastTwo')
+      : t('home.locationPicker.noLocationsFound');
 
   const canApply = Boolean(selectedLocation);
 
@@ -156,7 +156,7 @@ export default function LocationPickerPanel({
               onPress={onClose}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Close location picker"
+              accessibilityLabel={t('home.locationPicker.closeAccessibility')}
             >
               <Feather name="x" size={28} color={theme.text} />
             </TouchableOpacity>
@@ -168,7 +168,7 @@ export default function LocationPickerPanel({
               activeOpacity={0.85}
               style={styles.resetButton}
               accessibilityRole="button"
-              accessibilityLabel="Reset location"
+              accessibilityLabel={t('home.locationPicker.resetAccessibility')}
             >
               <Feather name="rotate-ccw" size={18} color={theme.text} />
               <Text style={styles.resetText}>{t('home.locationPicker.reset')}</Text>

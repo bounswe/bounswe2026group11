@@ -200,9 +200,11 @@ export default function RegisterView() {
                     }
                     disabled={vm.isLoading}
                     accessibilityRole="button"
-                    accessibilityLabel={`Gender ${opt.label}`}
+                    accessibilityLabel={`${t('auth.register.gender')} ${t(
+                      GENDER_LABEL_KEYS[value],
+                    )}`}
                     accessibilityState={{
-                      selected: vm.formData.gender === opt.value,
+                      selected: vm.formData.gender === value,
                       disabled: vm.isLoading,
                     }}
                   >

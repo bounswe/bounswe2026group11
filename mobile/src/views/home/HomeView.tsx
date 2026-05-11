@@ -133,7 +133,7 @@ export default function HomeView() {
                 style={styles.mapLocationPill}
                 onPress={handleOpenLocationPicker}
                 accessibilityRole="button"
-                accessibilityLabel="Select location"
+                accessibilityLabel={t('home.locationPicker.selectAccessibility')}
               >
                 <Feather name="map-pin" size={16} color={styles.mapLocationIconColor.color} />
                 <Text style={styles.mapLocationText} numberOfLines={1}>
@@ -204,7 +204,7 @@ export default function HomeView() {
                 onPress={handleOpenLocationPicker}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Select location"
+                accessibilityLabel={t('home.locationPicker.selectAccessibility')}
               >
                 <Feather name="map-pin" size={18} color={isDark ? theme.text : theme.textOnPrimary} />
                 <Text style={styles.locationPillText} numberOfLines={1}>
