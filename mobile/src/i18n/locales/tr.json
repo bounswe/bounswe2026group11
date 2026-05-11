@@ -28,7 +28,16 @@
     "decline": "Reddet",
     "leave": "Ayrıl",
     "post": "Paylaş",
-    "update": "Güncelle"
+    "update": "Güncelle",
+    "relativeTime": {
+      "justNow": "Az önce",
+      "minute": "{{count}} dakika önce",
+      "minute_other": "{{count}} dakika önce",
+      "hour": "{{count}} saat önce",
+      "hour_other": "{{count}} saat önce",
+      "day": "{{count}} gün önce",
+      "day_other": "{{count}} gün önce"
+    }
   },
   "auth": {
     "login": {
@@ -131,7 +140,8 @@
       "emptyTitle": "Haritada etkinlik yok",
       "emptySubtitle": "Haritayı kaydırmayı ya da filtreleri değiştirmeyi dene. Bazı etkinlikler yaş veya cinsiyet kısıtları nedeniyle gizlenmiş olabilir.",
       "participants": "{{count}} katılıyor",
-      "participantsWithCapacity": "{{count}} / {{capacity}} katılıyor"
+      "participantsWithCapacity": "{{count}} / {{capacity}} katılıyor",
+      "calloutHint": "Detayları görmek için dokun →"
     },
     "filtersSheet": {
       "title": "Filtreler",
@@ -381,6 +391,7 @@
       "inviteAndManage": "Davet & Yönet",
       "cancelEvent": "Etkinliği İptal Et",
       "newHost": "Yeni organizatör",
+      "hostRatingLabel": "Organizatör {{rating}}",
       "about": "Hakkında",
       "tags": "Etiketler",
       "requirements": "Gereksinimler",
@@ -427,6 +438,29 @@
       "viewAttachment": "Eki Görüntüle",
       "loading": "İstekler yükleniyor...",
       "empty": "Bekleyen istek yok."
+    },
+    "invitations": {
+      "title": "Davetleri Yönet",
+      "inviteByUsername": "Kullanıcı Adıyla Davet Et",
+      "usernamePlaceholder": "örn. ayse, mehmet",
+      "inviteAction": "Davet Et",
+      "hint": "Kullanıcı adlarını boşluk veya virgülle ayır.",
+      "noteLabel": "Not Ekle (İsteğe Bağlı)",
+      "notePlaceholder": "örn. Seni orada görmek isteriz!",
+      "currentTitle": "Mevcut Davetler",
+      "loading": "Davetler yükleniyor...",
+      "empty": "Henüz davet gönderilmedi.",
+      "sendFailed": "Davet gönderilemedi",
+      "revokeTitle": "Daveti Geri Çek",
+      "revokeBody": "@{{username}} için gönderilen daveti geri çekmek istediğine emin misin?",
+      "revokeAction": "Geri Çek",
+      "status": {
+        "PENDING": "Bekliyor",
+        "ACCEPTED": "Kabul Edildi",
+        "DECLINED": "Reddedildi",
+        "CANCELED": "Geri Çekildi",
+        "EXPIRED": "Süresi Doldu"
+      }
     },
     "participants": {
       "title": "Katılımcılar ({{count}})",
@@ -488,10 +522,13 @@
       "closedQa": "Bu etkinlik sona erdi. Yeni soru-cevap yorumları kapalı.",
       "emptyQuestions": "Henüz soru yok. İlk soruyu sen sor!",
       "loadMoreQuestions": "Daha fazla soru yükle",
-      "viewReplies": "{{label}} göster",
-      "hideReplies": "{{label}} gizle",
+      "viewReplies": "{{count}} yanıtı göster",
+      "viewReplies_other": "{{count}} yanıtı göster",
+      "hideReplies": "{{count}} yanıtı gizle",
+      "hideReplies_other": "{{count}} yanıtı gizle",
       "reply": "Yanıtla",
       "replyPlaceholder": "Bir yanıt yaz…",
+      "loadMoreReplies": "Daha fazla yanıt yükle",
       "updateReview": "Değerlendirmeni güncelle",
       "leaveReview": "Değerlendirme bırak",
       "reviewPlaceholder": "Deneyimini paylaş…",
@@ -851,6 +888,7 @@
   "publicProfile": {
     "loading": "Profil yükleniyor...",
     "profileNotFound": "Profil bulunamadı",
+    "ratingWithCount": "{{rating}} ({{count}})",
     "ratingsCollected": "{{count}} puan toplandı",
     "ratingBreakdown": "Organizatör: {{host}} · Katılımcı: {{participant}}",
     "hostRatingCount": "Organizatör ({{count}})",

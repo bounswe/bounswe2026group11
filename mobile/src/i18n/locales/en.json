@@ -28,7 +28,16 @@
     "decline": "Decline",
     "leave": "Leave",
     "post": "Post",
-    "update": "Update"
+    "update": "Update",
+    "relativeTime": {
+      "justNow": "Just now",
+      "minute": "{{count}} minute ago",
+      "minute_other": "{{count}} minutes ago",
+      "hour": "{{count}} hour ago",
+      "hour_other": "{{count}} hours ago",
+      "day": "{{count}} day ago",
+      "day_other": "{{count}} days ago"
+    }
   },
   "auth": {
     "login": {
@@ -131,7 +140,8 @@
       "emptyTitle": "No events on the map",
       "emptySubtitle": "Try panning the map or adjusting filters. Some events may be hidden due to age or gender restrictions.",
       "participants": "{{count}} going",
-      "participantsWithCapacity": "{{count}} / {{capacity}} going"
+      "participantsWithCapacity": "{{count}} / {{capacity}} going",
+      "calloutHint": "Tap to view details →"
     },
     "filtersSheet": {
       "title": "Filters",
@@ -381,6 +391,7 @@
       "inviteAndManage": "Invite & Manage",
       "cancelEvent": "Cancel Event",
       "newHost": "New host",
+      "hostRatingLabel": "Host {{rating}}",
       "about": "About",
       "tags": "Tags",
       "requirements": "Requirements",
@@ -427,6 +438,29 @@
       "viewAttachment": "View Attachment",
       "loading": "Loading requests...",
       "empty": "No pending requests."
+    },
+    "invitations": {
+      "title": "Manage Invitations",
+      "inviteByUsername": "Invite by Username",
+      "usernamePlaceholder": "e.g. janesmith, bob",
+      "inviteAction": "Invite",
+      "hint": "Separate usernames with a space or comma.",
+      "noteLabel": "Add a Note (Optional)",
+      "notePlaceholder": "e.g. Hope to see you there!",
+      "currentTitle": "Current Invitations",
+      "loading": "Loading invitations...",
+      "empty": "No invitations sent yet.",
+      "sendFailed": "Failed to send invitation",
+      "revokeTitle": "Revoke Invitation",
+      "revokeBody": "Are you sure you want to revoke the invitation for @{{username}}?",
+      "revokeAction": "Revoke",
+      "status": {
+        "PENDING": "Pending",
+        "ACCEPTED": "Accepted",
+        "DECLINED": "Declined",
+        "CANCELED": "Revoked",
+        "EXPIRED": "Expired"
+      }
     },
     "participants": {
       "title": "Attendees ({{count}})",
@@ -488,10 +522,13 @@
       "closedQa": "This event has ended. New Q&A comments are closed.",
       "emptyQuestions": "No questions yet. Be the first to ask!",
       "loadMoreQuestions": "Load more questions",
-      "viewReplies": "View {{label}}",
-      "hideReplies": "Hide {{label}}",
+      "viewReplies": "View {{count}} reply",
+      "viewReplies_other": "View {{count}} replies",
+      "hideReplies": "Hide {{count}} reply",
+      "hideReplies_other": "Hide {{count}} replies",
       "reply": "Reply",
       "replyPlaceholder": "Write a reply…",
+      "loadMoreReplies": "Load more replies",
       "updateReview": "Update your review",
       "leaveReview": "Leave a review",
       "reviewPlaceholder": "Share your experience…",
@@ -851,6 +888,7 @@
   "publicProfile": {
     "loading": "Loading profile...",
     "profileNotFound": "Profile not found",
+    "ratingWithCount": "{{rating}} ({{count}})",
     "ratingsCollected": "{{count}} ratings collected",
     "ratingBreakdown": "Host: {{host}} · Participant: {{participant}}",
     "hostRatingCount": "Host ({{count}})",

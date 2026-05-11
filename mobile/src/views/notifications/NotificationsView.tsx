@@ -16,24 +16,11 @@ import {
   isDedicatedParticipationNotification,
 } from '@/utils/notificationPresentation';
 import { resolveNotificationRoute } from '@/utils/notificationRouting';
+import { formatRelativeTime } from '@/utils/relativeTime';
 import { useNotificationsViewModel } from '@/viewmodels/notifications/useNotificationsViewModel';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
-
-function formatNotificationTime(value: string): string {
-  const now = new Date();
-  const date = new Date(value);
-  const diffMs = now.getTime() - date.getTime();
-  const minuteMs = 60 * 1000;
-  const hourMs = 60 * minuteMs;
-  const dayMs = 24 * hourMs;
-  if (diffMs < minuteMs) return 'Just now';
-  if (diffMs < hourMs) return `${Math.floor(diffMs / minuteMs)}m ago`;
-  if (diffMs < dayMs) return `${Math.floor(diffMs / hourMs)}h ago`;
-  if (diffMs < 7 * dayMs) return `${Math.floor(diffMs / dayMs)}d ago`;
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
 
 interface NotificationRowProps {
   item: NotificationItem;
@@ -43,6 +30,7 @@ interface NotificationRowProps {
 }
 
 function NotificationRow({ item, onOpen, onDelete, theme }: NotificationRowProps) {
+  const { t, i18n } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const presentation = getNotificationPresentation(item);
   const isDedicated = isDedicatedParticipationNotification(item.type);
@@ -71,7 +59,9 @@ function NotificationRow({ item, onOpen, onDelete, theme }: NotificationRowProps
           {presentation.actionLabel && (
             <Text style={[styles.notificationType, isDedicated && { color: presentation.accentColor }]}>{presentation.actionLabel}</Text>
           )}
-          <Text style={styles.notificationTime}>{formatNotificationTime(item.created_at)}</Text>
+          <Text style={styles.notificationTime}>
+            {formatRelativeTime(item.created_at, t, i18n.language)}
+          </Text>
         </View>
       </View>
       <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete(item.id)}>

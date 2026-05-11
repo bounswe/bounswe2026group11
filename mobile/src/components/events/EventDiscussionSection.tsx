@@ -14,6 +14,7 @@ import type { Theme } from '@/theme';
 import { EventComment } from '@/models/comment';
 import { EventDiscussionViewModel } from '@/viewmodels/event/useEventDiscussionViewModel';
 import { useTranslation } from 'react-i18next';
+import { formatRelativeTime } from '@/utils/relativeTime';
 
 interface Props {
   vm: EventDiscussionViewModel;
@@ -23,22 +24,6 @@ interface Props {
   canPostReview: boolean;
   hasExistingReview: boolean;
   reviewWindowClosed?: boolean;
-}
-
-function formatRelativeTime(iso: string): string {
-  try {
-    const diff = Date.now() - new Date(iso).getTime();
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days < 30) return `${days}d ago`;
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  } catch {
-    return '';
-  }
 }
 
 function renderStars(rating: number): string {
@@ -111,13 +96,12 @@ function DiscussionCommentItem({
   isAuthenticated: boolean;
   canPost: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const replies = vm.repliesMap[comment.id];
   const isReplying = vm.replyingToId === comment.id;
   const [isExpanded, setIsExpanded] = React.useState(false);
   const showReplies = isExpanded && Boolean(replies);
   const replyCount = replies ? replies.items.length : comment.reply_count;
-  const replyCountLabel = `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`;
 
   const handleToggleReplies = () => {
     if (isExpanded) {
@@ -138,7 +122,9 @@ function DiscussionCommentItem({
           <Text style={styles.commentDisplayName}>
             {comment.user.display_name ?? comment.user.username}
           </Text>
-          <Text style={styles.commentTimestamp}>{formatRelativeTime(comment.created_at)}</Text>
+          <Text style={styles.commentTimestamp}>
+            {formatRelativeTime(comment.created_at, t, i18n.language)}
+          </Text>
         </View>
       </View>
 
@@ -158,8 +144,8 @@ function DiscussionCommentItem({
             />
             <Text style={styles.replyToggleText}>
               {isExpanded
-                ? t('events.discussion.hideReplies', { label: replyCountLabel })
-                : t('events.discussion.viewReplies', { label: replyCountLabel })}
+                ? t('events.discussion.hideReplies', { count: replyCount })
+                : t('events.discussion.viewReplies', { count: replyCount })}
             </Text>
           </TouchableOpacity>
         )}
@@ -232,7 +218,7 @@ function DiscussionCommentItem({
                       {reply.user.display_name ?? reply.user.username}
                     </Text>
                     <Text style={styles.commentTimestamp}>
-                      {formatRelativeTime(reply.created_at)}
+                      {formatRelativeTime(reply.created_at, t, i18n.language)}
                     </Text>
                   </View>
                 </View>
@@ -249,7 +235,7 @@ function DiscussionCommentItem({
               {replies.loading ? (
                 <ActivityIndicator size="small" color="#6366F1" />
               ) : (
-                <Text style={styles.loadMoreText}>Load more replies</Text>
+                <Text style={styles.loadMoreText}>{t('events.discussion.loadMoreReplies')}</Text>
               )}
             </TouchableOpacity>
           )}
@@ -266,6 +252,8 @@ function ReviewCommentItem({
   comment: EventComment;
   styles: ReturnType<typeof makeStyles>;
 }) {
+  const { t, i18n } = useTranslation();
+
   return (
     <View style={styles.commentCard}>
       <View style={styles.commentHeader}>
@@ -274,7 +262,9 @@ function ReviewCommentItem({
           <Text style={styles.commentDisplayName}>
             {comment.user.display_name ?? comment.user.username}
           </Text>
-          <Text style={styles.commentTimestamp}>{formatRelativeTime(comment.created_at)}</Text>
+          <Text style={styles.commentTimestamp}>
+            {formatRelativeTime(comment.created_at, t, i18n.language)}
+          </Text>
         </View>
         {comment.rating != null && (
           <Text style={styles.reviewStars}>{renderStars(comment.rating)}</Text>

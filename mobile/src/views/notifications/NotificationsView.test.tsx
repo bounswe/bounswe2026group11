@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
+import i18n from '@/i18n';
 
 // 1. Mocks (BEFORE imports)
 jest.mock('expo-router', () => ({
@@ -31,6 +32,7 @@ import { useNotificationsViewModel } from '@/viewmodels/notifications/useNotific
 import { router } from 'expo-router';
 
 const mockUseNotificationsViewModel = jest.mocked(useNotificationsViewModel);
+const fixedNow = new Date('2026-05-11T12:00:00.000Z').getTime();
 
 const mockNotifications = [
   {
@@ -46,6 +48,13 @@ const mockNotifications = [
 describe('NotificationsView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  afterEach(async () => {
+    jest.restoreAllMocks();
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
   });
 
   it('renders notifications grouped in sections', () => {
@@ -94,5 +103,34 @@ describe('NotificationsView', () => {
     const backBtn = screen.getByLabelText('Go back');
     fireEvent.click(backBtn);
     expect(router.back).toHaveBeenCalled();
+  });
+
+  it('localizes notification relative time in Turkish', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(fixedNow);
+    await act(async () => {
+      await i18n.changeLanguage('tr');
+    });
+    mockUseNotificationsViewModel.mockReturnValue({
+      notifications: [
+        {
+          ...mockNotifications[0],
+          created_at: new Date(fixedNow - 10 * 60 * 60 * 1000).toISOString(),
+        },
+      ] as any,
+      unreadCount: 1,
+      isLoading: false,
+      isRefreshing: false,
+      refresh: jest.fn(),
+      loadMore: jest.fn(),
+      markRead: jest.fn(),
+      markAllRead: jest.fn(),
+      removeNotification: jest.fn(),
+      apiError: null,
+    } as any);
+
+    render(<NotificationsView />);
+
+    expect(screen.getByText('10 saat önce')).toBeTruthy();
+    expect(screen.queryByText(/ago/)).toBeNull();
   });
 });

@@ -219,6 +219,7 @@ function EventMapMarker({
   const [hasImageRenderError, setHasImageRenderError] = useState(false);
   // Tracks whether the image inside the callout has finished loading.
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const { t } = useTranslation();
   const { event, coordinate, presentation } = item;
   const imageUrl = getImageUrl(event);
   // Hide the callout image if the render raised an error OR the prefetch
@@ -409,7 +410,9 @@ function EventMapMarker({
           </View>
 
           <View style={styles.calloutDivider} />
-          <Text style={styles.calloutHint}>Tap to view details →</Text>
+          <Text style={styles.calloutHint}>
+            {t('home.map.calloutHint')}
+          </Text>
         </View>
       </Callout>
     </Marker>
