@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EventCoverImage } from '@/components/EventCoverImage';
+import { RatingWithCount } from '@/components/RatingWithCount';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -117,6 +118,8 @@ export default function DiscoverEventSidePanel({
   const host = detail?.host ?? null;
   const hostName = host ? host.display_name ?? host.username : null;
   const hostScore = detail?.host_score?.final_score ?? event.host_score.final_score;
+  const hostScoreCount =
+    detail?.host_score?.hosted_event_rating_count ?? event.host_score.hosted_event_rating_count;
   const minAge = detail?.minimum_age ?? null;
   const preferredGender = formatGender(detail?.preferred_gender);
   const favoriteCount = detail?.favorite_count ?? null;
@@ -232,9 +235,12 @@ export default function DiscoverEventSidePanel({
             />
             <div className="dc-side-panel-host-info">
               <div className="dc-side-panel-host-name">{hostName}</div>
-              {hostScore != null && (
-                <div className="dc-side-panel-host-score">★ {hostScore.toFixed(1)} host score</div>
-              )}
+              <RatingWithCount
+                score={hostScore}
+                count={hostScoreCount}
+                className="dc-side-panel-host-score"
+                suffix="host score"
+              />
             </div>
           </div>
         )}

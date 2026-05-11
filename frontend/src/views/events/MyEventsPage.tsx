@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMyEventsViewModel, type MyEventsTab } from '@/viewmodels/event/useMyEventsViewModel';
 import type { EventSummary } from '@/models/profile';
 import { EventCoverImage } from '@/components/EventCoverImage';
+import { RatingWithCount } from '@/components/RatingWithCount';
 import { getEventCardBadgePresentation } from '@/utils/eventStatus';
 import '@/styles/my-events.css';
 import '@/styles/discover.css';
@@ -75,10 +76,12 @@ function EventCard({ event }: { event: EventSummary }) {
           <span className="dc-card-participants">
             {participantCount} participant{participantCount === 1 ? '' : 's'}
           </span>
-          {event.host_score?.final_score != null && (
-            <span className="dc-card-score">
-              {'★'} {event.host_score.final_score.toFixed(1)}
-            </span>
+          {event.host_score && (
+            <RatingWithCount
+              score={event.host_score.final_score}
+              count={event.host_score.hosted_event_rating_count}
+              className="dc-card-score"
+            />
           )}
         </div>
       </div>

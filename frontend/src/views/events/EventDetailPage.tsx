@@ -18,6 +18,7 @@ import type {
   InvitationFailureCode,
 } from '@/models/invitation';
 import { EventCoverImage } from '@/components/EventCoverImage';
+import { RatingWithCount } from '@/components/RatingWithCount';
 import { UserAvatar } from '@/components/UserAvatar';
 import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/utils/eventStatus';
 import { getApproximateLocationText } from '@/utils/locationApproximation';
@@ -1572,7 +1573,11 @@ function HostParticipantRatingItem({
           <div className="ed-mgmt-user-topline">
             <span className="ed-mgmt-name">{getDisplayName(participant.user)}</span>
             {participant.user.final_score != null && (
-              <span className="ed-mgmt-user-score">{'★'} {participant.user.final_score.toFixed(1)} ({participant.user.rating_count})</span>
+              <RatingWithCount
+                score={participant.user.final_score}
+                count={participant.user.rating_count}
+                className="ed-mgmt-user-score"
+              />
             )}
           </div>
           <span className="ed-mgmt-username">@{participant.user.username}</span>
@@ -1861,9 +1866,11 @@ function HostPendingReconfirmationItem({ participant }: { participant: EventDeta
           <div className="ed-mgmt-user-topline">
             <span className="ed-mgmt-name">{getDisplayName(participant.user)}</span>
             {participant.user.final_score != null && (
-              <span className="ed-mgmt-user-score">
-                {'★'} {participant.user.final_score.toFixed(1)} ({participant.user.rating_count})
-              </span>
+              <RatingWithCount
+                score={participant.user.final_score}
+                count={participant.user.rating_count}
+                className="ed-mgmt-user-score"
+              />
             )}
           </div>
           <span className="ed-mgmt-username">@{participant.user.username}</span>
@@ -2275,12 +2282,6 @@ function EventContent({
           </div>
           <span className="ed-metric-label">Save{event.favorite_count !== 1 ? 's' : ''}</span>
         </div>
-        {event.host_score.final_score != null && (
-          <div className="ed-metric">
-            <span className="ed-metric-value">{'★'} {event.host_score.final_score.toFixed(1)}</span>
-            <span className="ed-metric-label">Host Score</span>
-          </div>
-        )}
       </div>
 
       {/* Expiry warning — shown in last 7 days before auto-completion */}
@@ -2375,12 +2376,11 @@ function EventContent({
                 <p className="ed-host-username">@{event.host.username}</p>
               </div>
             </Link>
-            {event.host_score.final_score != null && (
-              <span className="ed-host-score">
-                {'★'} {event.host_score.final_score.toFixed(1)}
-                <span className="ed-host-rating-count"> ({event.host_score.hosted_event_rating_count})</span>
-              </span>
-            )}
+            <RatingWithCount
+              score={event.host_score.final_score}
+              count={event.host_score.hosted_event_rating_count}
+              className="ed-host-score"
+            />
           </div>
         </div>
 
@@ -2624,7 +2624,11 @@ function EventContent({
                           </a>
                         )}
                         {r.user.final_score != null && (
-                          <span className="ed-mgmt-user-score">{'★'} {r.user.final_score.toFixed(1)} ({r.user.rating_count})</span>
+                          <RatingWithCount
+                            score={r.user.final_score}
+                            count={r.user.rating_count}
+                            className="ed-mgmt-user-score"
+                          />
                         )}
                       </div>
                       <div className="ed-mgmt-actions">
