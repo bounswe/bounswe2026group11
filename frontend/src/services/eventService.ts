@@ -55,6 +55,7 @@ interface PhotonProperties {
   name?: string;
   street?: string;
   housenumber?: string;
+  locality?: string;
   district?: string;
   city?: string;
   state?: string;
@@ -84,6 +85,27 @@ function buildPhotonDisplayName(props: PhotonProperties): string {
     seen.add(key);
     deduped.push(value);
   }
+  return deduped.join(', ');
+}
+
+function buildPhotonAreaDisplayName(props: PhotonProperties): string {
+  const areaParts = [props.locality, props.district, props.city, props.state];
+  const hasAreaPart = areaParts.some((part) => (part ?? '').trim().length > 0);
+  if (!hasAreaPart) return '';
+
+  const parts = [...areaParts, props.country];
+
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  for (const part of parts) {
+    const value = (part ?? '').trim();
+    if (!value) continue;
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(value);
+  }
+
   return deduped.join(', ');
 }
 
@@ -491,6 +513,7 @@ export async function searchLocation(
 export async function reverseGeocode(
   lat: number,
   lon: number,
+  options: { areaLevel?: boolean } = {},
 ): Promise<LocationSuggestion | null> {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
 
@@ -513,18 +536,16 @@ export async function reverseGeocode(
   if (!data || !Array.isArray(data.features) || data.features.length === 0) return null;
 
   const feature = data.features[0] as PhotonFeature;
-  const coords = feature.geometry?.coordinates;
-  // Prefer the original coordinates so a map-tap marker stays where the user
-  // tapped, even if Photon snaps the result to a nearby road or POI.
-  const resolvedLat = Array.isArray(coords) && typeof coords[1] === 'number' ? coords[1] : lat;
-  const resolvedLon = Array.isArray(coords) && typeof coords[0] === 'number' ? coords[0] : lon;
-  const displayName = buildPhotonDisplayName(feature.properties ?? {});
+  const props = feature.properties ?? {};
+  const displayName = options.areaLevel
+    ? buildPhotonAreaDisplayName(props) || buildPhotonDisplayName(props)
+    : buildPhotonDisplayName(props);
   if (!displayName) return null;
 
   return {
     display_name: displayName,
-    lat: String(resolvedLat),
-    lon: String(resolvedLon),
+    lat: String(lat),
+    lon: String(lon),
   };
 }
 
