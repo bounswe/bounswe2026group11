@@ -842,13 +842,13 @@ export default function ProfilePage() {
       </div>
 
       {error && (
-        <div className="form-error" style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '6px' }}>
+        <div className="profile-feedback profile-feedback--error">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="form-success" style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: '6px', fontWeight: '500' }}>
+        <div className="profile-feedback profile-feedback--success">
           {success}
         </div>
       )}
@@ -987,7 +987,7 @@ export default function ProfilePage() {
                   Remove
                 </button>
               )}
-              <p style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '0.4rem' }}>
+              <p className="profile-help-text">
                 JPG, PNG or WebP · Max {MAX_SIZE_MB} MB
               </p>
             </div>

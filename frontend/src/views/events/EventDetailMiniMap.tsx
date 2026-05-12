@@ -29,34 +29,37 @@ function ApproximateAreaCircle({
   center: LatLng;
 }) {
   const map = useMap();
+  const { theme } = useTheme();
   useEffect(() => {
     if (!map) return;
+    const isDark = theme === 'dark';
     const circle = new google.maps.Circle({
       map,
       center,
       radius: APPROXIMATE_LOCATION_RADIUS_METERS,
-      strokeColor: '#2563eb',
+      strokeColor: isDark ? '#93C5FD' : '#2563eb',
       strokeOpacity: 1,
       strokeWeight: 2,
-      fillColor: '#60a5fa',
+      fillColor: isDark ? '#93C5FD' : '#60a5fa',
       fillOpacity: 0.22,
       clickable: false,
     });
     return () => {
       circle.setMap(null);
     };
-  }, [center, map]);
+  }, [center, map, theme]);
   return null;
 }
 
 function RoutePolyline({ path }: { path: LatLng[] }) {
   const map = useMap();
+  const { theme } = useTheme();
   useEffect(() => {
     if (!map || path.length < 2) return;
     const polyline = new google.maps.Polyline({
       map,
       path,
-      strokeColor: '#7c3aed',
+      strokeColor: theme === 'dark' ? '#A78BFA' : '#7C3AED',
       strokeOpacity: 1,
       strokeWeight: 4,
       clickable: false,
@@ -64,7 +67,7 @@ function RoutePolyline({ path }: { path: LatLng[] }) {
     return () => {
       polyline.setMap(null);
     };
-  }, [map, path]);
+  }, [map, path, theme]);
   return null;
 }
 
@@ -174,7 +177,11 @@ export default function EventDetailMiniMap({ location }: EventDetailMiniMapProps
         </>
       ) : (
         <AdvancedMarker position={anchor}>
-          <Pin background="#2563eb" borderColor="#1d4ed8" glyphColor="#ffffff" />
+          <Pin
+            background={isDark ? '#3B82F6' : '#2563eb'}
+            borderColor={isDark ? '#1E40AF' : '#1d4ed8'}
+            glyphColor="#ffffff"
+          />
         </AdvancedMarker>
       )}
     </GoogleMap>

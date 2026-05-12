@@ -34,12 +34,13 @@ interface LatLng {
 
 function RoutePolyline({ path }: { path: LatLng[] }) {
   const map = useMap();
+  const { theme } = useTheme();
   useEffect(() => {
     if (!map || path.length < 2) return;
     const polyline = new google.maps.Polyline({
       map,
       path,
-      strokeColor: '#7c3aed',
+      strokeColor: theme === 'dark' ? '#A78BFA' : '#7C3AED',
       strokeOpacity: 1,
       strokeWeight: 4,
       clickable: false,
@@ -47,7 +48,7 @@ function RoutePolyline({ path }: { path: LatLng[] }) {
     return () => {
       polyline.setMap(null);
     };
-  }, [map, path]);
+  }, [map, path, theme]);
   return null;
 }
 
