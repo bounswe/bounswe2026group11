@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import {
   useForgotPasswordViewModel,
@@ -39,6 +40,8 @@ export default function ForgotPasswordView() {
   const { theme } = useTheme();
   const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
 
   const handleNext = async () => {
     if (vm.step === 'email') {
@@ -52,6 +55,54 @@ export default function ForgotPasswordView() {
       }
     }
   };
+
+  const renderPasswordField = (
+    label: string,
+    field: 'newPassword' | 'confirmNewPassword',
+    isVisible: boolean,
+    toggleVisibility: () => void,
+    placeholder: string,
+  ) => (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.passwordContainer}>
+        <TextInput
+          style={[
+            styles.input,
+            styles.passwordInput,
+            vm.errors[field] && styles.inputError,
+          ]}
+          placeholder={placeholder}
+          placeholderTextColor={theme.placeholder}
+          value={vm.formData[field]}
+          onChangeText={(v) => vm.updateField(field, v)}
+          secureTextEntry={!isVisible}
+          autoComplete="new-password"
+          editable={!vm.isLoading}
+          accessibilityLabel={label}
+        />
+        <TouchableOpacity
+          style={styles.visibilityToggle}
+          onPress={toggleVisibility}
+          disabled={vm.isLoading}
+          accessibilityRole="button"
+          accessibilityLabel={t(
+            isVisible ? 'common.hidePasswordField' : 'common.showPasswordField',
+            { field: label },
+          )}
+        >
+          <Ionicons
+            name={isVisible ? 'eye-off-outline' : 'eye-outline'}
+            size={22}
+            color={theme.textTertiary}
+          />
+        </TouchableOpacity>
+      </View>
+      {vm.errors[field] && (
+        <Text style={styles.fieldError}>{vm.errors[field]}</Text>
+      )}
+    </View>
+  );
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
@@ -130,25 +181,23 @@ export default function ForgotPasswordView() {
         )}
 
         {vm.step === 'reset' && (
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t('auth.forgotPassword.newPassword')}</Text>
-            <TextInput
-              style={[
-                styles.input,
-                vm.errors.newPassword && styles.inputError,
-              ]}
-              placeholder={t('auth.forgotPassword.newPasswordPlaceholder')}
-              placeholderTextColor={theme.placeholder}
-              value={vm.formData.newPassword}
-              onChangeText={(v) => vm.updateField('newPassword', v)}
-              secureTextEntry
-              autoComplete="new-password"
-              editable={!vm.isLoading}
-            />
-            {vm.errors.newPassword && (
-              <Text style={styles.fieldError}>{vm.errors.newPassword}</Text>
+          <>
+            {renderPasswordField(
+              t('auth.forgotPassword.newPassword'),
+              'newPassword',
+              showNewPassword,
+              () => setShowNewPassword(!showNewPassword),
+              t('auth.forgotPassword.newPasswordPlaceholder'),
             )}
-          </View>
+
+            {renderPasswordField(
+              t('auth.forgotPassword.confirmNewPassword'),
+              'confirmNewPassword',
+              showConfirmNewPassword,
+              () => setShowConfirmNewPassword(!showConfirmNewPassword),
+              t('auth.forgotPassword.confirmNewPasswordPlaceholder'),
+            )}
+          </>
         )}
 
         <TouchableOpacity
@@ -272,6 +321,20 @@ function makeStyles(t: Theme) {
       fontSize: 16,
       color: t.text,
       backgroundColor: t.surfaceVariant,
+    },
+    passwordContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      position: 'relative',
+    },
+    passwordInput: {
+      flex: 1,
+      paddingRight: 48,
+    },
+    visibilityToggle: {
+      position: 'absolute',
+      right: 12,
+      padding: 4,
     },
     inputError: {
       borderColor: t.errorTextStrong,

@@ -29,6 +29,8 @@
     "leave": "Leave",
     "post": "Post",
     "update": "Update",
+    "showPasswordField": "Show {{field}}",
+    "hidePasswordField": "Hide {{field}}",
     "relativeTime": {
       "justNow": "Just now",
       "minute": "{{count}} minute ago",
@@ -93,6 +95,8 @@
       "verificationCodePlaceholder": "123456",
       "newPassword": "New Password",
       "newPasswordPlaceholder": "At least 8 characters",
+      "confirmNewPassword": "Confirm New Password",
+      "confirmNewPasswordPlaceholder": "Confirm new password",
       "submitEmail": "Send reset code",
       "submitOtp": "Verify code",
       "submitReset": "Reset password",

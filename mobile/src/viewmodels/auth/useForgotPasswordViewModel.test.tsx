@@ -71,6 +71,7 @@ describe('useForgotPasswordViewModel', () => {
     const hook = renderHook(() => useForgotPasswordViewModel());
     expect(hook.result.current.step).toBe('email');
     expect(hook.result.current.formData.email).toBe('');
+    expect(hook.result.current.formData.confirmNewPassword).toBe('');
     expect(hook.result.current.isLoading).toBe(false);
     expect(hook.result.current.apiError).toBeNull();
     expect(hook.result.current.successMessage).toBeNull();
@@ -267,12 +268,54 @@ describe('useForgotPasswordViewModel', () => {
     expect(success).toBe(false);
   });
 
+  it('requires confirmed password before reset', async () => {
+    const hook = renderHook(() => useForgotPasswordViewModel());
+    await advanceToResetStep(hook);
+
+    await act(async () => {
+      hook.result.current.updateField('newPassword', 'StrongPassword123');
+    });
+
+    let success: boolean | undefined;
+    await act(async () => {
+      success = await hook.result.current.handleResetPassword();
+    });
+
+    expect(mockResetPassword).not.toHaveBeenCalled();
+    expect(hook.result.current.errors.confirmNewPassword).toBe(
+      'Please confirm your new password.',
+    );
+    expect(success).toBe(false);
+  });
+
+  it('validates confirmed password matches before reset', async () => {
+    const hook = renderHook(() => useForgotPasswordViewModel());
+    await advanceToResetStep(hook);
+
+    await act(async () => {
+      hook.result.current.updateField('newPassword', 'StrongPassword123');
+      hook.result.current.updateField('confirmNewPassword', 'DifferentPassword123');
+    });
+
+    let success: boolean | undefined;
+    await act(async () => {
+      success = await hook.result.current.handleResetPassword();
+    });
+
+    expect(mockResetPassword).not.toHaveBeenCalled();
+    expect(hook.result.current.errors.confirmNewPassword).toBe(
+      'Passwords do not match.',
+    );
+    expect(success).toBe(false);
+  });
+
   it('calls reset API and returns true on success', async () => {
     const hook = renderHook(() => useForgotPasswordViewModel());
     await advanceToResetStep(hook);
 
     await act(async () => {
       hook.result.current.updateField('newPassword', 'StrongPassword123');
+      hook.result.current.updateField('confirmNewPassword', 'StrongPassword123');
     });
 
     let success: boolean | undefined;
@@ -287,6 +330,8 @@ describe('useForgotPasswordViewModel', () => {
     });
     expect(success).toBe(true);
     expect(hook.result.current.successMessage).toBe('Password has been reset.');
+    expect(hook.result.current.formData.newPassword).toBe('');
+    expect(hook.result.current.formData.confirmNewPassword).toBe('');
   });
 
   it('shows apiError on invalid reset token', async () => {
@@ -304,6 +349,7 @@ describe('useForgotPasswordViewModel', () => {
 
     await act(async () => {
       hook.result.current.updateField('newPassword', 'StrongPassword123');
+      hook.result.current.updateField('confirmNewPassword', 'StrongPassword123');
     });
 
     let success: boolean | undefined;
@@ -325,6 +371,7 @@ describe('useForgotPasswordViewModel', () => {
 
     await act(async () => {
       hook.result.current.updateField('newPassword', 'StrongPassword123');
+      hook.result.current.updateField('confirmNewPassword', 'StrongPassword123');
     });
 
     let success: boolean | undefined;
@@ -365,5 +412,6 @@ describe('useForgotPasswordViewModel', () => {
 
     expect(hook.result.current.step).toBe('otp');
     expect(hook.result.current.formData.newPassword).toBe('');
+    expect(hook.result.current.formData.confirmNewPassword).toBe('');
   });
 });

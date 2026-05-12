@@ -29,6 +29,8 @@
     "leave": "Ayrıl",
     "post": "Paylaş",
     "update": "Güncelle",
+    "showPasswordField": "{{field}} göster",
+    "hidePasswordField": "{{field}} gizle",
     "relativeTime": {
       "justNow": "Az önce",
       "minute": "{{count}} dakika önce",
@@ -93,6 +95,8 @@
       "verificationCodePlaceholder": "123456",
       "newPassword": "Yeni Şifre",
       "newPasswordPlaceholder": "En az 8 karakter",
+      "confirmNewPassword": "Yeni Şifreyi Onayla",
+      "confirmNewPasswordPlaceholder": "Yeni şifreni onayla",
       "submitEmail": "Sıfırlama kodu gönder",
       "submitOtp": "Kodu doğrula",
       "submitReset": "Şifreyi sıfırla",

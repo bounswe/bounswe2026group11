@@ -40,7 +40,7 @@ export default function ChangePasswordView() {
     field: 'currentPassword' | 'newPassword' | 'confirmPassword',
     isVisible: boolean,
     toggleVisibility: () => void,
-    placeholder: string
+    placeholder: string,
   ) => (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -61,7 +61,10 @@ export default function ChangePasswordView() {
           style={styles.visibilityToggle}
           onPress={toggleVisibility}
           accessibilityRole="button"
-          accessibilityLabel={`Toggle ${label} visibility`}
+          accessibilityLabel={t(
+            isVisible ? 'common.hidePasswordField' : 'common.showPasswordField',
+            { field: label },
+          )}
         >
           <Ionicons
             name={isVisible ? 'eye-off-outline' : 'eye-outline'}
@@ -120,7 +123,7 @@ export default function ChangePasswordView() {
               'currentPassword',
               showCurrentPassword,
               () => setShowCurrentPassword(!showCurrentPassword),
-              t('auth.changePassword.currentPasswordPlaceholder')
+              t('auth.changePassword.currentPasswordPlaceholder'),
             )}
 
             {renderPasswordField(
@@ -128,7 +131,7 @@ export default function ChangePasswordView() {
               'newPassword',
               showNewPassword,
               () => setShowNewPassword(!showNewPassword),
-              t('auth.changePassword.newPasswordPlaceholder')
+              t('auth.changePassword.newPasswordPlaceholder'),
             )}
             <Text style={styles.fieldHint}>{t('auth.changePassword.newPasswordHint')}</Text>
 
@@ -137,7 +140,7 @@ export default function ChangePasswordView() {
               'confirmPassword',
               showConfirmPassword,
               () => setShowConfirmPassword(!showConfirmPassword),
-              t('auth.changePassword.confirmPasswordPlaceholder')
+              t('auth.changePassword.confirmPasswordPlaceholder'),
             )}
 
             {/* Save Button */}
