@@ -21,7 +21,6 @@ import { formatEventLocation } from '@/utils/eventLocation';
 // Fallback when browser geolocation is unavailable and profile has no default (Beşiktaş, Istanbul)
 const DEFAULT_LAT = 41.0422;
 const DEFAULT_LON = 29.0083;
-const DEFAULT_MAP_LABEL = 'Beşiktaş, Istanbul';
 const DEFAULT_RADIUS = 50000;
 const PAGE_SIZE = 20;
 /** Safari/WebKit often ignores page-load geolocation; hard-cap wait so we can show a user-gesture fallback. */
@@ -64,7 +63,8 @@ function getBrowserLocationErrorMessage(error?: GeolocationPositionError): strin
 function isBrowserGeolocationSuggestion(selected: LocationSuggestion | null): boolean {
   if (!selected) return false;
   if (selected.source === 'browser_geolocation') return true;
-  return selected.display_name.endsWith('(your location)');
+  const label = i18n.t('discover.your_location_label');
+  return selected.display_name.endsWith(`(${label})`);
 }
 
 export type PrivacyFilter = 'ALL' | 'PUBLIC' | 'PROTECTED';
@@ -222,7 +222,7 @@ function favoriteToSuggestion(f: FavoriteLocation): LocationSuggestion {
 
 function locationShortLabel(selected: LocationSuggestion | null): string {
   if (!selected) {
-    return DEFAULT_MAP_LABEL;
+    return i18n.t('discover.default_map_area');
   }
   if (isBrowserGeolocationSuggestion(selected)) {
     return i18n.t('home.near_you');

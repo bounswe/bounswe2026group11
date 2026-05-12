@@ -213,36 +213,36 @@ function buildUpdateRequest(
   const title = form.title.trim();
   if (title !== event.title) {
     request.title = title;
-    addField(changedFields, criticalChangeLabels, 'title', 'Title');
+    addField(changedFields, criticalChangeLabels, 'title', 'edit_event.cc_title');
   }
 
   const description = normalizeOptionalString(form.description);
   if (description !== normalizeOptionalString(event.description)) {
     request.description = description;
-    addField(changedFields, criticalChangeLabels, 'description', 'Description');
+    addField(changedFields, criticalChangeLabels, 'description', 'edit_event.cc_description');
   }
 
   if (form.categoryId !== (event.category?.id ?? null)) {
     request.category_id = form.categoryId;
-    addField(changedFields, criticalChangeLabels, 'category_id', 'Category');
+    addField(changedFields, criticalChangeLabels, 'category_id', 'edit_event.cc_category');
   }
 
   const startTime = toISODateTime(form.startDate, form.startTime);
   if (startTime && !sameInstant(startTime, event.start_time)) {
     request.start_time = startTime;
-    addField(changedFields, criticalChangeLabels, 'start_time', 'Start time');
+    addField(changedFields, criticalChangeLabels, 'start_time', 'edit_event.cc_start_time');
   }
 
   const endTime = form.endDate || form.endTime ? toISODateTime(form.endDate, form.endTime) : null;
   if (!sameInstant(endTime, event.end_time)) {
     request.end_time = endTime;
-    addField(changedFields, criticalChangeLabels, 'end_time', 'End time');
+    addField(changedFields, criticalChangeLabels, 'end_time', 'edit_event.cc_end_time');
   }
 
   const capacity = form.capacity.trim() ? Number.parseInt(form.capacity.trim(), 10) : null;
   if (capacity !== (event.capacity ?? null)) {
     request.capacity = capacity;
-    addField(changedFields, criticalChangeLabels, 'capacity', 'Capacity', false);
+    addField(changedFields, criticalChangeLabels, 'capacity', '', false);
   }
 
   const previousAddress = normalizeOptionalString(event.location.address);
@@ -266,7 +266,7 @@ function buildUpdateRequest(
     } else {
       request.route_points = form.routePoints.map((point) => ({ lat: point.lat, lon: point.lon }));
     }
-    addField(changedFields, criticalChangeLabels, 'location', 'Location or route');
+    addField(changedFields, criticalChangeLabels, 'location', 'edit_event.cc_location');
   }
 
   const constraints = normalizeConstraints(form.constraints);
@@ -276,7 +276,7 @@ function buildUpdateRequest(
       changedFields,
       criticalChangeLabels,
       'constraints',
-      'Participation requirements',
+      'edit_event.cc_constraints',
       hasAddedConstraint(event.constraints ?? [], constraints),
     );
   }
@@ -289,14 +289,14 @@ function validateForm(form: EditEventFormData, event: EventDetailResponse | null
   const title = form.title.trim();
   const description = form.description.trim();
 
-  if (!title) errors.title = 'Title is required.';
-  else if (title.length < TITLE_MIN) errors.title = `Title must be at least ${TITLE_MIN} characters.`;
-  else if (title.length > TITLE_MAX) errors.title = `Title must be at most ${TITLE_MAX} characters.`;
+  if (!title) errors.title = i18n.t('errors.create_event_title_required');
+  else if (title.length < TITLE_MIN) errors.title = i18n.t('errors.create_event_title_min', { count: TITLE_MIN });
+  else if (title.length > TITLE_MAX) errors.title = i18n.t('errors.create_event_title_max', { count: TITLE_MAX });
 
   if (description && description.length < DESC_MIN) {
-    errors.description = `Description must be at least ${DESC_MIN} characters.`;
+    errors.description = i18n.t('errors.create_event_description_min', { count: DESC_MIN });
   } else if (description.length > DESC_MAX) {
-    errors.description = `Description must be at most ${DESC_MAX} characters.`;
+    errors.description = i18n.t('errors.create_event_description_max', { count: DESC_MAX });
   }
 
   if (form.categoryId == null) errors.categoryId = i18n.t('errors.edit_event_select_category');
@@ -304,27 +304,29 @@ function validateForm(form: EditEventFormData, event: EventDetailResponse | null
   if (form.locationType === 'POINT') {
     if (form.lat == null || form.lon == null) errors.location = i18n.t('errors.edit_event_select_location');
   } else if (form.routePoints.length < ROUTE_MIN_POINTS) {
-    errors.location = `Add at least ${ROUTE_MIN_POINTS} waypoints to create a route.`;
+    errors.location = i18n.t('errors.create_event_route_min_points', { count: ROUTE_MIN_POINTS });
   } else if (form.routePoints.length > ROUTE_MAX_POINTS) {
-    errors.location = `A route can have at most ${ROUTE_MAX_POINTS} waypoints.`;
+    errors.location = i18n.t('errors.create_event_route_max_points', { count: ROUTE_MAX_POINTS });
   }
 
-  if (!form.startDate) errors.startDate = 'Start date is required.';
-  if (!form.startTime) errors.startTime = 'Start time is required.';
+  if (!form.startDate) errors.startDate = i18n.t('errors.create_event_start_date_required');
+  if (!form.startTime) errors.startTime = i18n.t('errors.create_event_start_time_required');
   const startIso = toISODateTime(form.startDate, form.startTime);
   if (!errors.startDate && !errors.startTime) {
-    if (!startIso) errors.startDate = 'Invalid start date.';
-    else if (new Date(startIso).getTime() <= Date.now()) errors.startDate = 'Start date must be in the future.';
+    if (!startIso) errors.startDate = i18n.t('errors.create_event_start_date_invalid');
+    else if (new Date(startIso).getTime() <= Date.now()) {
+      errors.startDate = i18n.t('errors.edit_event_start_must_be_future');
+    }
   }
 
   if (form.endDate || form.endTime) {
-    if (!form.endDate) errors.endDate = 'End date is required if end time is set.';
-    if (!form.endTime) errors.endTime = 'End time is required if end date is set.';
+    if (!form.endDate) errors.endDate = i18n.t('errors.create_event_end_date_required');
+    if (!form.endTime) errors.endTime = i18n.t('errors.create_event_end_time_required');
     const endIso = toISODateTime(form.endDate, form.endTime);
     if (!errors.endDate && !errors.endTime) {
-      if (!endIso) errors.endDate = 'Invalid end date.';
+      if (!endIso) errors.endDate = i18n.t('errors.create_event_end_date_invalid');
       else if (startIso && new Date(endIso).getTime() <= new Date(startIso).getTime()) {
-        errors.endTime = 'End time must be after start time.';
+        errors.endTime = i18n.t('errors.create_event_end_time_before_start');
       }
     }
   }
@@ -332,16 +334,16 @@ function validateForm(form: EditEventFormData, event: EventDetailResponse | null
   if (form.capacity.trim()) {
     const capacity = Number.parseInt(form.capacity.trim(), 10);
     if (!Number.isFinite(capacity) || String(capacity) !== form.capacity.trim()) {
-      errors.capacity = 'Capacity must be a whole number.';
+      errors.capacity = i18n.t('errors.edit_event_capacity_whole_number');
     } else if (capacity < CAPACITY_MIN) {
-      errors.capacity = `Capacity must be at least ${CAPACITY_MIN}.`;
+      errors.capacity = i18n.t('errors.create_event_capacity_min', { count: CAPACITY_MIN });
     } else if (event && capacity < event.approved_participant_count + event.pending_participant_count) {
-      errors.capacity = 'Capacity cannot be below current approved plus pending participants.';
+      errors.capacity = i18n.t('errors.edit_event_capacity_below_participants');
     }
   }
 
   if (normalizeConstraints(form.constraints).length !== form.constraints.length) {
-    errors.constraints = 'Every requirement needs a type and details.';
+    errors.constraints = i18n.t('errors.edit_event_constraints_incomplete');
   }
 
   return errors;
@@ -498,8 +500,10 @@ export function useEditEventViewModel(eventId: string | undefined) {
       );
       setSuccessMessage(
         result.reconfirmation_required
-          ? `Event updated. ${pendingReconfirmationCount} participant${pendingReconfirmationCount === 1 ? '' : 's'} must reconfirm.`
-          : 'Event updated successfully.',
+          ? i18n.t('edit_event.success_reconfirmation', {
+              count: pendingReconfirmationCount,
+            })
+          : i18n.t('edit_event.success_message_plain'),
       );
       return result;
     } catch (err) {
