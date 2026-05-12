@@ -431,14 +431,38 @@ describe('useHomeViewModel', () => {
     expect(result.current.searchText).toBe('music');
   });
 
-  it('updates selected category id', async () => {
+  it('toggles selected category ids', async () => {
     const { result } = renderHook(() => useHomeViewModel());
 
     await act(async () => {
-      result.current.selectCategory(2);
+      result.current.toggleCategory(2);
+      result.current.toggleCategory(4);
     });
 
-    expect(result.current.selectedCategoryId).toBe(2);
+    expect(result.current.selectedCategoryIds).toEqual([2, 4]);
+
+    await act(async () => {
+      result.current.toggleCategory(2);
+    });
+
+    expect(result.current.selectedCategoryIds).toEqual([4]);
+  });
+
+  it('clears selected category ids', async () => {
+    const { result } = renderHook(() => useHomeViewModel());
+
+    await act(async () => {
+      result.current.toggleCategory(2);
+      result.current.toggleCategory(4);
+    });
+
+    expect(result.current.selectedCategoryIds).toEqual([2, 4]);
+
+    await act(async () => {
+      result.current.clearSelectedCategories();
+    });
+
+    expect(result.current.selectedCategoryIds).toEqual([]);
   });
 
   it('refreshes events from the first page', async () => {
@@ -675,6 +699,8 @@ describe('useHomeViewModel', () => {
         result.current.applyFilterDraft();
       });
 
+      expect(result.current.selectedCategoryIds).toEqual([2]);
+
       await waitFor(() => {
         expect(mockListEvents).toHaveBeenLastCalledWith(
           expect.objectContaining({
@@ -685,7 +711,7 @@ describe('useHomeViewModel', () => {
       });
     });
 
-    it('keeps selected chip category together with modal categories', async () => {
+    it('keeps selected chip categories together with modal categories', async () => {
       const { result } = renderHook(() => useHomeViewModel());
 
       await waitFor(() => {
@@ -693,13 +719,14 @@ describe('useHomeViewModel', () => {
       });
 
       act(() => {
-        result.current.selectCategory(1);
+        result.current.toggleCategory(1);
+        result.current.toggleCategory(4);
       });
 
       await waitFor(() => {
         expect(mockListEvents).toHaveBeenLastCalledWith(
           expect.objectContaining({
-            category_ids: [1],
+            category_ids: [1, 4],
           }),
           'mock-token',
         );
@@ -709,12 +736,14 @@ describe('useHomeViewModel', () => {
         result.current.openFilterModal();
       });
 
+      expect(result.current.filterDraft.categoryIds).toEqual([1, 4]);
+
       act(() => {
         result.current.toggleDraftCategory(2);
       });
 
       await waitFor(() => {
-        expect(result.current.filterDraft.categoryIds).toEqual([2]);
+        expect(result.current.filterDraft.categoryIds).toEqual([1, 4, 2]);
       });
 
       act(() => {
@@ -724,7 +753,42 @@ describe('useHomeViewModel', () => {
       await waitFor(() => {
         expect(mockListEvents).toHaveBeenLastCalledWith(
           expect.objectContaining({
-            category_ids: expect.arrayContaining([1, 2]),
+            category_ids: [1, 4, 2],
+          }),
+          'mock-token',
+        );
+      });
+    });
+
+    it('clears chip category filters from the discovery request', async () => {
+      const { result } = renderHook(() => useHomeViewModel());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.toggleCategory(1);
+        result.current.toggleCategory(4);
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            category_ids: [1, 4],
+          }),
+          'mock-token',
+        );
+      });
+
+      act(() => {
+        result.current.clearSelectedCategories();
+      });
+
+      await waitFor(() => {
+        expect(mockListEvents).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            category_ids: undefined,
           }),
           'mock-token',
         );
