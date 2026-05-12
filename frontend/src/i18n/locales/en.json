@@ -96,6 +96,26 @@
       "sign_in": "Sign In",
       "sign_up": "Sign Up",
       "continue_as_guest": "Continue without activation →"
+    },
+    "entry": {
+      "title": "Social Event Mapper",
+      "subtitle": "Discover and join events happening around you"
+    }
+  },
+  "fallback": {
+    "not_found": {
+      "heading": "Page Not Found",
+      "body": "We couldn't find the page you're looking for. It might have been moved, deleted, or perhaps it never existed.",
+      "back_discover": "Back to Discover"
+    },
+    "access_denied": {
+      "heading": "Access Denied",
+      "body": "You don't have permission to view this page. If you believe this is a mistake, contact the host or return to the main dashboard.",
+      "private_event_body": "This is a private event. Only approved participants and invited guests are allowed to view its details.",
+      "back_discover": "Back to Discover",
+      "go_back": "Go Back",
+      "admin_title": "Admin Access Required",
+      "admin_body": "This admin panel area is only available to administrators."
     }
   },
   "shell": {
@@ -477,6 +497,25 @@
     "empty_title": "No notifications yet",
     "empty_body": "You'll see updates here when something happens with your events.",
     "load_more": "Load more",
+    "invitation_modal": {
+      "title": "Invitation details",
+      "close_aria": "Close invitation details",
+      "loading": "Loading invitation...",
+      "sign_in_required": "You need to sign in to view this invitation.",
+      "load_failed": "Failed to load invitation",
+      "accept_failed": "Failed to accept invitation",
+      "decline_failed": "Failed to decline invitation",
+      "datetime": "{{date}} · {{time}}",
+      "from_host": "From {{host}}",
+      "status_body": {
+        "ACCEPTED": "You already accepted this invitation.",
+        "DECLINED": "You already declined this invitation.",
+        "CANCELED": "The host canceled this invitation.",
+        "EXPIRED": "This invitation has expired.",
+        "PENDING": "This invitation is ready for your response.",
+        "UNKNOWN": "This invitation is no longer actionable."
+      }
+    },
     "presentation": {
       "event_update": "Event update",
       "cooldown": "Retry after {{date}}",
@@ -930,6 +969,12 @@
     "ticket_section": "Ticket",
     "ticket_id": "Ticket ID",
     "participation": "Participation",
+    "participation_status": {
+      "APPROVED": "Approved",
+      "PENDING": "Pending",
+      "CANCELED": "Canceled",
+      "LEAVED": "Left"
+    },
     "expires_label": "Expires",
     "used": "Used",
     "show_qr_title": "Show your QR on mobile",

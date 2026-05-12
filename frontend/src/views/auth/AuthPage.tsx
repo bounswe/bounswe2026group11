@@ -1,29 +1,31 @@
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import '@/styles/auth.css';
 
 export default function AuthPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   return (
     <div className="auth-page">
       <div className="auth-card auth-landing">
-        <h1 className="auth-title">Social Event Mapper</h1>
-        <p className="auth-subtitle">
-          Discover and join events happening around you
-        </p>
+        <h1 className="auth-title">{t('auth.entry.title')}</h1>
+        <p className="auth-subtitle">{t('auth.entry.subtitle')}</p>
 
         <div className="btn-group">
           <button
+            type="button"
             className="btn-primary"
             onClick={() => navigate('/login')}
           >
-            Sign In
+            {t('auth.login.submit')}
           </button>
           <button
+            type="button"
             className="btn-outline"
             onClick={() => navigate('/register')}
           >
-            Create Account
+            {t('auth.register.title')}
           </button>
         </div>
       </div>

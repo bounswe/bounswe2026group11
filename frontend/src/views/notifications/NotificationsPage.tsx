@@ -36,7 +36,7 @@ function timeAgo(iso: string): string {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Date(iso).toLocaleDateString(i18n.resolvedLanguage, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -44,7 +44,7 @@ function formatDate(iso: string): string {
 }
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, {
+  return new Date(iso).toLocaleTimeString(i18n.resolvedLanguage, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -180,23 +180,6 @@ function invitationIdFromNotification(notification: NotificationItem): string | 
   return match?.[1] ?? null;
 }
 
-function invitationStatusMessage(invitation: ReceivedInvitation): string {
-  switch (invitation.status) {
-    case 'ACCEPTED':
-      return 'You already accepted this invitation.';
-    case 'DECLINED':
-      return 'You already declined this invitation.';
-    case 'CANCELED':
-      return 'The host canceled this invitation.';
-    case 'EXPIRED':
-      return 'This invitation has expired.';
-    case 'PENDING':
-      return 'This invitation is ready for your response.';
-    default:
-      return 'This invitation is no longer actionable.';
-  }
-}
-
 function InvitationNotificationModal({
   invitation,
   isLoading,
@@ -214,6 +197,7 @@ function InvitationNotificationModal({
   onDecline: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const canAct = invitation?.status === 'PENDING';
   const hostName = invitation
     ? invitation.host.display_name ?? invitation.host.username
@@ -229,12 +213,12 @@ function InvitationNotificationModal({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="notif-inv-modal-header">
-          <h2 id="notif-inv-modal-title">Invitation details</h2>
+          <h2 id="notif-inv-modal-title">{t('notifications.invitation_modal.title')}</h2>
           <button
             type="button"
             className="notif-inv-modal-close"
             onClick={onClose}
-            aria-label="Close invitation details"
+            aria-label={t('notifications.invitation_modal.close_aria')}
           >
             &times;
           </button>
@@ -243,7 +227,7 @@ function InvitationNotificationModal({
         {isLoading && (
           <div className="notif-inv-modal-state">
             <span className="spinner" />
-            <p>Loading invitation...</p>
+            <p>{t('notifications.invitation_modal.loading')}</p>
           </div>
         )}
 
@@ -257,13 +241,20 @@ function InvitationNotificationModal({
           <>
             <div className="notif-inv-modal-event">
               <span className={`notif-inv-modal-status status-${invitation.status.toLowerCase()}`}>
-                {invitation.status}
+                {t(`event_detail.invitation_status.${invitation.status}`, {
+                  defaultValue: invitation.status,
+                })}
               </span>
               <h3>{invitation.event.title}</h3>
               <p>
-                {formatDate(invitation.event.start_time)} at {formatTime(invitation.event.start_time)}
+                {t('notifications.invitation_modal.datetime', {
+                  date: formatDate(invitation.event.start_time),
+                  time: formatTime(invitation.event.start_time),
+                })}
               </p>
-              {hostName && <p>From {hostName}</p>}
+              {hostName && (
+                <p>{t('notifications.invitation_modal.from_host', { host: hostName })}</p>
+              )}
             </div>
 
             {invitation.message && (
@@ -273,7 +264,9 @@ function InvitationNotificationModal({
             )}
 
             <p className="notif-inv-modal-status-text">
-              {invitationStatusMessage(invitation)}
+              {t(`notifications.invitation_modal.status_body.${invitation.status}`, {
+                defaultValue: t('notifications.invitation_modal.status_body.UNKNOWN'),
+              })}
             </p>
 
             {canAct ? (
@@ -284,7 +277,7 @@ function InvitationNotificationModal({
                   onClick={onDecline}
                   disabled={isActionLoading}
                 >
-                  Decline
+                  {t('invitations.decline')}
                 </button>
                 <button
                   type="button"
@@ -292,7 +285,7 @@ function InvitationNotificationModal({
                   onClick={onAccept}
                   disabled={isActionLoading}
                 >
-                  {isActionLoading ? <span className="spinner" /> : 'Accept'}
+                  {isActionLoading ? <span className="spinner" /> : t('invitations.accept')}
                 </button>
               </div>
             ) : (
@@ -302,7 +295,7 @@ function InvitationNotificationModal({
                   className="notif-action-btn"
                   onClick={onClose}
                 >
-                  Close
+                  {t('common.close')}
                 </button>
               </div>
             )}
@@ -329,7 +322,7 @@ export default function NotificationsPage() {
     setModalInvitation(null);
     setModalError(null);
     if (!token) {
-      setModalError('You need to sign in to view this invitation.');
+      setModalError(t('notifications.invitation_modal.sign_in_required'));
       return;
     }
 
@@ -338,7 +331,9 @@ export default function NotificationsPage() {
       const invitation = await getMyInvitation(invitationId, token);
       setModalInvitation(invitation);
     } catch (err) {
-      setModalError(err instanceof ApiError ? err.message : 'Failed to load invitation');
+      setModalError(
+        err instanceof ApiError ? err.message : t('notifications.invitation_modal.load_failed'),
+      );
     } finally {
       setModalLoading(false);
     }
@@ -361,7 +356,9 @@ export default function NotificationsPage() {
       closeInvitationModal();
       navigate(`/events/${response.event_id}`);
     } catch (err) {
-      setModalError(err instanceof ApiError ? err.message : 'Failed to accept invitation');
+      setModalError(
+        err instanceof ApiError ? err.message : t('notifications.invitation_modal.accept_failed'),
+      );
       try {
         const latest = await getMyInvitation(modalInvitationId, token);
         setModalInvitation(latest);
@@ -382,7 +379,9 @@ export default function NotificationsPage() {
       const latest = await getMyInvitation(modalInvitationId, token);
       setModalInvitation(latest);
     } catch (err) {
-      setModalError(err instanceof ApiError ? err.message : 'Failed to decline invitation');
+      setModalError(
+        err instanceof ApiError ? err.message : t('notifications.invitation_modal.decline_failed'),
+      );
       try {
         const latest = await getMyInvitation(modalInvitationId, token);
         setModalInvitation(latest);

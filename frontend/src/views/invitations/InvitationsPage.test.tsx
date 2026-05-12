@@ -126,7 +126,7 @@ describe('InvitationsPage', () => {
     renderPage();
 
     expect(screen.getByText('Accepted Private Event')).toBeDefined();
-    expect(screen.getByText('ACCEPTED')).toBeDefined();
+    expect(screen.getByText('Accepted')).toBeDefined();
     expect(screen.queryByRole('button', { name: /^accept$/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /^decline$/i })).toBeNull();
     expect(screen.getByRole('button', { name: /view event/i })).toBeDefined();

@@ -59,7 +59,9 @@ function InvitationCard({
           <div className="inv-card-title-row">
             <h2 className="inv-card-title">{invitation.event.title}</h2>
             <span className={`inv-card-status status-${invitation.status.toLowerCase()}`}>
-              {invitation.status}
+              {t(`event_detail.invitation_status.${invitation.status}`, {
+                defaultValue: invitation.status,
+              })}
             </span>
           </div>
           <span className="inv-card-meta">

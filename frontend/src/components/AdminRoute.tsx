@@ -1,8 +1,10 @@
 import { Navigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import AccessDeniedView from '@/views/fallback/AccessDeniedView';
 
 export default function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const { token, role, isLoading } = useAuth();
   const location = useLocation();
 
@@ -21,8 +23,8 @@ export default function AdminRoute({ children }: { children: React.ReactNode }) 
   if (role !== 'ADMIN') {
     return (
       <AccessDeniedView
-        title="Admin Access Required"
-        message="This admin panel area is only available to administrators."
+        title={t('fallback.access_denied.admin_title')}
+        message={t('fallback.access_denied.admin_body')}
       />
     );
   }

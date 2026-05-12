@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import '@/styles/fallback.css';
 
 interface AccessDeniedViewProps {
@@ -10,33 +11,35 @@ interface AccessDeniedViewProps {
 }
 
 export default function AccessDeniedView({
-  title = 'Access Denied',
-  message = "You don't have permission to view this page. If you believe this is a mistake, contact the host or return to the main dashboard.",
-  actionText = 'Back to Discover',
+  title,
+  message,
+  actionText,
   actionTo = '/discover',
   isPrivateEvent = false,
 }: AccessDeniedViewProps) {
-  // Enhance messaging for private event restriction
-  const displayMessage = isPrivateEvent 
-    ? "This is a private event. Only approved participants and invited guests are allowed to view its details."
-    : message;
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t('fallback.access_denied.heading');
+  const displayMessage = isPrivateEvent
+    ? t('fallback.access_denied.private_event_body')
+    : (message ?? t('fallback.access_denied.body'));
+  const resolvedAction = actionText ?? t('fallback.access_denied.back_discover');
 
   return (
     <div className="fallback-page">
       <div className="fallback-content">
         <div className="fallback-icon">🔒</div>
-        <h1 className="fallback-title">{title}</h1>
+        <h1 className="fallback-title">{resolvedTitle}</h1>
         <p className="fallback-desc">{displayMessage}</p>
         <div className="fallback-actions">
           <Link to={actionTo} className="fallback-btn-primary">
-            {actionText}
+            {resolvedAction}
           </Link>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="fallback-btn-secondary"
             onClick={() => window.history.back()}
           >
-            Go Back
+            {t('fallback.access_denied.go_back')}
           </button>
         </div>
       </div>
