@@ -26,7 +26,6 @@ env:
     id: "home-search-input"
 - eraseText
 - inputText: ${E2E_SEARCH_QUERY}
-- pressKey: Enter
 - hideKeyboard
 - extendedWaitUntil:
     visible: ${E2E_EVENT_TITLE}

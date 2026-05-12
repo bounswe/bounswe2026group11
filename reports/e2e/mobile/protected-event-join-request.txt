@@ -16,6 +16,7 @@ Run login-flow.yaml...
   Tap on id: login-password-input... COMPLETED
   Erase text... COMPLETED
   Input text ${E2E_PASSWORD}... COMPLETED
+  Hide Keyboard... COMPLETED
   Tap on id: login-submit-button... COMPLETED
 Run login-flow.yaml... COMPLETED
 Tap on (Optional) "Don't allow"... WARNED
@@ -28,7 +29,7 @@ Assert that id: home-search-input is visible... COMPLETED
 Tap on id: home-search-input... COMPLETED
 Erase text... COMPLETED
 Input text ${E2E_SEARCH_QUERY}... COMPLETED
-Press Enter key... COMPLETED
+Hide Keyboard... COMPLETED
 Assert that "${E2E_EVENT_TITLE}" is visible... COMPLETED
 Tap on "${E2E_EVENT_TITLE}"... COMPLETED
 Assert that id: request-to-join-button is visible... COMPLETED
@@ -36,5 +37,6 @@ Tap on id: request-to-join-button... COMPLETED
 Assert that id: join-request-message-input is visible... COMPLETED
 Tap on id: join-request-message-input... COMPLETED
 Input text ${E2E_JOIN_MESSAGE}... COMPLETED
+Hide Keyboard... COMPLETED
 Tap on id: join-request-send-button... COMPLETED
 Assert that id: join-request-pending-chip is visible... COMPLETED

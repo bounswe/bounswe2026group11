@@ -16,6 +16,7 @@ Run login-flow.yaml...
   Tap on id: login-password-input... COMPLETED
   Erase text... COMPLETED
   Input text ${E2E_PASSWORD}... COMPLETED
+  Hide Keyboard... COMPLETED
   Tap on id: login-submit-button... COMPLETED
 Run login-flow.yaml... COMPLETED
 Tap on (Optional) "Don't allow"... WARNED
@@ -33,6 +34,7 @@ Tap on id: favorite-location-name-input... COMPLETED
 Input text ${E2E_LOCATION_NAME}... COMPLETED
 Tap on id: favorite-location-address-input... COMPLETED
 Input text ${E2E_LOCATION_QUERY}... COMPLETED
+Hide Keyboard... COMPLETED
 Assert that id: favorite-location-suggestion-0 is visible... COMPLETED
 Tap on id: favorite-location-suggestion-0... COMPLETED
 Tap on id: favorite-location-save-button... COMPLETED

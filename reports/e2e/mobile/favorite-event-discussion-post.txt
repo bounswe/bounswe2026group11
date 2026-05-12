@@ -16,6 +16,7 @@ Run login-flow.yaml...
   Tap on id: login-password-input... COMPLETED
   Erase text... COMPLETED
   Input text ${E2E_PASSWORD}... COMPLETED
+  Hide Keyboard... COMPLETED
   Tap on id: login-submit-button... COMPLETED
 Run login-flow.yaml... COMPLETED
 Tap on (Optional) "Don't allow"... WARNED
@@ -29,6 +30,7 @@ Tap on id: profile-event-card-${E2E_EVENT_TITLE}... COMPLETED
 Scrolling DOWN until id: discussion-question-input is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
 Tap on id: discussion-question-input... COMPLETED
 Input text ${E2E_DISCUSSION_MESSAGE}... COMPLETED
+Hide Keyboard... COMPLETED
 Scrolling DOWN until id: discussion-post-button is visible with speed 40, visibility percentage 100%, timeout 15000 ms, with centering disabled... COMPLETED
 Tap on id: discussion-post-button... COMPLETED
 Assert that "${E2E_DISCUSSION_MESSAGE}" is visible... COMPLETED

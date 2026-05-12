@@ -16,6 +16,7 @@ Run login-flow.yaml...
   Tap on id: login-password-input... COMPLETED
   Erase text... COMPLETED
   Input text ${E2E_PASSWORD}... COMPLETED
+  Hide Keyboard... COMPLETED
   Tap on id: login-submit-button... COMPLETED
 Run login-flow.yaml... COMPLETED
 Tap on (Optional) "Don't allow"... WARNED
