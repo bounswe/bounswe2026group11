@@ -1732,7 +1732,7 @@
   right: 16px;
   top: 176px;
   width: clamp(300px, 23vw, 360px);
-  max-height: calc(100dvh - 192px);
+  max-height: calc(100% - 192px);
   background: #ffffff;
   border: 1px solid rgba(15, 23, 42, 0.06);
   border-radius: 18px;
@@ -1740,8 +1740,7 @@
   z-index: 20;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   animation: dc-side-panel-enter 0.22s ease-out;
 }
 
@@ -1825,7 +1824,12 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .dc-side-panel-head {
@@ -1893,10 +1897,13 @@
 .dc-side-panel-cta {
   display: block;
   width: 100%;
+  position: sticky;
+  bottom: 0;
   padding: 10px 14px;
   background: #111827;
   color: #ffffff !important;
   border-radius: 12px;
+  box-shadow: 0 -8px 18px rgba(255, 255, 255, 0.9);
   text-align: center;
   font-size: 0.9rem;
   font-weight: 700;
@@ -2442,6 +2449,7 @@
 :root[data-theme='dark'] .dc-side-panel-cta {
   background: #f9fafb;
   color: #111827 !important;
+  box-shadow: 0 -8px 18px rgba(10, 10, 10, 0.9);
 }
 
 :root[data-theme='dark'] .dc-side-panel-cta:hover {
