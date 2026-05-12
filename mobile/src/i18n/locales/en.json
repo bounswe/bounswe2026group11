@@ -167,7 +167,7 @@
       "participantsWithCapacity": "{{count}} / {{capacity}} going",
       "calloutHint": "Tap to view details →",
       "searchThisArea": "Search this area",
-      "searchedAreaLocation": "Selected map area"
+      "coordinateLocation": "{{lat}}, {{lon}}"
     },
     "filtersSheet": {
       "title": "Filters",

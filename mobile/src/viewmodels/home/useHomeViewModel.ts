@@ -13,7 +13,7 @@ import {
   CURRENT_LOCATION_LABEL,
   getCurrentLocationSuggestion,
 } from '@/services/deviceLocationService';
-import { listCategories, listEvents, searchLocation } from '@/services/eventService';
+import { listCategories, listEvents, reverseGeocode, searchLocation } from '@/services/eventService';
 import { listFavoriteLocations } from '@/services/favoriteService';
 import {
   getHomeLocationSelection,
@@ -370,7 +370,7 @@ export interface HomeViewModel {
   activeLocation: { lat: number; lon: number };
   currentLocation: { lat: number; lon: number } | null;
   toggleViewMode: () => void;
-  searchMapArea: (coordinate: { lat: number; lon: number }) => void;
+  searchMapArea: (coordinate: { lat: number; lon: number }) => Promise<void>;
   updateSearchText: (value: string) => void;
   submitSearch: () => void;
   toggleCategory: (categoryId: number) => void;
@@ -980,9 +980,16 @@ export function useHomeViewModel(): HomeViewModel {
     await loadEvents('refresh');
   }, [loadEvents]);
 
-  const searchMapArea = useCallback((coordinate: { lat: number; lon: number }) => {
+  const searchMapArea = useCallback(async (coordinate: { lat: number; lon: number }) => {
+    const resolvedLocation = await reverseGeocode(coordinate.lat, coordinate.lon);
+
     setSelectedLocation({
-      display_name: i18n.t('home.map.searchedAreaLocation'),
+      display_name:
+        resolvedLocation?.display_name ??
+        i18n.t('home.map.coordinateLocation', {
+          lat: coordinate.lat.toFixed(4),
+          lon: coordinate.lon.toFixed(4),
+        }),
       lat: String(coordinate.lat),
       lon: String(coordinate.lon),
     });

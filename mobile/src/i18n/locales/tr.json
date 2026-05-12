@@ -167,7 +167,7 @@
       "participantsWithCapacity": "{{count}} / {{capacity}} katılıyor",
       "calloutHint": "Detayları görmek için dokun →",
       "searchThisArea": "Bu alanda ara",
-      "searchedAreaLocation": "Seçili harita alanı"
+      "coordinateLocation": "{{lat}}, {{lon}}"
     },
     "filtersSheet": {
       "title": "Filtreler",

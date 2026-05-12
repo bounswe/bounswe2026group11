@@ -12,6 +12,7 @@ import i18n from '@/i18n';
 // GLOBAL REGISTRY: Keep track of active stream controllers across the whole app
 // to prevent "ghost" connections when navigating back and forth.
 const activeStreams = new Map<string, AbortController>();
+const TICKET_STATUS_POLL_INTERVAL_MS = 2000;
 
 export interface TicketViewModel {
   ticket: TicketDetailResponse | null;
@@ -39,6 +40,7 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
 
   const pollingRef = useRef<boolean>(false);
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const ticketStatusIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchTicketAndEvent = useCallback(async () => {
@@ -75,11 +77,42 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
       clearTimeout(pollingTimeoutRef.current);
       pollingTimeoutRef.current = null;
     }
+    if (ticketStatusIntervalRef.current) {
+      clearInterval(ticketStatusIntervalRef.current);
+      ticketStatusIntervalRef.current = null;
+    }
     if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current);
       countdownIntervalRef.current = null;
     }
   }, []);
+
+  const startTicketStatusPolling = useCallback(() => {
+    if (!token || !ticketId || ticketStatusIntervalRef.current) return;
+
+    const refreshTicketStatus = async () => {
+      try {
+        const ticketData = await getMyTicket(ticketId, token);
+        setTicket(ticketData);
+
+        if (ticketData.ticket.status !== 'ACTIVE') {
+          setQrToken(null);
+          setQrMessage(null);
+          setSecondsRemaining(null);
+          stopPolling();
+        }
+      } catch {
+        // QR token polling already owns user-facing transient errors.
+      }
+    };
+
+    ticketStatusIntervalRef.current = setInterval(
+      () => {
+        void refreshTicketStatus();
+      },
+      TICKET_STATUS_POLL_INTERVAL_MS,
+    );
+  }, [stopPolling, ticketId, token]);
 
   const startPolling = useCallback(async () => {
     if (!token || !ticketId || pollingRef.current) return;
@@ -196,10 +229,11 @@ export function useTicketViewModel(ticketId: string): TicketViewModel {
   useEffect(() => {
     if (ticket && ticket.ticket.status === 'ACTIVE' && ticket.qr_access.eligible_now) {
       void startPolling();
+      startTicketStatusPolling();
     } else {
       stopPolling();
     }
-  }, [ticket, startPolling, stopPolling]);
+  }, [ticket, startPolling, startTicketStatusPolling, stopPolling]);
 
   const refresh = useCallback(async () => {
     stopPolling();
