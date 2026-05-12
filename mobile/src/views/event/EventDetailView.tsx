@@ -163,6 +163,21 @@ function StatusBadge({ status }: { status: string }) {
 const FEEDBACK_MIN_LENGTH = 10;
 const FEEDBACK_MAX_LENGTH = 100;
 
+function isPrivateEventAccessError(message?: string | null): boolean {
+  const normalized = message?.toLowerCase() ?? '';
+  return (
+    normalized.includes('private') ||
+    normalized.includes('invited guest') ||
+    normalized.includes('valid invitation') ||
+    normalized.includes('declined')
+  );
+}
+
+function isMissingEventError(message?: string | null): boolean {
+  const normalized = message?.toLowerCase() ?? '';
+  return normalized.includes('not exist') || normalized.includes('not found');
+}
+
 function formatShortDate(iso: string): string {
   try {
     const d = new Date(iso);
@@ -1214,8 +1229,12 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
   }
 
   if (vm.apiError || !vm.event) {
+    const isPrivateAccessError = isPrivateEventAccessError(vm.apiError);
     const isPrivateOrMissing =
-      vm.apiError?.includes('private') || vm.apiError?.includes('not exist');
+      isPrivateAccessError || isMissingEventError(vm.apiError);
+    const errorMessage = isPrivateAccessError
+      ? t('events.detail.errorDescriptionInaccessible')
+      : vm.apiError ?? t('events.detail.errorDescription');
 
     return (
       <SafeAreaView style={styles.centeredScreen}>
@@ -1236,7 +1255,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               : t('events.detail.errorTitle')}
           </Text>
           <Text style={styles.errorMessage}>
-            {vm.apiError ?? 'The event you are looking for could not be found.'}
+            {errorMessage}
           </Text>
           <TouchableOpacity style={styles.retryButton} onPress={vm.retry}>
             <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
@@ -1303,11 +1322,17 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               <Feather name="image" size={48} color={theme.textTertiary} />
             </View>
           )}
-          <View style={styles.heroBadgeRow}>
+          <ScrollView
+            horizontal
+            style={styles.heroBadgeScroll}
+            contentContainerStyle={styles.heroBadgeRow}
+            showsHorizontalScrollIndicator={false}
+            testID="event-detail-hero-badges"
+          >
             <PrivacyBadge level={event.privacy_level} />
             <AudienceBadges event={event} />
             <StatusBadge status={event.status} />
-          </View>
+          </ScrollView>
         </View>
 
         {/* Auto-completion warning */}
@@ -2156,12 +2181,18 @@ function makeStyles(t: Theme, isDark: boolean) {
       justifyContent: 'center',
       backgroundColor: t.imagePlaceholder,
     },
-    heroBadgeRow: {
+    heroBadgeScroll: {
       position: 'absolute',
       bottom: 14,
-      left: 14,
+      left: 0,
+      right: 0,
+    },
+    heroBadgeRow: {
       flexDirection: 'row',
+      alignItems: 'center',
       gap: 8,
+      paddingHorizontal: 14,
+      paddingRight: 28,
     },
 
     /* Join Request Modal Attachments */

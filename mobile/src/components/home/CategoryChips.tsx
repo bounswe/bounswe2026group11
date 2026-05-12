@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { EventCategory } from '@/models/event';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
@@ -19,6 +20,7 @@ export default function CategoryChips({
   onClearCategories,
 }: CategoryChipsProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const hasSelection = selectedCategoryIds.length > 0;
 
@@ -33,7 +35,7 @@ export default function CategoryChips({
         onPress={onClearCategories}
         activeOpacity={0.8}
         accessibilityRole="button"
-        accessibilityLabel="Clear selected categories"
+        accessibilityLabel={t('home.categoryChips.clearAccessibility')}
         testID="category-chip-clear-all"
       >
         <Text
@@ -43,12 +45,15 @@ export default function CategoryChips({
           ]}
           numberOfLines={1}
         >
-          All
+          {t('home.categoryChips.all')}
         </Text>
       </TouchableOpacity>
 
       {categories.map((category) => {
         const isSelected = selectedCategoryIds.includes(category.id);
+        const categoryLabel = t(`events.categories.${category.name}`, {
+          defaultValue: category.name,
+        });
 
         return (
           <TouchableOpacity
@@ -59,8 +64,12 @@ export default function CategoryChips({
             accessibilityRole="button"
             accessibilityLabel={
               isSelected
-                ? `Remove ${category.name} category filter`
-                : `Add ${category.name} category filter`
+                ? t('home.categoryChips.removeAccessibility', {
+                    category: categoryLabel,
+                  })
+                : t('home.categoryChips.addAccessibility', {
+                    category: categoryLabel,
+                  })
             }
             testID={`category-chip-${category.id}`}
           >
@@ -68,7 +77,7 @@ export default function CategoryChips({
               style={[styles.chipText, isSelected && styles.chipTextSelected]}
               numberOfLines={1}
             >
-              {category.name}
+              {categoryLabel}
             </Text>
             {isSelected ? (
               <Feather name="x" size={14} color={theme.textOnPrimary} />

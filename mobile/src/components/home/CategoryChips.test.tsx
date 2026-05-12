@@ -4,6 +4,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import CategoryChips from './CategoryChips';
+import i18n from '@/i18n';
 
 jest.mock('react-native', () => {
   const ReactLocal = require('react');
@@ -81,6 +82,10 @@ const categories = [
 ];
 
 describe('CategoryChips', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
   it('renders selected category chips with remove affordances', () => {
     const { container } = render(
       <CategoryChips
@@ -116,5 +121,25 @@ describe('CategoryChips', () => {
     expect(onToggleCategory).toHaveBeenNthCalledWith(1, 1);
     expect(onToggleCategory).toHaveBeenNthCalledWith(2, 2);
     expect(onClearCategories).toHaveBeenCalledTimes(1);
+  });
+
+  it('localizes quick-select category labels and accessibility labels', async () => {
+    await i18n.changeLanguage('tr');
+
+    render(
+      <CategoryChips
+        categories={categories}
+        selectedCategoryIds={[1]}
+        onToggleCategory={jest.fn()}
+        onClearCategories={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Tümü')).toBeTruthy();
+    expect(screen.getByText('Spor')).toBeTruthy();
+    expect(screen.getByText('Müzik')).toBeTruthy();
+    expect(screen.getByLabelText('Spor kategori filtresini kaldır')).toBeTruthy();
+    expect(screen.getByLabelText('Müzik kategori filtresi ekle')).toBeTruthy();
+    expect(screen.getByLabelText('Seçili kategorileri temizle')).toBeTruthy();
   });
 });
