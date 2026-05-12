@@ -107,6 +107,8 @@ function BadgeDetail({
   onBack: (() => void) | null;
   onClose: () => void;
 }) {
+  const badgeDescription = i18n.t(`profile.badge_descriptions.${badge.slug}`, { defaultValue: badge.description });
+
   return (
     <div className="profile-badge-modal-card" role="dialog" aria-modal="true" aria-labelledby="profile-badge-detail-title">
       <div className="profile-badge-modal-header">
@@ -129,11 +131,11 @@ function BadgeDetail({
         </span>
         <h3>{i18n.t(`profile.badge_names.${badge.slug}`, { defaultValue: badge.name })}</h3>
         <p className="profile-badge-detail-category">{i18n.t(BADGE_CATEGORY_LABELS[badge.category] ?? badge.category)}</p>
-        <p className="profile-badge-detail-description">{badge.description}</p>
+        <p className="profile-badge-detail-description">{badgeDescription}</p>
         <p className="profile-badge-detail-status">
           {badge.earned_at
             ? i18n.t('profile.earned_on', { date: formatBadgeDate(badge.earned_at) })
-            : i18n.t('profile.not_yet_earned', { description: badge.description })}
+            : i18n.t('profile.not_yet_earned', { description: badgeDescription })}
         </p>
       </div>
     </div>

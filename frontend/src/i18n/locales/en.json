@@ -165,6 +165,16 @@
       "TOP_RATED": "Top Rated",
       "FAVORITE_FINDER": "Favorite Finder"
     },
+    "badge_descriptions": {
+      "FIRST_STEPS": "Attend your first event.",
+      "REGULAR": "Attend 5 different events.",
+      "VETERAN": "Attend 20 events.",
+      "EXPLORER": "Attend events in 3 different categories.",
+      "HOST_DEBUT": "Host your first event.",
+      "SUPER_HOST": "Host 10 events.",
+      "TOP_RATED": "Achieve a host score of 4.5 or above.",
+      "FAVORITE_FINDER": "Favorite 5 events."
+    },
     "change_password_title": "Change Password",
     "change_password_subtitle": "Update your account password without changing profile details.",
     "open_change_password": "Change Password",

@@ -165,6 +165,16 @@
       "TOP_RATED": "En İyi Puan",
       "FAVORITE_FINDER": "Favori Bulucu"
     },
+    "badge_descriptions": {
+      "FIRST_STEPS": "İlk etkinliğine katıl.",
+      "REGULAR": "5 farklı etkinliğe katıl.",
+      "VETERAN": "20 etkinliğe katıl.",
+      "EXPLORER": "3 farklı kategoride etkinliğe katıl.",
+      "HOST_DEBUT": "İlk etkinliğini düzenle.",
+      "SUPER_HOST": "10 etkinlik düzenle.",
+      "TOP_RATED": "Ev sahipliği puanın 4.5 veya üzeri olsun.",
+      "FAVORITE_FINDER": "5 etkinliği favorile."
+    },
     "change_password_title": "Şifreyi Değiştir",
     "change_password_subtitle": "Profil bilgilerini değiştirmeden hesap şifreni güncelle.",
     "open_change_password": "Şifreyi Değiştir",
