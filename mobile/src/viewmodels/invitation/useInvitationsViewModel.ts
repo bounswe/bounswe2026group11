@@ -18,6 +18,10 @@ export interface InvitationsViewModel {
   handleDecline: (invitationId: string) => Promise<void>;
 }
 
+function mergeInvitationBuckets(response: Awaited<ReturnType<typeof listMyInvitations>>): ReceivedInvitation[] {
+  return [...(response.pending ?? []), ...(response.past?.items ?? [])];
+}
+
 export function useInvitationsViewModel(): InvitationsViewModel {
   const { token } = useAuth();
   const [invitations, setInvitations] = useState<ReceivedInvitation[]>([]);
@@ -26,12 +30,16 @@ export function useInvitationsViewModel(): InvitationsViewModel {
   const [error, setError] = useState<string | null>(null);
 
   const fetchInvitations = useCallback(async () => {
-    if (!token) return;
+    if (!token) {
+      setInvitations([]);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
       const response = await listMyInvitations(token);
-      setInvitations(response.pending);
+      setInvitations(mergeInvitationBuckets(response));
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -48,9 +56,14 @@ export function useInvitationsViewModel(): InvitationsViewModel {
       if (!token) return;
       setIsActionLoading(invitationId);
       try {
-        await acceptInvitation(invitationId, token);
-        // Remove from list upon success
-        setInvitations((prev) => prev.filter((i) => i.invitation_id !== invitationId));
+        const response = await acceptInvitation(invitationId, token);
+        setInvitations((prev) =>
+          prev.map((i) =>
+            i.invitation_id === invitationId
+              ? { ...i, status: 'ACCEPTED', updated_at: response.updated_at }
+              : i,
+          ),
+        );
       } catch (err) {
         if (err instanceof ApiError) {
           setError(err.message);
@@ -69,9 +82,14 @@ export function useInvitationsViewModel(): InvitationsViewModel {
       if (!token) return;
       setIsActionLoading(invitationId);
       try {
-        await declineInvitation(invitationId, token);
-        // Remove from list upon success
-        setInvitations((prev) => prev.filter((i) => i.invitation_id !== invitationId));
+        const response = await declineInvitation(invitationId, token);
+        setInvitations((prev) =>
+          prev.map((i) =>
+            i.invitation_id === invitationId
+              ? { ...i, status: 'DECLINED', updated_at: response.updated_at }
+              : i,
+          ),
+        );
       } catch (err) {
         if (err instanceof ApiError) {
           setError(err.message);

@@ -234,7 +234,7 @@ If your Spaces key is a limited-access key, that is expected. In that case:
 
 Recommended CORS configuration:
 
-- Origins: `http://localhost`, `https://socialeventmapper.com`, `https://www.socialeventmapper.com`
+- Origins: `http://localhost:5173`, `http://127.0.0.1:5173`, `https://socialeventmapper.com`, `https://www.socialeventmapper.com`
 - Methods: `GET`, `HEAD`, `PUT`
 - Allowed headers: `Content-Type`, `Cache-Control`, `x-amz-acl`
 - Exposed headers: `ETag`

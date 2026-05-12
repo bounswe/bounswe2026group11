@@ -19,8 +19,7 @@ import (
 // against a real Postgres. It seeds invitations across every status and
 // asserts the bucketing rules from issue #581:
 //   - pending bucket: PENDING for ACTIVE/IN_PROGRESS PRIVATE events only
-//   - past bucket: DECLINED + EXPIRED only
-//   - ACCEPTED is absent (already shows in My Events)
+//   - past bucket: ACCEPTED + DECLINED + EXPIRED
 //   - CANCELED is absent (host-side decision should not surface here)
 func TestListReceivedInvitationsBuckets(t *testing.T) {
 	// given
@@ -73,22 +72,22 @@ func TestListReceivedInvitationsBuckets(t *testing.T) {
 		t.Fatalf("pending[0].status = %s, want PENDING", result.Pending[0].Status)
 	}
 
-	// then — past bucket: DECLINED + EXPIRED only
-	if got, want := len(result.Past.Items), 2; got != want {
+	// then — past bucket: ACCEPTED + DECLINED + EXPIRED
+	if got, want := len(result.Past.Items), 3; got != want {
 		t.Fatalf("past count = %d, want %d (items=%+v)", got, want, result.Past.Items)
 	}
-	pastIDs := map[string]string{
-		result.Past.Items[0].InvitationID: result.Past.Items[0].Status,
-		result.Past.Items[1].InvitationID: result.Past.Items[1].Status,
+	pastIDs := make(map[string]string, len(result.Past.Items))
+	for _, item := range result.Past.Items {
+		pastIDs[item.InvitationID] = item.Status
+	}
+	if pastIDs[acceptedID.String()] != string(domain.InvitationStatusAccepted) {
+		t.Errorf("ACCEPTED invitation %s missing or wrong status: %v", acceptedID, pastIDs)
 	}
 	if pastIDs[declinedID.String()] != string(domain.InvitationStatusDeclined) {
 		t.Errorf("DECLINED invitation %s missing or wrong status: %v", declinedID, pastIDs)
 	}
 	if pastIDs[expiredID.String()] != string(domain.InvitationStatusExpired) {
 		t.Errorf("EXPIRED invitation %s missing or wrong status: %v", expiredID, pastIDs)
-	}
-	if _, found := pastIDs[acceptedID.String()]; found {
-		t.Errorf("ACCEPTED invitation should NOT be in past, but found: %s", acceptedID)
 	}
 	if _, found := pastIDs[canceledID.String()]; found {
 		t.Errorf("CANCELED invitation should NOT be in past, but found: %s", canceledID)
@@ -177,9 +176,8 @@ func TestListReceivedInvitationsPastPagination(t *testing.T) {
 
 // TestGetReceivedInvitationReturnsAllStatuses asserts that the detail
 // endpoint surfaces the latest invitation state regardless of status —
-// including CANCELED and ACCEPTED, which the list endpoint deliberately
-// hides. The modal flow that opens from a stale notification depends on
-// this, so all five InvitationStatus values are exercised.
+// including CANCELED. The modal flow that opens from a stale notification
+// depends on this, so all five InvitationStatus values are exercised.
 func TestGetReceivedInvitationReturnsAllStatuses(t *testing.T) {
 	// given
 	h := common.NewEventHarness(t)

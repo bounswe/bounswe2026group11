@@ -10,6 +10,10 @@ import {
 import type { NotificationItem } from '@/models/notification';
 import { ApiError } from '@/services/api';
 import i18n from '@/i18n';
+import {
+  emitUnreadCountDelta,
+  emitUnreadCountValue,
+} from '@/utils/notificationUnreadEvents';
 
 export interface NotificationsViewModel {
   notifications: NotificationItem[];
@@ -78,6 +82,8 @@ export function useNotificationsViewModel(): NotificationsViewModel {
   const markRead = useCallback(
     async (id: string) => {
       if (!token) return;
+      const wasUnread = notifications.some((n) => n.id === id && !n.is_read);
+      if (wasUnread) emitUnreadCountDelta(-1);
       // Optimistic update
       setNotifications((prev) =>
         prev.map((n) =>
@@ -89,18 +95,21 @@ export function useNotificationsViewModel(): NotificationsViewModel {
       try {
         await markNotificationRead(id, token);
       } catch {
+        if (wasUnread) emitUnreadCountDelta(1);
         // Roll back on failure
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, is_read: false, read_at: null } : n)),
         );
       }
     },
-    [token],
+    [token, notifications],
   );
 
   const markAllRead = useCallback(async () => {
     if (!token) return;
     const previous = notifications;
+    const previousUnreadCount = previous.filter((n) => !n.is_read).length;
+    if (previousUnreadCount > 0) emitUnreadCountValue(0);
     setNotifications((prev) =>
       prev.map((n) =>
         n.is_read ? n : { ...n, is_read: true, read_at: new Date().toISOString() },
@@ -110,6 +119,7 @@ export function useNotificationsViewModel(): NotificationsViewModel {
       await markAllNotificationsRead(token);
     } catch (err) {
       setNotifications(previous);
+      if (previousUnreadCount > 0) emitUnreadCountValue(previousUnreadCount);
       setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
     }
   }, [token, notifications]);
@@ -118,11 +128,14 @@ export function useNotificationsViewModel(): NotificationsViewModel {
     async (id: string) => {
       if (!token) return;
       const previous = notifications;
+      const deletedWasUnread = previous.some((n) => n.id === id && !n.is_read);
+      if (deletedWasUnread) emitUnreadCountDelta(-1);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       try {
         await deleteNotification(id, token);
       } catch (err) {
         setNotifications(previous);
+        if (deletedWasUnread) emitUnreadCountDelta(1);
         setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
       }
     },
@@ -132,11 +145,14 @@ export function useNotificationsViewModel(): NotificationsViewModel {
   const deleteAll = useCallback(async () => {
     if (!token) return;
     const previous = notifications;
+    const previousUnreadCount = previous.filter((n) => !n.is_read).length;
+    if (previousUnreadCount > 0) emitUnreadCountValue(0);
     setNotifications([]);
     try {
       await deleteAllNotifications(token);
     } catch (err) {
       setNotifications(previous);
+      if (previousUnreadCount > 0) emitUnreadCountValue(previousUnreadCount);
       setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
     }
   }, [token, notifications]);

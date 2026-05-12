@@ -11,6 +11,7 @@ import {
 } from '../../models/profile';
 import { profileService } from '../../services/profileService';
 import { prepareAvatarBlobs } from '../../utils/imageResize';
+import { uploadImageVariants } from '@/utils/directImageUpload';
 import { searchLocation } from '@/services/eventService';
 import type { LocationSuggestion } from '@/models/event';
 import { shouldShowProfileEvent } from '@/utils/eventStatus';
@@ -286,16 +287,7 @@ export function useProfileViewModel(token: string | null) {
       if (avatarFile) {
         const { original, small } = await prepareAvatarBlobs(avatarFile);
         const uploadInit = await profileService.getAvatarUploadUrl(token);
-
-        for (const instruction of uploadInit.uploads) {
-          const blob = instruction.variant === 'ORIGINAL' ? original : small;
-          const res = await fetch(instruction.url, {
-            method: instruction.method,
-            headers: instruction.headers,
-            body: blob,
-          });
-          if (!res.ok) throw new Error(`Image upload failed (${instruction.variant})`);
-        }
+        await uploadImageVariants(uploadInit, { original, small });
 
         await profileService.confirmAvatarUpload(
           { confirm_token: uploadInit.confirm_token },
@@ -527,16 +519,7 @@ export function useProfileViewModel(token: string | null) {
     try {
       const { original, small } = await prepareAvatarBlobs(file);
       const uploadInit = await profileService.getShowcaseUploadUrl(token);
-
-      for (const instruction of uploadInit.uploads) {
-        const blob = instruction.variant === 'ORIGINAL' ? original : small;
-        const res = await fetch(instruction.url, {
-          method: instruction.method,
-          headers: instruction.headers,
-          body: blob,
-        });
-        if (!res.ok) throw new Error(`Image upload failed (${instruction.variant})`);
-      }
+      await uploadImageVariants(uploadInit, { original, small });
 
       await profileService.confirmShowcaseUpload({ confirm_token: uploadInit.confirm_token }, token);
       await refreshPublicProfile();

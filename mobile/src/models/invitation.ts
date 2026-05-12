@@ -44,10 +44,18 @@ export interface ReceivedInvitationsResponse {
 }
 
 export interface AcceptInvitationResponse {
-  message: string;
+  invitation_id: string;
   event_id: string;
+  invitation_status: 'ACCEPTED';
+  participation_id: string;
+  participation_status: 'APPROVED';
+  updated_at: string;
 }
 
 export interface DeclineInvitationResponse {
-  message: string;
+  invitation_id: string;
+  event_id: string;
+  status: 'DECLINED';
+  updated_at: string;
+  cooldown_ends_at: string;
 }

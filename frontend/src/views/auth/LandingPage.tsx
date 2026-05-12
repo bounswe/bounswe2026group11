@@ -4,7 +4,22 @@ import { useTranslation } from 'react-i18next';
 import concertImg from '@/assets/concert.png';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import SemLogo from '@/components/SemLogo';
+import { useTheme } from '@/contexts/ThemeContext';
 import '@/styles/landing.css';
+
+const DOT_COLORS_LIGHT = [
+  'rgba(255,255,255,.30)',
+  'rgba(200,200,210,.35)',
+  'rgba(160,165,175,.30)',
+  'rgba(130,135,145,.25)',
+];
+
+const DOT_COLORS_DARK = [
+  'rgba(255,255,255,.10)',
+  'rgba(200,200,210,.10)',
+  'rgba(160,165,175,.08)',
+  'rgba(130,135,145,.08)',
+];
 
 /* ── Interactive dot‑grid canvas ── */
 function DotCanvas() {
@@ -12,13 +27,8 @@ function DotCanvas() {
   const mouse = useRef({ x: -1000, y: -1000 });
   const dots = useRef<{ baseX: number; baseY: number; x: number; y: number; r: number; color: string }[]>([]);
   const raf = useRef(0);
-
-  const COLORS = [
-    'rgba(255,255,255,.30)',
-    'rgba(200,200,210,.35)',
-    'rgba(160,165,175,.30)',
-    'rgba(130,135,145,.25)',
-  ];
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DOT_COLORS_DARK : DOT_COLORS_LIGHT;
 
   const initDots = useCallback((w: number, h: number) => {
     const gap = 32;
@@ -36,7 +46,7 @@ function DotCanvas() {
       }
     }
     dots.current = arr;
-  }, []);
+  }, [COLORS]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

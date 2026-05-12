@@ -74,10 +74,11 @@ jest.mock('@/components/invitation/InvitationCard', () => {
   return jest.fn(({ invitation, onAccept, onDecline }: any) => (
     ReactLocal.createElement('div', { 'data-testid': 'invitation-card' }, [
       ReactLocal.createElement('span', { key: 'title' }, invitation.event.title),
+      ReactLocal.createElement('span', { key: 'status' }, invitation.status),
       ReactLocal.createElement('span', { key: 'host' }, `Host: ${invitation.host.display_name || invitation.host.username}`),
       invitation.message && ReactLocal.createElement('span', { key: 'message' }, `"${invitation.message}"`),
-      ReactLocal.createElement('button', { key: 'accept', onClick: () => onAccept(invitation.invitation_id) }, 'Accept'),
-      ReactLocal.createElement('button', { key: 'decline', onClick: () => onDecline(invitation.invitation_id) }, 'Decline'),
+      invitation.status === 'PENDING' && ReactLocal.createElement('button', { key: 'accept', onClick: () => onAccept(invitation.invitation_id) }, 'Accept'),
+      invitation.status === 'PENDING' && ReactLocal.createElement('button', { key: 'decline', onClick: () => onDecline(invitation.invitation_id) }, 'Decline'),
     ])
   ));
 });
@@ -145,6 +146,36 @@ describe('InvitationsView', () => {
     expect(screen.getByText('Secret Party')).toBeTruthy();
     expect(screen.getByText('Host: Jay Gatsby')).toBeTruthy();
     expect(screen.getByText('"Old Sport!"')).toBeTruthy();
+  });
+
+  it('renders accepted past invitation without response actions', () => {
+    const invitations = [
+      {
+        invitation_id: 'inv-accepted',
+        status: 'ACCEPTED' as any,
+        event: {
+          id: 'evt-accepted',
+          title: 'Accepted Private Event',
+          start_time: '2026-05-01T20:00:00Z',
+          image_url: null,
+        },
+        host: {
+          username: 'gatsby',
+          display_name: 'Jay Gatsby',
+          profile_image_url: null,
+        },
+        message: null,
+        created_at: '2026-05-01T10:00:00Z',
+        updated_at: '2026-05-01T10:00:00Z',
+      },
+    ];
+    mockUseInvitationsViewModel.mockReturnValue(buildViewModel({ invitations }));
+    render(<InvitationsView />);
+
+    expect(screen.getByText('Accepted Private Event')).toBeTruthy();
+    expect(screen.getByText('ACCEPTED')).toBeTruthy();
+    expect(screen.queryByText('Accept')).toBeNull();
+    expect(screen.queryByText('Decline')).toBeNull();
   });
 
   it('triggers accept and decline actions', () => {

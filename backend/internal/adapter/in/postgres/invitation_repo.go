@@ -175,7 +175,7 @@ func (r *InvitationRepository) ListReceivedPendingInvitations(
 	return records, nil
 }
 
-// ListReceivedPastInvitations returns DECLINED+EXPIRED invitations for the
+// ListReceivedPastInvitations returns ACCEPTED+DECLINED+EXPIRED invitations for the
 // given user against PRIVATE events. The query intentionally omits an
 // event-status filter (the past bucket should still surface invitations
 // for events that have since ended). Pagination is keyset on
@@ -217,7 +217,11 @@ func (r *InvitationRepository) ListReceivedPastInvitations(
 
 	args := []any{
 		userID,
-		[]string{string(domain.InvitationStatusDeclined), string(domain.InvitationStatusExpired)},
+		[]string{
+			string(domain.InvitationStatusAccepted),
+			string(domain.InvitationStatusDeclined),
+			string(domain.InvitationStatusExpired),
+		},
 		domain.PrivacyPrivate,
 	}
 	query := baseSelect

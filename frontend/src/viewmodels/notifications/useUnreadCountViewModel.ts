@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUnreadNotificationCount } from '@/services/notificationService';
+import {
+  NOTIFICATION_UNREAD_COUNT_EVENT,
+  type NotificationUnreadCountEventDetail,
+} from '@/utils/notificationUnreadEvents';
 
 const POLL_INTERVAL_MS = 60_000;
 
@@ -42,6 +46,24 @@ export function useUnreadCountViewModel(): UnreadCountViewModel {
     const id = window.setInterval(refresh, POLL_INTERVAL_MS);
     return () => window.clearInterval(id);
   }, [refresh, token]);
+
+  useEffect(() => {
+    const handleUnreadCountEvent = (event: Event) => {
+      const detail = (event as CustomEvent<NotificationUnreadCountEventDetail>).detail;
+      if (typeof detail?.count === 'number') {
+        setUnreadCount(Math.max(0, detail.count));
+        return;
+      }
+      if (typeof detail?.delta === 'number') {
+        setUnreadCount((current) => Math.max(0, current + detail.delta!));
+      }
+    };
+
+    window.addEventListener(NOTIFICATION_UNREAD_COUNT_EVENT, handleUnreadCountEvent);
+    return () => {
+      window.removeEventListener(NOTIFICATION_UNREAD_COUNT_EVENT, handleUnreadCountEvent);
+    };
+  }, []);
 
   return { unreadCount, refresh };
 }

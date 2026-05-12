@@ -387,9 +387,9 @@ paths:
         Returns the authenticated user's invitations split into two buckets:
 
         - `pending`: actionable invitations — `status = PENDING`, `event.privacy_level = PRIVATE`, event status in `ACTIVE` or `IN_PROGRESS`. Ordered `created_at ASC, id ASC`. Always returned in full (unpaginated).
-        - `past`: history of `DECLINED` and `EXPIRED` invitations for `PRIVATE` events, regardless of event status (so a declined invitation for a now-ended event is still visible). Ordered `updated_at DESC, id DESC`. Paginated via `past_cursor` / `past_limit`.
+        - `past`: history of `ACCEPTED`, `DECLINED`, and `EXPIRED` invitations for `PRIVATE` events, regardless of event status (so an accepted or declined invitation for a now-ended event is still visible). Ordered `updated_at DESC, id DESC`. Paginated via `past_cursor` / `past_limit`.
 
-        `ACCEPTED` invitations are intentionally absent from `past` because the resulting participation is already visible via `GET /me/events/upcoming` and `/me/events/completed`. `CANCELED` invitations (host-revoked) are also absent so the recipient is not confronted with host-side decisions.
+        `CANCELED` invitations (host-revoked) are absent so the recipient is not confronted with host-side decisions.
       tags:
         - Profile
       security:
@@ -962,7 +962,7 @@ components:
       properties:
         items:
           type: array
-          description: Page of past invitations (`status` ∈ {`DECLINED`, `EXPIRED`}) ordered by `updated_at` descending.
+          description: Page of past invitations (`status` ∈ {`ACCEPTED`, `DECLINED`, `EXPIRED`}) ordered by `updated_at` descending.
           items:
             $ref: "#/components/schemas/ReceivedInvitation"
         page_info:
@@ -993,7 +993,7 @@ components:
           type: string
           enum: [PENDING, ACCEPTED, DECLINED, EXPIRED, CANCELED]
           description: |
-            Invitation lifecycle status. The list endpoint (`GET /me/invitations`) only returns `PENDING` (in `pending`) or `DECLINED`/`EXPIRED` (in `past.items`); the detail endpoint (`GET /me/invitations/{id}`) can return any of the five values so clients can surface CANCELED and ACCEPTED states.
+            Invitation lifecycle status. The list endpoint (`GET /me/invitations`) returns `PENDING` in `pending` and `ACCEPTED`/`DECLINED`/`EXPIRED` in `past.items`; the detail endpoint (`GET /me/invitations/{id}`) can return any of the five values so clients can surface CANCELED states.
         message:
           type:
             - string

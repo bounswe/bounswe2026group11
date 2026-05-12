@@ -19,6 +19,10 @@ export interface InvitationsViewModel {
   dismissError: () => void;
 }
 
+function mergeInvitationBuckets(response: Awaited<ReturnType<typeof listMyInvitations>>): ReceivedInvitation[] {
+  return [...(response.pending ?? []), ...(response.past?.items ?? [])];
+}
+
 export function useInvitationsViewModel(): InvitationsViewModel {
   const { token } = useAuth();
   const [invitations, setInvitations] = useState<ReceivedInvitation[]>([]);
@@ -36,7 +40,7 @@ export function useInvitationsViewModel(): InvitationsViewModel {
     setError(null);
     try {
       const response = await listMyInvitations(token);
-      setInvitations(response.items ?? []);
+      setInvitations(mergeInvitationBuckets(response));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load invitations');
     } finally {
@@ -51,7 +55,13 @@ export function useInvitationsViewModel(): InvitationsViewModel {
       setError(null);
       try {
         const response = await acceptInvitation(invitationId, token);
-        setInvitations((prev) => prev.filter((i) => i.invitation_id !== invitationId));
+        setInvitations((prev) =>
+          prev.map((i) =>
+            i.invitation_id === invitationId
+              ? { ...i, status: 'ACCEPTED', updated_at: response.updated_at }
+              : i,
+          ),
+        );
         return { event_id: response.event_id };
       } catch (err) {
         setError(err instanceof ApiError ? err.message : 'Failed to accept invitation');
@@ -69,8 +79,14 @@ export function useInvitationsViewModel(): InvitationsViewModel {
       setIsActionLoading(invitationId);
       setError(null);
       try {
-        await declineInvitation(invitationId, token);
-        setInvitations((prev) => prev.filter((i) => i.invitation_id !== invitationId));
+        const response = await declineInvitation(invitationId, token);
+        setInvitations((prev) =>
+          prev.map((i) =>
+            i.invitation_id === invitationId
+              ? { ...i, status: 'DECLINED', updated_at: response.updated_at }
+              : i,
+          ),
+        );
       } catch (err) {
         setError(err instanceof ApiError ? err.message : 'Failed to decline invitation');
       } finally {

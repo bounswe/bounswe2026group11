@@ -1171,6 +1171,16 @@
     text-align: center;
   }
 
+  .dc-filter-modal-body {
+    padding: 16px 14px;
+  }
+
+  .dc-filter-modal-header,
+  .dc-filter-modal-footer {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
   .dc-sort-row {
     flex-wrap: nowrap;
     overflow-x: auto;

@@ -35,6 +35,7 @@ import type {
 import type { CreateEventInvitationsResponse } from '@/models/invitation';
 import { ApiError } from '@/services/api';
 import { prepareAvatarBlobs } from '@/utils/imageResize';
+import { uploadImageVariants } from '@/utils/directImageUpload';
 
 export type DetailStatus = 'loading' | 'ready' | 'not-found' | 'forbidden' | 'error';
 
@@ -389,17 +390,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         if (imageFile) {
           const uploadInit = await getJoinRequestImageUploadUrl(eventId, token);
           const { original, small } = await prepareAvatarBlobs(imageFile);
-          for (const instruction of uploadInit.uploads) {
-            const blob = instruction.variant === 'ORIGINAL' ? original : small;
-            const res = await fetch(instruction.url, {
-              method: instruction.method,
-              headers: instruction.headers,
-              body: blob,
-            });
-            if (!res.ok) {
-              throw new Error('Image upload failed. Please try again.');
-            }
-          }
+          await uploadImageVariants(uploadInit, { original, small });
           imageConfirmToken = uploadInit.confirm_token;
         }
 
@@ -734,17 +725,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     try {
       const { original, small } = await prepareAvatarBlobs(file);
       const uploadInit = await getEventImageUploadUrl(eventId, token);
-      for (const instruction of uploadInit.uploads) {
-        const blob = instruction.variant === 'ORIGINAL' ? original : small;
-        const res = await fetch(instruction.url, {
-          method: instruction.method,
-          headers: instruction.headers,
-          body: blob,
-        });
-        if (!res.ok) {
-          throw new Error(`Image upload failed (${instruction.variant}).`);
-        }
-      }
+      await uploadImageVariants(uploadInit, { original, small });
       await confirmEventImageUpload(eventId, { confirm_token: uploadInit.confirm_token }, token);
       await refreshEventDetail();
       if (coverImageSuccessTimerRef.current) clearTimeout(coverImageSuccessTimerRef.current);

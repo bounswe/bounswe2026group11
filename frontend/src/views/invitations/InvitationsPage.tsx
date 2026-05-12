@@ -40,6 +40,7 @@ function InvitationCard({
 }) {
   const { t } = useTranslation();
   const hostName = invitation.host.display_name ?? invitation.host.username;
+  const isPending = invitation.status === 'PENDING';
 
   return (
     <article className="inv-card" data-testid={`invitation-${invitation.invitation_id}`}>
@@ -55,7 +56,12 @@ function InvitationCard({
 
       <div className="inv-card-body">
         <div className="inv-card-header">
-          <h2 className="inv-card-title">{invitation.event.title}</h2>
+          <div className="inv-card-title-row">
+            <h2 className="inv-card-title">{invitation.event.title}</h2>
+            <span className={`inv-card-status status-${invitation.status.toLowerCase()}`}>
+              {invitation.status}
+            </span>
+          </div>
           <span className="inv-card-meta">
             {formatDate(invitation.event.start_time)} &middot; {formatTime(invitation.event.start_time)}
           </span>
@@ -84,23 +90,27 @@ function InvitationCard({
         )}
 
         <div className="inv-card-actions">
-          <button
-            type="button"
-            className="inv-card-btn inv-card-decline"
-            onClick={onDecline}
-            disabled={isLoading}
-          >
-            {t('invitations.decline')}
-          </button>
-          <button
-            type="button"
-            className="inv-card-btn inv-card-accept"
-            onClick={onAccept}
-            disabled={isLoading}
-            data-testid={`accept-${invitation.invitation_id}`}
-          >
-            {isLoading ? <span className="spinner" /> : t('invitations.accept')}
-          </button>
+          {isPending && (
+            <>
+              <button
+                type="button"
+                className="inv-card-btn inv-card-decline"
+                onClick={onDecline}
+                disabled={isLoading}
+              >
+                {t('invitations.decline')}
+              </button>
+              <button
+                type="button"
+                className="inv-card-btn inv-card-accept"
+                onClick={onAccept}
+                disabled={isLoading}
+                data-testid={`accept-${invitation.invitation_id}`}
+              >
+                {isLoading ? <span className="spinner" /> : t('invitations.accept')}
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="inv-card-btn inv-card-view"

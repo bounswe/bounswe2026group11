@@ -61,9 +61,8 @@ type CreateInvitationsResult struct {
 
 // ReceivedInvitationsResult is the response from GET /me/invitations,
 // split into a pending bucket (all currently actionable invitations) and a
-// past bucket (DECLINED + EXPIRED — actionable history excluding ACCEPTED
-// and CANCELED, which would either duplicate participation views or
-// surface host-side decisions awkwardly).
+// past bucket (ACCEPTED + DECLINED + EXPIRED history, excluding CANCELED
+// host-side revocations).
 type ReceivedInvitationsResult struct {
 	Pending []ReceivedInvitation          `json:"pending"`
 	Past    ReceivedInvitationsPastResult `json:"past"`
