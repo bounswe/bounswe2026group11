@@ -150,6 +150,12 @@
       "list": "Liste",
       "map": "Harita"
     },
+    "categoryChips": {
+      "all": "Tümü",
+      "clearAccessibility": "Seçili kategorileri temizle",
+      "addAccessibility": "{{category}} kategori filtresi ekle",
+      "removeAccessibility": "{{category}} kategori filtresini kaldır"
+    },
     "map": {
       "emptyTitle": "Haritada etkinlik yok",
       "emptySubtitle": "Haritayı kaydırmayı ya da filtreleri değiştirmeyi dene. Bazı etkinlikler yaş veya cinsiyet kısıtları nedeniyle gizlenmiş olabilir.",
@@ -452,6 +458,7 @@
       "errorTitle": "Bir şeyler ters gitti",
       "errorTitleInaccessible": "Etkinliğe Erişilemiyor",
       "errorDescription": "Aradığın etkinlik bulunamadı.",
+      "errorDescriptionInaccessible": "Bu etkinlik özeldir ve yalnızca davet edilen misafirler erişebilir. Geçerli bir davetin yoksa veya daha önce daveti reddettiysen detayları görüntüleyemezsin.",
       "backToDiscovery": "Keşfet'e Dön"
     },
     "joinRequest": {
@@ -761,6 +768,7 @@
       "viewAll": "Tüm davetleri gör",
       "viewAllCount": "{{count}} davetin tümünü gör",
       "empty": "Bekleyen davet yok.",
+      "emptySubtitle": "Arkadaşlarından ve organizatörlerden gelen özel davetler burada görünür.",
       "invitedBadge": "Davetli",
       "noteFromHost": "Organizatörden not:",
       "loadFailed": "Davetler yüklenemedi.",
@@ -984,7 +992,7 @@
         },
         "FAVORITE_FINDER": {
           "name": "Favori Avcısı",
-          "description": "İlk favori konumunu kaydettin."
+          "description": "3 favori konum kaydettin."
         }
       }
     },

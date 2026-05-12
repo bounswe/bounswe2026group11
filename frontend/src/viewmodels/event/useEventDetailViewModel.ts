@@ -292,10 +292,10 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
-          already_participating: 'You are already participating in this event.',
-          capacity_exceeded: 'This event is full.',
-          event_join_not_allowed: 'This event does not allow direct joining.',
-          host_cannot_join: 'You cannot join your own event.',
+          already_participating: i18n.t('errors.event_detail_api_join_already_participating'),
+          capacity_exceeded: i18n.t('errors.event_detail_api_join_capacity_exceeded'),
+          event_join_not_allowed: i18n.t('errors.event_detail_api_join_not_allowed'),
+          host_cannot_join: i18n.t('errors.event_detail_api_join_host_cannot'),
         };
         setJoinError(errorMap[err.code] ?? err.message);
       } else {
@@ -348,14 +348,13 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
             },
           }
         : prev);
-      setReconfirmSuccessMessage('Attendance reconfirmed.');
+      setReconfirmSuccessMessage(i18n.t('event_detail.toast_attendance_reconfirmed'));
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
-          participation_reconfirm_not_allowed:
-            'This attendance update can no longer be reconfirmed. Please review the latest event status.',
-          event_not_joinable: 'This event is no longer accepting attendance reconfirmations.',
-          host_cannot_join: 'Hosts do not need to reconfirm their own event.',
+          participation_reconfirm_not_allowed: i18n.t('errors.event_detail_api_reconfirm_stale'),
+          event_not_joinable: i18n.t('errors.event_detail_api_reconfirm_not_joinable'),
+          host_cannot_join: i18n.t('errors.event_detail_api_reconfirm_host_skip'),
         };
         setReconfirmError(errorMap[err.code] ?? err.message);
       } else {
@@ -408,12 +407,12 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
       } catch (err) {
         if (err instanceof ApiError) {
           const errorMap: Record<string, string> = {
-            already_participating: 'You are already participating in this event.',
-            already_requested: 'You already have a pending request for this event.',
-            event_join_not_allowed: 'This event does not accept join requests.',
-            host_cannot_join: 'You cannot request to join your own event.',
-            join_request_cooldown_active: 'You must wait before requesting again.',
-            image_upload_token_invalid: 'Image upload was rejected. Please try again.',
+            already_participating: i18n.t('errors.event_detail_api_jreq_already_participating'),
+            already_requested: i18n.t('errors.event_detail_api_jreq_already_pending'),
+            event_join_not_allowed: i18n.t('errors.event_detail_api_jreq_not_allowed'),
+            host_cannot_join: i18n.t('errors.event_detail_api_jreq_host_cannot'),
+            join_request_cooldown_active: i18n.t('errors.event_detail_api_jreq_cooldown'),
+            image_upload_token_invalid: i18n.t('errors.event_detail_api_jreq_image_invalid'),
           };
           setJoinError(errorMap[err.code] ?? err.message);
         } else if (err instanceof Error) {
@@ -466,9 +465,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
           } catch {
             // ignore — we'll still surface the message
           }
-          setCancelJoinRequestError(
-            'Your request status changed. Please review the latest state of this event.',
-          );
+          setCancelJoinRequestError(i18n.t('errors.event_detail_cancel_join_status_changed'));
         } else {
           setCancelJoinRequestError(err.message || i18n.t('errors.event_detail_cancel_join_request_failed'));
         }
@@ -494,10 +491,10 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
-          join_request_state_invalid: 'This request is no longer pending.',
-          capacity_exceeded: 'Cannot approve — event is full.',
-          already_participating: 'This user is already participating.',
-          join_request_moderation_not_allowed: 'Only the host can moderate requests.',
+          join_request_state_invalid: i18n.t('errors.event_detail_api_mod_not_pending'),
+          capacity_exceeded: i18n.t('errors.event_detail_api_mod_capacity_full'),
+          already_participating: i18n.t('errors.event_detail_api_mod_already_participating'),
+          join_request_moderation_not_allowed: i18n.t('errors.event_detail_api_mod_host_only'),
         };
         setModerateError(errorMap[err.code] ?? err.message);
       } else {
@@ -519,8 +516,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
-          join_request_state_invalid: 'This request is no longer pending.',
-          join_request_moderation_not_allowed: 'Only the host can moderate requests.',
+          join_request_state_invalid: i18n.t('errors.event_detail_api_mod_not_pending'),
+          join_request_moderation_not_allowed: i18n.t('errors.event_detail_api_mod_host_only'),
         };
         setModerateError(errorMap[err.code] ?? err.message);
       } else {
@@ -596,8 +593,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
-          event_cancel_not_allowed: 'Only the event host can cancel this event.',
-          event_not_cancelable: 'Only active events can be canceled.',
+          event_cancel_not_allowed: i18n.t('errors.event_detail_api_cancel_host_only'),
+          event_not_cancelable: i18n.t('errors.event_detail_api_cancel_not_active'),
         };
         setCancelError(errorMap[err.code] ?? err.message);
       } else {
@@ -619,8 +616,8 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
     } catch (err) {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
-          event_complete_not_allowed: 'Only the event host can end this event.',
-          event_not_completable: 'This event cannot be ended right now.',
+          event_complete_not_allowed: i18n.t('errors.event_detail_api_end_host_only'),
+          event_not_completable: i18n.t('errors.event_detail_api_end_not_now'),
         };
         setCompleteError(errorMap[err.code] ?? err.message);
       } else {
@@ -633,9 +630,9 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
 
   const mapRatingError = useCallback((err: ApiError, fallback: string) => {
     const errorMap: Record<string, string> = {
-      rating_not_allowed: 'You are not allowed to submit a rating for this event.',
-      rating_window_closed: 'The 7-day rating window has already closed.',
-      host_cannot_rate_self: 'Hosts cannot rate themselves.',
+      rating_not_allowed: i18n.t('errors.event_detail_api_rate_not_allowed'),
+      rating_window_closed: i18n.t('errors.event_detail_api_rate_window_closed'),
+      host_cannot_rate_self: i18n.t('errors.event_detail_api_rate_no_self'),
       validation_error: err.details?.message ?? fallback,
     };
 
@@ -730,7 +727,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
       await confirmEventImageUpload(eventId, { confirm_token: uploadInit.confirm_token }, token);
       await refreshEventDetail();
       if (coverImageSuccessTimerRef.current) clearTimeout(coverImageSuccessTimerRef.current);
-      setCoverImageSuccessMessage('Cover image updated successfully.');
+      setCoverImageSuccessMessage(i18n.t('event_detail.toast_cover_updated'));
       coverImageSuccessTimerRef.current = setTimeout(() => {
         setCoverImageSuccessMessage(null);
         coverImageSuccessTimerRef.current = null;
@@ -760,23 +757,24 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         eventId,
         {
           report_category: reportCategory,
-          message: message?.trim() || 'No additional details provided.',
+          message: message?.trim() || i18n.t('event_detail.report_default_message'),
         },
         token,
       );
-      setReportSuccessMessage('Thanks. Your report has been submitted for review.');
+      setReportSuccessMessage(i18n.t('event_detail.toast_report_submitted'));
       return true;
     } catch (err) {
       if (err instanceof ApiError) {
+        const duplicateMsg = i18n.t('errors.event_detail_api_report_duplicate');
         const errorMap: Record<string, string> = {
-          event_report_not_allowed: 'This event cannot be reported right now.',
-          already_reported: 'You have already reported this event.',
-          duplicate_report: 'You have already reported this event.',
-          event_report_duplicate: 'You have already reported this event.',
+          event_report_not_allowed: i18n.t('errors.event_detail_api_report_blocked'),
+          already_reported: duplicateMsg,
+          duplicate_report: duplicateMsg,
+          event_report_duplicate: duplicateMsg,
           validation_error: err.details?.message ?? err.message,
         };
         if (err.status === 409) {
-          setReportError(errorMap[err.code] ?? 'You have already reported this event.');
+          setReportError(errorMap[err.code] ?? duplicateMsg);
         } else {
           setReportError(errorMap[err.code] ?? err.message);
         }

@@ -40,7 +40,7 @@ function CriticalChangeModal({
             </p>
             <ul className="ce-edit-critical-list">
               {preview.criticalChangeLabels.map((label) => (
-                <li key={label}>{label}</li>
+                <li key={label}>{t(label)}</li>
               ))}
             </ul>
           </>
@@ -69,14 +69,15 @@ function EditSuccessModal({
   message: string;
   onGoToEvent: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="ce-popup-overlay" role="presentation">
       <div className="ce-popup" role="dialog" aria-modal="true" aria-labelledby="edit-success-title">
         <div className="ce-popup-icon">&#10003;</div>
-        <h2 id="edit-success-title" className="ce-popup-title">Event Updated</h2>
+        <h2 id="edit-success-title" className="ce-popup-title">{t('edit_event.success_title')}</h2>
         <p className="ce-popup-message">{message}</p>
         <button type="button" className="btn-primary ce-popup-btn" onClick={onGoToEvent}>
-          Back to Event
+          {t('edit_event.back_to_event')}
         </button>
       </div>
     </div>
@@ -171,7 +172,7 @@ export default function EditEventPage() {
 
         <div className="field-group">
           <label className="field-label" htmlFor="edit-title">
-            Title <RequiredMark />
+            {t('create_event.title')} <RequiredMark />
           </label>
           <input
             id="edit-title"
