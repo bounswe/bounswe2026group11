@@ -1,0 +1,47 @@
+appId: com.bounswe2026group11.socialeventmapper
+env:
+  E2E_USERNAME: "123"
+  E2E_PASSWORD: "ab123456"
+  E2E_SEARCH_QUERY: "Vintage Vinyl"
+  E2E_EVENT_TITLE: "Vintage Vinyl Listening Night in Cihangir"
+  E2E_JOIN_MESSAGE: "I would like to participate"
+---
+- launchApp:
+    clearState: true
+- runFlow: login-flow.yaml
+- tapOn:
+    text: "Don't allow"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "toggle-list"
+    timeout: 30000
+- tapOn:
+    id: "toggle-list"
+- extendedWaitUntil:
+    visible:
+      id: "home-search-input"
+    timeout: 30000
+- tapOn:
+    id: "home-search-input"
+- eraseText
+- inputText: ${E2E_SEARCH_QUERY}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${E2E_EVENT_TITLE}
+    timeout: 60000
+- tapOn: ${E2E_EVENT_TITLE}
+- assertVisible:
+    id: "request-to-join-button"
+- tapOn:
+    id: "request-to-join-button"
+- assertVisible:
+    id: "join-request-message-input"
+- tapOn:
+    id: "join-request-message-input"
+- inputText: ${E2E_JOIN_MESSAGE}
+- hideKeyboard
+- tapOn:
+    id: "join-request-send-button"
+- assertVisible:
+    id: "join-request-pending-chip"

@@ -75,6 +75,7 @@ export default function ProfileEventCard({
       activeOpacity={0.92}
       onPress={onPress}
       style={styles.card}
+      testID={`profile-event-card-${title}`}
     >
       <View style={styles.imageContainer}>
         {imageUrl ? (

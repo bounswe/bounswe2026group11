@@ -69,6 +69,7 @@ function SavedLocationCard({
   iconName,
   isSelected,
   isDisabled = false,
+  testID,
   onPress,
   theme,
   styles,
@@ -78,6 +79,7 @@ function SavedLocationCard({
   iconName: React.ComponentProps<typeof Feather>['name'];
   isSelected: boolean;
   isDisabled?: boolean;
+  testID?: string;
   onPress: () => void;
   theme: Theme;
   styles: ReturnType<typeof makeStyles>;
@@ -92,6 +94,7 @@ function SavedLocationCard({
       onPress={onPress}
       disabled={isDisabled}
       activeOpacity={0.85}
+      testID={testID}
     >
       <Feather
         name={isSelected ? 'check-circle' : iconName}
@@ -184,6 +187,7 @@ export default function LocationPickerPanel({
               placeholderTextColor={theme.placeholder}
               style={styles.input}
               autoCorrect={false}
+              testID="home-location-picker-search-input"
             />
           </View>
 
@@ -246,6 +250,7 @@ export default function LocationPickerPanel({
                         onSelectSavedLocation(defaultOption.suggestion);
                       }
                     }}
+                    testID="home-location-default-option"
                     theme={theme}
                     styles={styles}
                   />
@@ -294,6 +299,7 @@ export default function LocationPickerPanel({
                           option.suggestion,
                         )}
                         onPress={() => onSelectSavedLocation(option.suggestion)}
+                        testID={`home-location-favorite-option-${option.title}`}
                         theme={theme}
                         styles={styles}
                       />
@@ -312,6 +318,7 @@ export default function LocationPickerPanel({
             onPress={onApply}
             activeOpacity={0.85}
             disabled={!canApply}
+            testID="home-location-apply-button"
           >
             <Text style={styles.applyButtonText}>{t('home.locationPicker.apply')}</Text>
           </TouchableOpacity>

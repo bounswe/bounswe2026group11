@@ -114,6 +114,7 @@ export default function RegisterView() {
                 editable={!vm.isLoading}
                 accessibilityLabel="Email"
                 accessibilityState={{ disabled: vm.isLoading }}
+                testID="register-email-input"
               />
               {vm.errors.email && (
                 <Text style={styles.fieldError}>{vm.errors.email}</Text>
@@ -133,6 +134,7 @@ export default function RegisterView() {
                 editable={!vm.isLoading}
                 accessibilityLabel="Username"
                 accessibilityState={{ disabled: vm.isLoading }}
+                testID="register-username-input"
               />
               {vm.errors.username && (
                 <Text style={styles.fieldError}>{vm.errors.username}</Text>
@@ -152,6 +154,7 @@ export default function RegisterView() {
                 editable={!vm.isLoading}
                 accessibilityLabel="Password"
                 accessibilityState={{ disabled: vm.isLoading }}
+                testID="register-password-input"
               />
               {vm.errors.password && (
                 <Text style={styles.fieldError}>{vm.errors.password}</Text>
@@ -276,6 +279,7 @@ export default function RegisterView() {
           accessibilityRole="button"
           accessibilityLabel={vm.isLoading ? `${buttonLabel} in progress` : buttonLabel}
           accessibilityState={{ disabled: vm.isLoading, busy: vm.isLoading }}
+          testID="register-submit-button"
         >
           {vm.isLoading ? (
             <ActivityIndicator color={theme.textOnPrimary} />

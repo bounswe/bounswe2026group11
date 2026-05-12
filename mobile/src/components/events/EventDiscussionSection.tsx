@@ -300,6 +300,7 @@ export default function EventDiscussionSection({
         <TouchableOpacity
           style={[styles.tab, activeTab === 'qa' && styles.tabActive]}
           onPress={() => setActiveTab('qa')}
+          testID="discussion-qa-tab"
         >
           <Text style={[styles.tabText, activeTab === 'qa' && styles.tabTextActive]}>
             {t('events.detail.qaLabel', { count: vm.discussions.items.length })}
@@ -308,6 +309,7 @@ export default function EventDiscussionSection({
         <TouchableOpacity
           style={[styles.tab, activeTab === 'reviews' && styles.tabActive]}
           onPress={() => setActiveTab('reviews')}
+          testID="discussion-reviews-tab"
         >
           <Text style={[styles.tabText, activeTab === 'reviews' && styles.tabTextActive]}>
             {t('events.detail.reviewsLabel', { count: vm.reviews.items.length })}
@@ -328,6 +330,7 @@ export default function EventDiscussionSection({
                 multiline
                 maxLength={1000}
                 editable={!vm.discussionSubmitting}
+                testID="discussion-question-input"
               />
               <View style={styles.inputFooter}>
                 <Text style={styles.charCount}>{vm.newDiscussionMessage.length}/1000</Text>
@@ -339,6 +342,7 @@ export default function EventDiscussionSection({
                   ]}
                   onPress={() => void vm.submitDiscussionComment()}
                   disabled={!vm.newDiscussionMessage.trim() || vm.discussionSubmitting}
+                  testID="discussion-post-button"
                 >
                   {vm.discussionSubmitting ? (
                     <ActivityIndicator size="small" color="white" />

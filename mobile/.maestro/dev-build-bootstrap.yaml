@@ -1,0 +1,11 @@
+appId: com.bounswe2026group11.socialeventmapper
+---
+- tapOn:
+    text: "http://10.0.2.2:8081"
+    optional: true
+- tapOn:
+    point: "90%,74%"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true

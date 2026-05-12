@@ -1,0 +1,38 @@
+Running on emulator-5554
+ > Flow host-approve-join-request-test
+Launch app "com.bounswe2026group11.socialeventmapper" with clear state... COMPLETED
+Run login-flow.yaml...
+  Run dev-build-bootstrap.yaml...
+    Tap on (Optional) "http://10.0.2.2:8081"... COMPLETED
+    Tap on point (90%,74%)... COMPLETED
+    Tap on (Optional) "Continue"... WARNED
+  Run dev-build-bootstrap.yaml... COMPLETED
+  Assert that id: login-username-input is visible... COMPLETED
+  Assert that id: login-password-input is visible... COMPLETED
+  Assert that id: login-submit-button is visible... COMPLETED
+  Tap on id: login-username-input... COMPLETED
+  Erase text... COMPLETED
+  Input text ${E2E_USERNAME}... COMPLETED
+  Tap on id: login-password-input... COMPLETED
+  Erase text... COMPLETED
+  Input text ${E2E_PASSWORD}... COMPLETED
+  Hide Keyboard... COMPLETED
+  Tap on id: login-submit-button... COMPLETED
+Run login-flow.yaml... COMPLETED
+Tap on (Optional) "Don't allow"... WARNED
+
+
+ Warning: Element not found: Text matching regex: Don't allow
+Assert that id: tab-events is visible... COMPLETED
+Tap on id: tab-events... COMPLETED
+Assert that id: my-events-tab-active is visible... COMPLETED
+Tap on id: my-events-tab-active... COMPLETED
+Scrolling DOWN until id: my-event-card-${E2E_EVENT_TITLE} is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on id: my-event-card-${E2E_EVENT_TITLE}... COMPLETED
+Scrolling DOWN until "View Full Event" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "View Full Event"... COMPLETED
+Scrolling DOWN until id: pending-requests-button is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on id: pending-requests-button... COMPLETED
+Assert that id: join-request-row-${E2E_REQUEST_USERNAME} is visible... COMPLETED
+Tap on id: join-request-approve-${E2E_REQUEST_USERNAME}... COMPLETED
+Assert that id: join-request-row-${E2E_REQUEST_USERNAME} is not visible... COMPLETED

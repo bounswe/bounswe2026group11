@@ -1,0 +1,62 @@
+appId: com.bounswe2026group11.socialeventmapper
+env:
+  E2E_USERNAME: "123"
+  E2E_PASSWORD: "ab123456"
+  E2E_EVENT_TITLE: "Film Night 2"
+---
+- launchApp:
+    clearState: true
+- runFlow: login-flow.yaml
+- tapOn:
+    text: "Don't allow"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "tab-events"
+    timeout: 30000
+- tapOn:
+    id: "tab-events"
+- extendedWaitUntil:
+    visible:
+      id: "my-events-tab-completed"
+    timeout: 30000
+- tapOn:
+    id: "my-events-tab-completed"
+- scrollUntilVisible:
+    element:
+      id: "my-event-card-${E2E_EVENT_TITLE}"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "my-event-card-${E2E_EVENT_TITLE}"
+- scrollUntilVisible:
+    element:
+      id: "event-actions-view-full-event-button"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "event-actions-view-full-event-button"
+- scrollUntilVisible:
+    element:
+      id: "discussion-qa-tab"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "discussion-qa-tab"
+- scrollUntilVisible:
+    element:
+      id: "event-feedback-edit-button"
+    direction: UP
+    timeout: 30000
+- tapOn:
+    id: "event-feedback-edit-button"
+- tapOn:
+    id: "event-feedback-star-3"
+- tapOn:
+    id: "event-feedback-submit-button"
+- extendedWaitUntil:
+    visible:
+      id: "event-feedback-edit-button"
+    timeout: 30000
+- assertVisible:
+    id: "event-feedback-edit-button"

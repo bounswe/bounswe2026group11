@@ -7,7 +7,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:e2e": "maestro test .maestro/"
   },
   "dependencies": {
     "@react-native-community/datetimepicker": "8.6.0",

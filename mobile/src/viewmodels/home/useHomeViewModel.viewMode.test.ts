@@ -3,7 +3,7 @@
  *
  * Focused tests for the viewMode toggle introduced in useHomeViewModel.
  * The broader integration behaviour (events fetching, filters, location) is
- * covered by other tests; these tests pin only the new list/map toggle.
+ * covered by other tests; these tests pin only the default map/list toggle.
  */
 import { act, renderHook } from '@testing-library/react';
 
@@ -52,21 +52,39 @@ jest.mock('@/contexts/AuthContext', () => ({
 import { useHomeViewModel } from './useHomeViewModel';
 
 describe('useHomeViewModel – viewMode toggle', () => {
-  it('starts in LIST mode', async () => {
+  it('starts in MAP mode', async () => {
     const { result } = renderHook(() => useHomeViewModel());
 
     await act(async () => {
       await Promise.resolve();
     });
 
-    expect(result.current.viewMode).toBe('LIST');
+    expect(result.current.viewMode).toBe('MAP');
   });
 
-  it('switches to MAP mode when toggleViewMode is called once', async () => {
+  it('switches to LIST mode when toggleViewMode is called once', async () => {
     const { result } = renderHook(() => useHomeViewModel());
 
     await act(async () => {
       await Promise.resolve();
+    });
+
+    act(() => {
+      result.current.toggleViewMode();
+    });
+
+    expect(result.current.viewMode).toBe('LIST');
+  });
+
+  it('switches back to MAP mode when toggleViewMode is called a second time', async () => {
+    const { result } = renderHook(() => useHomeViewModel());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() => {
+      result.current.toggleViewMode();
     });
 
     act(() => {
@@ -74,24 +92,6 @@ describe('useHomeViewModel – viewMode toggle', () => {
     });
 
     expect(result.current.viewMode).toBe('MAP');
-  });
-
-  it('switches back to LIST mode when toggleViewMode is called a second time', async () => {
-    const { result } = renderHook(() => useHomeViewModel());
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    act(() => {
-      result.current.toggleViewMode();
-    });
-
-    act(() => {
-      result.current.toggleViewMode();
-    });
-
-    expect(result.current.viewMode).toBe('LIST');
   });
 
   it('exposes activeLocation as numeric lat/lon based on the resolved location', async () => {

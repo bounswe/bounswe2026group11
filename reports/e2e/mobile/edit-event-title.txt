@@ -1,0 +1,43 @@
+Running on emulator-5554
+ > Flow edit-event-title-test
+Launch app "com.bounswe2026group11.socialeventmapper" with clear state... COMPLETED
+Run login-flow.yaml...
+  Run dev-build-bootstrap.yaml...
+    Tap on (Optional) "http://10.0.2.2:8081"... COMPLETED
+    Tap on point (90%,74%)... COMPLETED
+    Tap on (Optional) "Continue"... WARNED
+  Run dev-build-bootstrap.yaml... COMPLETED
+  Assert that id: login-username-input is visible... COMPLETED
+  Assert that id: login-password-input is visible... COMPLETED
+  Assert that id: login-submit-button is visible... COMPLETED
+  Tap on id: login-username-input... COMPLETED
+  Erase text... COMPLETED
+  Input text ${E2E_USERNAME}... COMPLETED
+  Tap on id: login-password-input... COMPLETED
+  Erase text... COMPLETED
+  Input text ${E2E_PASSWORD}... COMPLETED
+  Hide Keyboard... COMPLETED
+  Tap on id: login-submit-button... COMPLETED
+Run login-flow.yaml... COMPLETED
+Tap on (Optional) "Don't allow"... WARNED
+
+
+ Warning: Element not found: Text matching regex: Don't allow
+Assert that id: tab-events is visible... COMPLETED
+Tap on id: tab-events... COMPLETED
+Assert that id: my-events-tab-active is visible... COMPLETED
+Tap on id: my-events-tab-active... COMPLETED
+Scrolling DOWN until id: my-event-card-${E2E_ORIGINAL_EVENT_TITLE} is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on id: my-event-card-${E2E_ORIGINAL_EVENT_TITLE}... COMPLETED
+Assert that "Edit Event" is visible... COMPLETED
+Tap on "Edit Event"... COMPLETED
+Assert that id: edit-event-title-input is visible... COMPLETED
+Tap on id: edit-event-title-input... COMPLETED
+Erase text... COMPLETED
+Input text ${E2E_UPDATED_EVENT_TITLE}... COMPLETED
+Hide Keyboard... COMPLETED
+Scrolling DOWN until id: edit-event-save-button is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on id: edit-event-save-button... COMPLETED
+Assert that id: edit-event-confirmation is visible... COMPLETED
+Tap on id: edit-event-save-anyway-button... COMPLETED
+Assert that "${E2E_UPDATED_EVENT_TITLE}" is visible... COMPLETED

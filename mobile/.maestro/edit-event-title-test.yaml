@@ -1,0 +1,57 @@
+appId: com.bounswe2026group11.socialeventmapper
+env:
+  E2E_USERNAME: "123"
+  E2E_PASSWORD: "ab123456"
+  E2E_ORIGINAL_EVENT_TITLE: "Film Night"
+  E2E_UPDATED_EVENT_TITLE: "Movie Night for Film Lovers"
+---
+- launchApp:
+    clearState: true
+- runFlow: login-flow.yaml
+- tapOn:
+    text: "Don't allow"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "tab-events"
+    timeout: 30000
+- tapOn:
+    id: "tab-events"
+- assertVisible:
+    id: "my-events-tab-active"
+- tapOn:
+    id: "my-events-tab-active"
+- scrollUntilVisible:
+    element:
+      id: "my-event-card-${E2E_ORIGINAL_EVENT_TITLE}"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "my-event-card-${E2E_ORIGINAL_EVENT_TITLE}"
+- assertVisible: "Edit Event"
+- tapOn: "Edit Event"
+- extendedWaitUntil:
+    visible:
+      id: "edit-event-title-input"
+    timeout: 30000
+- tapOn:
+    id: "edit-event-title-input"
+- eraseText
+- inputText: ${E2E_UPDATED_EVENT_TITLE}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "edit-event-save-button"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "edit-event-save-button"
+- extendedWaitUntil:
+    visible:
+      id: "edit-event-confirmation"
+    timeout: 30000
+- tapOn:
+    id: "edit-event-save-anyway-button"
+- extendedWaitUntil:
+    visible: ${E2E_UPDATED_EVENT_TITLE}
+    timeout: 30000

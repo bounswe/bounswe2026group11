@@ -43,6 +43,7 @@ export default function SearchSection({
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="search"
+          testID="home-search-input"
         />
       </View>
 

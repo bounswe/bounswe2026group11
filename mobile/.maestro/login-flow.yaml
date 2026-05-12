@@ -1,0 +1,22 @@
+appId: com.bounswe2026group11.socialeventmapper
+---
+- runFlow: dev-build-bootstrap.yaml
+- extendedWaitUntil:
+    visible:
+      id: "login-username-input"
+    timeout: 60000
+- assertVisible:
+    id: "login-password-input"
+- assertVisible:
+    id: "login-submit-button"
+- tapOn:
+    id: "login-username-input"
+- eraseText
+- inputText: ${E2E_USERNAME}
+- tapOn:
+    id: "login-password-input"
+- eraseText
+- inputText: ${E2E_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "login-submit-button"
