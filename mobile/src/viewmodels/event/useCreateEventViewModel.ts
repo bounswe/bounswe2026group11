@@ -224,7 +224,7 @@ function getPickedImageUriCandidates(uri: string): string[] {
   return [...new Set([uri, decodeFileUriOnce(uri), normalizePickedImageUri(uri)])];
 }
 
-async function preparePickedImageUri(uri: string): Promise<string> {
+export async function preparePickedImageUri(uri: string): Promise<string> {
   let lastError: unknown = null;
 
   for (const candidateUri of getPickedImageUriCandidates(uri)) {

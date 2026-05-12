@@ -325,6 +325,19 @@
         "schedule": "Schedule",
         "participation": "Participation"
       },
+      "image": {
+        "label": "Cover image",
+        "add": "Add Cover Image",
+        "change": "Change Cover Image",
+        "discard": "Discard Selected Image",
+        "uploading": "Uploading...",
+        "uploadSuccess": "Cover image updated successfully.",
+        "permissionTitle": "Permission required",
+        "permissionRequired": "Please allow access to your photo library to update the event image.",
+        "readFailed": "We could not read the selected image. Please try a different one.",
+        "processFailed": "We could not process the selected image. Please try a different one.",
+        "openFailed": "We could not open your photo library. Please try again."
+      },
       "fields": {
         "titleLabel": "Title",
         "titlePlaceholder": "Event title",

@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { ApiError } from '@/services/api';
-import { getEventDetail, updateEvent } from '@/services/eventService';
+import {
+  confirmEventImageUpload,
+  getEventDetail,
+  getEventImageUploadUrl,
+  updateEvent,
+  uploadFileToPresignedUrl,
+} from '@/services/eventService';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   EventConstraint,
@@ -25,10 +34,13 @@ import {
   deriveRouteAddress,
   formatDateForForm,
   parseDateTime,
+  preparePickedImageUri,
   validateLiveDateInput,
   validateLiveTimeInput,
 } from '@/viewmodels/event/useCreateEventViewModel';
 import i18n from '@/i18n';
+
+export type EditEventSubmitResult = UpdateEventResponse | { image_upload_only: true };
 
 export interface EditEventChangePreview {
   request: UpdateEventRequest;
@@ -42,9 +54,13 @@ export interface EditEventViewModel {
   errors: CreateEventFormErrors;
   isLoading: boolean;
   isSaving: boolean;
+  isUploadingImage: boolean;
   apiError: string | null;
+  imageError: string | null;
   successMessage: string | null;
+  imageUploadSuccessMessage: string | null;
   updateResult: UpdateEventResponse | null;
+  selectedImageUri: string | null;
   locationSuggestions: LocationSuggestion[];
   isSearchingLocation: boolean;
   categoriesExpanded: boolean;
@@ -52,7 +68,7 @@ export interface EditEventViewModel {
   constraintDraftType: string;
   constraintDraftInfo: string;
   previewChanges: () => EditEventChangePreview | null;
-  handleSubmit: (request?: UpdateEventRequest) => Promise<UpdateEventResponse | null>;
+  handleSubmit: (request?: UpdateEventRequest) => Promise<EditEventSubmitResult | null>;
   updateField: <K extends keyof CreateEventFormData>(
     field: K,
     value: CreateEventFormData[K],
@@ -68,6 +84,8 @@ export interface EditEventViewModel {
   moveRoutePoint: (index: number, direction: -1 | 1) => void;
   updateRoutePointLabel: (index: number, label: string) => void;
   toggleCategoriesExpanded: () => void;
+  pickImage: () => Promise<void>;
+  removeImage: () => void;
   updateConstraintDraftType: (value: string) => void;
   updateConstraintDraftInfo: (value: string) => void;
   addConstraint: () => void;
@@ -304,6 +322,34 @@ function mapApiValidationErrors(err: ApiError): CreateEventFormErrors {
   return fieldErrors;
 }
 
+function getEditImageUploadErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  if (error instanceof Error) {
+    if (error.message === 'Network request failed') {
+      return 'The event was updated, but uploading the image failed because the network request did not complete.';
+    }
+
+    if (error.message === 'Missing upload instructions from server') {
+      return 'The server returned incomplete image upload instructions.';
+    }
+
+    if (error.message.startsWith('Unsupported upload method')) {
+      return 'The server returned an unsupported image upload method.';
+    }
+
+    if (error.message.startsWith('Upload failed with status')) {
+      return 'The event was updated, but uploading the image to storage failed.';
+    }
+
+    return error.message;
+  }
+
+  return 'The event was updated, but the image upload failed.';
+}
+
 export function useEditEventViewModel(eventId: string): EditEventViewModel {
   const { token } = useAuth();
   const [event, setEvent] = useState<EventDetail | null>(null);
@@ -311,9 +357,13 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
   const [errors, setErrors] = useState<CreateEventFormErrors>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [imageUploadSuccessMessage, setImageUploadSuccessMessage] = useState<string | null>(null);
   const [updateResult, setUpdateResult] = useState<UpdateEventResponse | null>(null);
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
@@ -341,7 +391,10 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
       setEvent(data);
       setFormData(formFromEvent(data));
       setErrors({});
+      setImageError(null);
+      setSelectedImageUri(null);
       setSuccessMessage(null);
+      setImageUploadSuccessMessage(null);
       setUpdateResult(null);
     } catch (err) {
       setEvent(null);
@@ -476,41 +529,120 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
 
     const preview = buildUpdateRequest(formData, event);
     if (preview.changedFields.length === 0) {
-      setApiError(i18n.t('events.edit.errors.noChanges'));
-      return null;
+      if (!selectedImageUri) {
+        setApiError(i18n.t('events.edit.errors.noChanges'));
+        return null;
+      }
+      return {
+        request: {},
+        changedFields: ['image_url'],
+        criticalChangeLabels: [],
+      };
+    }
+    if (selectedImageUri && !preview.changedFields.includes('image_url')) {
+      preview.changedFields.push('image_url');
     }
 
     setErrors({});
     setApiError(null);
     return preview;
-  }, [canEdit, event, formData, validate]);
+  }, [canEdit, event, formData, selectedImageUri, validate]);
+
+  const uploadEventImage = useCallback(
+    async (eventIdToUpload: string, imageUri: string, authToken: string): Promise<void> => {
+      setIsUploadingImage(true);
+      try {
+        const original = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+        );
+        const small = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 400 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+        );
+
+        const uploadInit = await getEventImageUploadUrl(eventIdToUpload, authToken);
+        const originalUpload = uploadInit.uploads.find((upload) => upload.variant === 'ORIGINAL');
+        const smallUpload = uploadInit.uploads.find((upload) => upload.variant === 'SMALL');
+        if (!originalUpload || !smallUpload) {
+          throw new Error('Missing upload instructions from server');
+        }
+
+        await Promise.all([
+          uploadFileToPresignedUrl(
+            originalUpload.method,
+            originalUpload.url,
+            originalUpload.headers,
+            original.uri,
+          ),
+          uploadFileToPresignedUrl(
+            smallUpload.method,
+            smallUpload.url,
+            smallUpload.headers,
+            small.uri,
+          ),
+        ]);
+
+        await confirmEventImageUpload(eventIdToUpload, uploadInit.confirm_token, authToken);
+      } finally {
+        setIsUploadingImage(false);
+      }
+    },
+    [],
+  );
 
   const handleSubmit = useCallback(async (request?: UpdateEventRequest) => {
     if (!token || !event) return null;
 
     const preparedRequest = request ?? previewChanges()?.request;
     if (!preparedRequest) return null;
+    const shouldUpdateEvent = Object.keys(preparedRequest).length > 0;
+    const imageUriToUpload = selectedImageUri;
 
     setIsSaving(true);
     setApiError(null);
+    setImageError(null);
     setSuccessMessage(null);
+    setImageUploadSuccessMessage(null);
     setUpdateResult(null);
 
     try {
-      const result = await updateEvent(event.id, preparedRequest, token);
+      const result = shouldUpdateEvent
+        ? await updateEvent(event.id, preparedRequest, token)
+        : null;
+
+      if (imageUriToUpload) {
+        try {
+          await uploadEventImage(event.id, imageUriToUpload, token);
+          setSelectedImageUri(null);
+          setImageUploadSuccessMessage(i18n.t('events.edit.image.uploadSuccess'));
+        } catch (err) {
+          setImageError(getEditImageUploadErrorMessage(err));
+          if (!result) {
+            return null;
+          }
+        }
+      }
+
       const refreshed = await getEventDetail(event.id, token);
       setEvent(refreshed);
       setFormData(formFromEvent(refreshed));
       setErrors({});
       setUpdateResult(result);
-      setSuccessMessage(
-        result.reconfirmation_required
-          ? i18n.t('events.edit.successWithReconfirmation', {
-              count: result.participants_marked_pending,
-            })
-          : i18n.t('events.edit.success'),
-      );
-      return result;
+      if (result) {
+        setSuccessMessage(
+          result.reconfirmation_required
+            ? i18n.t('events.edit.successWithReconfirmation', {
+                count: result.participants_marked_pending,
+              })
+            : i18n.t('events.edit.success'),
+        );
+        return result;
+      }
+
+      return { image_upload_only: true as const };
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.details) {
@@ -524,7 +656,7 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
     } finally {
       setIsSaving(false);
     }
-  }, [event, previewChanges, token]);
+  }, [event, previewChanges, selectedImageUri, token, uploadEventImage]);
 
   const updateField = useCallback(
     <K extends keyof CreateEventFormData>(field: K, value: CreateEventFormData[K]) => {
@@ -536,11 +668,61 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
       const errorKey = (errorKeyMap[field] ?? field) as keyof CreateEventFormErrors;
       setErrors((prev) => ({ ...prev, [errorKey]: null }));
       setApiError(null);
+      setImageError(null);
       setSuccessMessage(null);
+      setImageUploadSuccessMessage(null);
       setUpdateResult(null);
     },
     [],
   );
+
+  const pickImage = useCallback(async () => {
+    setImageError(null);
+
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        const message = i18n.t('events.edit.image.permissionRequired');
+        setImageError(message);
+        Alert.alert(i18n.t('events.edit.image.permissionTitle'), message);
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      if (!asset?.uri) {
+        setImageError(i18n.t('events.edit.image.readFailed'));
+        return;
+      }
+
+      try {
+        setSelectedImageUri(await preparePickedImageUri(asset.uri));
+      } catch {
+        setImageError(i18n.t('events.edit.image.processFailed'));
+        return;
+      }
+
+      setApiError(null);
+      setSuccessMessage(null);
+      setImageUploadSuccessMessage(null);
+    } catch {
+      setImageError(i18n.t('events.edit.image.openFailed'));
+    }
+  }, []);
+
+  const removeImage = useCallback(() => {
+    setSelectedImageUri(null);
+    setImageError(null);
+    setImageUploadSuccessMessage(null);
+  }, []);
 
   const handleLocationSearch = useCallback((query: string) => {
     updateField('locationQuery', query);
@@ -692,9 +874,13 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
     errors,
     isLoading,
     isSaving,
+    isUploadingImage,
     apiError,
+    imageError,
     successMessage,
+    imageUploadSuccessMessage,
     updateResult,
+    selectedImageUri,
     locationSuggestions,
     isSearchingLocation,
     categoriesExpanded,
@@ -715,6 +901,8 @@ export function useEditEventViewModel(eventId: string): EditEventViewModel {
     moveRoutePoint,
     updateRoutePointLabel,
     toggleCategoriesExpanded,
+    pickImage,
+    removeImage,
     updateConstraintDraftType: setConstraintDraftType,
     updateConstraintDraftInfo: setConstraintDraftInfo,
     addConstraint,
