@@ -132,12 +132,28 @@ func TestNotificationInboxLifecycleAndIdempotency(t *testing.T) {
 	if err := h.Service.DeleteNotification(ctx, user.ID, list.Items[0].ID); err != nil {
 		t.Fatalf("DeleteNotification() error = %v", err)
 	}
+	deletedNotificationID := list.Items[0].ID
 	list, err = h.Service.ListNotifications(ctx, notificationapp.ListNotificationsInput{UserID: user.ID})
 	if err != nil {
 		t.Fatalf("ListNotifications(after delete) error = %v", err)
 	}
 	if len(list.Items) != 0 {
 		t.Fatalf("expected deleted notification to be hidden, got %d items", len(list.Items))
+	}
+
+	var rowExists, hasDeletedAt bool
+	if err := h.Tx.QueryRow(ctx, `
+		SELECT
+			EXISTS (SELECT 1 FROM notification WHERE id = $1),
+			EXISTS (SELECT 1 FROM notification WHERE id = $1 AND deleted_at IS NOT NULL)
+	`, deletedNotificationID).Scan(&rowExists, &hasDeletedAt); err != nil {
+		t.Fatalf("lookup soft-deleted notification error = %v", err)
+	}
+	if !rowExists {
+		t.Fatal("expected deleted notification row to remain in storage")
+	}
+	if !hasDeletedAt {
+		t.Fatal("expected deleted notification to have deleted_at set")
 	}
 }
 

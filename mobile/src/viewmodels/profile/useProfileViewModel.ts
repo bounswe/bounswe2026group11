@@ -197,9 +197,18 @@ function excludeHostedEvents(
 }
 
 function normalizeInvitationsResponse(
-  response: { pending?: ReceivedInvitation[]; items?: ReceivedInvitation[] } | null | undefined,
+  response:
+    | {
+        pending?: ReceivedInvitation[];
+        past?: { items?: ReceivedInvitation[] };
+        items?: ReceivedInvitation[];
+      }
+    | null
+    | undefined,
 ): ReceivedInvitation[] {
-  if (Array.isArray(response?.pending)) return response.pending;
+  if (Array.isArray(response?.pending)) {
+    return [...response.pending, ...(response.past?.items ?? [])];
+  }
   if (Array.isArray(response?.items)) return response.items;
   return [];
 }

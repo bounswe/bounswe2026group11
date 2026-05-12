@@ -53,7 +53,19 @@ describe('useInvitationsViewModel', () => {
           created_at: '2026-05-01T10:00:00Z',
         },
       ],
-      past: { items: [], page_info: { next_cursor: null, has_next: false } },
+      past: {
+        items: [
+          {
+            invitation_id: 'inv-accepted',
+            status: 'ACCEPTED',
+            event: { title: 'Accepted Event', start_time: '2026-05-02T10:00:00Z' },
+            host: { username: 'host2' },
+            created_at: '2026-05-01T10:00:00Z',
+            updated_at: '2026-05-01T11:00:00Z',
+          },
+        ],
+        page_info: { next_cursor: null, has_next: false },
+      },
     };
     mockInvitationService.listMyInvitations.mockResolvedValue(mockInvitations as any);
 
@@ -64,8 +76,9 @@ describe('useInvitationsViewModel', () => {
     await act(async () => {}); // Wait for useEffect
 
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.invitations).toHaveLength(1);
+    expect(result.current.invitations).toHaveLength(2);
     expect(result.current.invitations[0].invitation_id).toBe('inv-1');
+    expect(result.current.invitations[1].invitation_id).toBe('inv-accepted');
   });
 
   it('handles errors during fetch', async () => {
@@ -81,7 +94,7 @@ describe('useInvitationsViewModel', () => {
     expect(result.current.error).toBe('Failed to load');
   });
 
-  it('removes invitation from list after successful accept', async () => {
+  it('marks invitation accepted after successful accept', async () => {
     const mockInvitations = {
       pending: [
         { invitation_id: 'inv-1', status: 'PENDING', event: { title: 'E1' }, host: { username: 'h1' } },
@@ -89,7 +102,9 @@ describe('useInvitationsViewModel', () => {
       past: { items: [], page_info: { next_cursor: null, has_next: false } },
     };
     mockInvitationService.listMyInvitations.mockResolvedValue(mockInvitations as any);
-    mockInvitationService.acceptInvitation.mockResolvedValue({} as any);
+    mockInvitationService.acceptInvitation.mockResolvedValue({
+      updated_at: '2026-05-01T11:00:00Z',
+    } as any);
 
     const { result } = renderHook(() => useInvitationsViewModel());
 
@@ -101,11 +116,12 @@ describe('useInvitationsViewModel', () => {
       await result.current.handleAccept('inv-1');
     });
 
-    expect(result.current.invitations).toHaveLength(0);
+    expect(result.current.invitations).toHaveLength(1);
+    expect(result.current.invitations[0].status).toBe('ACCEPTED');
     expect(mockInvitationService.acceptInvitation).toHaveBeenCalledWith('inv-1', mockToken);
   });
 
-  it('removes invitation from list after successful decline', async () => {
+  it('marks invitation declined after successful decline', async () => {
     const mockInvitations = {
       pending: [
         { invitation_id: 'inv-1', status: 'PENDING', event: { title: 'E1' }, host: { username: 'h1' } },
@@ -113,7 +129,9 @@ describe('useInvitationsViewModel', () => {
       past: { items: [], page_info: { next_cursor: null, has_next: false } },
     };
     mockInvitationService.listMyInvitations.mockResolvedValue(mockInvitations as any);
-    mockInvitationService.declineInvitation.mockResolvedValue({} as any);
+    mockInvitationService.declineInvitation.mockResolvedValue({
+      updated_at: '2026-05-01T11:00:00Z',
+    } as any);
 
     const { result } = renderHook(() => useInvitationsViewModel());
 
@@ -123,7 +141,8 @@ describe('useInvitationsViewModel', () => {
       await result.current.handleDecline('inv-1');
     });
 
-    expect(result.current.invitations).toHaveLength(0);
+    expect(result.current.invitations).toHaveLength(1);
+    expect(result.current.invitations[0].status).toBe('DECLINED');
     expect(mockInvitationService.declineInvitation).toHaveBeenCalledWith('inv-1', mockToken);
   });
 });

@@ -77,6 +77,43 @@ describe('NotificationsView', () => {
     expect(screen.getByText(/Test Event/)).toBeTruthy();
   });
 
+  it('renders accepted and declined invitation notification labels', () => {
+    mockUseNotificationsViewModel.mockReturnValue({
+      notifications: [
+        {
+          ...mockNotifications[0],
+          id: 'accepted',
+          type: 'PRIVATE_EVENT_INVITATION_ACCEPTED',
+          data: { event_title: 'Sunset Walk', actor_username: 'guest' },
+          is_read: true,
+        },
+        {
+          ...mockNotifications[0],
+          id: 'declined',
+          type: 'PRIVATE_EVENT_INVITATION_DECLINED',
+          data: { event_title: 'Sunset Walk', actor_username: 'guest' },
+          is_read: true,
+        },
+      ] as any,
+      unreadCount: 0,
+      isLoading: false,
+      isRefreshing: false,
+      refresh: jest.fn(),
+      loadMore: jest.fn(),
+      markRead: jest.fn(),
+      markAllRead: jest.fn(),
+      removeNotification: jest.fn(),
+      apiError: null,
+    } as any);
+
+    render(<NotificationsView />);
+
+    expect(screen.getByText('Accepted')).toBeTruthy();
+    expect(screen.getByText('Invitation accepted')).toBeTruthy();
+    expect(screen.getByText('Declined')).toBeTruthy();
+    expect(screen.getByText('Invitation declined')).toBeTruthy();
+  });
+
   it('shows empty state', () => {
     mockUseNotificationsViewModel.mockReturnValue({
       notifications: [],

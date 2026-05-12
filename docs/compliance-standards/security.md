@@ -198,14 +198,14 @@ This addresses OWASP security misconfiguration, exceptional-condition handling, 
 
 ## Static Web Security Headers
 
-The deployed web app is served by Nginx. `frontend/nginx.conf` adds security headers and a Content Security Policy that permits required dependencies: Google Maps, Photon, OSRM, HTTPS image/CDN assets, and local API calls during development.
+The deployed web app is served by Nginx. `frontend/nginx.conf` and the outer ingress configs under `nginx/` add security headers and a Content Security Policy that permits required dependencies: Google Maps, Photon, OSRM, Open-Meteo, HTTPS image/CDN assets, DigitalOcean Spaces direct uploads, and local API calls during development.
 
 ```nginx
 add_header X-Content-Type-Options "nosniff" always;
 add_header X-Frame-Options "DENY" always;
 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 add_header Permissions-Policy "camera=(), microphone=(), geolocation=(self)" always;
-add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' http://localhost:8080 http://127.0.0.1:8080 https://socialeventmapper.com https://www.socialeventmapper.com https://*.socialeventmapper.com https://maps.googleapis.com https://maps.gstatic.com https://photon.komoot.io https://router.project-osrm.org; frame-src 'self' https://www.google.com https://maps.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' http://localhost:8080 http://127.0.0.1:8080 https://socialeventmapper.com https://www.socialeventmapper.com https://*.socialeventmapper.com https://maps.googleapis.com https://maps.gstatic.com https://photon.komoot.io https://router.project-osrm.org https://api.open-meteo.com https://*.digitaloceanspaces.com https://sem-bucket.fra1.digitaloceanspaces.com; frame-src 'self' https://www.google.com https://maps.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" always;
 ```
 
 Built assets are cached immutably while the SPA entrypoint remains no-store:
@@ -280,4 +280,3 @@ The project uses pinned lock/module files:
 - `mobile/package-lock.json`
 
 The backend release gate in `backend/shipcheck.sh` includes module verification, format checks, `go vet`, static analysis, vulnerability scanning, build, unit tests, and integration tests.
-

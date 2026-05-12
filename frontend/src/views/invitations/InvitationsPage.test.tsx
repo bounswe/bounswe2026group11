@@ -104,6 +104,34 @@ describe('InvitationsPage', () => {
     expect(screen.getByRole('button', { name: /decline/i })).toBeDefined();
   });
 
+  it('renders past accepted invitation without response actions', () => {
+    const invitation = makeInvitation({
+      status: 'ACCEPTED',
+      invitation_id: 'accepted-1',
+      event: {
+        ...makeInvitation().event,
+        title: 'Accepted Private Event',
+      },
+    });
+    mockUseInvitationsViewModel.mockReturnValue({
+      invitations: [invitation],
+      isLoading: false,
+      isActionLoading: null,
+      error: null,
+      fetchInvitations: vi.fn(),
+      handleAccept: vi.fn(),
+      handleDecline: vi.fn(),
+      dismissError: vi.fn(),
+    });
+    renderPage();
+
+    expect(screen.getByText('Accepted Private Event')).toBeDefined();
+    expect(screen.getByText('ACCEPTED')).toBeDefined();
+    expect(screen.queryByRole('button', { name: /^accept$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^decline$/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /view event/i })).toBeDefined();
+  });
+
   it('calls handleAccept when Accept is clicked', () => {
     const handleAccept = vi.fn().mockResolvedValue({ event_id: 'event-1' });
     const invitation = makeInvitation();

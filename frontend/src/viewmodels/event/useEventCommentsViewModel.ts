@@ -12,6 +12,7 @@ import type {
 } from '@/models/event';
 import { ApiError } from '@/services/api';
 import { prepareAvatarBlobs } from '@/utils/imageResize';
+import { uploadImageVariants } from '@/utils/directImageUpload';
 
 const PAGE_LIMIT = 25;
 
@@ -356,17 +357,7 @@ export function useEventCommentsViewModel(
         if (imageFile) {
           const { original, small } = await prepareAvatarBlobs(imageFile);
           const uploadInit = await getReviewCommentImageUploadUrl(eventId, token);
-          for (const instruction of uploadInit.uploads) {
-            const blob = instruction.variant === 'ORIGINAL' ? original : small;
-            const res = await fetch(instruction.url, {
-              method: instruction.method,
-              headers: instruction.headers,
-              body: blob,
-            });
-            if (!res.ok) {
-              throw new Error(`Image upload failed (${instruction.variant}).`);
-            }
-          }
+          await uploadImageVariants(uploadInit, { original, small });
           imageConfirmToken = uploadInit.confirm_token;
         }
 
