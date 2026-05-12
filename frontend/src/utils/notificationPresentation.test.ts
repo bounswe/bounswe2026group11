@@ -61,6 +61,28 @@ describe('getNotificationPresentation', () => {
     expect(presentation.metadata[0]).toMatch(/Retry after/);
   });
 
+  it('returns accepted and declined invitation notifications as event updates', () => {
+    const accepted = getNotificationPresentation(
+      makeNotification({
+        type: 'PRIVATE_EVENT_INVITATION_ACCEPTED',
+        data: { actor_username: 'invitee', event_title: 'Sunset Walk' },
+      }),
+    );
+    const declined = getNotificationPresentation(
+      makeNotification({
+        type: 'PRIVATE_EVENT_INVITATION_DECLINED',
+        data: { actor_username: 'invitee', event_title: 'Sunset Walk' },
+      }),
+    );
+
+    expect(accepted.badgeLabel).toBe('Accepted');
+    expect(accepted.actionTarget).toBe('EVENT');
+    expect(accepted.actionLabel).toBe('View event');
+    expect(declined.badgeLabel).toBe('Declined');
+    expect(declined.actionTarget).toBe('EVENT');
+    expect(declined.actionLabel).toBe('View event');
+  });
+
   it('falls back to generic title and body for unknown notification types', () => {
     const presentation = getNotificationPresentation(
       makeNotification({

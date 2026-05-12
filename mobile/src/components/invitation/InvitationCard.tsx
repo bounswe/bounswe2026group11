@@ -29,6 +29,7 @@ export default function InvitationCard({
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const { event, host, message } = invitation;
+  const isPending = invitation.status === 'PENDING';
 
   return (
     <View style={[styles.card, compact && styles.compactCard]}>
@@ -56,7 +57,7 @@ export default function InvitationCard({
             <View style={styles.statusBadgeRow}>
               <View style={[styles.statusBadge, { backgroundColor: theme.badgePrivateBg }]}>
                 <Text style={[styles.statusBadgeText, { color: theme.badgePrivateText }]}>
-                  {t('profile.invitations.invitedBadge')}
+                  {isPending ? t('profile.invitations.invitedBadge') : invitation.status}
                 </Text>
               </View>
 
@@ -107,27 +108,29 @@ export default function InvitationCard({
         </View>
       )}
 
-      <View style={[styles.actions, compact && styles.compactActions]}>
-        <TouchableOpacity
-          style={[styles.actionButton, compact && styles.compactActionButton, styles.declineButton]}
-          onPress={() => onDecline(invitation.invitation_id)}
-          disabled={isActionLoading}
-        >
-          <Text style={styles.declineButtonText}>{t('common.decline')}</Text>
-        </TouchableOpacity>
+      {isPending && (
+        <View style={[styles.actions, compact && styles.compactActions]}>
+          <TouchableOpacity
+            style={[styles.actionButton, compact && styles.compactActionButton, styles.declineButton]}
+            onPress={() => onDecline(invitation.invitation_id)}
+            disabled={isActionLoading}
+          >
+            <Text style={styles.declineButtonText}>{t('common.decline')}</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.actionButton, compact && styles.compactActionButton, styles.acceptButton]}
-          onPress={() => onAccept(invitation.invitation_id)}
-          disabled={isActionLoading}
-        >
-          {isActionLoading ? (
-            <ActivityIndicator size="small" color={theme.textOnPrimary} />
-          ) : (
-            <Text style={styles.acceptButtonText}>{t('common.accept')}</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.actionButton, compact && styles.compactActionButton, styles.acceptButton]}
+            onPress={() => onAccept(invitation.invitation_id)}
+            disabled={isActionLoading}
+          >
+            {isActionLoading ? (
+              <ActivityIndicator size="small" color={theme.textOnPrimary} />
+            ) : (
+              <Text style={styles.acceptButtonText}>{t('common.accept')}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }

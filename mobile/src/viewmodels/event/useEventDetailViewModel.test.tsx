@@ -480,11 +480,19 @@ describe('useEventDetailViewModel', () => {
       },
     });
     mockAcceptInvitation.mockResolvedValue({
-      message: 'Invitation accepted',
+      invitation_id: 'invitation-uuid-001',
       event_id: invitedPrivateEventFixture.id,
+      invitation_status: 'ACCEPTED',
+      participation_id: 'participation-uuid-001',
+      participation_status: 'APPROVED',
+      updated_at: '2026-05-01T11:00:00Z',
     });
     mockDeclineInvitation.mockResolvedValue({
-      message: 'Invitation declined',
+      invitation_id: 'invitation-uuid-001',
+      event_id: invitedPrivateEventFixture.id,
+      status: 'DECLINED',
+      updated_at: '2026-05-01T11:00:00Z',
+      cooldown_ends_at: '2026-05-15T11:00:00Z',
     });
     mockWithdrawJoinRequest.mockResolvedValue(undefined);
     mockReconfirmEventParticipation.mockResolvedValue({

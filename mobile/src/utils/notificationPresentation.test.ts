@@ -102,6 +102,22 @@ describe('notificationPresentation', () => {
     expect(presentation.summary).toContain('wants to join');
   });
 
+  it('builds accepted and declined invitation presentations for the host', () => {
+    const accepted = getNotificationPresentation(
+      makeNotification({ type: 'PRIVATE_EVENT_INVITATION_ACCEPTED' }),
+    );
+    const declined = getNotificationPresentation(
+      makeNotification({ type: 'PRIVATE_EVENT_INVITATION_DECLINED' }),
+    );
+
+    expect(accepted.badgeLabel).toBe('Accepted');
+    expect(accepted.actionTarget).toBe('EVENT');
+    expect(accepted.actionLabel).toBe('View event');
+    expect(declined.badgeLabel).toBe('Declined');
+    expect(declined.actionTarget).toBe('EVENT');
+    expect(declined.actionLabel).toBe('View event');
+  });
+
   it('falls back to generic presentation for unsupported types', () => {
     const presentation = getNotificationPresentation(
       makeNotification({

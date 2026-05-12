@@ -10,7 +10,7 @@ import (
 type Repository interface {
 	CreateInvitations(ctx context.Context, params CreateInvitationsParams) (*CreateInvitationsRecord, error)
 	ListReceivedPendingInvitations(ctx context.Context, userID uuid.UUID) ([]ReceivedInvitationRecord, error)
-	// ListReceivedPastInvitations returns the recipient's DECLINED+EXPIRED
+	// ListReceivedPastInvitations returns the recipient's ACCEPTED+DECLINED+EXPIRED
 	// invitations for PRIVATE events, ordered (updated_at DESC, id DESC) for
 	// keyset pagination. Event status is intentionally not filtered so a
 	// declined invitation for an event that has since ended remains visible.

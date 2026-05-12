@@ -1,6 +1,6 @@
 /* ── Participant-side invitations (received) ── */
 
-export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED' | 'EXPIRED';
+export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELED' | 'EXPIRED';
 
 export interface InvitationEventSummary {
   id: string;
@@ -31,8 +31,19 @@ export interface ReceivedInvitation {
   host: InvitationHostSummary;
 }
 
-export interface ReceivedInvitationsResponse {
+export interface InvitationPageInfo {
+  next_cursor: string | null;
+  has_next: boolean;
+}
+
+export interface ReceivedInvitationsPast {
   items: ReceivedInvitation[];
+  page_info: InvitationPageInfo;
+}
+
+export interface ReceivedInvitationsResponse {
+  pending: ReceivedInvitation[];
+  past: ReceivedInvitationsPast;
 }
 
 export interface AcceptInvitationResponse {

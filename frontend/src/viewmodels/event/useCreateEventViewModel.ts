@@ -7,6 +7,7 @@ import {
   confirmEventImageUpload,
 } from '@/services/eventService';
 import { prepareAvatarBlobs } from '@/utils/imageResize';
+import { uploadImageVariants } from '@/utils/directImageUpload';
 import {
   CreateEventResponse,
   CategoryItem,
@@ -590,17 +591,7 @@ export function useCreateEventViewModel() {
           try {
             const { original, small } = await prepareAvatarBlobs(form.imageFile);
             const uploadInit = await getEventImageUploadUrl(result.id, token);
-            for (const instruction of uploadInit.uploads) {
-              const blob = instruction.variant === 'ORIGINAL' ? original : small;
-              const res = await fetch(instruction.url, {
-                method: instruction.method,
-                headers: instruction.headers,
-                body: blob,
-              });
-              if (!res.ok) {
-                throw new Error(`Image upload failed (${instruction.variant}).`);
-              }
-            }
+            await uploadImageVariants(uploadInit, { original, small });
             await confirmEventImageUpload(
               result.id,
               { confirm_token: uploadInit.confirm_token },
