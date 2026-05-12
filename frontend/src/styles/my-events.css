@@ -269,3 +269,52 @@
     font-size: 14px;
   }
 }
+
+/* ============================================== */
+/* Dark mode overrides — my events (#650)         */
+/* ============================================== */
+
+:root[data-theme='dark'] .me-tab:hover {
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .me-tab-count {
+  background-color: #1f2937;
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .me-card-image-wrapper {
+  background-color: #1f2937;
+}
+
+/* Status pills — keep hue, drop saturation, use translucent overlay */
+:root[data-theme='dark'] .me-status-upcoming {
+  background-color: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+}
+
+:root[data-theme='dark'] .me-status-in-progress {
+  background-color: rgba(234, 179, 8, 0.18);
+  color: #fde68a;
+}
+
+:root[data-theme='dark'] .me-status-active {
+  background-color: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+}
+
+:root[data-theme='dark'] .me-status-canceled {
+  background-color: rgba(220, 38, 38, 0.18);
+  color: #fca5a5;
+}
+
+:root[data-theme='dark'] .me-status-completed {
+  background-color: rgba(148, 163, 184, 0.22);
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .me-leave-btn {
+  background-color: rgba(220, 38, 38, 0.12);
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.45);
+}

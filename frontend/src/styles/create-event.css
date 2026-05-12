@@ -1141,3 +1141,201 @@
   background: #111827;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
+
+/* ============================================== */
+/* Dark mode overrides — create / edit event (#650) */
+/* ============================================== */
+
+:root[data-theme='dark'] .success-banner,
+:root[data-theme='dark'] .ce-fixed-success-toast {
+  background-color: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.45);
+  color: #86efac;
+}
+
+:root[data-theme='dark'] .ce-host-label {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .ce-host-name {
+  color: #f9fafb;
+}
+
+:root[data-theme='dark'] .ce-image-upload-btn {
+  background-color: #111111;
+  border-color: #374151;
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .ce-image-upload-btn:hover {
+  background-color: #1f2937;
+  border-color: #f9fafb;
+  color: #f9fafb;
+}
+
+:root[data-theme='dark'] .ce-image-preview {
+  border-color: #2a2a2a;
+}
+
+:root[data-theme='dark'] .ce-image-remove {
+  color: #fca5a5;
+}
+
+:root[data-theme='dark'] .ce-image-remove:hover {
+  background-color: rgba(220, 38, 38, 0.12);
+}
+
+:root[data-theme='dark'] .ce-tp-tab {
+  background: transparent;
+  border-color: #374151;
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .ce-tp-colon,
+:root[data-theme='dark'] .ce-tp-cell {
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .ce-tp-cell:hover {
+  background-color: #1f2937;
+}
+
+:root[data-theme='dark'] .ce-age-preset-chip {
+  background-color: transparent;
+  border-color: #374151;
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .ce-location-results {
+  background: #111111;
+  border-color: #2a2a2a;
+}
+
+:root[data-theme='dark'] .ce-location-item {
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .ce-location-item:hover {
+  background-color: #1f2937;
+}
+
+:root[data-theme='dark'] .ce-tag {
+  background-color: #1f2937;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .ce-constraints-section {
+  border-color: #2a2a2a;
+}
+
+:root[data-theme='dark'] .ce-audience-toggle {
+  background: #111111;
+  border-color: #374151;
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .ce-audience-toggle:hover {
+  border-color: #f9fafb;
+}
+
+:root[data-theme='dark'] .ce-audience-toggle.selected {
+  border-color: #f9fafb;
+  background: #1f2937;
+  box-shadow: inset 0 0 0 1px #f9fafb;
+}
+
+:root[data-theme='dark'] .ce-audience-toggle-title {
+  color: #f9fafb;
+}
+
+:root[data-theme='dark'] .ce-audience-toggle-copy {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .ce-sub-label {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .ce-edit-back-link {
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .ce-edit-warning {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fcd34d;
+}
+
+:root[data-theme='dark'] .ce-edit-critical-list {
+  color: #fcd34d;
+}
+
+:root[data-theme='dark'] .ce-edit-constraint-list li {
+  background: #1f2937;
+  border-color: #2a2a2a;
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .ce-popup {
+  background: #111111;
+  border-color: #2a2a2a;
+}
+
+:root[data-theme='dark'] .ce-popup-title {
+  color: #f9fafb;
+}
+
+:root[data-theme='dark'] .ce-location-type-chip {
+  background: transparent;
+  border-color: #374151;
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .ce-route-suggestions {
+  background: #111111;
+  border-color: #2a2a2a;
+}
+
+:root[data-theme='dark'] .ce-route-suggestion-item {
+  color: #e5e7eb;
+  border-bottom-color: #2a2a2a;
+}
+
+:root[data-theme='dark'] .ce-route-suggestion-item:hover {
+  background: #1f2937;
+}
+
+:root[data-theme='dark'] .ce-route-map-placeholder,
+:root[data-theme='dark'] .ce-point-map-placeholder {
+  background: #111111;
+  color: #94a3b8;
+}
+
+/* Footer caption under the Point map — was the leaked white panel */
+:root[data-theme='dark'] .ce-point-map-footer {
+  background-color: #111111;
+  border-color: #2a2a2a;
+  color: #94a3b8;
+}
+
+:root[data-theme='dark'] .ce-route-empty {
+  background: #111111;
+  border-color: #374151;
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .ce-route-waypoint {
+  background: #111111;
+  border-color: #2a2a2a;
+}
+
+:root[data-theme='dark'] .ce-route-action-btn {
+  background: transparent;
+  border-color: #374151;
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .ce-route-action-btn:hover {
+  border-color: #f9fafb;
+  color: #f9fafb;
+}
