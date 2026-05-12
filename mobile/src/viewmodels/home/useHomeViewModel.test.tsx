@@ -699,6 +699,8 @@ describe('useHomeViewModel', () => {
         result.current.applyFilterDraft();
       });
 
+      expect(result.current.selectedCategoryIds).toEqual([2]);
+
       await waitFor(() => {
         expect(mockListEvents).toHaveBeenLastCalledWith(
           expect.objectContaining({
@@ -734,12 +736,14 @@ describe('useHomeViewModel', () => {
         result.current.openFilterModal();
       });
 
+      expect(result.current.filterDraft.categoryIds).toEqual([1, 4]);
+
       act(() => {
         result.current.toggleDraftCategory(2);
       });
 
       await waitFor(() => {
-        expect(result.current.filterDraft.categoryIds).toEqual([2]);
+        expect(result.current.filterDraft.categoryIds).toEqual([1, 4, 2]);
       });
 
       act(() => {
@@ -749,7 +753,7 @@ describe('useHomeViewModel', () => {
       await waitFor(() => {
         expect(mockListEvents).toHaveBeenLastCalledWith(
           expect.objectContaining({
-            category_ids: expect.arrayContaining([1, 2, 4]),
+            category_ids: [1, 4, 2],
           }),
           'mock-token',
         );

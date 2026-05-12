@@ -433,7 +433,6 @@ export function useHomeViewModel(): HomeViewModel {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [filterError, setFilterError] = useState<string | null>(null);
   const [appliedSearchText, setAppliedSearchText] = useState('');
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
 
   const [appliedFilters, setAppliedFilters] =
     useState<HomeFiltersDraft>(DEFAULT_FILTERS);
@@ -609,10 +608,6 @@ export function useHomeViewModel(): HomeViewModel {
 
         setApiError(null);
 
-        const combinedCategoryIds = Array.from(
-          new Set([...selectedCategoryIds, ...appliedFilters.categoryIds]),
-        );
-
         const response = await listEvents(
           {
             lat: Number(activeLocation.lat),
@@ -620,7 +615,9 @@ export function useHomeViewModel(): HomeViewModel {
             radius_meters: appliedFilters.radiusKm * 1000,
             q: appliedSearchText || undefined,
             category_ids:
-              combinedCategoryIds.length > 0 ? combinedCategoryIds : undefined,
+              appliedFilters.categoryIds.length > 0
+                ? appliedFilters.categoryIds
+                : undefined,
             privacy_levels:
               appliedFilters.privacyLevels.length > 0
                 ? appliedFilters.privacyLevels
@@ -659,7 +656,6 @@ export function useHomeViewModel(): HomeViewModel {
       selectedLocation,
       defaultLocation,
       appliedSearchText,
-      selectedCategoryIds,
       appliedFilters,
     ],
   );
@@ -729,15 +725,19 @@ export function useHomeViewModel(): HomeViewModel {
   }, [searchText]);
 
   const toggleCategory = useCallback((categoryId: number) => {
-    setSelectedCategoryIds((prev) => (
-      prev.includes(categoryId)
-        ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId]
-    ));
+    setAppliedFilters((prev) => ({
+      ...prev,
+      categoryIds: prev.categoryIds.includes(categoryId)
+        ? prev.categoryIds.filter((id) => id !== categoryId)
+        : [...prev.categoryIds, categoryId],
+    }));
   }, []);
 
   const clearSelectedCategories = useCallback(() => {
-    setSelectedCategoryIds([]);
+    setAppliedFilters((prev) => ({
+      ...prev,
+      categoryIds: [],
+    }));
   }, []);
 
   const openLocationModal = useCallback(() => {
@@ -996,10 +996,6 @@ export function useHomeViewModel(): HomeViewModel {
           ? persistedSelection.location
           : refreshedDefaultLocation;
 
-      const combinedCategoryIds = Array.from(
-        new Set([...selectedCategoryIds, ...appliedFilters.categoryIds]),
-      );
-
       const response = await listEvents(
         {
           lat: Number(activeLocation.lat),
@@ -1007,7 +1003,9 @@ export function useHomeViewModel(): HomeViewModel {
           radius_meters: appliedFilters.radiusKm * 1000,
           q: appliedSearchText || undefined,
           category_ids:
-            combinedCategoryIds.length > 0 ? combinedCategoryIds : undefined,
+            appliedFilters.categoryIds.length > 0
+              ? appliedFilters.categoryIds
+              : undefined,
           privacy_levels:
             appliedFilters.privacyLevels.length > 0
               ? appliedFilters.privacyLevels
@@ -1034,7 +1032,6 @@ export function useHomeViewModel(): HomeViewModel {
     resolveDefaultLocation,
     locationSelectionScope,
     appliedSearchText,
-    selectedCategoryIds,
     appliedFilters,
   ]);
 
@@ -1055,7 +1052,7 @@ export function useHomeViewModel(): HomeViewModel {
         : DEFAULT_LOCATION_LABEL,
     locationQuery,
     categories,
-    selectedCategoryIds,
+    selectedCategoryIds: appliedFilters.categoryIds,
     searchText,
     events,
     isLoading,
