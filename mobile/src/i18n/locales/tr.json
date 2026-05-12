@@ -325,6 +325,19 @@
         "schedule": "Program",
         "participation": "Katılım"
       },
+      "image": {
+        "label": "Kapak görseli",
+        "add": "Kapak Görseli Ekle",
+        "change": "Kapak Görselini Değiştir",
+        "discard": "Seçili Görseli Vazgeç",
+        "uploading": "Yükleniyor...",
+        "uploadSuccess": "Kapak görseli başarıyla güncellendi.",
+        "permissionTitle": "İzin gerekli",
+        "permissionRequired": "Etkinlik görselini güncellemek için fotoğraf kitaplığına erişime izin vermelisin.",
+        "readFailed": "Seçilen görsel okunamadı. Lütfen başka bir görsel dene.",
+        "processFailed": "Seçilen görsel işlenemedi. Lütfen başka bir görsel dene.",
+        "openFailed": "Fotoğraf kitaplığı açılamadı. Lütfen tekrar dene."
+      },
       "fields": {
         "titleLabel": "Başlık",
         "titlePlaceholder": "Etkinlik başlığı",

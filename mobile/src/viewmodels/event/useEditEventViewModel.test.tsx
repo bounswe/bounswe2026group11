@@ -17,6 +17,14 @@ jest.mock('@/contexts/AuthContext', () => ({
 
 const mockGetEventDetail = jest.mocked(eventService.getEventDetail);
 const mockUpdateEvent = jest.mocked(eventService.updateEvent);
+const mockGetEventImageUploadUrl = jest.mocked(eventService.getEventImageUploadUrl);
+const mockUploadFileToPresignedUrl = jest.mocked(eventService.uploadFileToPresignedUrl);
+const mockConfirmEventImageUpload = jest.mocked(eventService.confirmEventImageUpload);
+const ImagePicker = require('expo-image-picker');
+const ImageManipulator = require('expo-image-manipulator');
+const mockLaunchImageLibraryAsync =
+  ImagePicker.launchImageLibraryAsync as jest.MockedFunction<any>;
+const mockManipulateAsync = ImageManipulator.manipulateAsync as jest.MockedFunction<any>;
 
 function makeEvent(overrides: Partial<EventDetail> = {}): EventDetail {
   return {
@@ -89,11 +97,39 @@ const updateResponse: UpdateEventResponse = {
   updated_at: '2026-04-03T12:00:00+03:00',
 };
 
+const uploadInitFixture = {
+  base_url: 'https://cdn.example.com/events/event-1/cover/v1-upload',
+  version: 1,
+  confirm_token: 'confirm-token',
+  uploads: [
+    {
+      variant: 'ORIGINAL' as const,
+      method: 'PUT',
+      url: 'https://upload.example.com/original',
+      headers: { 'Content-Type': 'image/jpeg' },
+    },
+    {
+      variant: 'SMALL' as const,
+      method: 'PUT',
+      url: 'https://upload.example.com/small',
+      headers: { 'Content-Type': 'image/jpeg' },
+    },
+  ],
+};
+
 describe('useEditEventViewModel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetEventDetail.mockResolvedValue(makeEvent());
     mockUpdateEvent.mockResolvedValue(updateResponse);
+    mockGetEventImageUploadUrl.mockResolvedValue(uploadInitFixture);
+    mockUploadFileToPresignedUrl.mockResolvedValue(undefined);
+    mockConfirmEventImageUpload.mockResolvedValue(undefined);
+    mockLaunchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file:///selected-cover.jpg' }],
+    });
+    mockManipulateAsync.mockImplementation(async (uri: string) => ({ uri }));
   });
 
   it('prefills the edit form from the current event detail', async () => {
@@ -176,5 +212,51 @@ describe('useEditEventViewModel', () => {
       'Capacity cannot be below current approved plus pending participants',
     );
     expect(mockUpdateEvent).not.toHaveBeenCalled();
+  });
+
+  it('uploads a selected image without patching event fields', async () => {
+    const refreshed = makeEvent({
+      image_url: 'https://cdn.example.com/events/event-1/cover/v2-small.jpg',
+    });
+    mockGetEventDetail
+      .mockResolvedValueOnce(makeEvent())
+      .mockResolvedValueOnce(refreshed);
+
+    const { result } = renderHook(() => useEditEventViewModel('event-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.pickImage();
+    });
+
+    expect(result.current.selectedImageUri).toBe('file:///selected-cover.jpg');
+
+    let preview: ReturnType<typeof result.current.previewChanges> = null;
+    act(() => {
+      preview = result.current.previewChanges();
+    });
+
+    expect(preview).toEqual({
+      request: {},
+      changedFields: ['image_url'],
+      criticalChangeLabels: [],
+    });
+
+    await act(async () => {
+      await result.current.handleSubmit(preview?.request);
+    });
+
+    expect(mockUpdateEvent).not.toHaveBeenCalled();
+    expect(mockGetEventImageUploadUrl).toHaveBeenCalledWith('event-1', 'mock-token');
+    expect(mockUploadFileToPresignedUrl).toHaveBeenCalledTimes(2);
+    expect(mockConfirmEventImageUpload).toHaveBeenCalledWith(
+      'event-1',
+      'confirm-token',
+      'mock-token',
+    );
+    expect(result.current.event?.image_url).toBe(
+      'https://cdn.example.com/events/event-1/cover/v2-small.jpg',
+    );
+    expect(result.current.imageUploadSuccessMessage).toBe('Cover image updated successfully.');
   });
 });

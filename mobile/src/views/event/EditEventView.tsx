@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -91,6 +92,7 @@ function getChangeFieldLabel(field: string, t: (key: string) => string): string 
     end_time: t('events.edit.fields.endTime'),
     capacity: t('events.edit.fields.capacity'),
     constraints: t('events.edit.fields.requirements'),
+    image_url: t('events.edit.image.label'),
   };
   return labels[field] ?? field.replace(/_/g, ' ');
 }
@@ -210,7 +212,8 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
       setPendingPreview(null);
       const result = await vm.handleSubmit(preview.request);
       if (result) {
-        router.replace(`/event/${eventId}` as Href);
+        router.dismissTo('/(tabs)/home' as Href);
+        router.push(`/event/${eventId}` as Href);
       }
     },
     [eventId, vm],
@@ -227,7 +230,9 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
   }, [submitPreview, vm]);
 
   const disabled = vm.isSaving || !vm.canEdit;
+  const imageDisabled = disabled || vm.isUploadingImage;
   const versionLabel = getEventVersionLabel(vm);
+  const displayedImageUri = vm.selectedImageUri ?? vm.event?.image_url ?? null;
 
   if (vm.isLoading) {
     return (
@@ -329,6 +334,13 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
             </View>
           ) : null}
 
+          {vm.imageUploadSuccessMessage ? (
+            <View style={styles.successBanner}>
+              <Feather name="check-circle" size={16} color={theme.successText} />
+              <Text style={styles.successBannerText}>{vm.imageUploadSuccessMessage}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.warningBanner}>
             <Feather name="alert-triangle" size={16} color={theme.warningText} />
             <Text style={styles.warningBannerText}>
@@ -338,6 +350,61 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('events.edit.sections.basics')}</Text>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>{t('events.edit.image.label')}</Text>
+              <TouchableOpacity
+                style={styles.imagePicker}
+                onPress={vm.pickImage}
+                disabled={imageDisabled}
+                activeOpacity={0.85}
+                accessibilityLabel={t('events.edit.image.change')}
+              >
+                {displayedImageUri ? (
+                  <Image
+                    source={{ uri: displayedImageUri }}
+                    style={styles.imagePreview}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <MaterialIcons name="add-photo-alternate" size={34} color={theme.textTertiary} />
+                    <Text style={styles.imagePlaceholderText}>{t('events.edit.image.add')}</Text>
+                  </View>
+                )}
+                {vm.isUploadingImage ? (
+                  <View style={styles.imageUploadOverlay}>
+                    <ActivityIndicator size="large" color="#FFFFFF" />
+                    <Text style={styles.imageUploadOverlayText}>
+                      {t('events.edit.image.uploading')}
+                    </Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+              <View style={styles.imageActions}>
+                <TouchableOpacity
+                  style={[styles.secondaryButton, imageDisabled && styles.buttonDisabled]}
+                  onPress={vm.pickImage}
+                  disabled={imageDisabled}
+                >
+                  <Feather name="image" size={16} color={theme.text} />
+                  <Text style={styles.secondaryButtonText}>
+                    {displayedImageUri ? t('events.edit.image.change') : t('events.edit.image.add')}
+                  </Text>
+                </TouchableOpacity>
+                {vm.selectedImageUri ? (
+                  <TouchableOpacity
+                    style={[styles.secondaryButton, imageDisabled && styles.buttonDisabled]}
+                    onPress={vm.removeImage}
+                    disabled={imageDisabled}
+                  >
+                    <Feather name="x" size={16} color={theme.text} />
+                    <Text style={styles.secondaryButtonText}>{t('events.edit.image.discard')}</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              {vm.imageError ? <Text style={styles.fieldError}>{vm.imageError}</Text> : null}
+            </View>
 
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>{t('events.edit.fields.titleLabel')}</Text>
@@ -1075,6 +1142,69 @@ function makeStyles(t: Theme) {
       fontSize: 13,
       lineHeight: 18,
       fontWeight: '600',
+    },
+    imagePicker: {
+      height: 190,
+      borderRadius: 8,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.surface,
+    },
+    imagePreview: {
+      width: '100%',
+      height: '100%',
+    },
+    imagePlaceholder: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: t.imagePlaceholder,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: t.border,
+    },
+    imagePlaceholderText: {
+      fontSize: 14,
+      lineHeight: 19,
+      color: t.textSecondary,
+      fontWeight: '800',
+    },
+    imageUploadOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: 'rgba(0,0,0,0.48)',
+    },
+    imageUploadOverlayText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '800',
+    },
+    imageActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    secondaryButton: {
+      minHeight: 40,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.surface,
+    },
+    secondaryButtonText: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: t.text,
+      fontWeight: '800',
     },
     helperText: {
       fontSize: 12,
