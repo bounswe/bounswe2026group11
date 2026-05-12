@@ -11,8 +11,8 @@ import {
 import { Feather } from '@expo/vector-icons';
 import MapView, {
   Callout,
-  Circle,
   Marker,
+  Polyline,
   PROVIDER_GOOGLE,
   type MapMarker,
 } from 'react-native-maps';
@@ -91,6 +91,10 @@ const DISCOVERY_MAP_PADDING_BASE = {
 const CLUSTER_DISTANCE_RATIO = 0.08;
 const MIN_CLUSTER_DELTA = 0.0001;
 const MIN_CLUSTER_ZOOM_DELTA = 0.006;
+const ANDROID_MARKER_TRACKING_SETTLE_MS = 650;
+const EARTH_RADIUS_METERS = 6371008.8;
+const RADIUS_BOUNDARY_SEGMENTS = 144;
+const RADIUS_BOUNDARY_DASH_PATTERN = [1, 10];
 
 function hasMappableCoordinate(
   event: EventSummary,
@@ -194,7 +198,215 @@ function getImageUrl(event: EventSummary): string | null {
   return imageUrl && imageUrl.length > 0 ? imageUrl : null;
 }
 
+function buildRadiusBoundaryCoordinates(
+  center: MapCoordinate,
+  radiusMeters: number,
+): Array<{ latitude: number; longitude: number }> {
+  const angularDistance = radiusMeters / EARTH_RADIUS_METERS;
+  const centerLatitude = (center.lat * Math.PI) / 180;
+  const centerLongitude = (center.lon * Math.PI) / 180;
+  const sinCenterLatitude = Math.sin(centerLatitude);
+  const cosCenterLatitude = Math.cos(centerLatitude);
+  const sinAngularDistance = Math.sin(angularDistance);
+  const cosAngularDistance = Math.cos(angularDistance);
+
+  return Array.from({ length: RADIUS_BOUNDARY_SEGMENTS + 1 }, (_value, index) => {
+    const bearing = (2 * Math.PI * index) / RADIUS_BOUNDARY_SEGMENTS;
+    const latitude = Math.asin(
+      sinCenterLatitude * cosAngularDistance +
+        cosCenterLatitude * sinAngularDistance * Math.cos(bearing),
+    );
+    const longitude =
+      centerLongitude +
+      Math.atan2(
+        Math.sin(bearing) * sinAngularDistance * cosCenterLatitude,
+        cosAngularDistance - sinCenterLatitude * Math.sin(latitude),
+      );
+
+    return {
+      latitude: (latitude * 180) / Math.PI,
+      longitude: (longitude * 180) / Math.PI,
+    };
+  });
+}
+
 type ImageStatus = 'READY' | 'FAILED';
+
+function useAndroidMarkerTracking(deps: React.DependencyList): boolean {
+  const [tracksViewChanges, setTracksViewChanges] = useState(
+    Platform.OS === 'android',
+  );
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      setTracksViewChanges(false);
+      return undefined;
+    }
+
+    setTracksViewChanges(true);
+    const timer = setTimeout(() => {
+      setTracksViewChanges(false);
+    }, ANDROID_MARKER_TRACKING_SETTLE_MS);
+
+    return () => clearTimeout(timer);
+  }, deps);
+
+  return Platform.OS === 'android' ? tracksViewChanges : false;
+}
+
+interface EventCalloutContentProps {
+  item: MappableEvent;
+  styles: ReturnType<typeof makeStyles>;
+  imageStatus: ImageStatus | undefined;
+  onImageLoad?: () => void;
+}
+
+function EventCalloutContent({
+  item,
+  styles,
+  imageStatus,
+  onImageLoad,
+}: EventCalloutContentProps) {
+  const [hasImageRenderError, setHasImageRenderError] = useState(false);
+  const { t } = useTranslation();
+  const { event, presentation } = item;
+  const imageUrl = getImageUrl(event);
+  const calloutImageUrl =
+    imageUrl && !hasImageRenderError && imageStatus !== 'FAILED' ? imageUrl : null;
+
+  useEffect(() => {
+    setHasImageRenderError(false);
+  }, [event.id, imageUrl]);
+
+  return (
+    <View style={styles.callout}>
+      <View style={styles.calloutMainRow}>
+        {calloutImageUrl ? (
+          <Image
+            source={{ uri: calloutImageUrl }}
+            style={styles.calloutImage}
+            resizeMode="cover"
+            fadeDuration={0}
+            onLoad={onImageLoad}
+            onError={() => setHasImageRenderError(true)}
+            testID={`callout-image-${event.id}`}
+          />
+        ) : (
+          <View
+            style={[
+              styles.calloutImagePlaceholder,
+              {
+                backgroundColor: presentation.tintColor,
+                borderColor: presentation.color,
+              },
+            ]}
+            testID={`callout-image-placeholder-${event.id}`}
+          >
+            <Text style={styles.calloutImageEmoji}>
+              {presentation.emoji}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.calloutBody}>
+          <View
+            style={[
+              styles.calloutCategoryPill,
+              {
+                backgroundColor: presentation.tintColor,
+                borderColor: presentation.color,
+              },
+            ]}
+          >
+            <Text style={styles.calloutCategoryEmoji}>
+              {presentation.emoji}
+            </Text>
+            <Text
+              style={[
+                styles.calloutCategoryText,
+                { color: presentation.color },
+              ]}
+              numberOfLines={1}
+            >
+              {presentation.label}
+            </Text>
+          </View>
+
+          <Text style={styles.calloutTitle} numberOfLines={2}>
+            {event.title}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.calloutMetaGroup}>
+        <Text style={styles.calloutMeta} numberOfLines={1}>
+          🗓 {formatEventDateLabel(event.start_time, event.end_time)}
+        </Text>
+        {event.location_address ? (
+          <Text style={styles.calloutMeta} numberOfLines={1}>
+            📍 {event.location_address}
+          </Text>
+        ) : null}
+        <Text style={styles.calloutMeta}>
+          👥 {event.capacity != null
+            ? i18n.t('home.map.participantsWithCapacity', {
+                count: event.approved_participant_count,
+                capacity: event.capacity,
+              })
+            : i18n.t('home.map.participants', {
+                count: event.approved_participant_count,
+              })}
+        </Text>
+      </View>
+
+      <View style={styles.calloutDivider} />
+      <Text style={styles.calloutHint}>
+        {t('home.map.calloutHint')}
+      </Text>
+    </View>
+  );
+}
+
+interface AndroidEventCalloutProps {
+  item: MappableEvent;
+  styles: ReturnType<typeof makeStyles>;
+  imageStatus: ImageStatus | undefined;
+  headerTopInset: number;
+  onOpen: (eventId: string) => void;
+}
+
+function AndroidEventCallout({
+  item,
+  styles,
+  imageStatus,
+  headerTopInset,
+  onOpen,
+}: AndroidEventCalloutProps) {
+  return (
+    <View
+      pointerEvents="box-none"
+      style={[
+        styles.androidCalloutLayer,
+        { top: headerTopInset + 238 },
+      ]}
+      testID={`android-callout-layer-${item.event.id}`}
+    >
+      <TouchableOpacity
+        activeOpacity={0.92}
+        onPress={() => onOpen(item.event.id)}
+        accessibilityLabel={`Open ${item.event.title}`}
+        accessibilityRole="button"
+        testID={`android-callout-${item.event.id}`}
+      >
+        <EventCalloutContent
+          item={item}
+          styles={styles}
+          imageStatus={imageStatus}
+        />
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 interface EventMapMarkerProps {
   item: MappableEvent;
@@ -216,55 +428,76 @@ function EventMapMarker({
   const markerRef = useRef<MapMarker | null>(null);
   // Prevents the deselect that fires during outgoing navigation from clearing selection.
   const suppressNextDeselectRef = useRef(false);
-  const [hasImageRenderError, setHasImageRenderError] = useState(false);
-  // Tracks whether the image inside the callout has finished loading.
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
-  const { t } = useTranslation();
+  const [isCalloutImageLoaded, setIsCalloutImageLoaded] = useState(false);
   const { event, coordinate, presentation } = item;
   const imageUrl = getImageUrl(event);
-  // Hide the callout image if the render raised an error OR the prefetch
-  // explicitly failed (resolved to false) — show the category placeholder instead.
-  const calloutImageUrl =
-    imageUrl && !hasImageRenderError && imageStatus !== 'FAILED' ? imageUrl : null;
+  const hasCalloutImage = Boolean(imageUrl && imageStatus !== 'FAILED');
+  const tracksViewChanges = useAndroidMarkerTracking([
+    event.id,
+    presentation.color,
+    presentation.emoji,
+    isSelected,
+  ]);
 
   useEffect(() => {
-    setHasImageRenderError(false);
-    setIsImageLoaded(false);
+    setIsCalloutImageLoaded(false);
   }, [imageUrl]);
 
-  // Show callout when this marker is selected.
-  // On Android, defer until imageStatus is resolved so the InfoWindow
-  // bitmap snapshot captures the already-loaded image.
-  // On iOS the callout is a live view, so open immediately.
-  useEffect(() => {
-    if (!isSelected) return;
-    if (Platform.OS === 'android' && imageUrl && imageStatus === undefined) {
-      return; // wait — effect will re-run when imageStatus is set
-    }
-    const t = setTimeout(() => markerRef.current?.showCallout?.(), 40);
-    return () => clearTimeout(t);
-  }, [isSelected, imageStatus, imageUrl]);
-
-  // On iOS, once the prefetch settles as READY, redraw the callout so the
-  // native bubble snapshot reflects the freshly loaded image.
-  useEffect(() => {
-    if (!isSelected || Platform.OS === 'android') return;
-    if (!imageUrl || imageStatus !== 'READY') return;
+  const redrawCallout = useCallback(() => {
     markerRef.current?.redrawCallout?.();
-  }, [isSelected, imageUrl, imageStatus]);
+  }, []);
+
+  // iOS uses the native callout. Android renders a normal overlay instead
+  // because Google Maps InfoWindow snapshots do not reliably decode images.
+  useEffect(() => {
+    if (Platform.OS === 'android') return;
+    if (!isSelected) return;
+    const t = setTimeout(() => {
+      markerRef.current?.showCallout?.();
+      if (hasCalloutImage && isCalloutImageLoaded) {
+        redrawCallout();
+      }
+    }, 40);
+    return () => clearTimeout(t);
+  }, [
+    isSelected,
+    imageStatus,
+    imageUrl,
+    hasCalloutImage,
+    isCalloutImageLoaded,
+    redrawCallout,
+  ]);
+
+  // Once the image view has decoded, redraw the native callout snapshot so it
+  // reflects the real image rather than Android's first empty InfoWindow pass.
+  useEffect(() => {
+    if (Platform.OS === 'android') return;
+    if (!isSelected || !hasCalloutImage || !isCalloutImageLoaded) return;
+    redrawCallout();
+  }, [isSelected, hasCalloutImage, isCalloutImageLoaded, redrawCallout]);
 
   // Re-show callout when the screen regains focus while this marker is still
   // selected (e.g. returning from the event detail screen).
   useFocusEffect(
     useCallback(() => {
       suppressNextDeselectRef.current = false;
+      if (Platform.OS === 'android') return undefined;
       if (!isSelected) return;
-      if (Platform.OS === 'android' && imageUrl && imageStatus === undefined) {
-        return;
-      }
-      const t = setTimeout(() => markerRef.current?.showCallout?.(), 200);
+      const t = setTimeout(() => {
+        markerRef.current?.showCallout?.();
+        if (hasCalloutImage && isCalloutImageLoaded) {
+          redrawCallout();
+        }
+      }, 200);
       return () => clearTimeout(t);
-    }, [isSelected, imageStatus, imageUrl]),
+    }, [
+      isSelected,
+      imageStatus,
+      imageUrl,
+      hasCalloutImage,
+      isCalloutImageLoaded,
+      redrawCallout,
+    ]),
   );
 
   return (
@@ -274,12 +507,11 @@ function EventMapMarker({
       identifier={event.id}
       coordinate={coordinate}
       anchor={{ x: 0.5, y: 1 }}
-      // Keep tracking until the callout image has loaded so the native bubble
-      // gets a chance to reflect the loaded image.
-      tracksViewChanges={isSelected && !isImageLoaded}
+      tracksViewChanges={tracksViewChanges}
       zIndex={isSelected ? 1000 : 1}
       onPress={() => onSelect(event.id)}
       onDeselect={() => {
+        if (Platform.OS === 'android') return;
         // The deselect that fires as navigation begins must not clear selection;
         // useFocusEffect resets this flag when the screen comes back into focus.
         if (suppressNextDeselectRef.current) return;
@@ -290,7 +522,7 @@ function EventMapMarker({
       accessibilityLabel={`${event.title} map marker`}
       accessibilityRole="button"
     >
-      <View style={styles.markerWrap}>
+      <View style={styles.markerWrap} collapsable={false}>
         <View
           style={[
             styles.markerBubble,
@@ -309,112 +541,30 @@ function EventMapMarker({
         />
       </View>
 
-      <Callout
-        tooltip
-        accessibilityLabel={`Open ${event.title}`}
-        accessibilityRole="button"
-        onPress={() => {
-          // Mark that the next onDeselect should be suppressed — it fires as
-          // the navigation transition starts and must not clear the selection.
-          suppressNextDeselectRef.current = true;
-          onOpen(event.id);
-        }}
-        testID={`callout-${event.id}`}
-      >
-        <View style={styles.callout}>
-          <View style={styles.calloutMainRow}>
-            {calloutImageUrl ? (
-              <Image
-                source={{ uri: calloutImageUrl }}
-                style={styles.calloutImage}
-                resizeMode="cover"
-                onLoad={() => {
-                  setIsImageLoaded(true);
-                  // On iOS the callout is a live view — refresh it so the
-                  // loaded image replaces the loading placeholder.
-                  // On Android the callout is only opened after the image is
-                  // prefetched, so no refresh is needed here.
-                  if (Platform.OS !== 'android') {
-                    markerRef.current?.redrawCallout?.();
-                  }
-                }}
-                onError={() => setHasImageRenderError(true)}
-                testID={`callout-image-${event.id}`}
-              />
-            ) : (
-              <View
-                style={[
-                  styles.calloutImagePlaceholder,
-                  {
-                    backgroundColor: presentation.tintColor,
-                    borderColor: presentation.color,
-                  },
-                ]}
-                testID={`callout-image-placeholder-${event.id}`}
-              >
-                <Text style={styles.calloutImageEmoji}>
-                  {presentation.emoji}
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.calloutBody}>
-              <View
-                style={[
-                  styles.calloutCategoryPill,
-                  {
-                    backgroundColor: presentation.tintColor,
-                    borderColor: presentation.color,
-                  },
-                ]}
-              >
-                <Text style={styles.calloutCategoryEmoji}>
-                  {presentation.emoji}
-                </Text>
-                <Text
-                  style={[
-                    styles.calloutCategoryText,
-                    { color: presentation.color },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {presentation.label}
-                </Text>
-              </View>
-
-              <Text style={styles.calloutTitle} numberOfLines={2}>
-                {event.title}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.calloutMetaGroup}>
-            <Text style={styles.calloutMeta} numberOfLines={1}>
-              🗓 {formatEventDateLabel(event.start_time, event.end_time)}
-            </Text>
-            {event.location_address ? (
-              <Text style={styles.calloutMeta} numberOfLines={1}>
-                📍 {event.location_address}
-              </Text>
-            ) : null}
-            <Text style={styles.calloutMeta}>
-              👥 {event.capacity != null
-                ? i18n.t('home.map.participantsWithCapacity', {
-                    count: event.approved_participant_count,
-                    capacity: event.capacity,
-                  })
-                : i18n.t('home.map.participants', {
-                    count: event.approved_participant_count,
-                  })}
-            </Text>
-          </View>
-
-          <View style={styles.calloutDivider} />
-          <Text style={styles.calloutHint}>
-            {t('home.map.calloutHint')}
-          </Text>
-        </View>
-      </Callout>
+      {Platform.OS === 'android' ? null : (
+        <Callout
+          tooltip
+          accessibilityLabel={`Open ${event.title}`}
+          accessibilityRole="button"
+          onPress={() => {
+            // Mark that the next onDeselect should be suppressed — it fires as
+            // the navigation transition starts and must not clear the selection.
+            suppressNextDeselectRef.current = true;
+            onOpen(event.id);
+          }}
+          testID={`callout-${event.id}`}
+        >
+          <EventCalloutContent
+            item={item}
+            styles={styles}
+            imageStatus={imageStatus}
+            onImageLoad={() => {
+              setIsCalloutImageLoaded(true);
+              redrawCallout();
+            }}
+          />
+        </Callout>
+      )}
     </Marker>
   );
 }
@@ -430,19 +580,27 @@ function ClusterMapMarker({
   styles,
   onPress,
 }: ClusterMapMarkerProps) {
+  const tracksViewChanges = useAndroidMarkerTracking([
+    cluster.id,
+    cluster.events.length,
+  ]);
+
   return (
     <Marker
       key={cluster.id}
       identifier={`cluster-${cluster.id}`}
       coordinate={cluster.coordinate}
       anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={tracksViewChanges}
       zIndex={500}
       onPress={() => onPress(cluster)}
       stopPropagation
       testID={`cluster-marker-${cluster.id}`}
     >
-      <View style={styles.clusterBubble}>
-        <Text style={styles.clusterCount}>{cluster.events.length}</Text>
+      <View style={styles.clusterWrap} collapsable={false}>
+        <View style={styles.clusterBubble}>
+          <Text style={styles.clusterCount}>{cluster.events.length}</Text>
+        </View>
       </View>
     </Marker>
   );
@@ -493,6 +651,7 @@ export default function EventMapView({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const mapRef = useRef<MapView | null>(null);
   const [visibleRegion, setVisibleRegion] = useState<MapRegion>(region);
+  const [androidMarkerRenderKey, setAndroidMarkerRenderKey] = useState(0);
   const mapPadding = useMemo(
     () => ({ ...DISCOVERY_MAP_PADDING_BASE, top: DISCOVERY_MAP_PADDING_BASE.top + headerTopInset }),
     [headerTopInset],
@@ -506,6 +665,14 @@ export default function EventMapView({
     setVisibleRegion(region);
     mapRef.current?.animateToRegion(region, 250);
   }, [region]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return undefined;
+      setAndroidMarkerRenderKey((revision) => revision + 1);
+      return undefined;
+    }, []),
+  );
 
   const mapItems = useMemo(
     () => buildMapItems(events, visibleRegion, isDark),
@@ -528,9 +695,12 @@ export default function EventMapView({
       eventItems.find((item) => item.event.id === selectedEventId) ?? null,
     [eventItems, selectedEventId],
   );
+  const selectedEventImageUrl = selectedEvent
+    ? getImageUrl(selectedEvent.event)
+    : null;
 
-  // Eagerly prefetch event images so the Android InfoWindow bitmap snapshot
-  // always captures a fully-loaded image when the callout is first opened.
+  // Eagerly prefetch event images so selected callouts can render without
+  // waiting on a cold network decode.
   useEffect(() => {
     const urls = Array.from(
       new Set(
@@ -596,17 +766,21 @@ export default function EventMapView({
 
   const filterCenterCoordinate = useMemo(
     () => ({
-      latitude: filterCenter?.lat ?? region.latitude,
-      longitude: filterCenter?.lon ?? region.longitude,
+      lat: filterCenter?.lat ?? region.latitude,
+      lon: filterCenter?.lon ?? region.longitude,
     }),
     [filterCenter?.lat, filterCenter?.lon, region.latitude, region.longitude],
   );
-  const radiusFillColor = isDark
-    ? 'rgba(96, 165, 250, 0.16)'
-    : 'rgba(37, 99, 235, 0.12)';
+  const radiusBoundaryCoordinates = useMemo(
+    () =>
+      filterRadiusMeters > 0
+        ? buildRadiusBoundaryCoordinates(filterCenterCoordinate, filterRadiusMeters)
+        : [],
+    [filterCenterCoordinate, filterRadiusMeters],
+  );
   const radiusStrokeColor = isDark
-    ? 'rgba(147, 197, 253, 0.9)'
-    : 'rgba(37, 99, 235, 0.65)';
+    ? 'rgba(96, 165, 250, 0.82)'
+    : 'rgba(37, 99, 235, 0.72)';
 
   if (isLoading) {
     return (
@@ -647,12 +821,13 @@ export default function EventMapView({
         testID="map-surface"
       >
         {filterRadiusMeters > 0 ? (
-          <Circle
-            center={filterCenterCoordinate}
-            radius={filterRadiusMeters}
-            strokeWidth={2}
+          <Polyline
+            coordinates={radiusBoundaryCoordinates}
+            strokeWidth={3}
             strokeColor={radiusStrokeColor}
-            fillColor={radiusFillColor}
+            lineDashPattern={RADIUS_BOUNDARY_DASH_PATTERN}
+            lineCap="round"
+            geodesic
             testID="filter-radius-circle"
           />
         ) : null}
@@ -670,12 +845,17 @@ export default function EventMapView({
           }
 
           const imgUrl = getImageUrl(item.item.event);
+          const isSelected = item.item.event.id === selectedEventId;
           return (
             <EventMapMarker
-              key={item.item.event.id}
+              key={[
+                item.item.event.id,
+                isSelected ? 'selected' : 'idle',
+                Platform.OS === 'android' ? androidMarkerRenderKey : 0,
+              ].join('-')}
               item={item.item}
               styles={styles}
-              isSelected={item.item.event.id === selectedEventId}
+              isSelected={isSelected}
               imageStatus={imgUrl ? imageStatusByUrl[imgUrl] : 'READY'}
               onSelect={(eventId) => setSelectedEventId(eventId || null)}
               onOpen={onMarkerPress}
@@ -690,6 +870,20 @@ export default function EventMapView({
           />
         ) : null}
       </MapView>
+
+      {Platform.OS === 'android' && selectedEvent ? (
+        <AndroidEventCallout
+          item={selectedEvent}
+          styles={styles}
+          imageStatus={
+            selectedEventImageUrl
+              ? imageStatusByUrl[selectedEventImageUrl]
+              : 'READY'
+          }
+          headerTopInset={headerTopInset}
+          onOpen={onMarkerPress}
+        />
+      ) : null}
 
       {currentLocation ? (
         <TouchableOpacity
@@ -790,8 +984,20 @@ function makeStyles(t: Theme) {
       shadowRadius: 8,
       elevation: 6,
     },
-    markerWrap: {
+    androidCalloutLayer: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
       alignItems: 'center',
+      zIndex: 20,
+      elevation: 20,
+    },
+    markerWrap: {
+      width: 76,
+      height: 76,
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      overflow: 'visible',
     },
     markerBubble: {
       width: 42,
@@ -812,13 +1018,24 @@ function makeStyles(t: Theme) {
       shadowOpacity: 0.34,
       shadowRadius: 12,
       elevation: 8,
-      // Transform only the bubble (not the tail), so the pin tip stays
-      // exactly over the coordinate while the bubble pops up.
-      transform: [{ translateY: -5 }, { scale: 1.1 }],
+      ...(Platform.OS === 'android'
+        ? {
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+          }
+        : {
+            // Transform only the bubble (not the tail), so the pin tip stays
+            // exactly over the coordinate while the bubble pops up.
+            transform: [{ translateY: -5 }, { scale: 1.1 }],
+          }),
     },
     markerEmoji: {
       fontSize: 22,
       lineHeight: 26,
+      includeFontPadding: false,
+      textAlign: 'center',
+      textAlignVertical: 'center',
     },
     markerTail: {
       width: 0,
@@ -830,11 +1047,17 @@ function makeStyles(t: Theme) {
       borderLeftColor: 'transparent',
       borderRightColor: 'transparent',
     },
+    clusterWrap: {
+      width: 82,
+      height: 82,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'visible',
+    },
     clusterBubble: {
-      minWidth: 54,
-      height: 54,
-      borderRadius: 27,
-      paddingHorizontal: 10,
+      width: 58,
+      height: 58,
+      borderRadius: 29,
       backgroundColor: t.primary,
       borderWidth: 3,
       borderColor: t.surface,
@@ -851,6 +1074,9 @@ function makeStyles(t: Theme) {
       lineHeight: 26,
       fontWeight: '800',
       color: t.textOnPrimary,
+      includeFontPadding: false,
+      textAlign: 'center',
+      textAlignVertical: 'center',
     },
     currentLocationOuter: {
       width: 26,

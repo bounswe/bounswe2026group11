@@ -7,6 +7,7 @@ import {
 } from '@/services/invitationService';
 import { ReceivedInvitation } from '@/models/invitation';
 import { ApiError } from '@/services/api';
+import i18n from '@/i18n';
 
 export interface InvitationsViewModel {
   invitations: ReceivedInvitation[];
@@ -18,8 +19,12 @@ export interface InvitationsViewModel {
   handleDecline: (invitationId: string) => Promise<void>;
 }
 
-function mergeInvitationBuckets(response: Awaited<ReturnType<typeof listMyInvitations>>): ReceivedInvitation[] {
-  return [...(response.pending ?? []), ...(response.past?.items ?? [])];
+function getPendingInvitations(
+  response: Awaited<ReturnType<typeof listMyInvitations>>,
+): ReceivedInvitation[] {
+  return (response.pending ?? []).filter(
+    (invitation) => invitation.status === 'PENDING',
+  );
 }
 
 export function useInvitationsViewModel(): InvitationsViewModel {
@@ -39,12 +44,12 @@ export function useInvitationsViewModel(): InvitationsViewModel {
     setError(null);
     try {
       const response = await listMyInvitations(token);
-      setInvitations(mergeInvitationBuckets(response));
+      setInvitations(getPendingInvitations(response));
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('Failed to load invitations');
+        setError(i18n.t('profile.invitations.loadFailed'));
       }
     } finally {
       setIsLoading(false);
@@ -56,19 +61,15 @@ export function useInvitationsViewModel(): InvitationsViewModel {
       if (!token) return;
       setIsActionLoading(invitationId);
       try {
-        const response = await acceptInvitation(invitationId, token);
+        await acceptInvitation(invitationId, token);
         setInvitations((prev) =>
-          prev.map((i) =>
-            i.invitation_id === invitationId
-              ? { ...i, status: 'ACCEPTED', updated_at: response.updated_at }
-              : i,
-          ),
+          prev.filter((invitation) => invitation.invitation_id !== invitationId),
         );
       } catch (err) {
         if (err instanceof ApiError) {
           setError(err.message);
         } else {
-          setError('Failed to accept invitation');
+          setError(i18n.t('profile.invitations.acceptFailed'));
         }
       } finally {
         setIsActionLoading(null);
@@ -82,19 +83,15 @@ export function useInvitationsViewModel(): InvitationsViewModel {
       if (!token) return;
       setIsActionLoading(invitationId);
       try {
-        const response = await declineInvitation(invitationId, token);
+        await declineInvitation(invitationId, token);
         setInvitations((prev) =>
-          prev.map((i) =>
-            i.invitation_id === invitationId
-              ? { ...i, status: 'DECLINED', updated_at: response.updated_at }
-              : i,
-          ),
+          prev.filter((invitation) => invitation.invitation_id !== invitationId),
         );
       } catch (err) {
         if (err instanceof ApiError) {
           setError(err.message);
         } else {
-          setError('Failed to decline invitation');
+          setError(i18n.t('profile.invitations.declineFailed'));
         }
       } finally {
         setIsActionLoading(null);

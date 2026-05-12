@@ -381,6 +381,27 @@ describe('EventDetailView', () => {
     expect(screen.getByText('No changes need your review right now.')).toBeTruthy();
   });
 
+  it('renders hero badges in a horizontally scrollable strip', () => {
+    mockUseEventDetailViewModel.mockReturnValue(
+      buildViewModel({
+        event: makeEvent({
+          privacy_level: 'PRIVATE',
+          status: 'IN_PROGRESS',
+          child_friendly: true,
+          family_oriented: true,
+        }),
+      }),
+    );
+
+    render(<EventDetailView eventId="event-1" />);
+
+    expect(screen.getByTestId('event-detail-hero-badges')).toBeTruthy();
+    expect(screen.getByText('Private')).toBeTruthy();
+    expect(screen.getByText('Child Friendly')).toBeTruthy();
+    expect(screen.getByText('Family Oriented')).toBeTruthy();
+    expect(screen.getByText('In Progress')).toBeTruthy();
+  });
+
   it('hides version history from viewers who are not attending or pending', () => {
     mockUseEventDetailViewModel.mockReturnValue(
       buildViewModel({
@@ -427,7 +448,7 @@ describe('EventDetailView', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/event/event-1/edit');
   });
 
-  it('shows the inaccessible state when apiError mentions private or missing events', () => {
+  it('shows the localized inaccessible state when apiError mentions private events', () => {
     mockUseEventDetailViewModel.mockReturnValue(
       buildViewModel({
         event: null,
@@ -438,7 +459,11 @@ describe('EventDetailView', () => {
     render(<EventDetailView eventId="event-1" />);
 
     expect(screen.getByText('Event Inaccessible')).toBeTruthy();
-    expect(screen.getByText(/If you don't have a valid invitation/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        "This event is private and only accessible to invited guests. If you don't have a valid invitation or if you previously declined one, you cannot view the details.",
+      ),
+    ).toBeTruthy();
     expect(screen.getByText('Go Back to Discovery')).toBeTruthy();
     
     // Check for the lock icon

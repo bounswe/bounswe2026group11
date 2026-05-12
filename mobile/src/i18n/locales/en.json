@@ -150,6 +150,12 @@
       "list": "List",
       "map": "Map"
     },
+    "categoryChips": {
+      "all": "All",
+      "clearAccessibility": "Clear selected categories",
+      "addAccessibility": "Add {{category}} category filter",
+      "removeAccessibility": "Remove {{category}} category filter"
+    },
     "map": {
       "emptyTitle": "No events on the map",
       "emptySubtitle": "Try panning the map or adjusting filters. Some events may be hidden due to age or gender restrictions.",
@@ -452,6 +458,7 @@
       "errorTitle": "Something went wrong",
       "errorTitleInaccessible": "Event Inaccessible",
       "errorDescription": "The event you are looking for could not be found.",
+      "errorDescriptionInaccessible": "This event is private and only accessible to invited guests. If you don't have a valid invitation or if you previously declined one, you cannot view the details.",
       "backToDiscovery": "Go Back to Discovery"
     },
     "joinRequest": {
@@ -761,6 +768,7 @@
       "viewAll": "View all invitations",
       "viewAllCount": "View all {{count}} invitations",
       "empty": "No pending invitations.",
+      "emptySubtitle": "Private event invites from your friends and hosts will appear here.",
       "invitedBadge": "Invited",
       "noteFromHost": "Note from host:",
       "loadFailed": "Failed to load invitations.",
@@ -984,7 +992,7 @@
         },
         "FAVORITE_FINDER": {
           "name": "Favorite Finder",
-          "description": "Saved your first favorite location."
+          "description": "Saved 3 favorite locations."
         }
       }
     },

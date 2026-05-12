@@ -42,7 +42,7 @@ describe('useInvitationsViewModel', () => {
     });
   });
 
-  it('fetches invitations on mount', async () => {
+  it('fetches pending invitations on mount and ignores past invitations', async () => {
     const mockInvitations = {
       pending: [
         {
@@ -76,9 +76,8 @@ describe('useInvitationsViewModel', () => {
     await act(async () => {}); // Wait for useEffect
 
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.invitations).toHaveLength(2);
+    expect(result.current.invitations).toHaveLength(1);
     expect(result.current.invitations[0].invitation_id).toBe('inv-1');
-    expect(result.current.invitations[1].invitation_id).toBe('inv-accepted');
   });
 
   it('handles errors during fetch', async () => {
@@ -94,7 +93,7 @@ describe('useInvitationsViewModel', () => {
     expect(result.current.error).toBe('Failed to load');
   });
 
-  it('marks invitation accepted after successful accept', async () => {
+  it('removes invitation after successful accept', async () => {
     const mockInvitations = {
       pending: [
         { invitation_id: 'inv-1', status: 'PENDING', event: { title: 'E1' }, host: { username: 'h1' } },
@@ -116,12 +115,11 @@ describe('useInvitationsViewModel', () => {
       await result.current.handleAccept('inv-1');
     });
 
-    expect(result.current.invitations).toHaveLength(1);
-    expect(result.current.invitations[0].status).toBe('ACCEPTED');
+    expect(result.current.invitations).toHaveLength(0);
     expect(mockInvitationService.acceptInvitation).toHaveBeenCalledWith('inv-1', mockToken);
   });
 
-  it('marks invitation declined after successful decline', async () => {
+  it('removes invitation after successful decline', async () => {
     const mockInvitations = {
       pending: [
         { invitation_id: 'inv-1', status: 'PENDING', event: { title: 'E1' }, host: { username: 'h1' } },
@@ -141,8 +139,7 @@ describe('useInvitationsViewModel', () => {
       await result.current.handleDecline('inv-1');
     });
 
-    expect(result.current.invitations).toHaveLength(1);
-    expect(result.current.invitations[0].status).toBe('DECLINED');
+    expect(result.current.invitations).toHaveLength(0);
     expect(mockInvitationService.declineInvitation).toHaveBeenCalledWith('inv-1', mockToken);
   });
 });
