@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import PointLocationPicker from '@/components/PointLocationPicker';
 import RoutePointsEditor from '@/components/RoutePointsEditor';
 import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import { MAX_CONSTRAINTS } from '@/viewmodels/event/useCreateEventViewModel';
@@ -61,12 +62,34 @@ function CriticalChangeModal({
   );
 }
 
+function EditSuccessModal({
+  message,
+  onGoToEvent,
+}: {
+  message: string;
+  onGoToEvent: () => void;
+}) {
+  return (
+    <div className="ce-popup-overlay" role="presentation">
+      <div className="ce-popup" role="dialog" aria-modal="true" aria-labelledby="edit-success-title">
+        <div className="ce-popup-icon">&#10003;</div>
+        <h2 id="edit-success-title" className="ce-popup-title">Event Updated</h2>
+        <p className="ce-popup-message">{message}</p>
+        <button type="button" className="btn-primary ce-popup-btn" onClick={onGoToEvent}>
+          Back to Event
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function EditEventPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const vm = useEditEventViewModel(id);
   const [pendingPreview, setPendingPreview] = useState<EditEventChangePreview | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const busy = vm.isLoading || vm.isSaving;
 
   const handleSubmit = (e: FormEvent) => {
@@ -79,7 +102,10 @@ export default function EditEventPage() {
   const confirmSubmit = async () => {
     if (!pendingPreview) return;
     const result = await vm.handleSubmit(pendingPreview.request);
-    if (result) setPendingPreview(null);
+    if (result) {
+      setPendingPreview(null);
+      setShowSuccessModal(true);
+    }
   };
 
   if (vm.isLoading) {
@@ -114,6 +140,12 @@ export default function EditEventPage() {
           onConfirm={confirmSubmit}
         />
       )}
+      {showSuccessModal && vm.successMessage && (
+        <EditSuccessModal
+          message={vm.successMessage}
+          onGoToEvent={() => navigate(`/events/${vm.event?.id}`, { replace: true })}
+        />
+      )}
 
       <Link className="ce-edit-back-link" to={`/events/${vm.event.id}`}>
         &larr; {t('edit_event.back_to_event')}
@@ -121,11 +153,6 @@ export default function EditEventPage() {
       <h1 className="create-event-title">{t('edit_event.title')}</h1>
       <p className="create-event-subtitle">{t('edit_event.subtitle')}</p>
 
-      {vm.successMessage && (
-        <div className="success-banner" role="status">
-          {vm.successMessage}
-        </div>
-      )}
       {vm.apiError && <div className="error-banner">{vm.apiError}</div>}
 
       {!vm.canEdit && (
@@ -238,6 +265,13 @@ export default function EditEventPage() {
                 {t('edit_event.selected_coordinates', { lat: vm.form.lat.toFixed(5), lon: vm.form.lon.toFixed(5) })}
               </p>
             )}
+            <PointLocationPicker
+              lat={vm.form.lat}
+              lon={vm.form.lon}
+              address={vm.form.address}
+              disabled={busy || !vm.canEdit}
+              onSelect={vm.selectLocation}
+            />
             {vm.errors.location && <p className="field-error">{vm.errors.location}</p>}
           </div>
         ) : (

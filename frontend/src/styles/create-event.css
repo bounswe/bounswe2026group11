@@ -930,6 +930,42 @@
   font-size: 14px;
 }
 
+.ce-point-map {
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.ce-point-map-surface {
+  width: 100%;
+  height: 260px;
+}
+
+.ce-point-map-footer {
+  padding: 10px 12px;
+  border-top: 1px solid #e5e7eb;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ce-point-map-placeholder {
+  margin-top: 10px;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  font-size: 14px;
+}
+
 .ce-route-list-header {
   font-size: 12px;
   font-weight: 700;
@@ -1086,4 +1122,22 @@
   font-weight: 800;
   color: #ffffff;
   line-height: 1;
+}
+
+.ce-point-marker {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.15);
+}
+
+.ce-point-marker span {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 3px solid #ffffff;
+  background: #111827;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }

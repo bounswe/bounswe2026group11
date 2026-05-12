@@ -9,6 +9,7 @@ import {
 } from '@/viewmodels/event/useCreateEventViewModel';
 import type { PreferredGender, LocationType } from '@/models/event';
 import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
+import PointLocationPicker from '@/components/PointLocationPicker';
 import RoutePointsEditor from '@/components/RoutePointsEditor';
 import '@/styles/create-event.css';
 
@@ -429,6 +430,16 @@ function CreateEventForm() {
               {vm.form.address && (
                 <p className="ce-selected-location">{vm.form.address}</p>
               )}
+              <PointLocationPicker
+                lat={vm.form.lat}
+                lon={vm.form.lon}
+                address={vm.form.address}
+                disabled={busy}
+                onSelect={(suggestion) => {
+                  vm.touchField('location');
+                  vm.selectLocation(suggestion);
+                }}
+              />
             </>
           ) : (
             <RoutePointsEditor

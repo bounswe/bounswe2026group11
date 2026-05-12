@@ -2,7 +2,7 @@ export interface EventSummary {
   id: string;
   title: string;
   start_time: string;
-  end_time?: string;
+  end_time?: string | null;
   status: string;
   category?: string;
   category_name?: string;

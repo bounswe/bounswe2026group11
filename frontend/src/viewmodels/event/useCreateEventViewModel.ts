@@ -395,6 +395,7 @@ export function useCreateEventViewModel() {
       lon: parseFloat(suggestion.lon),
     }));
     setLocationResults([]);
+    setErrors((prev) => ({ ...prev, location: undefined }));
   }, []);
 
   const addTag = useCallback(() => {
