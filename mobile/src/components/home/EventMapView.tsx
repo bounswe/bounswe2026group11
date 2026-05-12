@@ -50,6 +50,7 @@ interface EventMapViewProps {
   filterRadiusMeters?: number;
   currentLocation?: MapCoordinate | null;
   onMarkerPress: (eventId: string) => void;
+  onSearchArea?: (coordinate: MapCoordinate) => void;
   /** Extra top pixels to add to map padding (e.g. safe-area inset when map is full-screen). */
   headerTopInset?: number;
 }
@@ -95,6 +96,7 @@ const ANDROID_MARKER_TRACKING_SETTLE_MS = 650;
 const EARTH_RADIUS_METERS = 6371008.8;
 const RADIUS_BOUNDARY_SEGMENTS = 144;
 const RADIUS_BOUNDARY_DASH_PATTERN = [1, 10];
+const SEARCH_AREA_MIN_DISTANCE_METERS = 700;
 
 function hasMappableCoordinate(
   event: EventSummary,
@@ -196,6 +198,16 @@ function buildMapItems(
 function getImageUrl(event: EventSummary): string | null {
   const imageUrl = event.image_url?.trim();
   return imageUrl && imageUrl.length > 0 ? imageUrl : null;
+}
+
+function getDistanceMeters(left: MapCoordinate, right: MapCoordinate): number {
+  const latMeters = (left.lat - right.lat) * 111_320;
+  const lonMeters =
+    (left.lon - right.lon) *
+    111_320 *
+    Math.cos((((left.lat + right.lat) / 2) * Math.PI) / 180);
+
+  return Math.hypot(latMeters, lonMeters);
 }
 
 function buildRadiusBoundaryCoordinates(
@@ -643,6 +655,7 @@ export default function EventMapView({
   filterRadiusMeters = 0,
   currentLocation = null,
   onMarkerPress,
+  onSearchArea,
   headerTopInset = 0,
 }: EventMapViewProps) {
   const { theme, isDark } = useTheme();
@@ -771,6 +784,20 @@ export default function EventMapView({
     }),
     [filterCenter?.lat, filterCenter?.lon, region.latitude, region.longitude],
   );
+  const visibleCenterCoordinate = useMemo(
+    () => ({
+      lat: visibleRegion.latitude,
+      lon: visibleRegion.longitude,
+    }),
+    [visibleRegion.latitude, visibleRegion.longitude],
+  );
+  const shouldShowSearchAreaButton =
+    Boolean(onSearchArea) &&
+    getDistanceMeters(visibleCenterCoordinate, filterCenterCoordinate) >
+      Math.max(SEARCH_AREA_MIN_DISTANCE_METERS, filterRadiusMeters * 0.12);
+  const handleSearchArea = useCallback(() => {
+    onSearchArea?.(visibleCenterCoordinate);
+  }, [onSearchArea, visibleCenterCoordinate]);
   const radiusBoundaryCoordinates = useMemo(
     () =>
       filterRadiusMeters > 0
@@ -898,6 +925,25 @@ export default function EventMapView({
         </TouchableOpacity>
       ) : null}
 
+      {shouldShowSearchAreaButton ? (
+        <TouchableOpacity
+          style={[
+            styles.searchAreaButton,
+            { top: headerTopInset + 170 },
+          ]}
+          onPress={handleSearchArea}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.map.searchThisArea')}
+          activeOpacity={0.88}
+          testID="search-this-area-button"
+        >
+          <Feather name="search" size={16} color={theme.textOnPrimary} />
+          <Text style={styles.searchAreaButtonText}>
+            {t('home.map.searchThisArea')}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+
       {!isLoading && !hasMappableEvents && (
         <View
           style={[
@@ -983,6 +1029,28 @@ function makeStyles(t: Theme) {
       shadowOpacity: 0.18,
       shadowRadius: 8,
       elevation: 6,
+    },
+    searchAreaButton: {
+      position: 'absolute',
+      alignSelf: 'center',
+      minHeight: 42,
+      paddingHorizontal: 16,
+      borderRadius: 21,
+      backgroundColor: t.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.18,
+      shadowRadius: 8,
+      elevation: 7,
+    },
+    searchAreaButtonText: {
+      color: t.textOnPrimary,
+      fontSize: 14,
+      fontWeight: '700',
     },
     androidCalloutLayer: {
       position: 'absolute',

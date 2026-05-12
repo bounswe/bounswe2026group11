@@ -165,6 +165,7 @@ function buildViewModel(overrides: Partial<HomeViewModel> = {}): HomeViewModel {
     activeLocation: { lat: 41.0422, lon: 29.0083 },
     currentLocation: null,
     toggleViewMode: jest.fn(),
+    searchMapArea: jest.fn(),
     updateSearchText: jest.fn(),
     submitSearch: jest.fn(),
     toggleCategory: jest.fn(),

@@ -165,7 +165,9 @@
       "emptySubtitle": "Try panning the map or adjusting filters. Some events may be hidden due to age or gender restrictions.",
       "participants": "{{count}} going",
       "participantsWithCapacity": "{{count}} / {{capacity}} going",
-      "calloutHint": "Tap to view details →"
+      "calloutHint": "Tap to view details →",
+      "searchThisArea": "Search this area",
+      "searchedAreaLocation": "Selected map area"
     },
     "filtersSheet": {
       "title": "Filters",

@@ -370,6 +370,7 @@ export interface HomeViewModel {
   activeLocation: { lat: number; lon: number };
   currentLocation: { lat: number; lon: number } | null;
   toggleViewMode: () => void;
+  searchMapArea: (coordinate: { lat: number; lon: number }) => void;
   updateSearchText: (value: string) => void;
   submitSearch: () => void;
   toggleCategory: (categoryId: number) => void;
@@ -979,6 +980,14 @@ export function useHomeViewModel(): HomeViewModel {
     await loadEvents('refresh');
   }, [loadEvents]);
 
+  const searchMapArea = useCallback((coordinate: { lat: number; lon: number }) => {
+    setSelectedLocation({
+      display_name: i18n.t('home.map.searchedAreaLocation'),
+      lat: String(coordinate.lat),
+      lon: String(coordinate.lon),
+    });
+  }, []);
+
   const retryFavoriteLocations = useCallback(async () => {
     await fetchFavoriteLocations();
   }, [fetchFavoriteLocations]);
@@ -1079,6 +1088,7 @@ export function useHomeViewModel(): HomeViewModel {
       }
       : null,
     toggleViewMode,
+    searchMapArea,
     defaultLocationOption: {
       title: i18n.t('home.locationPicker.useDefaultLocation'),
       subtitle: getDefaultLocationSubtitle(

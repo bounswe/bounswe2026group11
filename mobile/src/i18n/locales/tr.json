@@ -165,7 +165,9 @@
       "emptySubtitle": "Haritayı kaydırmayı ya da filtreleri değiştirmeyi dene. Bazı etkinlikler yaş veya cinsiyet kısıtları nedeniyle gizlenmiş olabilir.",
       "participants": "{{count}} katılıyor",
       "participantsWithCapacity": "{{count}} / {{capacity}} katılıyor",
-      "calloutHint": "Detayları görmek için dokun →"
+      "calloutHint": "Detayları görmek için dokun →",
+      "searchThisArea": "Bu alanda ara",
+      "searchedAreaLocation": "Seçili harita alanı"
     },
     "filtersSheet": {
       "title": "Filtreler",
