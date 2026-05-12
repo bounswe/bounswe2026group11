@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import RoutePointsEditor from '@/components/RoutePointsEditor';
+import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import { MAX_CONSTRAINTS } from '@/viewmodels/event/useCreateEventViewModel';
 import {
   type EditEventChangePreview,
@@ -169,7 +170,7 @@ export default function EditEventPage() {
 
         <div className="field-group">
           <label className="field-label" htmlFor="edit-category">
-            Category <RequiredMark />
+            {t('create_event.category')} <RequiredMark />
           </label>
           <select
             id="edit-category"
@@ -180,7 +181,9 @@ export default function EditEventPage() {
           >
             <option value="">{t('edit_event.select_category')}</option>
             {vm.categories.map((category) => (
-              <option key={category.id} value={category.id}>{category.name}</option>
+              <option key={category.id} value={category.id}>
+                {getEventCategoryPresentation(category.name, false).label}
+              </option>
             ))}
           </select>
           {vm.errors.categoryId && <p className="field-error">{vm.errors.categoryId}</p>}

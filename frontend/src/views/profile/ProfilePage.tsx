@@ -1,6 +1,6 @@
 import '@/styles/profile.css';
 import '@/styles/discover.css';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
@@ -11,6 +11,7 @@ import { RatingWithCount } from '@/components/RatingWithCount';
 import { profileService } from '@/services/profileService';
 import { useProfileViewModel } from '../../viewmodels/profile/useProfileViewModel';
 import type { BadgeCategory, CatalogBadge, EarnedBadge, EventSummary } from '../../models/profile';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import { formatEventLocation } from '@/utils/eventLocation';
@@ -89,7 +90,7 @@ function BadgeCard({
         <BadgeIcon badge={badge} />
         {!badge.earned && <span className="profile-badge-lock" aria-label={i18n.t('profile.locked')}>🔒</span>}
       </span>
-      <span className="profile-badge-name">{badge.name}</span>
+      <span className="profile-badge-name">{i18n.t(`profile.badge_names.${badge.slug}`, { defaultValue: badge.name })}</span>
       <span className="profile-badge-date">
         {badge.earned_at ? formatBadgeDate(badge.earned_at) : i18n.t('profile.not_earned')}
       </span>
@@ -126,7 +127,7 @@ function BadgeDetail({
           <BadgeIcon badge={badge} />
           {!badge.earned && <span className="profile-badge-lock detail" aria-label={i18n.t('profile.locked')}>🔒</span>}
         </span>
-        <h3>{badge.name}</h3>
+        <h3>{i18n.t(`profile.badge_names.${badge.slug}`, { defaultValue: badge.name })}</h3>
         <p className="profile-badge-detail-category">{i18n.t(BADGE_CATEGORY_LABELS[badge.category] ?? badge.category)}</p>
         <p className="profile-badge-detail-description">{badge.description}</p>
         <p className="profile-badge-detail-status">
@@ -539,7 +540,7 @@ function ChangePasswordSection({
 export default function ProfilePage() {
   const { token } = useAuth();
   const { t } = useTranslation();
-  const { locale, setLocale } = useLocale();
+  const { locale } = useLocale();
   const {
     profile,
     publicProfile,
@@ -607,6 +608,18 @@ export default function ProfilePage() {
   const [activeHistoryTab, setActiveHistoryTab] = useState<ProfileHistoryTab>('hosted');
   const [isLocaleSaving, setIsLocaleSaving] = useState(false);
   const [localeError, setLocaleError] = useState<string | null>(null);
+  const prevLocaleRef = useRef(locale);
+
+  useEffect(() => {
+    if (prevLocaleRef.current === locale) return;
+    prevLocaleRef.current = locale;
+    if (!token) return;
+    setIsLocaleSaving(true);
+    setLocaleError(null);
+    profileService.updateMyProfile({ locale }, token)
+      .catch(() => setLocaleError(t('profile.language_sync_failed')))
+      .finally(() => setIsLocaleSaving(false));
+  }, [locale, token, t]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const showcaseInputRef = useRef<HTMLInputElement>(null);
@@ -632,22 +645,6 @@ export default function ProfilePage() {
     }
     void handleShowcaseUpload(file);
     e.target.value = '';
-  };
-
-  const handleLocaleChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const nextLocale = event.target.value === 'tr' ? 'tr' : 'en';
-    setLocaleError(null);
-    setIsLocaleSaving(true);
-    await setLocale(nextLocale);
-    try {
-      if (token) {
-        await profileService.updateMyProfile({ locale: nextLocale }, token);
-      }
-    } catch {
-      setLocaleError(t('profile.language_sync_failed'));
-    } finally {
-      setIsLocaleSaving(false);
-    }
   };
 
   if (isLoading) {
@@ -867,27 +864,17 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      <section className="profile-card" style={{ marginBottom: '1.5rem' }}>
-        <div className="profile-info">
-          <div className="info-group">
-            <label htmlFor="profile-language">{t('profile.language_label')}</label>
-            <select
-              id="profile-language"
-              value={locale}
-              onChange={handleLocaleChange}
-              disabled={isLocaleSaving}
-            >
-              <option value="en">{t('profile.language_en')}</option>
-              <option value="tr">{t('profile.language_tr')}</option>
-            </select>
-            <p className="discover-help-text" style={{ marginTop: '0.5rem' }}>
+      <section className="profile-language-card" style={{ marginBottom: '1.5rem' }}>
+        <div className="profile-language-row">
+          <div className="profile-language-text">
+            <span className="profile-language-label">{t('profile.language_label')}</span>
+            <span className="profile-language-hint">
               {isLocaleSaving ? t('profile.language_saving') : t('profile.language_subtitle')}
-            </p>
-            {localeError ? (
-              <p className="field-error" role="alert">{localeError}</p>
-            ) : null}
+            </span>
           </div>
+          <LanguageSwitcher />
         </div>
+        {localeError && <p className="field-error" role="alert" style={{ marginTop: '0.5rem' }}>{localeError}</p>}
       </section>
 
       {error && (

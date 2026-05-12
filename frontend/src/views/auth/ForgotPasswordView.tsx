@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useForgotPasswordViewModel } from '@/viewmodels/auth/useForgotPasswordViewModel';
 import '@/styles/auth.css';
 
@@ -27,6 +28,9 @@ export default function ForgotPasswordView() {
   return (
     <div className="auth-page">
       <div className="auth-card">
+        <div className="auth-card-controls">
+          <LanguageSwitcher />
+        </div>
         {vm.step === 'request' && (
           <>
             <h1 className="auth-title">{t('auth.forgot_password.request_title')}</h1>

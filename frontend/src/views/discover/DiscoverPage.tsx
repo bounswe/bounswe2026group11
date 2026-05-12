@@ -838,6 +838,7 @@ export default function DiscoverPage() {
       >
         {visibleCategories.map((cat) => {
           const isSelected = vm.filters.categoryIds.includes(cat.id);
+          const categoryLabel = getEventCategoryPresentation(cat.name, false).label;
           return (
             <button
               key={cat.id}
@@ -845,7 +846,7 @@ export default function DiscoverPage() {
               className={`dc-category-chip ${isSelected ? 'selected' : ''}`}
               onClick={() => vm.updateCategory(cat.id)}
             >
-              {cat.name}
+              {categoryLabel}
               {isSelected && (
                 <span className="dc-category-chip-remove" aria-hidden="true" style={{ marginLeft: '4px' }}>
                   ×

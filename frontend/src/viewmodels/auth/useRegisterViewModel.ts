@@ -15,6 +15,7 @@ import {
   validateBirthDate,
 } from '@/utils/validators';
 import i18n from '@/i18n';
+import { getAuthApiErrorMessage, getAuthApiFieldErrors } from '@/utils/authErrorPresentation';
 
 export type RegisterStep = 'details' | 'otp';
 
@@ -116,7 +117,13 @@ export function useRegisterViewModel() {
       setStep('otp');
     } catch (err) {
       if (err instanceof ApiError) {
-        setApiError(err.message);
+        const fieldErrors = getAuthApiFieldErrors(err);
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors((prev) => ({ ...prev, ...fieldErrors }));
+          setApiError(null);
+        } else {
+          setApiError(getAuthApiErrorMessage(err));
+        }
       } else {
         setApiError(i18n.t('errors.unexpected'));
       }
@@ -146,11 +153,20 @@ export function useRegisterViewModel() {
       });
     } catch (err) {
       if (err instanceof ApiError) {
+        const localizedMessage = getAuthApiErrorMessage(err);
+        const fieldErrors = getAuthApiFieldErrors(err);
         if (OTP_ERROR_CODES.has(err.code)) {
           setFormData((prev) => ({ ...prev, otp: '' }));
-          setErrors({ otp: err.message });
+          setErrors({ otp: localizedMessage });
+          setApiError(null);
+          return null;
         }
-        setApiError(err.message);
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors((prev) => ({ ...prev, ...fieldErrors }));
+          setApiError(null);
+        } else {
+          setApiError(localizedMessage);
+        }
       } else {
         setApiError(i18n.t('errors.unexpected'));
       }

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { isSupportedLocale, setCurrentLocale } from '@/i18n';
-import { setTokenRefreshManager } from '@/services/api';
+import { ApiError, setTokenRefreshManager } from '@/services/api';
 import { profileService } from '@/services/profileService';
 import type { UserRole } from '@/models/auth';
 
@@ -141,13 +141,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        if (!cancelled && err instanceof ApiError && (err.status === 401 || err.status === 403 || err.status === 404)) {
+          clearAuth();
+          return;
+        }
         /* keep cached profile summary from localStorage */
       });
     return () => {
       cancelled = true;
     };
-  }, [token, setProfileSummary]);
+  }, [token, setProfileSummary, clearAuth]);
 
   useEffect(() => {
     setTokenRefreshManager({

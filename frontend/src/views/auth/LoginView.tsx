@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLoginViewModel } from '@/viewmodels/auth/useLoginViewModel';
 import { useAuth } from '@/contexts/AuthContext';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import SemLogo from '@/components/SemLogo';
 import '@/styles/auth.css';
 
@@ -24,6 +25,9 @@ export default function LoginView() {
   return (
     <div className="auth-page">
       <div className="auth-card">
+        <div className="auth-card-controls">
+          <LanguageSwitcher />
+        </div>
         <div className="auth-brand">
           <SemLogo height={76} color="#111827" />
         </div>

@@ -129,6 +129,10 @@
   gap: 8px;
 }
 
+.shell-language-switcher {
+  margin-right: 4px;
+}
+
 .shell-theme-btn {
   width: 40px;
   height: 40px;
@@ -511,6 +515,10 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .shell-language-switcher {
+    display: none;
+  }
+
   .shell-nav {
     flex-direction: column;
     position: fixed;

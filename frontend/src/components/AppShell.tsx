@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDiscoverViewMode } from '@/contexts/DiscoverViewModeContext';
 import { UserAvatar } from '@/components/UserAvatar';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { logout } from '@/services/authService';
 import SemLogo from '@/components/SemLogo';
 import { useUnreadCountViewModel } from '@/viewmodels/notifications/useUnreadCountViewModel';
@@ -105,6 +106,7 @@ export default function AppShell() {
           </nav>
 
           <div className="shell-header-right">
+            {!isLoggedIn && <LanguageSwitcher className="shell-language-switcher" />}
             {isDiscoverRoute && (
               <div className="shell-view-toggle" role="group" aria-label={t('shell.discover_view_mode')}>
                 <button

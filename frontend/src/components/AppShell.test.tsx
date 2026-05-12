@@ -2,6 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { LocaleProvider } from '@/contexts/LocaleContext';
+import { setCurrentLocale } from '@/i18n';
 import AppShell from './AppShell';
 
 vi.mock('@/contexts/AuthContext', () => ({
@@ -18,18 +20,21 @@ const mockUseAuth = useAuth as ReturnType<typeof vi.fn>;
 
 function renderShell() {
   return render(
-    <MemoryRouter initialEntries={['/discover']}>
-      <Routes>
-        <Route element={<AppShell />}>
-          <Route path="/discover" element={<div>Discover</div>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <LocaleProvider>
+      <MemoryRouter initialEntries={['/discover']}>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route path="/discover" element={<div>Discover</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </LocaleProvider>,
   );
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  return setCurrentLocale('en');
 });
 
 afterEach(() => {

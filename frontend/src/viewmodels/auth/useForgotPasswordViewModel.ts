@@ -5,6 +5,8 @@ import {
   resetPassword,
 } from '@/services/authService';
 import i18n from '@/i18n';
+import { ApiError } from '@/services/api';
+import { getAuthApiErrorMessage, getAuthApiFieldErrors } from '@/utils/authErrorPresentation';
 
 export type ForgotPasswordStep = 'request' | 'verify' | 'reset' | 'success';
 
@@ -82,11 +84,18 @@ export function useForgotPasswordViewModel() {
       await requestPasswordResetOtp({ email });
       setStep('verify');
       return true;
-    } catch (err: any) {
-      setApiError(
-        err.response?.data?.error?.message ||
-          i18n.t('errors.send_code_failed'),
-      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const fieldErrors = getAuthApiFieldErrors(err);
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors((prev) => ({ ...prev, ...fieldErrors }));
+          setApiError(null);
+        } else {
+          setApiError(getAuthApiErrorMessage(err));
+        }
+      } else {
+        setApiError(i18n.t('errors.send_code_failed'));
+      }
       return false;
     } finally {
       setIsLoading(false);
@@ -103,11 +112,18 @@ export function useForgotPasswordViewModel() {
       setResetToken(res.reset_token);
       setStep('reset');
       return true;
-    } catch (err: any) {
-      setApiError(
-        err.response?.data?.error?.message ||
-          i18n.t('errors.invalid_verification_code'),
-      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const fieldErrors = getAuthApiFieldErrors(err);
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors((prev) => ({ ...prev, ...fieldErrors }));
+          setApiError(null);
+        } else {
+          setApiError(getAuthApiErrorMessage(err));
+        }
+      } else {
+        setApiError(i18n.t('errors.invalid_verification_code'));
+      }
       return false;
     } finally {
       setIsLoading(false);
@@ -127,11 +143,18 @@ export function useForgotPasswordViewModel() {
       });
       setStep('success');
       return true;
-    } catch (err: any) {
-      setApiError(
-        err.response?.data?.error?.message ||
-          i18n.t('errors.reset_password_failed'),
-      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const fieldErrors = getAuthApiFieldErrors(err);
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors((prev) => ({ ...prev, ...fieldErrors }));
+          setApiError(null);
+        } else {
+          setApiError(getAuthApiErrorMessage(err));
+        }
+      } else {
+        setApiError(i18n.t('errors.reset_password_failed'));
+      }
       return false;
     } finally {
       setIsLoading(false);

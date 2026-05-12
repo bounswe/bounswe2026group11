@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { setCurrentLocale } from '@/i18n';
 import { useDiscoverViewModel } from './useDiscoverViewModel';
 
 const mockDiscoverEvents = vi.fn();
@@ -31,6 +32,39 @@ describe('useDiscoverViewModel persistence', () => {
         has_next: false,
       },
     });
+  });
+
+  it('localizes the short label for browser-based locations', async () => {
+    await setCurrentLocale('tr');
+    window.sessionStorage.setItem(
+      'sem_discover_state',
+      JSON.stringify({
+        filters: {
+          q: '',
+          categoryIds: [],
+          sortBy: 'SOONEST',
+          radiusMeters: 5000,
+          minimumAge: null,
+          privacy: 'ANY',
+          startFrom: '',
+          startTo: '',
+          childFriendly: false,
+          familyOriented: false,
+        },
+        debouncedQ: '',
+        selectedLocation: {
+          display_name: 'Besiktas, Istanbul (your location)',
+          lat: '41.0422',
+          lon: '29.0083',
+        },
+      }),
+    );
+
+    const { result } = renderHook(() => useDiscoverViewModel(null));
+
+    await waitFor(() => expect(mockDiscoverEvents).toHaveBeenCalled());
+
+    expect(result.current.locationShortLabel).toBe('Yakınında');
   });
 
   it('restores selected location and active query context from the current session', async () => {

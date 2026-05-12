@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import concertImg from '@/assets/concert.png';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import SemLogo from '@/components/SemLogo';
 import '@/styles/landing.css';
 
@@ -128,6 +129,9 @@ export default function LandingPage() {
       {/* Right — actions + dot animation */}
       <div className="landing-right">
         <DotCanvas />
+        <div className="landing-language-switcher">
+          <LanguageSwitcher />
+        </div>
 
         <div className="landing-content">
           <div className="landing-logo">

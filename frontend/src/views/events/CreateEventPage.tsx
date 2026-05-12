@@ -8,6 +8,7 @@ import {
   MAX_CONSTRAINTS,
 } from '@/viewmodels/event/useCreateEventViewModel';
 import type { PreferredGender, LocationType } from '@/models/event';
+import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import RoutePointsEditor from '@/components/RoutePointsEditor';
 import '@/styles/create-event.css';
 
@@ -320,7 +321,7 @@ function CreateEventForm() {
                 }}
                 disabled={busy}
               >
-                {cat.name}
+                {getEventCategoryPresentation(cat.name, false).label}
               </button>
             ))}
           </div>

@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as authService from '@/services/authService';
 import type { AuthSessionResponse } from '@/models/auth';
+import { setCurrentLocale } from '@/i18n';
 import { useRegisterViewModel } from './useRegisterViewModel';
 
 vi.mock('@/services/authService');
@@ -48,8 +49,9 @@ async function fillDetailsForm(vm: ReturnType<typeof useRegisterViewModel>) {
 }
 
 describe('useRegisterViewModel', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    await setCurrentLocale('en');
     mockCheck.mockResolvedValue({
       username: 'AVAILABLE',
       email: 'AVAILABLE',
