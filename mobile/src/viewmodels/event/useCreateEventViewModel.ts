@@ -1143,7 +1143,10 @@ export function useCreateEventViewModel(): CreateEventViewModel {
         .filter((u) => u.length > 0 && /^[a-zA-Z0-9._]+$/.test(u) && u !== user?.username);
 
       if (usernames.length === 0) {
-        Alert.alert('Invalid File', 'No valid usernames found in the file.');
+        Alert.alert(
+          i18n.t('events.create.importUsers.invalidFileTitle'),
+          i18n.t('events.create.importUsers.noValidUsernames'),
+        );
         return;
       }
 
@@ -1152,10 +1155,16 @@ export function useCreateEventViewModel(): CreateEventViewModel {
         return [...new Set(combined)];
       });
 
-      Alert.alert('Success', `Added ${usernames.length} usernames from file.`);
+      Alert.alert(
+        i18n.t('events.create.importUsers.successTitle'),
+        i18n.t('events.create.importUsers.successBody', { count: usernames.length }),
+      );
     } catch (error) {
       console.error('File read error:', error);
-      Alert.alert('Error', 'Failed to read the selected file.');
+      Alert.alert(
+        i18n.t('events.create.importUsers.errorTitle'),
+        i18n.t('events.create.importUsers.readFailed'),
+      );
     }
   }, []);
 
@@ -1347,7 +1356,7 @@ export function useCreateEventViewModel(): CreateEventViewModel {
           }
           setApiError(err.message);
         } else {
-          setApiError('An unexpected error occurred. Please try again.');
+          setApiError(i18n.t('events.create.errors.unexpected'));
         }
         return null;
       } finally {

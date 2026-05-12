@@ -47,6 +47,7 @@ import {
   getEventReportImageUploadUrl,
   uploadFileToPresignedUrl,
 } from '@/services/eventService';
+import i18n from '@/i18n';
 
 export type ActionState =
   | 'idle'
@@ -403,7 +404,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
   const fetchEvent = useCallback(
     async (silent = false) => {
       if (!token) {
-        setApiError('You must be logged in to view this event.');
+        setApiError(i18n.t('events.detail.errors.loginRequired'));
         if (!silent) setIsLoading(false);
         return;
       }
@@ -428,7 +429,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
               'This event is private and only accessible to invited guests. If you don\'t have a valid invitation or if you have previously declined one, you cannot view the details.',
             );
           } else {
-            setApiError('Failed to load event details. Please try again.');
+            setApiError(i18n.t('events.detail.errors.loadFailed'));
           }
         }
       } finally {
@@ -617,7 +618,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (err && typeof err === 'object' && 'message' in err) {
         setActionError((err as { message: string }).message);
       } else {
-        setActionError('Failed to join the event. Please try again.');
+        setActionError(i18n.t('events.detail.errors.joinFailed'));
       }
     }
   }, [token, event, fetchEvent]);
@@ -642,7 +643,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (err && typeof err === 'object' && 'message' in err) {
         setActionError((err as { message: string }).message);
       } else {
-        setActionError('Failed to leave the event. Please try again.');
+        setActionError(i18n.t('events.detail.errors.leaveFailed'));
       }
     }
   }, [token, event, fetchEvent]);
@@ -684,7 +685,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
 
         return uploadInit.confirm_token;
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to upload image evidence.';
+        const msg = err instanceof Error ? err.message : i18n.t('events.detail.errors.uploadImageEvidenceFailed');
         setImageError(msg);
         throw err;
       } finally {
@@ -735,7 +736,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (err && typeof err === 'object' && 'message' in err) {
         setActionError((err as { message: string }).message);
       } else {
-        setActionError('Failed to send join request. Please try again.');
+        setActionError(i18n.t('events.detail.errors.joinRequestFailed'));
       }
     }
   }, [token, event, joinRequestMessage, selectedImageUri, uploadJoinRequestImage]);
@@ -756,11 +757,11 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (err instanceof ApiError && err.status === 409) {
         // Request no longer pending
         await fetchEvent(true);
-        setActionError('This request is no longer pending.');
+        setActionError(i18n.t('events.detail.errors.requestNoLongerPending'));
       } else if (err && typeof err === 'object' && 'message' in err) {
         setActionError((err as { message: string }).message);
       } else {
-        setActionError('Failed to cancel join request. Please try again.');
+        setActionError(i18n.t('events.detail.errors.cancelJoinRequestFailed'));
       }
     }
   }, [token, event, fetchEvent]);
@@ -796,17 +797,16 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (err instanceof ApiError) {
         const errorMap: Record<string, string> = {
           participation_reconfirm_not_allowed:
-            'This attendance update can no longer be reconfirmed. Please review the latest event status.',
+            i18n.t('events.detail.errors.reconfirmNotAllowed'),
           event_not_joinable:
-            'This event is no longer accepting attendance reconfirmations.',
-          host_cannot_join:
-            'Hosts do not need to reconfirm their own event.',
+            i18n.t('events.detail.errors.reconfirmEventNotJoinable'),
+          host_cannot_join: i18n.t('events.detail.errors.hostCannotReconfirm'),
         };
         setActionError(errorMap[err.code] ?? err.message);
       } else if (err && typeof err === 'object' && 'message' in err) {
         setActionError((err as { message: string }).message);
       } else {
-        setActionError('Failed to reconfirm your attendance. Please try again.');
+        setActionError(i18n.t('events.detail.errors.reconfirmFailed'));
       }
     }
   }, [token, event, fetchEvent]);
@@ -848,7 +848,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
 
         return uploadInit.confirm_token;
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to upload report evidence.';
+        const msg = err instanceof Error ? err.message : i18n.t('events.detail.errors.uploadReportEvidenceFailed');
         setImageError(msg);
         throw err;
       } finally {
@@ -861,7 +861,10 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
   const handleReportEvent = useCallback(async () => {
     if (!token || !event) return;
     if (!reportCategory) {
-      Alert.alert('Selection Required', 'Please select a reason for reporting this event.');
+      Alert.alert(
+        i18n.t('events.detail.report.selectionRequiredTitle'),
+        i18n.t('events.detail.report.selectionRequiredBody'),
+      );
       return;
     }
 
@@ -888,13 +891,16 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       setReportCategory(null);
       setReportMessage('');
       setReportImageUri(null);
-      Alert.alert('Report Submitted', 'Thank you for helping us keep the community safe. Our team will review your report shortly.');
+      Alert.alert(
+        i18n.t('events.detail.report.submittedTitle'),
+        i18n.t('events.detail.report.submittedBody'),
+      );
     } catch (err: unknown) {
       setActionState('idle');
-      let msg = 'Failed to submit report. Please try again.';
+      let msg = i18n.t('events.detail.report.submitFailed');
       if (err instanceof ApiError) {
         if (err.code === 'DUPLICATE_REPORT') {
-          msg = 'You have already reported this event.';
+          msg = i18n.t('events.detail.report.duplicateReport');
         } else if (err.code === 'validation_error' && err.details) {
           // Extract the first validation error detail if available
           const firstDetail = Object.values(err.details)[0];
@@ -906,7 +912,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         msg = (err as { message: string }).message;
       }
       setActionError(msg);
-      Alert.alert('Reporting Error', msg);
+      Alert.alert(i18n.t('events.detail.report.errorTitle'), msg);
     }
   }, [token, event, reportCategory, reportMessage, reportImageUri, uploadReportImage]);
 
@@ -920,7 +926,10 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
   const pickReportImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant permission to access your photo library.');
+      Alert.alert(
+        i18n.t('events.detail.image.permissionTitle'),
+        i18n.t('events.detail.image.permissionRequired'),
+      );
       return;
     }
 
@@ -935,7 +944,10 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         const prepared = await preparePickedImageUri(result.assets[0].uri);
         setReportImageUri(prepared);
       } catch (err) {
-        Alert.alert('Error', 'Failed to prepare selected image.');
+        Alert.alert(
+          i18n.t('events.detail.image.errorTitle'),
+          i18n.t('events.detail.image.prepareFailed'),
+        );
       }
     }
   }, []);
@@ -960,7 +972,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     try {
       const invitationID = await resolveCurrentInvitationID();
       if (!invitationID) {
-        throw new Error('This invitation is no longer available.');
+        throw new Error(i18n.t('events.detail.errors.invitationUnavailable'));
       }
 
       await acceptInvitation(invitationID, token);
@@ -972,7 +984,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (err && typeof err === 'object' && 'message' in err) {
         setActionError((err as { message: string }).message);
       } else {
-        setActionError('Failed to accept invitation. Please try again.');
+        setActionError(i18n.t('events.detail.errors.acceptInvitationFailed'));
       }
     }
   }, [event, fetchEvent, resolveCurrentInvitationID, token]);
@@ -986,14 +998,14 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     try {
       const invitationID = await resolveCurrentInvitationID();
       if (!invitationID) {
-        throw new Error('This invitation is no longer available.');
+        throw new Error(i18n.t('events.detail.errors.invitationUnavailable'));
       }
 
       await declineInvitation(invitationID, token);
       setParticipationStatus(null);
       setEvent(null);
       setApiError(
-        'You declined this private event invitation. The event detail is no longer available.',
+        i18n.t('events.detail.errors.privateInvitationDeclined'),
       );
       setActionState('idle');
     } catch (err: unknown) {
@@ -1001,7 +1013,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (err && typeof err === 'object' && 'message' in err) {
         setActionError((err as { message: string }).message);
       } else {
-        setActionError('Failed to decline invitation. Please try again.');
+        setActionError(i18n.t('events.detail.errors.declineInvitationFailed'));
       }
     }
   }, [event, resolveCurrentInvitationID, token]);
@@ -1031,7 +1043,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       setEvent((prev) =>
         prev ? { ...prev, favorite_count: previousCount } : prev,
       );
-      setActionError('Failed to update favorite. Please try again.');
+      setActionError(i18n.t('events.detail.errors.favoriteUpdateFailed'));
     }
   }, [token, event, isFavorited]);
 
@@ -1046,9 +1058,9 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       await fetchEvent(true);
     } catch (err: unknown) {
       if (err instanceof ApiError) {
-        setViewerRatingError(mapRatingError(err, 'Failed to save your rating. Please try again.'));
+        setViewerRatingError(mapRatingError(err, i18n.t('events.detail.errors.viewerRatingFailed')));
       } else {
-        setViewerRatingError('Failed to save your rating. Please try again.');
+        setViewerRatingError(i18n.t('events.detail.errors.viewerRatingFailed'));
       }
     } finally {
       setViewerRatingLoading(false);
@@ -1077,12 +1089,12 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (err instanceof ApiError) {
         setParticipantRatingError({
           participantUserId,
-          message: mapRatingError(err, 'Failed to save the participant rating. Please try again.'),
+          message: mapRatingError(err, i18n.t('events.detail.errors.participantRatingFailed')),
         });
       } else {
         setParticipantRatingError({
           participantUserId,
-          message: 'Failed to save the participant rating. Please try again.',
+          message: i18n.t('events.detail.errors.participantRatingFailed'),
         });
       }
     } finally {
@@ -1105,7 +1117,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         if (err && typeof err === 'object' && 'message' in err) {
           setActionError((err as { message: string }).message);
         } else {
-          setActionError('Failed to approve request.');
+          setActionError(i18n.t('events.detail.errors.approveRequestFailed'));
         }
       }
     },
@@ -1126,7 +1138,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         if (err && typeof err === 'object' && 'message' in err) {
           setActionError((err as { message: string }).message);
         } else {
-          setActionError('Failed to reject request.');
+          setActionError(i18n.t('events.detail.errors.rejectRequestFailed'));
         }
       }
     },
@@ -1142,7 +1154,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (err && typeof err === 'object' && 'message' in err) {
         setActionError((err as { message: string }).message);
       } else {
-        setActionError('Failed to cancel event.');
+        setActionError(i18n.t('events.detail.errors.cancelEventFailed'));
       }
     }
   }, [token, event, fetchEvent]);
@@ -1166,7 +1178,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
       if (err && typeof err === 'object' && 'message' in err) {
         setActionError((err as { message: string }).message);
       } else {
-        setActionError('Failed to revoke invitation.');
+        setActionError(i18n.t('events.detail.errors.revokeInvitationFailed'));
       }
     }
   }, [token, event, refreshHostContextSummary, loadMoreInvitations]);
@@ -1189,9 +1201,9 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        const message = 'Please allow access to your photo library to add an attachment.';
+        const message = i18n.t('events.detail.image.attachmentPermissionRequired');
         setImageError(message);
-        Alert.alert('Permission required', message);
+        Alert.alert(i18n.t('events.detail.image.permissionTitle'), message);
         return;
       }
 
@@ -1206,7 +1218,7 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
 
       const asset = result.assets[0];
       if (!asset?.uri) {
-        setImageError('We could not read the selected image. Please try a different one.');
+        setImageError(i18n.t('events.detail.image.readFailed'));
         return;
       }
 
@@ -1214,10 +1226,10 @@ export function useEventDetailViewModel(eventId: string): EventDetailViewModel {
         const preparedImageUri = await preparePickedImageUri(asset.uri);
         setSelectedImageUri(preparedImageUri);
       } catch {
-        setImageError('We could not process the selected image. Please try a different one.');
+        setImageError(i18n.t('events.detail.image.processFailed'));
       }
     } catch {
-      setImageError('We could not open your photo library. Please try again.');
+      setImageError(i18n.t('events.detail.image.openFailed'));
     }
   }, []);
 

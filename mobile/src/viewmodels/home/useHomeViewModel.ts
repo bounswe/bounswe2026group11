@@ -242,20 +242,20 @@ function validateFilterDates(filters: HomeFiltersDraft): string | null {
   if (startDate) {
     const parsedStart = parseStrictDate(startDate);
     if (!parsedStart) {
-      return 'From date must be a valid date.';
+      return i18n.t('home.errors.fromDateInvalid');
     }
     if (parsedStart < today) {
-      return 'From date must be today or later.';
+      return i18n.t('home.errors.fromDateTodayOrLater');
     }
   }
 
   if (endDate) {
     const parsedEnd = parseStrictDate(endDate);
     if (!parsedEnd) {
-      return 'To date must be a valid date.';
+      return i18n.t('home.errors.toDateInvalid');
     }
     if (parsedEnd < today) {
-      return 'To date must be today or later.';
+      return i18n.t('home.errors.toDateTodayOrLater');
     }
   }
 
@@ -264,7 +264,7 @@ function validateFilterDates(filters: HomeFiltersDraft): string | null {
     const parsedEnd = parseStrictDate(endDate);
 
     if (parsedStart && parsedEnd && parsedEnd < parsedStart) {
-      return 'To date must be the same as or later than From date.';
+      return i18n.t('home.errors.toDateAfterFrom');
     }
   }
 
@@ -288,14 +288,14 @@ function validateFilterDatesLive(filters: HomeFiltersDraft): string | null {
     if (digits.length >= 2) {
       const day = Number(digits.slice(0, 2));
       if (day < 1 || day > 31) {
-        return `${label} date day must be between 01 and 31.`;
+        return i18n.t('home.errors.dateDayRange', { label });
       }
     }
 
     if (digits.length >= 4) {
       const month = Number(digits.slice(2, 4));
       if (month < 1 || month > 12) {
-        return `${label} date month must be between 01 and 12.`;
+        return i18n.t('home.errors.dateMonthRange', { label });
       }
     }
 
@@ -303,11 +303,11 @@ function validateFilterDatesLive(filters: HomeFiltersDraft): string | null {
 
     const parsed = parseStrictDate(value);
     if (!parsed) {
-      return `${label} date must be a valid date.`;
+      return i18n.t('home.errors.dateInvalid', { label });
     }
 
     if (parsed < today) {
-      return `${label} date must be today or later.`;
+      return i18n.t('home.errors.dateTodayOrLater', { label });
     }
 
     return null;
@@ -324,7 +324,7 @@ function validateFilterDatesLive(filters: HomeFiltersDraft): string | null {
     const parsedEnd = parseStrictDate(endDate);
 
     if (parsedStart && parsedEnd && parsedEnd < parsedStart) {
-      return 'To date must be the same as or later than From date.';
+      return i18n.t('home.errors.toDateAfterFrom');
     }
   }
 
@@ -575,7 +575,7 @@ export function useHomeViewModel(): HomeViewModel {
       const response = await listCategories();
       setCategories(response.items);
     } catch {
-      setApiError('Failed to load categories. Please try again.');
+      setApiError(i18n.t('home.errors.categoriesLoadFailed'));
     }
   }, []);
 
@@ -588,7 +588,7 @@ export function useHomeViewModel(): HomeViewModel {
         setEvents([]);
         setHasMore(false);
         setNextCursor(null);
-        setApiError('You must be logged in to view events.');
+        setApiError(i18n.t('home.errors.loginRequired'));
         setIsLoading(false);
         setIsRefreshing(false);
         setIsLoadingMore(false);

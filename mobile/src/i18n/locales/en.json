@@ -117,6 +117,7 @@
   },
   "home": {
     "title": "Discover",
+    "loadingEvents": "Loading events...",
     "searchPlaceholder": "Search events…",
     "filters": "Filters",
     "noEvents": "No events here yet.",
@@ -193,7 +194,18 @@
       "apply": "Apply Filters"
     },
     "errors": {
-      "loadFailed": "Failed to load events. Please try again."
+      "loadFailed": "Failed to load events. Please try again.",
+      "categoriesLoadFailed": "Failed to load categories. Please try again.",
+      "loginRequired": "You must be logged in to view events.",
+      "fromDateInvalid": "From date must be a valid date.",
+      "fromDateTodayOrLater": "From date must be today or later.",
+      "toDateInvalid": "To date must be a valid date.",
+      "toDateTodayOrLater": "To date must be today or later.",
+      "toDateAfterFrom": "To date must be the same as or later than From date.",
+      "dateDayRange": "{{label}} date day must be between 01 and 31.",
+      "dateMonthRange": "{{label}} date month must be between 01 and 12.",
+      "dateInvalid": "{{label}} date must be a valid date.",
+      "dateTodayOrLater": "{{label}} date must be today or later."
     }
   },
   "events": {
@@ -272,6 +284,15 @@
       "showLess": "Show less",
       "submit": "Create Event",
       "successMessage": "Event created successfully!",
+      "importUsers": {
+        "invalidFileTitle": "Invalid File",
+        "noValidUsernames": "No valid usernames found in the file.",
+        "successTitle": "Success",
+        "successBody": "Added {{count}} usernames from file.",
+        "successBody_one": "Added {{count}} username from file.",
+        "errorTitle": "Error",
+        "readFailed": "Failed to read the selected file."
+      },
       "privacy": {
         "publicDesc": "Visible to everyone. Anyone can join without approval.",
         "protectedDesc": "Visible to everyone, but people must send a join request and wait for your approval.",
@@ -311,7 +332,8 @@
       },
       "errors": {
         "routeMinPoints": "Add at least {{count}} waypoints to create a route",
-        "routeMaxPoints": "A route can have at most {{count}} waypoints"
+        "routeMaxPoints": "A route can have at most {{count}} waypoints",
+        "unexpected": "An unexpected error occurred. Please try again."
       }
     },
     "edit": {
@@ -422,6 +444,8 @@
       "attendingReconfirmed": "You're attending with latest details",
       "requestPending": "Request sent — awaiting approval",
       "youAreInvited": "You're invited",
+      "acceptInvitation": "Accept Invitation",
+      "invitationResponsePending": "Invitation response pending",
       "eventFull": "Event is Full",
       "directions": "Get Directions",
       "directionsToStart": "Directions to Start",
@@ -432,6 +456,9 @@
       "pendingRequests": "Pending Requests",
       "inviteAndManage": "Invite & Manage",
       "cancelEvent": "Cancel Event",
+      "cancelEventConfirmBody": "Are you sure you want to cancel this event? This action cannot be undone.",
+      "keepEvent": "No, Keep It",
+      "confirmCancelEvent": "Yes, Cancel",
       "newHost": "New host",
       "hostRatingLabel": "Host {{rating}}",
       "about": "About",
@@ -459,13 +486,59 @@
       "autoCompleteWarning": "This event will be automatically completed in {{count}} day due to inactivity.",
       "autoCompleteWarning_other": "This event will be automatically completed in {{count}} days due to inactivity.",
       "reconfirmationBanner": "Event details changed since you last confirmed. Review the version history and reconfirm if you can still attend, or reject to leave the event.",
+      "approximateLocation": "Approximate location",
       "approximateLocationTitle": "You're seeing an approximate location",
       "approximateLocationBody": "The exact location will be revealed once you're approved to join.",
       "errorTitle": "Something went wrong",
       "errorTitleInaccessible": "Event Inaccessible",
       "errorDescription": "The event you are looking for could not be found.",
       "errorDescriptionInaccessible": "This event is private and only accessible to invited guests. If you don't have a valid invitation or if you previously declined one, you cannot view the details.",
-      "backToDiscovery": "Go Back to Discovery"
+      "backToDiscovery": "Go Back to Discovery",
+      "errors": {
+        "loginRequired": "You must be logged in to view this event.",
+        "loadFailed": "Failed to load event details. Please try again.",
+        "joinFailed": "Failed to join the event. Please try again.",
+        "leaveFailed": "Failed to leave the event. Please try again.",
+        "joinRequestFailed": "Failed to send join request. Please try again.",
+        "cancelJoinRequestFailed": "Failed to cancel join request. Please try again.",
+        "requestNoLongerPending": "This request is no longer pending.",
+        "reconfirmNotAllowed": "This attendance update can no longer be reconfirmed. Please review the latest event status.",
+        "reconfirmEventNotJoinable": "This event is no longer accepting attendance reconfirmations.",
+        "hostCannotReconfirm": "Hosts do not need to reconfirm their own event.",
+        "reconfirmFailed": "Failed to reconfirm your attendance. Please try again.",
+        "uploadImageEvidenceFailed": "Failed to upload image evidence.",
+        "uploadReportEvidenceFailed": "Failed to upload report evidence.",
+        "invitationUnavailable": "This invitation is no longer available.",
+        "acceptInvitationFailed": "Failed to accept invitation. Please try again.",
+        "declineInvitationFailed": "Failed to decline invitation. Please try again.",
+        "privateInvitationDeclined": "You declined this private event invitation. The event detail is no longer available.",
+        "favoriteUpdateFailed": "Failed to update favorite. Please try again.",
+        "viewerRatingFailed": "Failed to save your rating. Please try again.",
+        "participantRatingFailed": "Failed to save the participant rating. Please try again.",
+        "approveRequestFailed": "Failed to approve request.",
+        "rejectRequestFailed": "Failed to reject request.",
+        "cancelEventFailed": "Failed to cancel event.",
+        "revokeInvitationFailed": "Failed to revoke invitation."
+      },
+      "image": {
+        "permissionTitle": "Permission required",
+        "permissionRequired": "Please grant permission to access your photo library.",
+        "attachmentPermissionRequired": "Please allow access to your photo library to add an attachment.",
+        "errorTitle": "Error",
+        "prepareFailed": "Failed to prepare selected image.",
+        "readFailed": "We could not read the selected image. Please try a different one.",
+        "processFailed": "We could not process the selected image. Please try a different one.",
+        "openFailed": "We could not open your photo library. Please try again."
+      },
+      "report": {
+        "selectionRequiredTitle": "Selection Required",
+        "selectionRequiredBody": "Please select a reason for reporting this event.",
+        "submittedTitle": "Report Submitted",
+        "submittedBody": "Thank you for helping us keep the community safe. Our team will review your report shortly.",
+        "submitFailed": "Failed to submit report. Please try again.",
+        "duplicateReport": "You have already reported this event.",
+        "errorTitle": "Reporting Error"
+      }
     },
     "joinRequest": {
       "title": "Request to Join",
@@ -836,6 +909,29 @@
         "FEMALE": "Female",
         "OTHER": "Other",
         "PREFER_NOT_TO_SAY": "Prefer not to say"
+      },
+      "success": "Profile updated successfully!",
+      "image": {
+        "permissionTitle": "Permission required",
+        "permissionRequired": "Please allow access to your photo library to add a profile photo.",
+        "readFailed": "We could not read the selected image. Please try a different one.",
+        "processFailed": "We could not process the selected image. Please try a different one.",
+        "openFailed": "We could not open your photo library. Please try again.",
+        "uploadSuccess": "Profile photo updated successfully."
+      },
+      "errors": {
+        "loginRequired": "You must be logged in to edit your profile.",
+        "saveLoginRequired": "You must be logged in to save changes.",
+        "loadFailed": "Failed to load profile. Please try again.",
+        "unexpected": "An unexpected error occurred. Please try again.",
+        "birthDateFormat": "Use dd.mm.yyyy format",
+        "birthDateMonthRange": "Month must be between 01 and 12.",
+        "birthDateDayRange": "Day must be between 01 and 31.",
+        "birthDateInvalid": "Please give a valid birth date",
+        "birthDateFuture": "Birth date cannot be in the future",
+        "displayNameMax": "Display name must be at most {{count}} characters",
+        "bioMax": "Bio must be at most {{count}} characters",
+        "phoneMax": "Phone number must be at most {{count}} characters"
       }
     }
   },

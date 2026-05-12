@@ -117,6 +117,7 @@
   },
   "home": {
     "title": "Keşfet",
+    "loadingEvents": "Etkinlikler yükleniyor...",
     "searchPlaceholder": "Etkinlik ara…",
     "filters": "Filtreler",
     "noEvents": "Burada henüz etkinlik yok.",
@@ -193,7 +194,18 @@
       "apply": "Filtreleri Uygula"
     },
     "errors": {
-      "loadFailed": "Etkinlikler yüklenemedi. Lütfen tekrar deneyin."
+      "loadFailed": "Etkinlikler yüklenemedi. Lütfen tekrar deneyin.",
+      "categoriesLoadFailed": "Kategoriler yüklenemedi. Lütfen tekrar deneyin.",
+      "loginRequired": "Etkinlikleri görmek için giriş yapmalısın.",
+      "fromDateInvalid": "Başlangıç tarihi geçerli bir tarih olmalı.",
+      "fromDateTodayOrLater": "Başlangıç tarihi bugün veya daha sonra olmalı.",
+      "toDateInvalid": "Bitiş tarihi geçerli bir tarih olmalı.",
+      "toDateTodayOrLater": "Bitiş tarihi bugün veya daha sonra olmalı.",
+      "toDateAfterFrom": "Bitiş tarihi başlangıç tarihiyle aynı veya daha sonra olmalı.",
+      "dateDayRange": "{{label}} tarihi için gün 01 ile 31 arasında olmalı.",
+      "dateMonthRange": "{{label}} tarihi için ay 01 ile 12 arasında olmalı.",
+      "dateInvalid": "{{label}} tarihi geçerli bir tarih olmalı.",
+      "dateTodayOrLater": "{{label}} tarihi bugün veya daha sonra olmalı."
     }
   },
   "events": {
@@ -272,6 +284,15 @@
       "showLess": "Daha az",
       "submit": "Etkinlik Oluştur",
       "successMessage": "Etkinlik başarıyla oluşturuldu!",
+      "importUsers": {
+        "invalidFileTitle": "Geçersiz Dosya",
+        "noValidUsernames": "Dosyada geçerli kullanıcı adı bulunamadı.",
+        "successTitle": "Başarılı",
+        "successBody": "Dosyadan {{count}} kullanıcı adı eklendi.",
+        "successBody_one": "Dosyadan {{count}} kullanıcı adı eklendi.",
+        "errorTitle": "Hata",
+        "readFailed": "Seçilen dosya okunamadı."
+      },
       "privacy": {
         "publicDesc": "Herkese açık. Herkes onay almadan katılabilir.",
         "protectedDesc": "Herkese görünür, ancak katılım için istek gönderip onayını beklemek gerekir.",
@@ -311,7 +332,8 @@
       },
       "errors": {
         "routeMinPoints": "Rota oluşturmak için en az {{count}} uğrak noktası ekle",
-        "routeMaxPoints": "Bir rota en fazla {{count}} uğrak noktasına sahip olabilir"
+        "routeMaxPoints": "Bir rota en fazla {{count}} uğrak noktasına sahip olabilir",
+        "unexpected": "Beklenmeyen bir hata oluştu. Lütfen tekrar dene."
       }
     },
     "edit": {
@@ -422,6 +444,8 @@
       "attendingReconfirmed": "En güncel bilgilerle katılıyorsun",
       "requestPending": "İstek gönderildi — onay bekleniyor",
       "youAreInvited": "Davet edildin",
+      "acceptInvitation": "Daveti Kabul Et",
+      "invitationResponsePending": "Davet yanıtı bekleniyor",
       "eventFull": "Etkinlik Dolu",
       "directions": "Yol Tarifi Al",
       "directionsToStart": "Başlangıca Yol Tarifi",
@@ -432,6 +456,9 @@
       "pendingRequests": "Bekleyen İstekler",
       "inviteAndManage": "Davet & Yönet",
       "cancelEvent": "Etkinliği İptal Et",
+      "cancelEventConfirmBody": "Bu etkinliği iptal etmek istediğine emin misin? Bu işlem geri alınamaz.",
+      "keepEvent": "Hayır, Kalsın",
+      "confirmCancelEvent": "Evet, İptal Et",
       "newHost": "Yeni organizatör",
       "hostRatingLabel": "Organizatör {{rating}}",
       "about": "Hakkında",
@@ -459,13 +486,59 @@
       "autoCompleteWarning": "Bu etkinlik hareketsizlik nedeniyle {{count}} gün içinde otomatik olarak tamamlanacak.",
       "autoCompleteWarning_other": "Bu etkinlik hareketsizlik nedeniyle {{count}} gün içinde otomatik olarak tamamlanacak.",
       "reconfirmationBanner": "Son onayından bu yana etkinlik detayları değişti. Hâlâ katılabiliyorsan sürüm geçmişini inceleyip yeniden onayla ya da reddedip etkinlikten ayrıl.",
+      "approximateLocation": "Yaklaşık konum",
       "approximateLocationTitle": "Yaklaşık bir konum görüyorsun",
       "approximateLocationBody": "Tam konum, katılımın onaylandığında gösterilecek.",
       "errorTitle": "Bir şeyler ters gitti",
       "errorTitleInaccessible": "Etkinliğe Erişilemiyor",
       "errorDescription": "Aradığın etkinlik bulunamadı.",
       "errorDescriptionInaccessible": "Bu etkinlik özeldir ve yalnızca davet edilen misafirler erişebilir. Geçerli bir davetin yoksa veya daha önce daveti reddettiysen detayları görüntüleyemezsin.",
-      "backToDiscovery": "Keşfet'e Dön"
+      "backToDiscovery": "Keşfet'e Dön",
+      "errors": {
+        "loginRequired": "Bu etkinliği görüntülemek için giriş yapmalısın.",
+        "loadFailed": "Etkinlik detayları yüklenemedi. Lütfen tekrar dene.",
+        "joinFailed": "Etkinliğe katılınamadı. Lütfen tekrar dene.",
+        "leaveFailed": "Etkinlikten ayrılamadın. Lütfen tekrar dene.",
+        "joinRequestFailed": "Katılım isteği gönderilemedi. Lütfen tekrar dene.",
+        "cancelJoinRequestFailed": "Katılım isteği iptal edilemedi. Lütfen tekrar dene.",
+        "requestNoLongerPending": "Bu istek artık beklemede değil.",
+        "reconfirmNotAllowed": "Bu katılım güncellemesi artık yeniden onaylanamaz. Lütfen son etkinlik durumunu incele.",
+        "reconfirmEventNotJoinable": "Bu etkinlik artık katılım yeniden onayı kabul etmiyor.",
+        "hostCannotReconfirm": "Organizatörlerin kendi etkinliklerini yeniden onaylaması gerekmez.",
+        "reconfirmFailed": "Katılımın yeniden onaylanamadı. Lütfen tekrar dene.",
+        "uploadImageEvidenceFailed": "Fotoğraf kanıtı yüklenemedi.",
+        "uploadReportEvidenceFailed": "Bildirim kanıtı yüklenemedi.",
+        "invitationUnavailable": "Bu davet artık kullanılamıyor.",
+        "acceptInvitationFailed": "Davet kabul edilemedi. Lütfen tekrar dene.",
+        "declineInvitationFailed": "Davet reddedilemedi. Lütfen tekrar dene.",
+        "privateInvitationDeclined": "Bu özel etkinlik davetini reddettin. Etkinlik detayı artık görüntülenemez.",
+        "favoriteUpdateFailed": "Favori güncellenemedi. Lütfen tekrar dene.",
+        "viewerRatingFailed": "Puanın kaydedilemedi. Lütfen tekrar dene.",
+        "participantRatingFailed": "Katılımcı puanı kaydedilemedi. Lütfen tekrar dene.",
+        "approveRequestFailed": "İstek onaylanamadı.",
+        "rejectRequestFailed": "İstek reddedilemedi.",
+        "cancelEventFailed": "Etkinlik iptal edilemedi.",
+        "revokeInvitationFailed": "Davet geri çekilemedi."
+      },
+      "image": {
+        "permissionTitle": "İzin gerekli",
+        "permissionRequired": "Fotoğraf kitaplığına erişim izni vermelisin.",
+        "attachmentPermissionRequired": "Ek eklemek için fotoğraf kitaplığına erişime izin vermelisin.",
+        "errorTitle": "Hata",
+        "prepareFailed": "Seçilen görsel hazırlanamadı.",
+        "readFailed": "Seçilen görsel okunamadı. Lütfen başka bir görsel dene.",
+        "processFailed": "Seçilen görsel işlenemedi. Lütfen başka bir görsel dene.",
+        "openFailed": "Fotoğraf kitaplığı açılamadı. Lütfen tekrar dene."
+      },
+      "report": {
+        "selectionRequiredTitle": "Seçim Gerekli",
+        "selectionRequiredBody": "Lütfen etkinliği bildirmek için bir sebep seç.",
+        "submittedTitle": "Bildirim Gönderildi",
+        "submittedBody": "Topluluğu güvenli tutmamıza yardımcı olduğun için teşekkürler. Ekibimiz bildirimi kısa süre içinde inceleyecek.",
+        "submitFailed": "Bildirim gönderilemedi. Lütfen tekrar dene.",
+        "duplicateReport": "Bu etkinliği zaten bildirdin.",
+        "errorTitle": "Bildirim Hatası"
+      }
     },
     "joinRequest": {
       "title": "Katılım İste",
@@ -836,6 +909,29 @@
         "FEMALE": "Kadın",
         "OTHER": "Diğer",
         "PREFER_NOT_TO_SAY": "Belirtmek istemiyorum"
+      },
+      "success": "Profil başarıyla güncellendi!",
+      "image": {
+        "permissionTitle": "İzin gerekli",
+        "permissionRequired": "Profil fotoğrafı eklemek için fotoğraf kitaplığına erişime izin vermelisin.",
+        "readFailed": "Seçilen görsel okunamadı. Lütfen başka bir görsel dene.",
+        "processFailed": "Seçilen görsel işlenemedi. Lütfen başka bir görsel dene.",
+        "openFailed": "Fotoğraf kitaplığı açılamadı. Lütfen tekrar dene.",
+        "uploadSuccess": "Profil fotoğrafı başarıyla güncellendi."
+      },
+      "errors": {
+        "loginRequired": "Profilini düzenlemek için giriş yapmalısın.",
+        "saveLoginRequired": "Değişiklikleri kaydetmek için giriş yapmalısın.",
+        "loadFailed": "Profil yüklenemedi. Lütfen tekrar dene.",
+        "unexpected": "Beklenmeyen bir hata oluştu. Lütfen tekrar dene.",
+        "birthDateFormat": "gg.aa.yyyy formatını kullan",
+        "birthDateMonthRange": "Ay 01 ile 12 arasında olmalı.",
+        "birthDateDayRange": "Gün 01 ile 31 arasında olmalı.",
+        "birthDateInvalid": "Lütfen geçerli bir doğum tarihi gir",
+        "birthDateFuture": "Doğum tarihi gelecekte olamaz",
+        "displayNameMax": "Görünen ad en fazla {{count}} karakter olabilir",
+        "bioMax": "Biyografi en fazla {{count}} karakter olabilir",
+        "phoneMax": "Telefon numarası en fazla {{count}} karakter olabilir"
       }
     }
   },

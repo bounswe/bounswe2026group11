@@ -1125,7 +1125,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 <>
                   <Feather name="x" size={18} color="#DC2626" />
                   <Text style={styles.invitationSecondaryButtonText}>
-                    Decline
+                    {t('common.decline')}
                   </Text>
                 </>
               )}
@@ -1150,7 +1150,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
               ) : (
                 <>
                   <Feather name="check" size={18} color="#FFFFFF" />
-                  <Text style={styles.actionButtonText}>Accept Invitation</Text>
+                  <Text style={styles.actionButtonText}>{t('events.detail.acceptInvitation')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -1163,7 +1163,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
       return (
         <View style={styles.statusChip}>
           <Feather name="mail" size={16} color={theme.primary} />
-          <Text style={styles.statusChipTextBlue}>Invitation response pending</Text>
+          <Text style={styles.statusChipTextBlue}>{t('events.detail.invitationResponsePending')}</Text>
         </View>
       );
     }
@@ -1278,7 +1278,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
   const ratingLabel =
     event.host_score.final_score != null
       ? `${event.host_score.final_score.toFixed(1)} (${event.host_score.hosted_event_rating_count})`
-      : 'New host';
+      : t('events.detail.newHost');
   const hostDisplayName = event.host.display_name ?? event.host.username;
   const capacityLabel =
     event.capacity != null
@@ -1646,11 +1646,15 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                     style={[styles.hostActionBtn, styles.hostActionBtnDanger]}
                     onPress={() => {
                       Alert.alert(
-                        'Cancel Event',
-                        'Are you sure you want to cancel this event? This action cannot be undone.',
+                        t('events.detail.cancelEvent'),
+                        t('events.detail.cancelEventConfirmBody'),
                         [
-                          { text: 'No, Keep It', style: 'cancel' },
-                          { text: 'Yes, Cancel', style: 'destructive', onPress: vm.handleCancelEvent },
+                          { text: t('events.detail.keepEvent'), style: 'cancel' },
+                          {
+                            text: t('events.detail.confirmCancelEvent'),
+                            style: 'destructive',
+                            onPress: vm.handleCancelEvent,
+                          },
                         ],
                       );
                     }}
@@ -2076,7 +2080,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   {vm.event.location.is_location_approximate &&
                   !vm.event.viewer_context.is_host &&
                   vm.event.viewer_context.participation_status !== 'JOINED'
-                    ? 'Approximate location'
+                    ? t('events.detail.approximateLocation')
                     : vm.event.location.address}
                 </Text>
               </View>
@@ -2091,7 +2095,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   onPress={handleGetDirections}
                 >
                   <MaterialIcons name="directions" size={24} color="white" />
-                  <Text style={styles.fullMapDirectionsText}>Open in Navigation</Text>
+                  <Text style={styles.fullMapDirectionsText}>{t('events.detail.openInNavigation')}</Text>
                 </TouchableOpacity>
               </View>
             )}
