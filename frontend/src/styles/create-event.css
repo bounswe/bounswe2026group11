@@ -1291,6 +1291,12 @@
   color: #cbd5e1;
 }
 
+:root[data-theme='dark'] .ce-location-type-chip.selected {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #111827;
+}
+
 :root[data-theme='dark'] .ce-route-suggestions {
   background: #111111;
   border-color: #2a2a2a;
