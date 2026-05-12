@@ -32,6 +32,7 @@ const mockGetCurrentLocationSuggestion = jest.mocked(
 const mockListEvents = jest.mocked(eventService.listEvents);
 const mockListCategories = jest.mocked(eventService.listCategories);
 const mockSearchLocation = jest.mocked(eventService.searchLocation);
+const mockReverseGeocode = jest.mocked(eventService.reverseGeocode);
 const mockListFavoriteLocations = jest.mocked(favoriteService.listFavoriteLocations);
 const mockGetMyProfile = jest.mocked(profileService.getMyProfile);
 
@@ -171,6 +172,7 @@ describe('useHomeViewModel', () => {
       equipment: [],
     });
     mockGetCurrentLocationSuggestion.mockResolvedValue(null);
+    mockReverseGeocode.mockResolvedValue(null);
     mockSearchLocation.mockResolvedValue([
       {
         display_name: 'Kadikoy, Istanbul, Turkiye',
@@ -203,6 +205,37 @@ describe('useHomeViewModel', () => {
     expect(result.current.categories).toEqual(categoriesFixture.items);
     expect(result.current.events).toEqual(page1Fixture.items);
     expect(result.current.hasMore).toBe(true);
+  });
+
+  it('uses a reverse-geocoded label when searching the visible map area', async () => {
+    mockReverseGeocode.mockResolvedValueOnce({
+      display_name: 'Sariyer, Istanbul, Turkiye',
+      lat: '41.1663',
+      lon: '29.0500',
+    });
+
+    const { result } = renderHook(() => useHomeViewModel());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+    mockListEvents.mockClear();
+
+    await act(async () => {
+      await result.current.searchMapArea({ lat: 41.1663, lon: 29.05 });
+    });
+
+    expect(mockReverseGeocode).toHaveBeenCalledWith(41.1663, 29.05);
+    expect(result.current.locationLabel).toBe('Sariyer, Istanbul');
+    await waitFor(() => {
+      expect(mockListEvents).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lat: 41.1663,
+          lon: 29.05,
+        }),
+        'mock-token',
+      );
+    });
   });
 
   it('prefers the live location over the profile default when both are available', async () => {

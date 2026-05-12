@@ -152,6 +152,34 @@ describe('useTicketViewModel', () => {
     await waitFor(() => expect(mockGetTicketQrTokenOnce).toHaveBeenCalledTimes(2));
   });
 
+  it('checks ticket status every 2 seconds while the live ticket is open', async () => {
+    const usedTicket: TicketDetailResponse = {
+      ...baseTicket,
+      ticket: {
+        ...baseTicket.ticket,
+        status: 'USED',
+        used_at: '2026-05-10T16:15:00Z',
+      },
+    };
+    mockGetMyTicket
+      .mockResolvedValueOnce(baseTicket)
+      .mockResolvedValueOnce(baseTicket)
+      .mockResolvedValueOnce(usedTicket);
+    mockGetTicketQrTokenOnce.mockResolvedValue(qrTokenFixture);
+
+    const { result } = renderHook(() => useTicketViewModel('ticket-1'));
+
+    await waitFor(() => expect(result.current.qrToken).toEqual(qrTokenFixture));
+
+    act(() => {
+      jest.advanceTimersByTime(2000);
+    });
+
+    await waitFor(() => expect(result.current.ticket?.ticket.status).toBe('USED'));
+    expect(mockGetMyTicket).toHaveBeenCalledTimes(3);
+    expect(result.current.qrToken).toBeNull();
+  });
+
   it('handles refresh by resetting state and re-fetching', async () => {
     mockGetMyTicket.mockImplementation(() => Promise.resolve({ ...baseTicket }));
     mockGetTicketQrTokenOnce.mockResolvedValue(qrTokenFixture);

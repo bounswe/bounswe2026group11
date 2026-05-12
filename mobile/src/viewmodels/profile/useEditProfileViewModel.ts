@@ -17,6 +17,7 @@ import {
 import { ApiError } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { validatePhoneNumber } from '@/utils/validators';
+import i18n from '@/i18n';
 
 export const GENDER_OPTIONS: { label: string; value: string }[] = [
   { label: 'Male', value: 'MALE' },
@@ -185,12 +186,12 @@ function profileToLocationSuggestion(profile: UserProfile): LocationSuggestion |
 function validateBirthDate(date: string): string | null {
   if (!date) return null;
   const match = date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-  if (!match) return 'Use dd.mm.yyyy format';
+  if (!match) return i18n.t('profile.edit.errors.birthDateFormat');
   const day = parseInt(match[1], 10);
   const month = parseInt(match[2], 10);
   const year = parseInt(match[3], 10);
-  if (month < 1 || month > 12) return 'Month must be between 01 and 12.';
-  if (day < 1 || day > 31) return 'Day must be between 01 and 31.';
+  if (month < 1 || month > 12) return i18n.t('profile.edit.errors.birthDateMonthRange');
+  if (day < 1 || day > 31) return i18n.t('profile.edit.errors.birthDateDayRange');
 
   const parsed = new Date(year, month - 1, day);
   if (
@@ -199,13 +200,13 @@ function validateBirthDate(date: string): string | null {
     parsed.getMonth() + 1 !== month ||
     parsed.getDate() !== day
   ) {
-    return 'Please give a valid birth date';
+    return i18n.t('profile.edit.errors.birthDateInvalid');
   }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   if (parsed > today) {
-    return 'Birth date cannot be in the future';
+    return i18n.t('profile.edit.errors.birthDateFuture');
   }
   return null;
 }
@@ -214,15 +215,15 @@ function validateForm(formData: EditProfileFormData): EditProfileFormErrors {
   const errors: EditProfileFormErrors = {};
 
   if (formData.displayName.length > DISPLAY_NAME_MAX_LENGTH) {
-    errors.displayName = `Display name must be at most ${DISPLAY_NAME_MAX_LENGTH} characters`;
+    errors.displayName = i18n.t('profile.edit.errors.displayNameMax', { count: DISPLAY_NAME_MAX_LENGTH });
   }
 
   if (formData.bio.length > BIO_MAX_LENGTH) {
-    errors.bio = `Bio must be at most ${BIO_MAX_LENGTH} characters`;
+    errors.bio = i18n.t('profile.edit.errors.bioMax', { count: BIO_MAX_LENGTH });
   }
 
   if (formData.phoneNumber.length > PHONE_MAX_LENGTH) {
-    errors.phoneNumber = `Phone number must be at most ${PHONE_MAX_LENGTH} characters`;
+    errors.phoneNumber = i18n.t('profile.edit.errors.phoneMax', { count: PHONE_MAX_LENGTH });
   }
 
   if (formData.birthDate) {
@@ -272,7 +273,7 @@ export function useEditProfileViewModel(): EditProfileViewModel {
   useEffect(() => {
     if (!token) {
       setIsLoading(false);
-      setApiError('You must be logged in to edit your profile.');
+      setApiError(i18n.t('profile.edit.errors.loginRequired'));
       return;
     }
 
@@ -294,7 +295,7 @@ export function useEditProfileViewModel(): EditProfileViewModel {
           setApiError(
             err instanceof ApiError
               ? err.message
-              : 'Failed to load profile. Please try again.',
+              : i18n.t('profile.edit.errors.loadFailed'),
           );
         }
       } finally {
@@ -323,11 +324,11 @@ export function useEditProfileViewModel(): EditProfileViewModel {
           // Immediate numeric boundary checks
           if (digits.length >= 2) {
             const day = parseInt(digits.slice(0, 2), 10);
-            if (day > 31) immediateError = 'Day must be between 01 and 31.';
+            if (day > 31) immediateError = i18n.t('profile.edit.errors.birthDateDayRange');
           }
           if (digits.length >= 4 && !immediateError) {
             const month = parseInt(digits.slice(2, 4), 10);
-            if (month > 12) immediateError = 'Month must be between 01 and 12.';
+            if (month > 12) immediateError = i18n.t('profile.edit.errors.birthDateMonthRange');
           }
           // Full validation once complete
           if (digits.length === 8 && !immediateError) {
@@ -357,9 +358,9 @@ export function useEditProfileViewModel(): EditProfileViewModel {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        const message = 'Please allow access to your photo library to add a profile photo.';
+        const message = i18n.t('profile.edit.image.permissionRequired');
         setImageError(message);
-        Alert.alert('Permission required', message);
+        Alert.alert(i18n.t('profile.edit.image.permissionTitle'), message);
         return;
       }
 
@@ -374,7 +375,7 @@ export function useEditProfileViewModel(): EditProfileViewModel {
 
       const asset = result.assets[0];
       if (!asset?.uri) {
-        setImageError('We could not read the selected image. Please try a different one.');
+        setImageError(i18n.t('profile.edit.image.readFailed'));
         return;
       }
 
@@ -382,7 +383,7 @@ export function useEditProfileViewModel(): EditProfileViewModel {
         const preparedImageUri = await preparePickedImageUri(asset.uri);
         setSelectedImageUri(preparedImageUri);
       } catch {
-        setImageError('We could not process the selected image. Please try a different one.');
+        setImageError(i18n.t('profile.edit.image.processFailed'));
         return;
       }
 
@@ -392,7 +393,7 @@ export function useEditProfileViewModel(): EditProfileViewModel {
       }
       setSuccessMessage(null);
     } catch {
-      setImageError('We could not open your photo library. Please try again.');
+      setImageError(i18n.t('profile.edit.image.openFailed'));
     }
   }, []);
 
@@ -501,7 +502,7 @@ export function useEditProfileViewModel(): EditProfileViewModel {
     }
 
     if (!token) {
-      setApiError('You must be logged in to save changes.');
+      setApiError(i18n.t('profile.edit.errors.saveLoginRequired'));
       return false;
     }
 
@@ -540,7 +541,9 @@ export function useEditProfileViewModel(): EditProfileViewModel {
       }
 
       setSuccessMessage(
-        hadNewAvatar ? 'Profile photo updated successfully.' : 'Profile updated successfully!',
+        hadNewAvatar
+          ? i18n.t('profile.edit.image.uploadSuccess')
+          : i18n.t('profile.edit.success'),
       );
       successTimerRef.current = setTimeout(() => {
         setSuccessMessage(null);
@@ -561,7 +564,7 @@ export function useEditProfileViewModel(): EditProfileViewModel {
         }
         setApiError(err.message);
       } else {
-        setApiError('An unexpected error occurred. Please try again.');
+        setApiError(i18n.t('profile.edit.errors.unexpected'));
       }
       return false;
     } finally {

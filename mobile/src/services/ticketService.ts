@@ -1,4 +1,5 @@
 import { BASE_URL, ApiError } from '@/services/api';
+import { getCurrentLocale } from '@/contexts/LocaleContext';
 import type {
   ListTicketsResponse,
   TicketDetailResponse,
@@ -6,6 +7,7 @@ import type {
   TicketScanResponse,
 } from '@/models/ticket';
 import { getCurrentSession, refreshSession } from '@/services/sessionManager';
+import { localizeApiErrorMessage } from '@/utils/apiErrorLocalization';
 
 interface ErrorResponse {
   error: {
@@ -32,7 +34,11 @@ function parseTicketQrEventBlock(block: string): TicketQrToken | Error | null {
   try {
     const data = JSON.parse(dataLines.join('\n'));
     if (eventName === 'error') {
-      return new Error(data.message ?? 'Failed to load the live QR token.');
+      return new Error(
+        data.message
+          ? localizeApiErrorMessage(data.message)
+          : 'Failed to load the live QR token.',
+      );
     }
 
     if (data.token) {
@@ -69,6 +75,7 @@ async function ticketRequest(
       : undefined;
 
   const headers: Record<string, string> = {
+    'Accept-Language': getCurrentLocale(),
     ...(init.headers as Record<string, string> | undefined),
   };
 
@@ -162,6 +169,7 @@ export async function getTicketQrTokenOnce(
     xhr.open('GET', url, true);
     xhr.setRequestHeader('X-Client-Surface', 'MOBILE');
     xhr.setRequestHeader('Accept', 'text/event-stream');
+    xhr.setRequestHeader('Accept-Language', getCurrentLocale());
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
     let settled = false;
@@ -223,7 +231,7 @@ export async function getTicketQrTokenOnce(
         try {
           const errorData = JSON.parse(xhr.responseText);
           if (errorData.error?.message) {
-            errorMessage = errorData.error.message;
+            errorMessage = localizeApiErrorMessage(errorData.error.message);
           }
         } catch {
           // Fallback

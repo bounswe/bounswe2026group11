@@ -754,6 +754,36 @@ describe('EventMapView', () => {
         250,
       );
     });
+
+    it('shows search this area after the map center moves away from the filter center', () => {
+      const onSearchArea = jest.fn();
+      render(
+        <EventMapView
+          events={[makeEvent()]}
+          isLoading={false}
+          apiError={null}
+          region={{
+            ...DEFAULT_REGION,
+            latitude: DEFAULT_REGION.latitude + 0.03,
+          }}
+          filterCenter={{
+            lat: DEFAULT_REGION.latitude,
+            lon: DEFAULT_REGION.longitude,
+          }}
+          filterRadiusMeters={10000}
+          onMarkerPress={jest.fn()}
+          onSearchArea={onSearchArea}
+        />,
+      );
+
+      fireEvent.click(screen.getByTestId('search-this-area-button'));
+
+      expect(screen.getByText('Search this area')).toBeTruthy();
+      expect(onSearchArea).toHaveBeenCalledWith({
+        lat: DEFAULT_REGION.latitude + 0.03,
+        lon: DEFAULT_REGION.longitude,
+      });
+    });
   });
 
   describe('navigation', () => {

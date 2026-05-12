@@ -5,6 +5,10 @@ import {
   refreshSession,
 } from '@/services/sessionManager';
 import { getCurrentLocale } from '@/contexts/LocaleContext';
+import {
+  localizeApiErrorDetails,
+  localizeApiErrorMessage,
+} from '@/utils/apiErrorLocalization';
 
 export const BASE_URL = API_BASE_URL;
 
@@ -12,13 +16,15 @@ export class ApiError extends Error {
   code: string;
   status: number;
   details?: Record<string, string>;
+  originalMessage: string;
 
   constructor(status: number, body: ErrorResponse) {
-    super(body.error.message);
+    super(localizeApiErrorMessage(body.error.message));
     this.name = 'ApiError';
     this.code = body.error.code;
     this.status = status;
-    this.details = body.error.details;
+    this.details = localizeApiErrorDetails(body.error.details);
+    this.originalMessage = body.error.message;
   }
 }
 

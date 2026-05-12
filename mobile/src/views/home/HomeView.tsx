@@ -101,6 +101,7 @@ export default function HomeView() {
             filterRadiusMeters={vm.filterDraft.radiusKm * 1000}
             currentLocation={vm.currentLocation}
             onMarkerPress={(id) => router.push(`/event/${id}` as Href)}
+            onSearchArea={vm.searchMapArea}
             headerTopInset={insets.top}
           />
 
