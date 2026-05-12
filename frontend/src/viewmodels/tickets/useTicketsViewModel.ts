@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { listMyTickets } from '@/services/ticketService';
 import type { TicketListItem } from '@/models/ticket';
 import { ApiError } from '@/services/api';
+import i18n from '@/i18n';
 
 export interface TicketsViewModel {
   tickets: TicketListItem[];
@@ -30,7 +31,7 @@ export function useTicketsViewModel(): TicketsViewModel {
       const response = await listMyTickets(token);
       setTickets(response.items ?? []);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load tickets');
+      setError(err instanceof ApiError ? err.message : i18n.t('errors.tickets_load_failed'));
     } finally {
       setIsLoading(false);
     }

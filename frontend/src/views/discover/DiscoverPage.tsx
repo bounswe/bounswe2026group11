@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
@@ -6,8 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDiscoverViewMode } from '@/contexts/DiscoverViewModeContext';
 import {
   useDiscoverViewModel,
-  MINIMUM_AGE_OPTIONS,
-  RADIUS_OPTIONS,
+  DISCOVER_MINIMUM_AGE_VALUES,
+  DISCOVER_RADIUS_METERS,
   type PrivacyFilter,
 } from '@/viewmodels/discover/useDiscoverViewModel';
 import type { DiscoverEventItem, DiscoverSortBy } from '@/models/event';
@@ -411,9 +411,28 @@ function MapEventListItem({
 }
 
 export default function DiscoverPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { token } = useAuth();
   const vm = useDiscoverViewModel(token);
+
+  const radiusOptions = useMemo(
+    () =>
+      DISCOVER_RADIUS_METERS.map((value) => ({
+        label: t('discover.radius_km', { km: value / 1000 }),
+        value,
+      })),
+    [t, i18n.language],
+  );
+
+  const minimumAgeOptions = useMemo(
+    () =>
+      DISCOVER_MINIMUM_AGE_VALUES.map((value) => ({
+        label:
+          value === null ? t('discover.minimum_age_any') : t('discover.minimum_age_plus', { age: value }),
+        value,
+      })),
+    [t, i18n.language],
+  );
   const sortOptions: { label: string; value: DiscoverSortBy; icon: 'time' | 'distance' }[] = [
     { label: t('home.sort_soonest'), value: 'START_TIME', icon: 'time' },
     { label: t('home.sort_nearest'), value: 'DISTANCE', icon: 'distance' },
@@ -705,7 +724,7 @@ export default function DiscoverPage() {
           <div className="dc-filter-group">
             <label className="dc-filter-label">{t('home.radius')}</label>
             <div className="dc-chip-row">
-              {RADIUS_OPTIONS.map((opt) => (
+              {radiusOptions.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
@@ -721,9 +740,9 @@ export default function DiscoverPage() {
           <div className="dc-filter-group">
             <label className="dc-filter-label">{t('home.event_age_restriction')}</label>
             <div className="dc-chip-row">
-              {MINIMUM_AGE_OPTIONS.map((opt) => (
+              {minimumAgeOptions.map((opt) => (
                 <button
-                  key={opt.label}
+                  key={opt.value === null ? 'any' : String(opt.value)}
                   type="button"
                   className={`dc-filter-chip ${vm.filters.minimumAge === opt.value ? 'selected' : ''}`}
                   onClick={() => vm.updateFilter('minimumAge', opt.value)}
@@ -985,7 +1004,8 @@ export default function DiscoverPage() {
 
   const browserLocCurrentlyApplied =
     vm.hasBrowserLocation &&
-    vm.pendingLocation?.display_name?.endsWith('(your location)') === true;
+    (vm.pendingLocation?.source === 'browser_geolocation' ||
+      vm.pendingLocation?.display_name?.endsWith('(your location)') === true);
 
   const defaultLocCurrentlyApplied =
     !!vm.defaultProfileLocation &&

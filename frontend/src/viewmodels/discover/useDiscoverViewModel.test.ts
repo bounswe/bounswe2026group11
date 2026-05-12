@@ -42,10 +42,10 @@ describe('useDiscoverViewModel persistence', () => {
         filters: {
           q: '',
           categoryIds: [],
-          sortBy: 'SOONEST',
+          sortBy: 'START_TIME',
           radiusMeters: 5000,
           minimumAge: null,
-          privacy: 'ANY',
+          privacy: 'ALL',
           startFrom: '',
           startTo: '',
           childFriendly: false,
@@ -56,6 +56,7 @@ describe('useDiscoverViewModel persistence', () => {
           display_name: 'Besiktas, Istanbul (your location)',
           lat: '41.0422',
           lon: '29.0083',
+          source: 'browser_geolocation',
         },
       }),
     );

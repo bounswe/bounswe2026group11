@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 interface RatingWithCountProps {
   score: number | null | undefined;
   count?: number | null;
@@ -26,13 +28,16 @@ export function formatRatingWithCountText({
 }
 
 export function RatingWithCount(props: RatingWithCountProps) {
+  const { t } = useTranslation();
   const text = formatRatingWithCountText(props);
   if (!text) return null;
+
+  const ariaDetail = text.replace(/★\s*/u, '').trim();
 
   return (
     <span
       className={`rating-with-count ${props.className ?? ''}`.trim()}
-      aria-label={text.replace('★', 'Rating')}
+      aria-label={t('rating.aria_label', { detail: ariaDetail })}
     >
       {text}
     </span>

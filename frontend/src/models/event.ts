@@ -91,6 +91,8 @@ export interface LocationSuggestion {
   display_name: string;
   lat: string;
   lon: string;
+  /** From browser geolocation — used for map label logic (not sent to API). */
+  source?: 'browser_geolocation';
 }
 
 /* ── Discovery ── */
