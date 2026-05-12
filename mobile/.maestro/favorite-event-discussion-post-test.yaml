@@ -1,0 +1,51 @@
+appId: com.bounswe2026group11.socialeventmapper
+env:
+  E2E_USERNAME: "123"
+  E2E_PASSWORD: "ab123456"
+  E2E_EVENT_TITLE: "Vintage Vinyl Listening Night in Cihangir"
+  E2E_DISCUSSION_MESSAGE: "Hello, the event looks really enjoyable. What kinds of vinyl records will mostly be played?"
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "login-submit-button"
+- tapOn:
+    id: "login-username-input"
+- inputText: ${E2E_USERNAME}
+- tapOn:
+    id: "login-password-input"
+- inputText: ${E2E_PASSWORD}
+- tapOn:
+    id: "login-submit-button"
+- tapOn:
+    text: "Don't allow"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "tab-favorites"
+    timeout: 30000
+- tapOn:
+    id: "tab-favorites"
+- extendedWaitUntil:
+    visible: ${E2E_EVENT_TITLE}
+    timeout: 30000
+- tapOn:
+    id: "profile-event-card-${E2E_EVENT_TITLE}"
+- scrollUntilVisible:
+    element:
+      id: "discussion-question-input"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "discussion-question-input"
+- inputText: ${E2E_DISCUSSION_MESSAGE}
+- scrollUntilVisible:
+    element:
+      id: "discussion-post-button"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "discussion-post-button"
+- extendedWaitUntil:
+    visible: ${E2E_DISCUSSION_MESSAGE}
+    timeout: 30000

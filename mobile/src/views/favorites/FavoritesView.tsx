@@ -24,6 +24,7 @@ export default function FavoritesView() {
           <TouchableOpacity
             style={[styles.tab, activeTab === 'events' && styles.tabActive]}
             onPress={() => setActiveTab('events')}
+            testID="favorites-tab-events"
           >
             <Text
               style={[
@@ -38,6 +39,7 @@ export default function FavoritesView() {
           <TouchableOpacity
             style={[styles.tab, activeTab === 'locations' && styles.tabActive]}
             onPress={() => setActiveTab('locations')}
+            testID="favorites-tab-locations"
           >
             <Text
               style={[

@@ -416,6 +416,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                 placeholderTextColor={theme.placeholder}
                 maxLength={TITLE_MAX_LENGTH}
                 editable={!disabled}
+                testID="edit-event-title-input"
               />
               {vm.errors.title ? <Text style={styles.fieldError}>{vm.errors.title}</Text> : null}
             </View>
@@ -930,6 +931,7 @@ export default function EditEventView({ eventId }: EditEventViewProps) {
                 style={[styles.confirmSaveButton, vm.isSaving && styles.buttonDisabled]}
                 onPress={() => pendingPreview && void submitPreview(pendingPreview)}
                 disabled={vm.isSaving}
+                testID="edit-event-save-anyway-button"
               >
                 {vm.isSaving ? (
                   <ActivityIndicator size="small" color={theme.textOnPrimary} />

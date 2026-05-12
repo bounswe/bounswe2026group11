@@ -114,7 +114,7 @@ export default function JoinRequestsModal({
             keyExtractor={(item) => item.join_request_id}
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
-              <View style={styles.requestRow}>
+              <View style={styles.requestRow} testID={`join-request-row-${item.user.username}`}>
                 <TouchableOpacity 
                   style={styles.userInfoTouchable}
                   onPress={() => {
@@ -162,6 +162,7 @@ export default function JoinRequestsModal({
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.rejectBtn]}
                     onPress={() => onReject(item.join_request_id)}
+                    testID={`join-request-reject-${item.user.username}`}
                   >
                     <Feather name="x" size={20} color={theme.errorText} />
                   </TouchableOpacity>
@@ -169,6 +170,7 @@ export default function JoinRequestsModal({
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.approveBtn]}
                     onPress={() => onApprove(item.join_request_id)}
+                    testID={`join-request-approve-${item.user.username}`}
                   >
                     <Feather name="check" size={20} color={theme.successText} />
                   </TouchableOpacity>

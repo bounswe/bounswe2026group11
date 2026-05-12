@@ -1,0 +1,54 @@
+appId: com.bounswe2026group11.socialeventmapper
+env:
+  E2E_USERNAME: "123"
+  E2E_PASSWORD: "ab123456"
+  E2E_EVENT_TITLE: "Private Rooftop Acoustic Session"
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "login-submit-button"
+- tapOn:
+    id: "login-username-input"
+- inputText: ${E2E_USERNAME}
+- tapOn:
+    id: "login-password-input"
+- inputText: ${E2E_PASSWORD}
+- tapOn:
+    id: "login-submit-button"
+- tapOn:
+    text: "Don't allow"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "tab-events"
+    timeout: 30000
+- tapOn:
+    id: "tab-events"
+- assertVisible:
+    id: "my-events-tab-active"
+- tapOn:
+    id: "my-events-tab-active"
+- scrollUntilVisible:
+    element:
+      id: "my-event-card-${E2E_EVENT_TITLE}"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "my-event-card-${E2E_EVENT_TITLE}"
+- extendedWaitUntil:
+    visible:
+      id: "event-actions-primary-button"
+    timeout: 30000
+- tapOn:
+    id: "event-actions-primary-button"
+- extendedWaitUntil:
+    visible: "Ticket"
+    timeout: 30000
+- assertVisible: ${E2E_EVENT_TITLE}
+- scrollUntilVisible:
+    element:
+      text: "Refresh Code"
+    direction: DOWN
+    timeout: 30000
+- assertVisible: "Refresh Code"

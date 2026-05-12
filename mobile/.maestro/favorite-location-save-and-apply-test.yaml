@@ -1,0 +1,80 @@
+appId: com.bounswe2026group11.socialeventmapper
+env:
+  E2E_USERNAME: "123"
+  E2E_PASSWORD: "ab123456"
+  E2E_LOCATION_NAME: "home"
+  E2E_LOCATION_QUERY: "denizli"
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "login-submit-button"
+- tapOn:
+    id: "login-username-input"
+- inputText: ${E2E_USERNAME}
+- tapOn:
+    id: "login-password-input"
+- inputText: ${E2E_PASSWORD}
+- tapOn:
+    id: "login-submit-button"
+- tapOn:
+    text: "Don't allow"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "tab-favorites"
+    timeout: 30000
+- tapOn:
+    id: "tab-favorites"
+- extendedWaitUntil:
+    visible:
+      id: "favorites-tab-locations"
+    timeout: 30000
+- tapOn:
+    id: "favorites-tab-locations"
+- extendedWaitUntil:
+    visible:
+      id: "favorite-location-add-button"
+    timeout: 30000
+- tapOn:
+    id: "favorite-location-add-button"
+- extendedWaitUntil:
+    visible:
+      id: "favorite-location-name-input"
+    timeout: 30000
+- tapOn:
+    id: "favorite-location-name-input"
+- inputText: ${E2E_LOCATION_NAME}
+- tapOn:
+    id: "favorite-location-address-input"
+- inputText: ${E2E_LOCATION_QUERY}
+- extendedWaitUntil:
+    visible:
+      id: "favorite-location-suggestion-0"
+    timeout: 30000
+- tapOn:
+    id: "favorite-location-suggestion-0"
+- tapOn:
+    id: "favorite-location-save-button"
+- extendedWaitUntil:
+    visible:
+      id: "favorite-location-name-${E2E_LOCATION_NAME}"
+    timeout: 30000
+- tapOn:
+    id: "tab-home"
+- extendedWaitUntil:
+    visible:
+      id: "home-location-picker-button"
+    timeout: 30000
+- tapOn:
+    id: "home-location-picker-button"
+- extendedWaitUntil:
+    visible:
+      id: "home-location-favorite-option-${E2E_LOCATION_NAME}"
+    timeout: 30000
+- tapOn:
+    id: "home-location-favorite-option-${E2E_LOCATION_NAME}"
+- tapOn:
+    id: "home-location-apply-button"
+- assertNotVisible:
+    id: "home-location-apply-button"

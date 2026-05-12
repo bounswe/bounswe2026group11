@@ -1,0 +1,35 @@
+Running on emulator-5554
+ > Flow favorite-location-save-and-apply-test
+Launch app "com.bounswe2026group11.socialeventmapper" with clear state... COMPLETED
+Assert that id: login-submit-button is visible... COMPLETED
+Tap on id: login-username-input... COMPLETED
+Input text ${E2E_USERNAME}... COMPLETED
+Tap on id: login-password-input... COMPLETED
+Input text ${E2E_PASSWORD}... COMPLETED
+Tap on id: login-submit-button... COMPLETED
+Tap on (Optional) "Don't allow"... WARNED
+
+
+ Warning: Element not found: Text matching regex: Don't allow
+Assert that id: tab-favorites is visible... COMPLETED
+Tap on id: tab-favorites... COMPLETED
+Assert that id: favorites-tab-locations is visible... COMPLETED
+Tap on id: favorites-tab-locations... COMPLETED
+Assert that id: favorite-location-add-button is visible... COMPLETED
+Tap on id: favorite-location-add-button... COMPLETED
+Assert that id: favorite-location-name-input is visible... COMPLETED
+Tap on id: favorite-location-name-input... COMPLETED
+Input text ${E2E_LOCATION_NAME}... COMPLETED
+Tap on id: favorite-location-address-input... COMPLETED
+Input text ${E2E_LOCATION_QUERY}... COMPLETED
+Assert that id: favorite-location-suggestion-0 is visible... COMPLETED
+Tap on id: favorite-location-suggestion-0... COMPLETED
+Tap on id: favorite-location-save-button... COMPLETED
+Assert that id: favorite-location-name-${E2E_LOCATION_NAME} is visible... COMPLETED
+Tap on id: tab-home... COMPLETED
+Assert that id: home-location-picker-button is visible... COMPLETED
+Tap on id: home-location-picker-button... COMPLETED
+Assert that id: home-location-favorite-option-${E2E_LOCATION_NAME} is visible... COMPLETED
+Tap on id: home-location-favorite-option-${E2E_LOCATION_NAME}... COMPLETED
+Tap on id: home-location-apply-button... COMPLETED
+Assert that id: home-location-apply-button is not visible... COMPLETED

@@ -79,6 +79,7 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
         accessibilityRole="button"
         accessibilityState={{ selected: active }}
         accessibilityLabel={meta.label}
+        testID={`tab-${route.name}`}
         onPress={() => {
           if (!active) {
             navigation.navigate(route.name, route.params);

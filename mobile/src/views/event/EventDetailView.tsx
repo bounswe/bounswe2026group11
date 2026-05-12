@@ -482,6 +482,7 @@ function StarRatingInput({
             onPress={() => onChange(star)}
             activeOpacity={0.75}
             disabled={disabled}
+            testID={`event-feedback-star-${star}`}
           >
             <Text style={[styles.ratingStarIcon, active && styles.ratingStarIconActive]}>★</Text>
           </TouchableOpacity>
@@ -548,7 +549,7 @@ function ParticipantRatingSection({
     <>
       <View style={styles.divider} />
       <View style={styles.section}>
-        <View style={styles.ratingCard}>
+        <View style={styles.ratingCard} testID="event-feedback-section">
           <View style={styles.ratingCardHeader}>
             <View style={styles.ratingCardHeaderCopy}>
               <Text style={styles.ratingKicker}>{t('events.feedback.kicker')}</Text>
@@ -586,7 +587,7 @@ function ParticipantRatingSection({
 
           {isEligibleParticipant && existingRating && !isEditing ? (
             <View style={styles.ratingReadonly}>
-              <Text style={styles.ratingSummaryChip}>
+              <Text style={styles.ratingSummaryChip} testID="event-feedback-summary-chip">
                 {existingRating.rating}/5 · {renderStars(existingRating.rating)}
               </Text>
 
@@ -606,6 +607,7 @@ function ParticipantRatingSection({
                     onDismissError();
                     setIsEditing(true);
                   }}
+                  testID="event-feedback-edit-button"
                 >
                   <Text style={styles.ratingEditButtonText}>{t('events.feedback.editRating')}</Text>
                 </TouchableOpacity>
@@ -637,6 +639,7 @@ function ParticipantRatingSection({
                 textAlignVertical="top"
                 maxLength={FEEDBACK_MAX_LENGTH}
                 editable={!loading}
+                testID="event-feedback-message-input"
               />
 
               <View style={styles.ratingMeta}>
@@ -678,6 +681,7 @@ function ParticipantRatingSection({
                   disabled={loading || rating === 0 || Boolean(feedbackError)}
                   onPress={() => onSubmit(rating, message)}
                   activeOpacity={0.85}
+                  testID="event-feedback-submit-button"
                 >
                   {loading ? (
                     <ActivityIndicator size="small" color={theme.textOnPrimary} />
@@ -1017,7 +1021,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
 
       return (
         <View>
-          <View style={styles.statusChip}>
+          <View style={styles.statusChip} testID="joined-status-chip">
             <Ionicons name="checkmark-circle" size={16} color={theme.successText} />
             <Text style={styles.statusChipTextGreen}>{attendedLabel}</Text>
           </View>
@@ -1054,7 +1058,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (status_ === 'PENDING' || vm.actionState === 'success_requested') {
       return (
         <View>
-          <View style={styles.statusChip}>
+          <View style={styles.statusChip} testID="join-request-pending-chip">
             <Feather name="clock" size={16} color={theme.warningText} />
             <Text style={styles.statusChipTextAmber}>{t('events.detail.requestPending')}</Text>
           </View>
@@ -1096,7 +1100,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
     if (status_ === 'INVITED') {
       return (
         <View>
-          <View style={styles.statusChip}>
+          <View style={styles.statusChip} testID="invited-status-chip">
             <Feather name="mail" size={16} color={theme.infoText} />
             <Text style={styles.statusChipTextBlue}>{t('events.detail.youAreInvited')}</Text>
           </View>
@@ -1139,6 +1143,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 vm.actionState === 'declining_invitation'
               }
               activeOpacity={0.8}
+              testID="accept-invitation-button"
             >
               {vm.actionState === 'accepting_invitation' ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
@@ -1210,6 +1215,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
           style={[styles.actionButton, styles.actionButtonProtected]}
           onPress={vm.openJoinRequestModal}
           activeOpacity={0.8}
+          testID="request-to-join-button"
         >
           <Feather name="send" size={18} color={theme.textOnPrimary} />
           <Text style={styles.actionButtonText}>{t('events.detail.requestToJoin')}</Text>
@@ -1614,6 +1620,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                   <TouchableOpacity
                     style={[styles.hostActionBtn, styles.hostActionBtnPrimary]}
                     onPress={() => vm.setShowRequestsModal(true)}
+                    testID="pending-requests-button"
                   >
                     <Feather name="mail" size={18} color={theme.textOnPrimary} />
                     <Text style={styles.hostActionTextWhite}>
@@ -1833,6 +1840,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 textAlignVertical="top"
                 maxLength={500}
                 editable={vm.actionState !== 'requesting'}
+                testID="join-request-message-input"
               />
               <Text style={styles.charCount}>{vm.joinRequestMessage.length}/500</Text>
 
@@ -1886,6 +1894,7 @@ export default function EventDetailView({ eventId }: EventDetailViewProps) {
                 onPress={vm.handleRequestJoin}
                 disabled={vm.actionState === 'requesting'}
                 activeOpacity={0.8}
+                testID="join-request-send-button"
               >
                 {vm.actionState === 'requesting' ? (
                   <ActivityIndicator color={theme.textOnPrimary} size="small" />

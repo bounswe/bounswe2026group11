@@ -1,0 +1,60 @@
+appId: com.bounswe2026group11.socialeventmapper
+env:
+  E2E_USERNAME: "123"
+  E2E_PASSWORD: "ab123456"
+  E2E_EVENT_TITLE: "Indie Film Discussion Night in Moda"
+  E2E_REQUEST_USERNAME: "sp123"
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "login-submit-button"
+- tapOn:
+    id: "login-username-input"
+- inputText: ${E2E_USERNAME}
+- tapOn:
+    id: "login-password-input"
+- inputText: ${E2E_PASSWORD}
+- tapOn:
+    id: "login-submit-button"
+- tapOn:
+    text: "Don't allow"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "tab-events"
+    timeout: 30000
+- tapOn:
+    id: "tab-events"
+- assertVisible:
+    id: "my-events-tab-active"
+- tapOn:
+    id: "my-events-tab-active"
+- scrollUntilVisible:
+    element:
+      id: "my-event-card-${E2E_EVENT_TITLE}"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "my-event-card-${E2E_EVENT_TITLE}"
+- scrollUntilVisible:
+    element:
+      text: "View Full Event"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "View Full Event"
+- scrollUntilVisible:
+    element:
+      id: "pending-requests-button"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "pending-requests-button"
+- extendedWaitUntil:
+    visible:
+      id: "join-request-row-${E2E_REQUEST_USERNAME}"
+    timeout: 30000
+- tapOn:
+    id: "join-request-approve-${E2E_REQUEST_USERNAME}"
+- assertNotVisible:
+    id: "join-request-row-${E2E_REQUEST_USERNAME}"

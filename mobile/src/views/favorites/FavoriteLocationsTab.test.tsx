@@ -17,6 +17,7 @@ jest.mock('react-native', () => {
     'keyboardShouldPersistTaps',
     'numberOfLines',
     'placeholderTextColor',
+    'testID',
   ]);
 
   const stripReactNativeOnlyProps = (props: Record<string, unknown>) => {
@@ -31,18 +32,38 @@ jest.mock('react-native', () => {
 
   const createDiv =
     (displayName: string) =>
-      ({ children, ...props }: { children?: React.ReactNode }) =>
+      ({
+        children,
+        testID,
+        ...props
+      }: {
+        children?: React.ReactNode;
+        testID?: string;
+      }) =>
         ReactLocal.createElement(
           'div',
-          { ...stripReactNativeOnlyProps(props), 'data-testid': displayName },
+          {
+            ...stripReactNativeOnlyProps(props),
+            'data-testid': testID ?? displayName,
+          },
           children,
         );
   const createSpan =
     (displayName: string) =>
-      ({ children, ...props }: { children?: React.ReactNode }) =>
+      ({
+        children,
+        testID,
+        ...props
+      }: {
+        children?: React.ReactNode;
+        testID?: string;
+      }) =>
         ReactLocal.createElement(
           'span',
-          { ...stripReactNativeOnlyProps(props), 'data-testid': displayName },
+          {
+            ...stripReactNativeOnlyProps(props),
+            'data-testid': testID ?? displayName,
+          },
           children,
         );
 
@@ -55,13 +76,16 @@ jest.mock('react-native', () => {
     TextInput: ({
       value,
       onChangeText,
+      testID,
       ...props
     }: {
       value?: string;
       onChangeText?: (value: string) => void;
+      testID?: string;
     }) =>
       ReactLocal.createElement('input', {
         ...stripReactNativeOnlyProps(props),
+        'data-testid': testID,
         value,
         onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
           onChangeText?.(event.target.value),
@@ -70,16 +94,19 @@ jest.mock('react-native', () => {
       children,
       onPress,
       disabled,
+      testID,
       ...props
     }: {
       children?: React.ReactNode;
       onPress?: () => void;
       disabled?: boolean;
+      testID?: string;
     }) =>
       ReactLocal.createElement(
         'button',
         {
           ...stripReactNativeOnlyProps(props),
+          'data-testid': testID,
           type: 'button',
           disabled,
           onClick: onPress,

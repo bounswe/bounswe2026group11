@@ -59,7 +59,12 @@ function LocationCard({
         <Ionicons name="location" size={22} color="#6366F1" />
       </View>
       <View style={styles.locationContent}>
-        <Text style={styles.locationName}>{location.name}</Text>
+        <Text
+          style={styles.locationName}
+          testID={`favorite-location-name-${location.name}`}
+        >
+          {location.name}
+        </Text>
         <Text style={styles.locationAddress} numberOfLines={2}>
           {formatEventLocation(location.address)}
         </Text>
@@ -146,6 +151,7 @@ function AddLocationModal({
               value={name}
               onChangeText={onChangeName}
               maxLength={50}
+              testID="favorite-location-name-input"
             />
 
             <Text style={[styles.fieldLabel, { marginTop: 20 }]}>
@@ -157,6 +163,7 @@ function AddLocationModal({
               placeholderTextColor={theme.placeholder}
               value={locationQuery}
               onChangeText={onChangeQuery}
+              testID="favorite-location-address-input"
             />
 
             {isSearching ? (
@@ -173,6 +180,7 @@ function AddLocationModal({
                     key={`${s.lat}-${s.lon}-${index}`}
                     style={styles.suggestionItem}
                     onPress={() => onSelectSuggestion(s)}
+                    testID={`favorite-location-suggestion-${index}`}
                   >
                     <Ionicons
                       name="location-outline"
@@ -214,6 +222,7 @@ function AddLocationModal({
               ]}
               onPress={onSubmit}
               disabled={isSubmitting}
+              testID="favorite-location-save-button"
             >
               {isSubmitting ? (
                 <ActivityIndicator size="small" color={theme.textOnPrimary} />
@@ -253,6 +262,7 @@ export default function FavoriteLocationsTab() {
           style={[styles.addButton, !vm.canAddMore && styles.addButtonDisabled]}
           onPress={vm.openAddModal}
           disabled={!vm.canAddMore}
+          testID="favorite-location-add-button"
         >
           <Feather
             name="plus"

@@ -1,0 +1,23 @@
+Running on emulator-5554
+ > Flow favorite-event-discussion-post-test
+Launch app "com.bounswe2026group11.socialeventmapper" with clear state... COMPLETED
+Assert that id: login-submit-button is visible... COMPLETED
+Tap on id: login-username-input... COMPLETED
+Input text ${E2E_USERNAME}... COMPLETED
+Tap on id: login-password-input... COMPLETED
+Input text ${E2E_PASSWORD}... COMPLETED
+Tap on id: login-submit-button... COMPLETED
+Tap on (Optional) "Don't allow"... WARNED
+
+
+ Warning: Element not found: Text matching regex: Don't allow
+Assert that id: tab-favorites is visible... COMPLETED
+Tap on id: tab-favorites... COMPLETED
+Assert that "${E2E_EVENT_TITLE}" is visible... COMPLETED
+Tap on id: profile-event-card-${E2E_EVENT_TITLE}... COMPLETED
+Scrolling DOWN until id: discussion-question-input is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on id: discussion-question-input... COMPLETED
+Input text ${E2E_DISCUSSION_MESSAGE}... COMPLETED
+Scrolling DOWN until id: discussion-post-button is visible with speed 40, visibility percentage 100%, timeout 15000 ms, with centering disabled... COMPLETED
+Tap on id: discussion-post-button... COMPLETED
+Assert that "${E2E_DISCUSSION_MESSAGE}" is visible... COMPLETED

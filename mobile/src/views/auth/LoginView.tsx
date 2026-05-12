@@ -74,6 +74,7 @@ export default function LoginView() {
             editable={!vm.isLoading}
             accessibilityLabel="Username"
             accessibilityState={{ disabled: vm.isLoading }}
+            testID="login-username-input"
           />
           {vm.errors.username && (
             <Text style={styles.fieldError}>{vm.errors.username}</Text>
@@ -93,6 +94,7 @@ export default function LoginView() {
             editable={!vm.isLoading}
             accessibilityLabel="Password"
             accessibilityState={{ disabled: vm.isLoading }}
+            testID="login-password-input"
           />
           {vm.errors.password && (
             <Text style={styles.fieldError}>{vm.errors.password}</Text>
@@ -118,6 +120,7 @@ export default function LoginView() {
           accessibilityRole="button"
           accessibilityLabel={vm.isLoading ? 'Signing in' : 'Sign in'}
           accessibilityState={{ disabled: vm.isLoading, busy: vm.isLoading }}
+          testID="login-submit-button"
         >
           {vm.isLoading ? (
             <ActivityIndicator color={theme.textOnPrimary} />

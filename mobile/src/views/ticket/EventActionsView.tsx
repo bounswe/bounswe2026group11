@@ -191,6 +191,7 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
               activeOpacity={0.9}
               onPress={handlePrimaryAction}
               style={styles.primaryButton}
+              testID="event-actions-primary-button"
             >
               <Feather
                 name={vm.canScanTicket ? 'camera' : 'grid'}
@@ -218,6 +219,7 @@ export default function EventActionsView({ eventId }: EventActionsViewProps) {
             activeOpacity={0.9}
             onPress={() => router.push(`/event/${eventId}` as Href)}
             style={styles.secondaryButton}
+            testID="event-actions-view-full-event-button"
           >
             <Text style={styles.secondaryButtonText}>{t('tickets.actions.viewFullEvent')}</Text>
             <Ionicons name="chevron-forward" size={22} color={theme.text} />

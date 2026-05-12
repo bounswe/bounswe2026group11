@@ -440,7 +440,7 @@ export function useHomeViewModel(): HomeViewModel {
     useState<HomeFiltersDraft>(DEFAULT_FILTERS);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
-  const [viewMode, setViewMode] = useState<HomeViewMode>('LIST');
+  const [viewMode, setViewMode] = useState<HomeViewMode>('MAP');
 
   const toggleViewMode = useCallback(() => {
     setViewMode((prev) => (prev === 'LIST' ? 'MAP' : 'LIST'));

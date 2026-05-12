@@ -1,0 +1,21 @@
+Running on emulator-5554
+ > Flow invitation-accept-test
+Launch app "com.bounswe2026group11.socialeventmapper" with clear state... COMPLETED
+Assert that id: login-submit-button is visible... COMPLETED
+Tap on id: login-username-input... COMPLETED
+Input text ${E2E_USERNAME}... COMPLETED
+Tap on id: login-password-input... COMPLETED
+Input text ${E2E_PASSWORD}... COMPLETED
+Tap on id: login-submit-button... COMPLETED
+Tap on (Optional) "Don't allow"... WARNED
+
+
+ Warning: Element not found: Text matching regex: Don't allow
+Assert that id: tab-profile is visible... COMPLETED
+Tap on id: tab-profile... COMPLETED
+Assert that "${E2E_INVITATION_EVENT_TITLE}" is visible... COMPLETED
+Tap on "${E2E_INVITATION_EVENT_TITLE}"... COMPLETED
+Assert that id: invited-status-chip is visible... COMPLETED
+Assert that id: accept-invitation-button is visible... COMPLETED
+Tap on id: accept-invitation-button... COMPLETED
+Assert that id: joined-status-chip is visible... COMPLETED

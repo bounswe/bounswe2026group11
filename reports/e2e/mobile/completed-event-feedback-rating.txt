@@ -1,0 +1,29 @@
+Running on emulator-5554
+ > Flow completed-event-feedback-rating-test
+Launch app "com.bounswe2026group11.socialeventmapper" with clear state... COMPLETED
+Assert that id: login-submit-button is visible... COMPLETED
+Tap on id: login-username-input... COMPLETED
+Input text ${E2E_USERNAME}... COMPLETED
+Tap on id: login-password-input... COMPLETED
+Input text ${E2E_PASSWORD}... COMPLETED
+Tap on id: login-submit-button... COMPLETED
+Tap on (Optional) "Don't allow"... WARNED
+
+
+ Warning: Element not found: Text matching regex: Don't allow
+Assert that id: tab-events is visible... COMPLETED
+Tap on id: tab-events... COMPLETED
+Assert that id: my-events-tab-completed is visible... COMPLETED
+Tap on id: my-events-tab-completed... COMPLETED
+Scrolling DOWN until id: my-event-card-${E2E_EVENT_TITLE} is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on id: my-event-card-${E2E_EVENT_TITLE}... COMPLETED
+Scrolling DOWN until id: event-actions-view-full-event-button is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on id: event-actions-view-full-event-button... COMPLETED
+Scrolling DOWN until id: discussion-qa-tab is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on id: discussion-qa-tab... COMPLETED
+Scrolling UP until id: event-feedback-edit-button is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on id: event-feedback-edit-button... COMPLETED
+Tap on id: event-feedback-star-3... COMPLETED
+Tap on id: event-feedback-submit-button... COMPLETED
+Assert that id: event-feedback-edit-button is visible... COMPLETED
+Assert that id: event-feedback-edit-button is visible... COMPLETED

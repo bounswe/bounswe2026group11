@@ -97,6 +97,7 @@ export default function MyEventsView() {
                 activeOpacity={0.9}
                 onPress={() => vm.setActiveStatus(tab.value)}
                 style={[styles.tab, active && styles.tabActive]}
+                testID={`my-events-tab-${tab.value.toLowerCase()}`}
               >
                 <Text style={[styles.tabText, active && styles.tabTextActive]}>
                   {tab.label}

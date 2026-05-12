@@ -103,6 +103,7 @@ export default function MyEventCard({ event, onPress }: MyEventCardProps) {
       activeOpacity={0.88}
       style={styles.card}
       onPress={() => onPress?.(event.id)}
+      testID={`my-event-card-${event.title}`}
     >
       <View style={styles.imageWrapper}>
         {event.image_url ? (

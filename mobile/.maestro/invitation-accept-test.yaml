@@ -1,0 +1,43 @@
+appId: com.bounswe2026group11.socialeventmapper
+env:
+  E2E_USERNAME: "123"
+  E2E_PASSWORD: "ab123456"
+  E2E_INVITATION_EVENT_TITLE: "Private Art Book Exchange and Discussion Night"
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "login-submit-button"
+- tapOn:
+    id: "login-username-input"
+- inputText: ${E2E_USERNAME}
+- tapOn:
+    id: "login-password-input"
+- inputText: ${E2E_PASSWORD}
+- tapOn:
+    id: "login-submit-button"
+- tapOn:
+    text: "Don't allow"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "tab-profile"
+    timeout: 30000
+- tapOn:
+    id: "tab-profile"
+- extendedWaitUntil:
+    visible: ${E2E_INVITATION_EVENT_TITLE}
+    timeout: 30000
+- tapOn: ${E2E_INVITATION_EVENT_TITLE}
+- extendedWaitUntil:
+    visible:
+      id: "invited-status-chip"
+    timeout: 30000
+- assertVisible:
+    id: "accept-invitation-button"
+- tapOn:
+    id: "accept-invitation-button"
+- extendedWaitUntil:
+    visible:
+      id: "joined-status-chip"
+    timeout: 30000

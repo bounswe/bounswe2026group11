@@ -141,6 +141,7 @@ export default function HomeView() {
                 onPress={handleOpenLocationPicker}
                 accessibilityRole="button"
                 accessibilityLabel={t('home.locationPicker.selectAccessibility')}
+                testID="home-location-picker-button"
               >
                 <Feather name="map-pin" size={16} color={styles.mapLocationIconColor.color} />
                 <Text style={styles.mapLocationText} numberOfLines={1}>
@@ -169,6 +170,7 @@ export default function HomeView() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   returnKeyType="search"
+                  testID="home-search-input"
                 />
               </View>
 
@@ -212,6 +214,7 @@ export default function HomeView() {
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel={t('home.locationPicker.selectAccessibility')}
+                testID="home-location-picker-button"
               >
                 <Feather name="map-pin" size={18} color={isDark ? theme.text : theme.textOnPrimary} />
                 <Text style={styles.locationPillText} numberOfLines={1}>
