@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AdvancedMarker,
   Map as GoogleMap,
@@ -85,6 +86,7 @@ function FitRouteBounds({ points }: { points: LatLng[] }) {
 }
 
 export default function EventDetailMiniMap({ location }: EventDetailMiniMapProps) {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [routedPath, setRoutedPath] = useState<LatLng[] | null>(null);
@@ -130,7 +132,7 @@ export default function EventDetailMiniMap({ location }: EventDetailMiniMapProps
   if (!isGoogleMapsConfigured()) {
     return (
       <div className="ed-map-surface ed-map-surface--placeholder" role="status">
-        <p>Map preview is unavailable. Configure VITE_GOOGLE_MAPS_WEB_API_KEY to view this location.</p>
+        <p>{t('event_detail.map_preview_unconfigured')}</p>
       </div>
     );
   }

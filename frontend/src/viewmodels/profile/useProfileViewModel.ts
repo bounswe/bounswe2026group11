@@ -324,7 +324,11 @@ export function useProfileViewModel(token: string | null) {
     setIsSaving(true);
 
     try {
-      if (!token) throw new Error('Authentication token is missing.');
+      if (!token) {
+        setError(i18n.t('errors.auth_token_missing'));
+        setIsSaving(false);
+        return;
+      }
 
       const hadAvatarUpload = !!avatarFile;
 
@@ -363,8 +367,8 @@ export function useProfileViewModel(token: string | null) {
       setIsEditing(false);
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
       const message = hadAvatarUpload
-        ? 'Profile photo updated successfully!'
-        : 'Profile updated successfully!';
+        ? i18n.t('profile.success_photo_saved')
+        : i18n.t('profile.success_saved');
       setSuccess(message);
       successTimerRef.current = setTimeout(() => {
         setSuccess(null);
@@ -397,23 +401,23 @@ export function useProfileViewModel(token: string | null) {
     const nextErrors: ChangePasswordErrors = {};
 
     if (!currentPassword) {
-      nextErrors.currentPassword = 'Current password is required.';
+      nextErrors.currentPassword = i18n.t('profile.password_validation_current_required');
     }
 
     if (!newPassword) {
-      nextErrors.newPassword = 'New password is required.';
+      nextErrors.newPassword = i18n.t('profile.password_validation_new_required');
     } else if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      nextErrors.newPassword = `New password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+      nextErrors.newPassword = i18n.t('profile.password_validation_new_min', { count: MIN_PASSWORD_LENGTH });
     }
 
     if (!confirmPassword) {
-      nextErrors.confirmPassword = 'Confirm new password is required.';
+      nextErrors.confirmPassword = i18n.t('profile.password_validation_confirm_required');
     } else if (newPassword && newPassword !== confirmPassword) {
-      nextErrors.confirmPassword = 'New password and confirmation must match.';
+      nextErrors.confirmPassword = i18n.t('profile.password_validation_mismatch');
     }
 
     if (currentPassword && newPassword && currentPassword === newPassword) {
-      nextErrors.newPassword = 'New password must differ from current password.';
+      nextErrors.newPassword = i18n.t('profile.password_validation_same_as_old');
     }
 
     setPasswordErrors(nextErrors);
@@ -428,7 +432,7 @@ export function useProfileViewModel(token: string | null) {
     if (!validateChangePassword()) return;
 
     if (!token) {
-      setPasswordError('Authentication token is missing.');
+      setPasswordError(i18n.t('errors.auth_token_missing'));
       return;
     }
 
@@ -441,7 +445,7 @@ export function useProfileViewModel(token: string | null) {
 
       resetPasswordForm();
       setIsPasswordFormOpen(false);
-      setPasswordSuccess('Password changed successfully.');
+      setPasswordSuccess(i18n.t('profile.password_changed_success'));
       if (passwordSuccessTimerRef.current) clearTimeout(passwordSuccessTimerRef.current);
       passwordSuccessTimerRef.current = setTimeout(() => {
         setPasswordSuccess(null);
@@ -450,7 +454,7 @@ export function useProfileViewModel(token: string | null) {
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         if (err.status === 401 || err.status === 403) {
-          setPasswordError('Current password is incorrect');
+          setPasswordError(i18n.t('profile.password_wrong_current'));
         } else if (err.status === 400) {
           setPasswordError(getBackendValidationMessage(err));
         } else {
@@ -496,13 +500,13 @@ export function useProfileViewModel(token: string | null) {
     setEquipmentError(null);
 
     if (!token) {
-      setEquipmentError('Authentication token is missing.');
+      setEquipmentError(i18n.t('errors.auth_token_missing'));
       return;
     }
 
     const trimmedName = equipmentDraft.name.trim();
     if (!trimmedName) {
-      setEquipmentError('Equipment name is required.');
+      setEquipmentError(i18n.t('profile.equipment_name_required'));
       return;
     }
 
@@ -531,7 +535,7 @@ export function useProfileViewModel(token: string | null) {
 
   const handleDeleteEquipment = useCallback(async (equipmentId: string) => {
     if (!token) {
-      setEquipmentError('Authentication token is missing.');
+      setEquipmentError(i18n.t('errors.auth_token_missing'));
       return;
     }
 
@@ -553,7 +557,7 @@ export function useProfileViewModel(token: string | null) {
 
   const handleShowcaseUpload = useCallback(async (file: File) => {
     if (!token) {
-      setShowcaseError('Authentication token is missing.');
+      setShowcaseError(i18n.t('errors.auth_token_missing'));
       return;
     }
 
@@ -576,7 +580,7 @@ export function useProfileViewModel(token: string | null) {
 
   const handleDeleteShowcaseImage = useCallback(async (showcaseImageId: string) => {
     if (!token) {
-      setShowcaseError('Authentication token is missing.');
+      setShowcaseError(i18n.t('errors.auth_token_missing'));
       return;
     }
 

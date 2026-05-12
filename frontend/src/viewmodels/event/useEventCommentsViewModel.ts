@@ -49,12 +49,12 @@ function defaultRepliesState(): RepliesState {
 function mapCommentApiError(err: unknown, fallback: string): string {
   if (err instanceof ApiError) {
     const codeMap: Record<string, string> = {
-      comments_not_allowed: 'Comments are not available for this event.',
-      review_not_allowed: 'You are not eligible to review this event.',
-      review_window_closed: 'The review window for this event has closed.',
-      discussion_window_closed: 'Discussion is closed for this event.',
+      comments_not_allowed: i18n.t('errors.comments_api_discussion_unavailable'),
+      review_not_allowed: i18n.t('errors.comments_api_review_ineligible'),
+      review_window_closed: i18n.t('errors.comments_api_review_closed'),
+      discussion_window_closed: i18n.t('errors.comments_api_discussion_closed'),
       validation_error: err.details?.message ?? err.message,
-      not_found: 'Event or comment not found.',
+      not_found: i18n.t('errors.comments_api_not_found'),
     };
     return codeMap[err.code] ?? err.message ?? fallback;
   }
@@ -343,7 +343,7 @@ export function useEventCommentsViewModel(
       if (!eventId || !token) return false;
       const trimmed = message.trim();
       if (rating < 1 || rating > 5) {
-        setReviewSubmitError('Select a rating from 1 to 5 stars.');
+        setReviewSubmitError(i18n.t('errors.comments_review_stars_required'));
         return false;
       }
       if (trimmed.length === 0) {
@@ -378,7 +378,7 @@ export function useEventCommentsViewModel(
         });
 
         if (reviewSuccessTimerRef.current) clearTimeout(reviewSuccessTimerRef.current);
-        setReviewSubmitSuccess('Review submitted. Thanks for sharing your experience.');
+        setReviewSubmitSuccess(i18n.t('interaction.review_submit_success'));
         reviewSuccessTimerRef.current = setTimeout(() => {
           setReviewSubmitSuccess(null);
           reviewSuccessTimerRef.current = null;
