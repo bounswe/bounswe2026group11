@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/config/api';
+import { getCurrentLocale } from '@/i18n';
 import { AuthSessionResponse, ErrorResponse } from '@/models/auth';
 
 export class ApiError extends Error {
@@ -38,6 +39,14 @@ interface TokenRefreshManager {
 let tokenRefreshManager: TokenRefreshManager | null = null;
 let pendingRefresh: Promise<string> | null = null;
 
+function buildJsonHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'Accept-Language': getCurrentLocale(),
+    ...extraHeaders,
+  };
+}
+
 export function setTokenRefreshManager(manager: TokenRefreshManager | null): void {
   tokenRefreshManager = manager;
 }
@@ -51,7 +60,7 @@ async function attemptTokenRefresh(): Promise<string> {
 
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: buildJsonHeaders(),
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
 
@@ -82,7 +91,7 @@ async function attemptTokenRefresh(): Promise<string> {
 export async function apiPost<T>(endpoint: string, body: unknown): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildJsonHeaders(),
     body: JSON.stringify(body),
   });
 
@@ -100,7 +109,7 @@ export async function apiPost<T>(endpoint: string, body: unknown): Promise<T> {
 export async function apiGet<T>(endpoint: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildJsonHeaders(),
     cache: 'no-store',
   });
 
@@ -120,7 +129,7 @@ async function fetchWithAuth(
   body?: unknown,
 ): Promise<Response> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...buildJsonHeaders(),
     Authorization: `Bearer ${token}`,
   };
 

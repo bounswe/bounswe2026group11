@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+
 export interface EventCategoryPresentation {
   label: string;
   emoji: string;
@@ -69,8 +71,11 @@ export function getEventCategoryPresentation(
   categoryName: string,
   isDark: boolean,
 ): EventCategoryPresentation {
-  const label = categoryName.trim() || 'Event';
-  const normalizedName = normalizeCategoryName(label);
+  const rawLabel = categoryName.trim() || 'Event';
+  const translationKey = `events.categories.${rawLabel}`;
+  const translated = i18n.t(translationKey);
+  const label = translated === translationKey ? rawLabel : translated;
+  const normalizedName = normalizeCategoryName(rawLabel);
   const config =
     CATEGORY_PRESENTATION_BY_NAME[normalizedName] ??
     FALLBACK_CATEGORY_PRESENTATIONS[

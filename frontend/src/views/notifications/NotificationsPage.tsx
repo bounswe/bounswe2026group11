@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotificationsViewModel } from '@/viewmodels/notifications/useNotificationsViewModel';
 import { getNotificationPresentation } from '@/utils/notificationPresentation';
@@ -13,19 +14,22 @@ import {
 } from '@/services/invitationService';
 import { ApiError } from '@/services/api';
 import '@/styles/notifications.css';
+import i18n from '@/i18n';
 
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '';
-  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString(undefined, {
+  const diffSeconds = Math.round((then - Date.now()) / 1000);
+  const rtf = new Intl.RelativeTimeFormat(i18n.resolvedLanguage, { numeric: 'auto' });
+  const abs = Math.abs(diffSeconds);
+  if (abs < 60) return rtf.format(Math.max(-59, Math.min(-1, diffSeconds)), 'second');
+  const diffMinutes = Math.round(diffSeconds / 60);
+  if (Math.abs(diffMinutes) < 60) return rtf.format(diffMinutes, 'minute');
+  const diffHours = Math.round(diffMinutes / 60);
+  if (Math.abs(diffHours) < 24) return rtf.format(diffHours, 'hour');
+  const diffDays = Math.round(diffHours / 24);
+  if (Math.abs(diffDays) < 7) return rtf.format(diffDays, 'day');
+  return new Date(iso).toLocaleDateString(i18n.resolvedLanguage, {
     month: 'short',
     day: 'numeric',
   });
@@ -89,6 +93,7 @@ function NotificationRow({
   onClick: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   const presentation = getNotificationPresentation(notification);
   const isUnread = !notification.is_read;
 
@@ -101,7 +106,7 @@ function NotificationRow({
         type="button"
         className="notif-row-main"
         onClick={onClick}
-        aria-label={presentation.actionLabel ?? 'Open notification'}
+        aria-label={presentation.actionLabel ?? t('notifications.open_notification')}
       >
         <span
           className="notif-row-icon"
@@ -150,15 +155,15 @@ function NotificationRow({
           )}
         </span>
 
-        {isUnread && <span className="notif-row-dot" aria-label="Unread" />}
+        {isUnread && <span className="notif-row-dot" aria-label={t('notifications.unread')} />}
       </button>
 
       <button
         type="button"
         className="notif-row-delete"
         onClick={onDelete}
-        aria-label="Delete notification"
-        title="Delete notification"
+        aria-label={t('notifications.delete_notification')}
+        title={t('notifications.delete_notification')}
       >
         &times;
       </button>
@@ -309,6 +314,7 @@ function InvitationNotificationModal({
 }
 
 export default function NotificationsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { token } = useAuth();
   const vm = useNotificationsViewModel();
@@ -412,9 +418,9 @@ export default function NotificationsPage() {
     <div className="notif-page">
       <header className="notif-page-header">
         <div>
-          <h1 className="notif-page-title">Notifications</h1>
+          <h1 className="notif-page-title">{t('notifications.title')}</h1>
           <p className="notif-page-subtitle">
-            Updates about your events, invitations, and join requests.
+            {t('notifications.subtitle')}
           </p>
         </div>
         <div className="notif-page-actions">
@@ -424,7 +430,7 @@ export default function NotificationsPage() {
               className="notif-action-btn"
               onClick={() => vm.markAllRead()}
             >
-              Mark all read
+              {t('notifications.mark_all_read')}
             </button>
           )}
           {vm.notifications.length > 0 && (
@@ -433,7 +439,7 @@ export default function NotificationsPage() {
               className="notif-action-btn notif-action-danger"
               onClick={() => vm.deleteAll()}
             >
-              Clear all
+              {t('notifications.clear_all')}
             </button>
           )}
         </div>
@@ -446,7 +452,7 @@ export default function NotificationsPage() {
             type="button"
             className="notif-error-dismiss"
             onClick={vm.dismissError}
-            aria-label="Dismiss error"
+            aria-label={t('notifications.dismiss_error')}
           >
             &times;
           </button>
@@ -456,14 +462,14 @@ export default function NotificationsPage() {
       {vm.isLoading && vm.notifications.length === 0 && (
         <div className="notif-loading">
           <span className="spinner" />
-          <p>Loading notifications...</p>
+          <p>{t('notifications.loading')}</p>
         </div>
       )}
 
       {!vm.isLoading && vm.notifications.length === 0 && !vm.error && (
         <div className="notif-empty">
-          <h2>No notifications yet</h2>
-          <p>You&rsquo;ll see updates here when something happens with your events.</p>
+          <h2>{t('notifications.empty_title')}</h2>
+          <p>{t('notifications.empty_body')}</p>
         </div>
       )}
 
@@ -488,7 +494,7 @@ export default function NotificationsPage() {
             onClick={() => vm.loadMore()}
             disabled={vm.isLoadingMore}
           >
-            {vm.isLoadingMore ? <span className="spinner" /> : 'Load more'}
+            {vm.isLoadingMore ? <span className="spinner" /> : t('notifications.load_more')}
           </button>
         </div>
       )}

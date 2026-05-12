@@ -9,6 +9,7 @@ import {
 } from '@/services/notificationService';
 import type { NotificationItem } from '@/models/notification';
 import { ApiError } from '@/services/api';
+import i18n from '@/i18n';
 import {
   emitUnreadCountDelta,
   emitUnreadCountValue,
@@ -54,7 +55,7 @@ export function useNotificationsViewModel(): NotificationsViewModel {
       setNextCursor(response.page_info.next_cursor);
       setHasNext(response.page_info.has_next);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load notifications');
+      setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +73,7 @@ export function useNotificationsViewModel(): NotificationsViewModel {
       setNextCursor(response.page_info.next_cursor);
       setHasNext(response.page_info.has_next);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load more notifications');
+      setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
     } finally {
       setIsLoadingMore(false);
     }
@@ -119,7 +120,7 @@ export function useNotificationsViewModel(): NotificationsViewModel {
     } catch (err) {
       setNotifications(previous);
       if (previousUnreadCount > 0) emitUnreadCountValue(previousUnreadCount);
-      setError(err instanceof ApiError ? err.message : 'Failed to mark all as read');
+      setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
     }
   }, [token, notifications]);
 
@@ -135,7 +136,7 @@ export function useNotificationsViewModel(): NotificationsViewModel {
       } catch (err) {
         setNotifications(previous);
         if (deletedWasUnread) emitUnreadCountDelta(1);
-        setError(err instanceof ApiError ? err.message : 'Failed to delete notification');
+        setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
       }
     },
     [token, notifications],
@@ -152,7 +153,7 @@ export function useNotificationsViewModel(): NotificationsViewModel {
     } catch (err) {
       setNotifications(previous);
       if (previousUnreadCount > 0) emitUnreadCountValue(previousUnreadCount);
-      setError(err instanceof ApiError ? err.message : 'Failed to clear notifications');
+      setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
     }
   }, [token, notifications]);
 

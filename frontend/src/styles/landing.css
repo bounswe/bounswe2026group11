@@ -42,6 +42,13 @@
   background: radial-gradient(ellipse at 30% 40%, #1a1a22 0%, #0f0f14 70%);
 }
 
+.landing-language-switcher {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 2;
+}
+
 .dot-canvas {
   position: absolute;
   inset: 0;
@@ -166,6 +173,11 @@
 
   .landing-content {
     padding: 24px 24px 40px;
+  }
+
+  .landing-language-switcher {
+    top: 16px;
+    right: 16px;
   }
 }
 

@@ -1,16 +1,20 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyEventsViewModel, type MyEventsTab } from '@/viewmodels/event/useMyEventsViewModel';
 import type { EventSummary } from '@/models/profile';
 import { EventCoverImage } from '@/components/EventCoverImage';
 import { RatingWithCount } from '@/components/RatingWithCount';
+import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import { getEventCardBadgePresentation } from '@/utils/eventStatus';
+import { useTheme } from '@/contexts/ThemeContext';
 import '@/styles/my-events.css';
 import '@/styles/discover.css';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString(i18n.resolvedLanguage, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -19,7 +23,7 @@ function formatDate(iso: string): string {
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString(undefined, {
+  return d.toLocaleTimeString(i18n.resolvedLanguage, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -27,8 +31,10 @@ function formatTime(iso: string): string {
 }
 
 function EventCard({ event }: { event: EventSummary }) {
+  const { t } = useTranslation();
+  const { theme } = useTheme();
   const badge = getEventCardBadgePresentation(event.status);
-  const category = event.category_name ?? event.category;
+  const categoryPresentation = getEventCategoryPresentation(event.category_name ?? event.category ?? 'Event', theme === 'dark');
   const participantCount = event.approved_participant_count ?? event.participants_count ?? 0;
 
   return (
@@ -57,13 +63,13 @@ function EventCard({ event }: { event: EventSummary }) {
         )}
         {event.privacy_level && event.privacy_level !== 'PRIVATE' && (
           <span className={`dc-privacy-badge dc-privacy-${event.privacy_level.toLowerCase()}`}>
-            {event.privacy_level === 'PUBLIC' ? 'Public' : 'Protected'}
+            {t(`events.privacy.${event.privacy_level}`)}
           </span>
         )}
       </div>
       <div className="dc-card-body">
         <div className="dc-card-meta">
-          {category && <span className="dc-card-category">{category}</span>}
+          <span className="dc-card-category">{categoryPresentation.label}</span>
           <span className="dc-card-date">
             {formatDate(event.start_time)} &middot; {formatTime(event.start_time)}
           </span>
@@ -74,7 +80,7 @@ function EventCard({ event }: { event: EventSummary }) {
         )}
         <div className="dc-card-footer">
           <span className="dc-card-participants">
-            {participantCount} participant{participantCount === 1 ? '' : 's'}
+            {t('events.my_events.participants', { count: participantCount })}
           </span>
           {event.host_score && (
             <RatingWithCount
@@ -107,17 +113,17 @@ function EventList({ events, emptyMessage }: { events: EventSummary[]; emptyMess
   );
 }
 
-const TABS: { key: MyEventsTab; label: string }[] = [
-  { key: 'active', label: 'In Progress' },
-  { key: 'upcoming', label: 'Upcoming' },
-  { key: 'organized', label: 'Hosted' },
-  { key: 'past', label: 'Past' },
-  { key: 'canceled', label: 'Canceled' },
-];
-
 export default function MyEventsPage() {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const vm = useMyEventsViewModel(token);
+  const tabs: { key: MyEventsTab; label: string }[] = [
+    { key: 'active', label: t('events.my_events.tab_active') },
+    { key: 'upcoming', label: t('events.my_events.tab_upcoming') },
+    { key: 'organized', label: t('events.my_events.tab_hosted') },
+    { key: 'past', label: t('events.my_events.tab_past') },
+    { key: 'canceled', label: t('events.my_events.tab_canceled') },
+  ];
 
   const counts: Record<MyEventsTab, number> = {
     organized: vm.organized.length,
@@ -129,12 +135,12 @@ export default function MyEventsPage() {
 
   return (
     <div className="me-page">
-      <h1 className="me-title">My Events</h1>
-      <p className="me-subtitle">Events you've hosted, joined, or attended</p>
+      <h1 className="me-title">{t('events.my_events.title')}</h1>
+      <p className="me-subtitle">{t('events.my_events.subtitle')}</p>
 
       {/* Tabs */}
       <div className="me-tabs">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.key}
             type="button"
@@ -153,7 +159,7 @@ export default function MyEventsPage() {
       {vm.isLoading && (
         <div className="me-loading">
           <span className="spinner" />
-          <p>Loading your events...</p>
+          <p>{t('events.my_events.loading')}</p>
         </div>
       )}
 
@@ -172,32 +178,32 @@ export default function MyEventsPage() {
         <>
           {vm.activeTab === 'active' && (
             <EventList
-              events={vm.active}
-              emptyMessage="No events in progress right now."
+            events={vm.active}
+              emptyMessage={t('events.my_events.empty_active')}
             />
           )}
           {vm.activeTab === 'upcoming' && (
             <EventList
               events={vm.upcoming}
-              emptyMessage="No upcoming events. Discover events to join!"
+              emptyMessage={t('events.my_events.empty_upcoming')}
             />
           )}
           {vm.activeTab === 'organized' && (
             <EventList
               events={vm.organized}
-              emptyMessage="You haven't hosted any events yet. Create your first event!"
+              emptyMessage={t('events.my_events.empty_hosted')}
             />
           )}
           {vm.activeTab === 'past' && (
             <EventList
               events={vm.past}
-              emptyMessage="No past events yet."
+              emptyMessage={t('events.my_events.empty_past')}
             />
           )}
           {vm.activeTab === 'canceled' && (
             <EventList
               events={vm.canceled}
-              emptyMessage="No canceled events."
+              emptyMessage={t('events.my_events.empty_canceled')}
             />
           )}
         </>

@@ -1272,6 +1272,40 @@
   }
 }
 
+/* Language preference card */
+.profile-language-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+
+.profile-language-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.profile-language-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.profile-language-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #111827;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.profile-language-hint {
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
 /* ============================================== */
 /* Profile feedback banners and help-text         */
 /* ============================================== */
@@ -1318,4 +1352,3 @@
 :root[data-theme='dark'] .profile-help-text {
   color: #9ca3af;
 }
-

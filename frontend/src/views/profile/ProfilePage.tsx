@@ -1,13 +1,19 @@
 import '@/styles/profile.css';
 import '@/styles/discover.css';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocale } from '@/contexts/LocaleContext';
 import { EventCoverImage } from '@/components/EventCoverImage';
 import { RatingWithCount } from '@/components/RatingWithCount';
+import { profileService } from '@/services/profileService';
 import { useProfileViewModel } from '../../viewmodels/profile/useProfileViewModel';
 import type { BadgeCategory, CatalogBadge, EarnedBadge, EventSummary } from '../../models/profile';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { getEventLifecyclePresentation } from '@/utils/eventStatus';
+import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import { formatEventLocation } from '@/utils/eventLocation';
 import { ProfileEquipmentSection, ProfileShowcaseSection } from './ProfilePublicSections';
 
@@ -18,14 +24,14 @@ type ProfileHistoryTab = 'hosted' | 'attended';
 type PasswordFieldKey = 'current' | 'new' | 'confirm';
 
 const BADGE_CATEGORY_LABELS: Record<BadgeCategory, string> = {
-  HOSTING: 'Hosting',
-  PARTICIPATION: 'Participation',
-  SOCIAL: 'Social',
+  HOSTING: 'profile.badge_categories.HOSTING',
+  PARTICIPATION: 'profile.badge_categories.PARTICIPATION',
+  SOCIAL: 'profile.badge_categories.SOCIAL',
 };
 
 function formatBadgeDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString(i18n.resolvedLanguage, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -82,11 +88,11 @@ function BadgeCard({
     >
       <span className="profile-badge-icon-wrap">
         <BadgeIcon badge={badge} />
-        {!badge.earned && <span className="profile-badge-lock" aria-label="Locked">🔒</span>}
+        {!badge.earned && <span className="profile-badge-lock" aria-label={i18n.t('profile.locked')}>🔒</span>}
       </span>
-      <span className="profile-badge-name">{badge.name}</span>
+      <span className="profile-badge-name">{i18n.t(`profile.badge_names.${badge.slug}`, { defaultValue: badge.name })}</span>
       <span className="profile-badge-date">
-        {badge.earned_at ? formatBadgeDate(badge.earned_at) : 'Not earned'}
+        {badge.earned_at ? formatBadgeDate(badge.earned_at) : i18n.t('profile.not_earned')}
       </span>
     </button>
   );
@@ -101,33 +107,35 @@ function BadgeDetail({
   onBack: (() => void) | null;
   onClose: () => void;
 }) {
+  const badgeDescription = i18n.t(`profile.badge_descriptions.${badge.slug}`, { defaultValue: badge.description });
+
   return (
     <div className="profile-badge-modal-card" role="dialog" aria-modal="true" aria-labelledby="profile-badge-detail-title">
       <div className="profile-badge-modal-header">
         {onBack ? (
           <button type="button" className="profile-badge-modal-text-btn" onClick={onBack}>
-            Back
+            {i18n.t('common.back')}
           </button>
         ) : (
           <span className="profile-badge-modal-spacer" aria-hidden />
         )}
-        <h2 id="profile-badge-detail-title" className="profile-badge-modal-title">Badge details</h2>
-        <button type="button" className="profile-badge-modal-close" onClick={onClose} aria-label="Close">
+        <h2 id="profile-badge-detail-title" className="profile-badge-modal-title">{i18n.t('profile.badge_details')}</h2>
+        <button type="button" className="profile-badge-modal-close" onClick={onClose} aria-label={i18n.t('common.close')}>
           ×
         </button>
       </div>
       <div className={`profile-badge-detail ${badge.earned ? 'earned' : 'locked'}`}>
         <span className="profile-badge-detail-icon">
           <BadgeIcon badge={badge} />
-          {!badge.earned && <span className="profile-badge-lock detail" aria-label="Locked">🔒</span>}
+          {!badge.earned && <span className="profile-badge-lock detail" aria-label={i18n.t('profile.locked')}>🔒</span>}
         </span>
-        <h3>{badge.name}</h3>
-        <p className="profile-badge-detail-category">{BADGE_CATEGORY_LABELS[badge.category] ?? badge.category}</p>
-        <p className="profile-badge-detail-description">{badge.description}</p>
+        <h3>{i18n.t(`profile.badge_names.${badge.slug}`, { defaultValue: badge.name })}</h3>
+        <p className="profile-badge-detail-category">{i18n.t(BADGE_CATEGORY_LABELS[badge.category] ?? badge.category)}</p>
+        <p className="profile-badge-detail-description">{badgeDescription}</p>
         <p className="profile-badge-detail-status">
           {badge.earned_at
-            ? `Earned ${formatBadgeDate(badge.earned_at)}`
-            : `Not yet earned. ${badge.description}`}
+            ? i18n.t('profile.earned_on', { date: formatBadgeDate(badge.earned_at) })
+            : i18n.t('profile.not_yet_earned', { description: badgeDescription })}
         </p>
       </div>
     </div>
@@ -156,12 +164,12 @@ function BadgeCatalogModal({
     <div className="profile-badge-modal-card wide" role="dialog" aria-modal="true" aria-labelledby="profile-badge-catalog-title">
       <div className="profile-badge-modal-header">
         <span className="profile-badge-modal-spacer" aria-hidden />
-        <h2 id="profile-badge-catalog-title" className="profile-badge-modal-title">All Badges</h2>
-        <button type="button" className="profile-badge-modal-close" onClick={onClose} aria-label="Close">
+        <h2 id="profile-badge-catalog-title" className="profile-badge-modal-title">{i18n.t('profile.all_badges')}</h2>
+        <button type="button" className="profile-badge-modal-close" onClick={onClose} aria-label={i18n.t('common.close')}>
           ×
         </button>
       </div>
-      <div className="profile-badge-tabs" role="tablist" aria-label="Badge categories">
+      <div className="profile-badge-tabs" role="tablist" aria-label={i18n.t('profile.badge_categories_label')}>
         {categories.map((category) => (
           <button
             key={category}
@@ -169,7 +177,7 @@ function BadgeCatalogModal({
             className={`profile-badge-tab ${activeCategory === category ? 'active' : ''}`}
             onClick={() => onCategoryChange(category)}
           >
-            {category === 'ALL' ? 'All' : BADGE_CATEGORY_LABELS[category]}
+            {category === 'ALL' ? i18n.t('profile.badge_categories.ALL') : i18n.t(BADGE_CATEGORY_LABELS[category])}
           </button>
         ))}
       </div>
@@ -180,7 +188,7 @@ function BadgeCatalogModal({
           ))}
         </div>
       ) : (
-        <div className="profile-badges-empty">No badges in this category yet.</div>
+        <div className="profile-badges-empty">{i18n.t('profile.no_badges_category')}</div>
       )}
     </div>
   );
@@ -215,8 +223,8 @@ function ProfileBadgesSection({
     <section className="profile-badges">
       <div className="profile-badges-header">
         <div>
-          <h2 className="profile-badges-title">Badges</h2>
-          <p className="profile-badges-subtitle">Achievements earned through hosting, participation, and social activity</p>
+          <h2 className="profile-badges-title">{i18n.t('profile.badges_title')}</h2>
+          <p className="profile-badges-subtitle">{i18n.t('profile.badges_subtitle')}</p>
         </div>
         <button
           type="button"
@@ -227,19 +235,19 @@ function ProfileBadgesSection({
           }}
           disabled={badgesLoading || badgesForPreview.length === 0}
         >
-          View All Badges
+          {i18n.t('profile.view_all_badges')}
         </button>
       </div>
 
       {badgesLoading ? (
-        <div className="profile-badges-state">Loading badges...</div>
+        <div className="profile-badges-state">{i18n.t('profile.loading_badges')}</div>
       ) : badgeError ? (
         <div className="profile-badges-state error">
           <span>{badgeError}</span>
-          <button type="button" onClick={onRetry}>Retry</button>
+          <button type="button" onClick={onRetry}>{i18n.t('common.retry')}</button>
         </div>
       ) : badgesForPreview.length > 0 ? (
-        <div className="profile-badges-row" aria-label="Profile badges">
+        <div className="profile-badges-row" aria-label={i18n.t('profile.badges_title')}>
           {badgesForPreview.map((badge) => (
             <BadgeCard
               key={badge.slug}
@@ -250,7 +258,7 @@ function ProfileBadgesSection({
           ))}
         </div>
       ) : (
-        <div className="profile-badges-empty">No badges available yet.</div>
+        <div className="profile-badges-empty">{i18n.t('profile.no_badges')}</div>
       )}
 
       {(selectedBadge || catalogOpen) && (
@@ -280,7 +288,7 @@ function ProfileBadgesSection({
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString(i18n.resolvedLanguage, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -289,7 +297,7 @@ function formatDate(iso: string): string {
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString(undefined, {
+  return d.toLocaleTimeString(i18n.resolvedLanguage, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -298,7 +306,7 @@ function formatTime(iso: string): string {
 
 function ProfileHistoryCard({ event }: { event: EventSummary }) {
   const lifecycle = getEventLifecyclePresentation(event.status);
-  const category = event.category_name ?? event.category ?? 'Event';
+  const category = getEventCategoryPresentation(event.category_name ?? event.category ?? 'Event', false).label;
 
   return (
     <Link to={`/events/${event.id}`} className="dc-card">
@@ -320,7 +328,7 @@ function ProfileHistoryCard({ event }: { event: EventSummary }) {
         )}
         {event.privacy_level && event.privacy_level !== 'PRIVATE' && (
           <span className={`dc-privacy-badge dc-privacy-${event.privacy_level.toLowerCase()}`}>
-            {event.privacy_level === 'PUBLIC' ? 'Public' : 'Protected'}
+            {i18n.t(`events.privacy.${event.privacy_level}`)}
           </span>
         )}
       </div>
@@ -337,7 +345,7 @@ function ProfileHistoryCard({ event }: { event: EventSummary }) {
         )}
         <div className="dc-card-footer">
           <span className="dc-card-participants">
-            {event.approved_participant_count ?? 0} participant{event.approved_participant_count === 1 ? '' : 's'}
+            {i18n.t('events.my_events.participants', { count: event.approved_participant_count ?? 0 })}
           </span>
           {event.host_score && (
             <RatingWithCount
@@ -387,6 +395,7 @@ function ChangePasswordSection({
   isChangingPassword,
   handleChangePassword,
 }: ChangePasswordSectionProps) {
+  const { t } = useTranslation();
   const [visiblePasswords, setVisiblePasswords] = useState<Record<PasswordFieldKey, boolean>>({
     current: false,
     new: false,
@@ -401,8 +410,8 @@ function ChangePasswordSection({
     <section className="change-password-section">
       <div className="change-password-header">
         <div>
-          <h2 className="change-password-title">Change Password</h2>
-          <p className="change-password-subtitle">Update your account password without changing profile details.</p>
+          <h2 className="change-password-title">{t('profile.change_password_title')}</h2>
+          <p className="change-password-subtitle">{t('profile.change_password_subtitle')}</p>
         </div>
         <button
           type="button"
@@ -411,7 +420,7 @@ function ChangePasswordSection({
           disabled={isChangingPassword}
           aria-expanded={isPasswordFormOpen}
         >
-          {isPasswordFormOpen ? 'Close' : 'Change Password'}
+          {isPasswordFormOpen ? t('profile.close_change_password') : t('profile.open_change_password')}
         </button>
       </div>
 
@@ -430,7 +439,7 @@ function ChangePasswordSection({
       {isPasswordFormOpen && (
         <form className="change-password-form" onSubmit={handleChangePassword}>
           <div className="form-group">
-            <label htmlFor="current-password">Current password</label>
+            <label htmlFor="current-password">{t('profile.current_password')}</label>
             <div className="password-input-row">
               <input
                 id="current-password"
@@ -447,7 +456,7 @@ function ChangePasswordSection({
                 onClick={() => togglePasswordVisibility('current')}
                 disabled={isChangingPassword}
               >
-                {visiblePasswords.current ? 'Hide' : 'Show'}
+                {visiblePasswords.current ? t('profile.hide_password') : t('profile.show_password')}
               </button>
             </div>
             {passwordErrors.currentPassword && (
@@ -456,7 +465,7 @@ function ChangePasswordSection({
           </div>
 
           <div className="form-group">
-            <label htmlFor="new-password">New password</label>
+            <label htmlFor="new-password">{t('profile.new_password')}</label>
             <div className="password-input-row">
               <input
                 id="new-password"
@@ -473,7 +482,7 @@ function ChangePasswordSection({
                 onClick={() => togglePasswordVisibility('new')}
                 disabled={isChangingPassword}
               >
-                {visiblePasswords.new ? 'Hide' : 'Show'}
+                {visiblePasswords.new ? t('profile.hide_password') : t('profile.show_password')}
               </button>
             </div>
             {passwordErrors.newPassword && (
@@ -482,7 +491,7 @@ function ChangePasswordSection({
           </div>
 
           <div className="form-group">
-            <label htmlFor="confirm-new-password">Confirm new password</label>
+            <label htmlFor="confirm-new-password">{t('profile.confirm_new_password')}</label>
             <div className="password-input-row">
               <input
                 id="confirm-new-password"
@@ -499,7 +508,7 @@ function ChangePasswordSection({
                 onClick={() => togglePasswordVisibility('confirm')}
                 disabled={isChangingPassword}
               >
-                {visiblePasswords.confirm ? 'Hide' : 'Show'}
+                {visiblePasswords.confirm ? t('profile.hide_password') : t('profile.show_password')}
               </button>
             </div>
             {passwordErrors.confirmPassword && (
@@ -514,14 +523,14 @@ function ChangePasswordSection({
               onClick={togglePasswordForm}
               disabled={isChangingPassword}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               className="save-btn"
               disabled={isChangingPassword}
             >
-              {isChangingPassword ? 'Updating...' : 'Update Password'}
+              {isChangingPassword ? t('profile.updating_password') : t('profile.update_password')}
             </button>
           </div>
         </form>
@@ -532,6 +541,8 @@ function ChangePasswordSection({
 
 export default function ProfilePage() {
   const { token } = useAuth();
+  const { t } = useTranslation();
+  const { locale } = useLocale();
   const {
     profile,
     publicProfile,
@@ -597,6 +608,20 @@ export default function ProfilePage() {
     handleDeleteShowcaseImage,
   } = useProfileViewModel(token);
   const [activeHistoryTab, setActiveHistoryTab] = useState<ProfileHistoryTab>('hosted');
+  const [isLocaleSaving, setIsLocaleSaving] = useState(false);
+  const [localeError, setLocaleError] = useState<string | null>(null);
+  const prevLocaleRef = useRef(locale);
+
+  useEffect(() => {
+    if (prevLocaleRef.current === locale) return;
+    prevLocaleRef.current = locale;
+    if (!token) return;
+    setIsLocaleSaving(true);
+    setLocaleError(null);
+    profileService.updateMyProfile({ locale }, token)
+      .catch(() => setLocaleError(t('profile.language_sync_failed')))
+      .finally(() => setIsLocaleSaving(false));
+  }, [locale, token, t]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const showcaseInputRef = useRef<HTMLInputElement>(null);
@@ -605,7 +630,7 @@ export default function ProfilePage() {
     const file = e.target.files?.[0] ?? null;
     if (!file) return handleFileChange(null);
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      alert(`File must be smaller than ${MAX_SIZE_MB} MB.`);
+      alert(t('profile.file_too_large', { count: MAX_SIZE_MB }));
       e.target.value = '';
       return;
     }
@@ -616,7 +641,7 @@ export default function ProfilePage() {
     const file = e.target.files?.[0] ?? null;
     if (!file) return;
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      alert(`File must be smaller than ${MAX_SIZE_MB} MB.`);
+      alert(t('profile.file_too_large', { count: MAX_SIZE_MB }));
       e.target.value = '';
       return;
     }
@@ -627,7 +652,7 @@ export default function ProfilePage() {
   if (isLoading) {
     return (
       <div className="profile-container" style={{ textAlign: 'center' }}>
-        <p>Loading profile...</p>
+        <p>{t('profile.loading_profile')}</p>
       </div>
     );
   }
@@ -635,7 +660,7 @@ export default function ProfilePage() {
   if (!profile) {
     return (
       <div className="profile-container" style={{ textAlign: 'center' }}>
-        <p>User profile could not be loaded.</p>
+        <p>{t('profile.load_failed')}</p>
       </div>
     );
   }
@@ -663,7 +688,7 @@ export default function ProfilePage() {
   const publicProfileSections = publicProfileLoading && !publicProfile ? (
     <section className="profile-public-section">
       <div className="profile-public-state inline">
-        <p>Loading equipment and showcase...</p>
+        <p>{t('profile.public_sections_loading')}</p>
       </div>
     </section>
   ) : publicProfile ? (
@@ -677,7 +702,7 @@ export default function ProfilePage() {
             onClick={startCreatingEquipment}
             disabled={equipmentSubmitting || equipmentDeletingId !== null}
           >
-            Add Equipment
+            {t('profile.add_equipment')}
           </button>
         )}
         itemActions={(item) => (
@@ -688,23 +713,23 @@ export default function ProfilePage() {
               onClick={() => startEditingEquipment(item)}
               disabled={equipmentSubmitting || equipmentDeletingId === item.id}
             >
-              Edit
+              {t('common.edit')}
             </button>
             <button
               type="button"
               className="profile-inline-btn danger"
               onClick={() => {
-                if (window.confirm('Delete this equipment item?')) {
+                if (window.confirm(t('profile.delete_equipment_confirm'))) {
                   void handleDeleteEquipment(item.id);
                 }
               }}
               disabled={equipmentSubmitting || equipmentDeletingId === item.id}
             >
-              {equipmentDeletingId === item.id ? 'Deleting...' : 'Delete'}
+              {equipmentDeletingId === item.id ? t('profile.deleting') : t('common.delete')}
             </button>
           </>
         )}
-        emptyMessage="You have not added any equipment yet."
+        emptyMessage={t('public_profile.equipment_empty_self')}
       />
 
       {equipmentError ? (
@@ -716,43 +741,43 @@ export default function ProfilePage() {
       {isEquipmentEditorOpen ? (
         <form className="profile-inline-form" onSubmit={handleEquipmentSubmit}>
           <div className="profile-inline-form-header">
-            <h3>{equipmentDraft.id ? 'Edit equipment' : 'Add equipment'}</h3>
-            <p>Share the gear you want other members to see on your profile.</p>
+            <h3>{equipmentDraft.id ? t('profile.edit_equipment_title') : t('profile.add_equipment_title')}</h3>
+            <p>{t('profile.equipment_intro')}</p>
           </div>
 
           <div className="form-group">
-            <label htmlFor="equipment-name">Name</label>
+            <label htmlFor="equipment-name">{t('profile.equipment_name')}</label>
             <input
               id="equipment-name"
               type="text"
               value={equipmentDraft.name}
               onChange={(e) => updateEquipmentDraft('name', e.target.value)}
               maxLength={64}
-              placeholder="Trail shoes, hydration pack, climbing rope..."
+              placeholder={t('profile.equipment_name_placeholder')}
               disabled={equipmentSubmitting}
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="equipment-description">Description</label>
+            <label htmlFor="equipment-description">{t('profile.equipment_description')}</label>
             <textarea
               id="equipment-description"
               value={equipmentDraft.description}
               onChange={(e) => updateEquipmentDraft('description', e.target.value)}
               maxLength={512}
-              placeholder="Add a short note about fit, terrain, or why this item matters to you."
+              placeholder={t('profile.equipment_description_placeholder')}
               disabled={equipmentSubmitting}
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="equipment-image">Image URL</label>
+            <label htmlFor="equipment-image">{t('profile.equipment_image_url')}</label>
             <input
               id="equipment-image"
               type="url"
               value={equipmentDraft.imageUrl}
               onChange={(e) => updateEquipmentDraft('imageUrl', e.target.value)}
-              placeholder="https://example.com/gear.jpg"
+              placeholder={t('profile.equipment_image_placeholder')}
               disabled={equipmentSubmitting}
             />
           </div>
@@ -764,10 +789,10 @@ export default function ProfilePage() {
               onClick={cancelEquipmentEditor}
               disabled={equipmentSubmitting}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button type="submit" className="save-btn" disabled={equipmentSubmitting}>
-              {equipmentSubmitting ? 'Saving...' : equipmentDraft.id ? 'Save Changes' : 'Add Equipment'}
+              {equipmentSubmitting ? t('profile.saving') : equipmentDraft.id ? t('profile.save_changes') : t('profile.add_equipment')}
             </button>
           </div>
         </form>
@@ -790,7 +815,7 @@ export default function ProfilePage() {
             onClick={() => showcaseInputRef.current?.click()}
             disabled={showcaseUploading}
           >
-            {showcaseUploading ? 'Uploading...' : 'Upload Image'}
+            {showcaseUploading ? t('profile.uploading_image') : t('profile.upload_image')}
           </button>
         )}
         imageActions={(image) => (
@@ -798,17 +823,17 @@ export default function ProfilePage() {
             type="button"
             className="profile-showcase-remove"
             onClick={() => {
-              if (window.confirm('Remove this showcase image?')) {
+              if (window.confirm(t('profile.remove_showcase_confirm'))) {
                 void handleDeleteShowcaseImage(image.id);
               }
             }}
             disabled={showcaseRemovingId === image.id}
-            aria-label="Remove showcase image"
+            aria-label={t('profile.remove_showcase')}
           >
-            {showcaseRemovingId === image.id ? 'Removing...' : 'Remove'}
+            {showcaseRemovingId === image.id ? t('profile.removing_image') : t('profile.remove_showcase')}
           </button>
         )}
-        emptyMessage="You have not uploaded any showcase images yet."
+        emptyMessage={t('public_profile.showcase_empty_self')}
       />
 
       {showcaseError ? (
@@ -822,7 +847,7 @@ export default function ProfilePage() {
       <div className="profile-public-state inline">
         <p>{publicProfileError ?? 'Public profile sections are unavailable right now.'}</p>
         <button type="button" className="save-btn profile-public-retry" onClick={() => void refreshPublicProfile()}>
-          Retry
+          {t('common.retry')}
         </button>
       </div>
     </section>
@@ -831,15 +856,28 @@ export default function ProfilePage() {
   return (
     <div className="profile-container profile-container-wide">
       <div className="profile-header">
-        <h1>Your Profile</h1>
+        <h1>{t('profile.title')}</h1>
         <button
           className="edit-toggle-btn"
           onClick={handleEditToggle}
           disabled={isSaving}
         >
-          {isEditing ? 'Cancel Edit' : 'Edit Profile'}
+          {isEditing ? t('profile.cancel_edit') : t('profile.edit_profile')}
         </button>
       </div>
+
+      <section className="profile-language-card" style={{ marginBottom: '1.5rem' }}>
+        <div className="profile-language-row">
+          <div className="profile-language-text">
+            <span className="profile-language-label">{t('profile.language_label')}</span>
+            <span className="profile-language-hint">
+              {isLocaleSaving ? t('profile.language_saving') : t('profile.language_subtitle')}
+            </span>
+          </div>
+          <LanguageSwitcher />
+        </div>
+        {localeError && <p className="field-error" role="alert" style={{ marginTop: '0.5rem' }}>{localeError}</p>}
+      </section>
 
       {error && (
         <div className="profile-feedback profile-feedback--error">
@@ -858,7 +896,7 @@ export default function ProfilePage() {
         {displayAvatar ? (
           <img
             src={displayAvatar}
-            alt="Profile Avatar"
+            alt={t('profile.profile_photo')}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         ) : (
@@ -872,32 +910,32 @@ export default function ProfilePage() {
         <>
         <div className="profile-info">
           <div className="info-group">
-            <label>Username</label>
+            <label>{t('profile.username')}</label>
             <p>@{profile.username}</p>
           </div>
           <div className="info-group">
-            <label>Email</label>
+            <label>{t('profile.email')}</label>
             <p>
               {profile.email}
               <span style={{ fontSize: '0.8rem', marginLeft: '0.5rem', color: profile.email_verified ? 'green' : 'gray' }}>
-                ({profile.email_verified ? 'Verified' : 'Unverified'})
+                ({profile.email_verified ? t('common.verified') : t('common.unverified')})
               </span>
             </p>
           </div>
           <div className="info-group">
-            <label>Display Name</label>
-            {profile.display_name ? <p>{profile.display_name}</p> : <p className="empty-state">No display name set</p>}
+            <label>{t('profile.display_name')}</label>
+            {profile.display_name ? <p>{profile.display_name}</p> : <p className="empty-state">{t('profile.no_display_name')}</p>}
           </div>
           <div className="info-group">
-            <label>Bio</label>
-            {profile.bio ? <p>{profile.bio}</p> : <p className="empty-state">No bio provided</p>}
+            <label>{t('profile.bio')}</label>
+            {profile.bio ? <p>{profile.bio}</p> : <p className="empty-state">{t('profile.no_bio')}</p>}
           </div>
           <div className="info-group">
-            <label>Default Location</label>
+            <label>{t('profile.default_location')}</label>
             {profile.default_location_address ? (
               <p>{formatEventLocation(profile.default_location_address)}</p>
             ) : (
-              <p className="empty-state">No default location set</p>
+              <p className="empty-state">{t('profile.no_default_location')}</p>
             )}
           </div>
         </div>
@@ -916,8 +954,8 @@ export default function ProfilePage() {
 
         <section className="profile-history">
           <div className="profile-history-header">
-            <h2 className="profile-history-title">Participation History</h2>
-            <p className="profile-history-subtitle">Hosted events and the events you attended</p>
+            <h2 className="profile-history-title">{t('profile.participation_history')}</h2>
+            <p className="profile-history-subtitle">{t('profile.participation_history_subtitle')}</p>
           </div>
 
           <div className="profile-history-tabs">
@@ -926,14 +964,14 @@ export default function ProfilePage() {
               className={`profile-history-tab ${activeHistoryTab === 'hosted' ? 'active' : ''}`}
               onClick={() => setActiveHistoryTab('hosted')}
             >
-              Hosted <span className="profile-history-tab-count">{hostedEvents.length}</span>
+              {t('profile.hosted_tab')} <span className="profile-history-tab-count">{hostedEvents.length}</span>
             </button>
             <button
               type="button"
               className={`profile-history-tab ${activeHistoryTab === 'attended' ? 'active' : ''}`}
               onClick={() => setActiveHistoryTab('attended')}
             >
-              Attended <span className="profile-history-tab-count">{attendedEvents.length}</span>
+              {t('profile.attended_tab')} <span className="profile-history-tab-count">{attendedEvents.length}</span>
             </button>
           </div>
 
@@ -945,11 +983,11 @@ export default function ProfilePage() {
             </div>
           ) : (
             <div className="profile-history-empty">
-              <p className="profile-history-empty-title">No {activeHistoryTab} events yet</p>
+              <p className="profile-history-empty-title">{t('profile.no_history_title', { tab: t(activeHistoryTab === 'hosted' ? 'profile.hosted_tab' : 'profile.attended_tab').toLowerCase() })}</p>
               <p className="profile-history-empty-subtitle">
                 {activeHistoryTab === 'hosted'
-                  ? 'Events you create will show up here.'
-                  : 'Events you join will show up here.'}
+                  ? t('profile.no_history_subtitle_hosted')
+                  : t('profile.no_history_subtitle_attended')}
               </p>
             </div>
           )}
@@ -959,7 +997,7 @@ export default function ProfilePage() {
         <div className="profile-form">
           <form onSubmit={handleSave}>
             <div className="form-group">
-              <label>Profile Photo</label>
+              <label>{t('profile.profile_photo')}</label>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -974,7 +1012,7 @@ export default function ProfilePage() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isSaving}
               >
-                {avatarPreview ? 'Change Photo' : 'Upload Photo'}
+                {avatarPreview ? t('profile.change_photo') : t('profile.upload_photo')}
               </button>
               {avatarPreview && (
                 <button
@@ -984,19 +1022,19 @@ export default function ProfilePage() {
                   onClick={() => { handleFileChange(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
                   disabled={isSaving}
                 >
-                  Remove
+                  {t('profile.remove_photo')}
                 </button>
               )}
               <p className="profile-help-text">
-                JPG, PNG or WebP · Max {MAX_SIZE_MB} MB
+                {t('profile.photo_requirements', { count: MAX_SIZE_MB })}
               </p>
             </div>
 
             <div className="form-group">
-              <label>Display Name</label>
+              <label>{t('profile.display_name')}</label>
               <input
                 type="text"
-                placeholder="Enter your public display name"
+                placeholder={t('profile.display_name_placeholder')}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 maxLength={50}
@@ -1005,9 +1043,9 @@ export default function ProfilePage() {
             </div>
 
             <div className="form-group">
-              <label>Biography</label>
+              <label>{t('profile.biography')}</label>
               <textarea
-                placeholder="Tell us a bit about yourself"
+                placeholder={t('profile.biography_placeholder')}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 maxLength={500}
@@ -1016,7 +1054,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="form-group">
-              <label>Default Location</label>
+              <label>{t('profile.default_location')}</label>
               {(selectedLocation && !locationCleared) ? (
                 <div className="profile-location-selected">
                   <span className="profile-location-address">{selectedLocation.address}</span>
@@ -1026,20 +1064,20 @@ export default function ProfilePage() {
                     onClick={clearLocation}
                     disabled={isSaving}
                   >
-                    Remove
+                    {t('common.remove')}
                   </button>
                 </div>
               ) : (
                 <div className="profile-location-search">
                   <input
                     type="text"
-                    placeholder="Search for an address..."
+                    placeholder={t('profile.search_address_placeholder')}
                     value={locationQuery}
                     onChange={(e) => handleLocationSearch(e.target.value)}
                     disabled={isSaving}
                   />
                   {isSearchingLocation && (
-                    <span className="profile-location-searching">Searching...</span>
+                    <span className="profile-location-searching">{t('common.searching')}</span>
                   )}
                   {locationSuggestions.length > 0 && (
                     <ul className="profile-location-suggestions">
@@ -1067,7 +1105,7 @@ export default function ProfilePage() {
                 onClick={handleEditToggle}
                 disabled={isSaving}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
@@ -1080,7 +1118,7 @@ export default function ProfilePage() {
                   (selectedLocation?.address ?? '') === (profile.default_location_address ?? '')
                 )}
               >
-                {isSaving ? 'Saving...' : 'Save Profile'}
+                {isSaving ? t('profile.saving') : t('profile.save_profile')}
               </button>
             </div>
           </form>

@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { useInvitationsViewModel } from '@/viewmodels/invitations/useInvitationsViewModel';
 import { UserAvatar } from '@/components/UserAvatar';
 import { EventCoverImage } from '@/components/EventCoverImage';
@@ -7,7 +9,7 @@ import '@/styles/invitations.css';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString(i18n.resolvedLanguage, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -16,7 +18,7 @@ function formatDate(iso: string): string {
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString(undefined, {
+  return d.toLocaleTimeString(i18n.resolvedLanguage, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -36,6 +38,7 @@ function InvitationCard({
   onDecline: () => void;
   onView: () => void;
 }) {
+  const { t } = useTranslation();
   const hostName = invitation.host.display_name ?? invitation.host.username;
   const isPending = invitation.status === 'PENDING';
 
@@ -48,7 +51,7 @@ function InvitationCard({
           imgClassName="inv-card-cover-img"
           variant="card"
         />
-        <span className="inv-card-privacy">Private</span>
+        <span className="inv-card-privacy">{t('invitations.private_badge')}</span>
       </div>
 
       <div className="inv-card-body">
@@ -95,7 +98,7 @@ function InvitationCard({
                 onClick={onDecline}
                 disabled={isLoading}
               >
-                Decline
+                {t('invitations.decline')}
               </button>
               <button
                 type="button"
@@ -104,7 +107,7 @@ function InvitationCard({
                 disabled={isLoading}
                 data-testid={`accept-${invitation.invitation_id}`}
               >
-                {isLoading ? <span className="spinner" /> : 'Accept'}
+                {isLoading ? <span className="spinner" /> : t('invitations.accept')}
               </button>
             </>
           )}
@@ -114,7 +117,7 @@ function InvitationCard({
             onClick={onView}
             disabled={isLoading}
           >
-            View Event
+            {t('invitations.view_event')}
           </button>
         </div>
       </div>
@@ -123,6 +126,7 @@ function InvitationCard({
 }
 
 export default function InvitationsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const vm = useInvitationsViewModel();
 
@@ -136,9 +140,9 @@ export default function InvitationsPage() {
   return (
     <div className="inv-page">
       <header className="inv-page-header">
-        <h1 className="inv-page-title">Invitations</h1>
+        <h1 className="inv-page-title">{t('invitations.title')}</h1>
         <p className="inv-page-subtitle">
-          Private event invitations sent to you by hosts.
+          {t('invitations.subtitle')}
         </p>
       </header>
 
@@ -149,7 +153,7 @@ export default function InvitationsPage() {
             type="button"
             className="inv-error-dismiss"
             onClick={vm.dismissError}
-            aria-label="Dismiss error"
+            aria-label={t('invitations.dismiss_error')}
           >
             &times;
           </button>
@@ -159,14 +163,14 @@ export default function InvitationsPage() {
       {vm.isLoading && vm.invitations.length === 0 && (
         <div className="inv-loading">
           <span className="spinner" />
-          <p>Loading invitations...</p>
+          <p>{t('invitations.loading')}</p>
         </div>
       )}
 
       {!vm.isLoading && vm.invitations.length === 0 && !vm.error && (
         <div className="inv-empty">
-          <h2>No invitations yet</h2>
-          <p>When a host invites you to a private event, it will show up here.</p>
+          <h2>{t('invitations.empty_title')}</h2>
+          <p>{t('invitations.empty_body')}</p>
         </div>
       )}
 

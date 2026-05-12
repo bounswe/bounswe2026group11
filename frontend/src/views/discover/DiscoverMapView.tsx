@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AdvancedMarker,
   Map as GoogleMap,
@@ -247,10 +248,11 @@ function MapLocationPicker({
 }
 
 function MapNotConfigured() {
+  const { t } = useTranslation();
   return (
     <div className="dc-map-overlay" role="status">
-      <h3>Map unavailable</h3>
-      <p>Set <code>VITE_GOOGLE_MAPS_WEB_API_KEY</code> in your local environment to enable the Google Maps view.</p>
+      <h3>{t('home.map_unavailable')}</h3>
+      <p>{t('home.map_unavailable_body')}</p>
     </div>
   );
 }
@@ -267,6 +269,7 @@ export default function DiscoverMapView({
   onChooseLocation,
   onRetry,
 }: DiscoverMapViewProps) {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const configured = isGoogleMapsConfigured();
@@ -353,7 +356,7 @@ export default function DiscoverMapView({
       {isLoading && (
         <div className="dc-map-overlay" role="status" aria-live="polite">
           <span className="spinner" />
-          <p>Loading events...</p>
+          <p>{t('home.loading_events')}</p>
         </div>
       )}
 
@@ -361,15 +364,15 @@ export default function DiscoverMapView({
         <div className="dc-map-overlay dc-map-overlay-error" role="alert">
           <p>{error}</p>
           <button type="button" className="dc-retry-btn" onClick={onRetry}>
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       )}
 
       {configured && !isLoading && !error && mappable.length === 0 && (
         <div className="dc-map-overlay dc-map-overlay-empty" role="status">
-          <h3>No events on the map</h3>
-          <p>Try adjusting filters or expanding the radius.</p>
+          <h3>{t('home.no_events_map_title', 'No events on the map')}</h3>
+          <p>{t('home.no_events_map_body', 'Try adjusting filters or expanding the radius.')}</p>
         </div>
       )}
     </div>

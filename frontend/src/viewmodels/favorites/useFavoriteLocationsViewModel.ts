@@ -5,6 +5,7 @@ import type { FavoriteLocation } from '@/models/profile';
 import type { LocationSuggestion } from '@/models/event';
 import { ApiError } from '@/services/api';
 import { formatEventLocation } from '@/utils/eventLocation';
+import i18n from '@/i18n';
 
 const MAX_LOCATIONS = 3;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -37,7 +38,7 @@ export function useFavoriteLocationsViewModel(token: string | null) {
       const data = await profileService.getFavoriteLocations(token);
       setLocations(data);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load favorite locations.');
+      setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
     } finally {
       setIsLoading(false);
     }
@@ -107,12 +108,12 @@ export function useFavoriteLocationsViewModel(token: string | null) {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === 'favorite_location_limit_exceeded') {
-          setAddError('You can save up to 3 favorite locations.');
+          setAddError(i18n.t('favorites.limit_reached', { count: MAX_LOCATIONS }));
         } else {
           setAddError(err.message);
         }
       } else {
-        setAddError('Failed to save location. Please try again.');
+        setAddError(i18n.t('errors.unexpected'));
       }
     } finally {
       setIsSubmitting(false);
@@ -126,7 +127,7 @@ export function useFavoriteLocationsViewModel(token: string | null) {
       await profileService.deleteFavoriteLocation(id, token);
       setLocations((prev) => prev.filter((l) => l.id !== id));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to remove location.');
+      setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
     } finally {
       setRemovingId(null);
     }

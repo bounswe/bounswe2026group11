@@ -1,6 +1,8 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import concertImg from '@/assets/concert.png';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import SemLogo from '@/components/SemLogo';
 import { useTheme } from '@/contexts/ThemeContext';
 import '@/styles/landing.css';
@@ -123,37 +125,41 @@ function DotCanvas() {
 
 /* ── Landing page ── */
 export default function LandingPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   return (
     <div className="landing">
       {/* Left — hero image */}
       <div className="landing-left">
-        <img src={concertImg} alt="Crowd at a live concert with stage lights" className="landing-hero-img" />
+        <img src={concertImg} alt={t('auth.landing.hero_alt')} className="landing-hero-img" />
         <div className="landing-img-overlay" />
       </div>
 
       {/* Right — actions + dot animation */}
       <div className="landing-right">
         <DotCanvas />
+        <div className="landing-language-switcher">
+          <LanguageSwitcher />
+        </div>
 
         <div className="landing-content">
           <div className="landing-logo">
             <SemLogo height={88} color="#ffffff" />
           </div>
           <p className="landing-tagline">
-            Discover events, meet people, and make memories.
+            {t('auth.landing.tagline')}
           </p>
 
           <div className="landing-actions">
             <button className="landing-btn landing-btn--primary" onClick={() => navigate('/login')}>
-              Sign In
+              {t('auth.landing.sign_in')}
             </button>
             <button className="landing-btn landing-btn--outline" onClick={() => navigate('/register')}>
-              Sign Up
+              {t('auth.landing.sign_up')}
             </button>
             <button className="landing-btn landing-btn--ghost" onClick={() => navigate('/discover')}>
-              Continue without activation →
+              {t('auth.landing.continue_as_guest')}
             </button>
           </div>
         </div>

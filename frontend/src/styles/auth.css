@@ -17,6 +17,12 @@
   margin: 24px;
 }
 
+.auth-card-controls {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 18px;
+}
+
 .auth-brand {
   display: flex;
   justify-content: center;
@@ -271,6 +277,10 @@
     padding: 28px 20px;
     margin: 12px;
     border-radius: 10px;
+  }
+
+  .auth-card-controls {
+    margin-bottom: 14px;
   }
 
   .auth-title {

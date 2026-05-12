@@ -1,5 +1,6 @@
 import { RatingWithCount } from '@/components/RatingWithCount';
 import type { ProfileEquipmentItem, PublicProfile, ShowcaseImageItem } from '@/models/profile';
+import i18n from '@/i18n';
 
 function getProfileInitial(profile: Pick<PublicProfile, 'display_name' | 'username'>): string {
   const source = profile.display_name?.trim() || profile.username;
@@ -8,8 +9,8 @@ function getProfileInitial(profile: Pick<PublicProfile, 'display_name' | 'userna
 
 function formatRatingSummary(profile: Pick<PublicProfile, 'host_rating_count' | 'participant_rating_count'>): string {
   const totalRatings = profile.host_rating_count + profile.participant_rating_count;
-  if (totalRatings === 0) return 'No ratings yet';
-  return `${totalRatings} rating${totalRatings === 1 ? '' : 's'} collected`;
+  if (totalRatings === 0) return i18n.t('public_profile.no_ratings');
+  return i18n.t('public_profile.ratings_collected', { count: totalRatings });
 }
 
 export function ProfilePublicHero({
@@ -39,11 +40,11 @@ export function ProfilePublicHero({
         <h1 className="profile-public-name">{profile.display_name ?? profile.username}</h1>
         <p className="profile-public-username">@{profile.username}</p>
         <p className={`profile-public-bio ${profile.bio ? '' : 'is-empty'}`}>
-          {profile.bio?.trim() || 'No bio provided yet.'}
+          {profile.bio?.trim() || i18n.t('public_profile.no_bio')}
         </p>
       </div>
 
-      <div className="profile-public-rating-card" aria-label="Profile rating">
+      <div className="profile-public-rating-card" aria-label={i18n.t('public_profile.rating_aria')}>
         <RatingWithCount
           score={profile.final_score}
           count={totalRatings}
@@ -51,7 +52,7 @@ export function ProfilePublicHero({
         />
         <span className="profile-public-rating-summary">{formatRatingSummary(profile)}</span>
         <span className="profile-public-rating-breakdown">
-          Host: {profile.host_rating_count} · Participant: {profile.participant_rating_count}
+          {i18n.t('public_profile.host_breakdown', { count: profile.host_rating_count })} · {i18n.t('public_profile.participant_breakdown', { count: profile.participant_rating_count })}
         </span>
       </div>
     </section>
@@ -73,8 +74,8 @@ export function ProfileEquipmentSection({
     <section className="profile-public-section">
       <div className="profile-public-section-header">
         <div>
-          <h2 className="profile-public-section-title">Equipment</h2>
-          <p className="profile-public-section-subtitle">Gear and essentials this member wants to highlight.</p>
+          <h2 className="profile-public-section-title">{i18n.t('public_profile.equipment_title')}</h2>
+          <p className="profile-public-section-subtitle">{i18n.t('public_profile.equipment_subtitle')}</p>
         </div>
         {actions ? <div className="profile-public-section-actions">{actions}</div> : null}
       </div>
@@ -97,7 +98,7 @@ export function ProfileEquipmentSection({
                   {item.description ? (
                     <p className="profile-equipment-description">{item.description}</p>
                   ) : (
-                    <p className="profile-equipment-description is-empty">No description provided.</p>
+                    <p className="profile-equipment-description is-empty">{i18n.t('public_profile.no_description')}</p>
                   )}
                 </div>
                 {itemActions ? <div className="profile-equipment-actions">{itemActions(item)}</div> : null}
@@ -127,8 +128,8 @@ export function ProfileShowcaseSection({
     <section className="profile-public-section">
       <div className="profile-public-section-header">
         <div>
-          <h2 className="profile-public-section-title">Showcase</h2>
-          <p className="profile-public-section-subtitle">Moments, snapshots, and visual highlights shared on the profile.</p>
+          <h2 className="profile-public-section-title">{i18n.t('public_profile.showcase_title')}</h2>
+          <p className="profile-public-section-subtitle">{i18n.t('public_profile.showcase_subtitle')}</p>
         </div>
         {actions ? <div className="profile-public-section-actions">{actions}</div> : null}
       </div>

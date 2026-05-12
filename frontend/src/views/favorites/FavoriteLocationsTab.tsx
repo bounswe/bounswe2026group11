@@ -1,9 +1,11 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 import { useFavoriteLocationsViewModel } from '@/viewmodels/favorites/useFavoriteLocationsViewModel';
 import { formatEventLocation } from '@/utils/eventLocation';
 import '@/styles/favorites.css';
 
 export default function FavoriteLocationsTab() {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const vm = useFavoriteLocationsViewModel(token);
 
@@ -12,7 +14,7 @@ export default function FavoriteLocationsTab() {
       {/* Header with count + add button */}
       <div className="fav-loc-header">
         <span className="fav-loc-count">
-          {vm.locations.length} / {vm.maxLocations} locations
+          {t('favorites.locations_count', { count: vm.locations.length, max: vm.maxLocations })}
         </span>
         <button
           type="button"
@@ -20,14 +22,14 @@ export default function FavoriteLocationsTab() {
           onClick={vm.openAddModal}
           disabled={!vm.canAddMore}
         >
-          + Add Location
+          {t('favorites.add_location')}
         </button>
       </div>
 
       {/* Limit reached info */}
       {!vm.canAddMore && !vm.isLoading && (
         <div className="fav-loc-limit-banner">
-          You have reached the maximum of {vm.maxLocations} favorite locations. Remove one to add a new location.
+          {t('favorites.limit_reached', { count: vm.maxLocations })}
         </div>
       )}
 
@@ -35,7 +37,7 @@ export default function FavoriteLocationsTab() {
       {vm.isLoading && (
         <div className="me-loading">
           <span className="spinner" />
-          <p>Loading locations...</p>
+          <p>{t('favorites.loading_locations')}</p>
         </div>
       )}
 
@@ -44,7 +46,7 @@ export default function FavoriteLocationsTab() {
         <div className="me-error">
           <p>{vm.error}</p>
           <button type="button" className="me-retry-btn" onClick={vm.retry}>
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       )}
@@ -52,7 +54,7 @@ export default function FavoriteLocationsTab() {
       {/* Empty state */}
       {!vm.isLoading && !vm.error && vm.locations.length === 0 && (
         <div className="me-empty">
-          <p>No favorite locations yet. Add up to {vm.maxLocations} locations for quick access!</p>
+          <p>{t('favorites.empty_locations', { count: vm.maxLocations })}</p>
         </div>
       )}
 
@@ -71,7 +73,7 @@ export default function FavoriteLocationsTab() {
                 className="fav-loc-card-remove"
                 onClick={() => vm.handleRemove(loc.id)}
                 disabled={vm.removingId === loc.id}
-                aria-label={`Remove ${loc.name}`}
+                aria-label={t('favorites.remove_location_aria', { name: loc.name })}
               >
                 {vm.removingId === loc.id ? <span className="spinner" /> : '×'}
               </button>
@@ -84,19 +86,19 @@ export default function FavoriteLocationsTab() {
       {vm.showAddModal && (
         <div className="fav-loc-modal-overlay" onClick={vm.closeAddModal}>
           <div className="fav-loc-modal" onClick={(e) => e.stopPropagation()}>
-            <h2 className="fav-loc-modal-title">Add Favorite Location</h2>
+            <h2 className="fav-loc-modal-title">{t('favorites.add_location_title')}</h2>
 
             {vm.addError && (
               <div className="fav-loc-modal-error">{vm.addError}</div>
             )}
 
             <div className="fav-loc-modal-field">
-              <label className="fav-loc-modal-label" htmlFor="loc-name">Name</label>
+              <label className="fav-loc-modal-label" htmlFor="loc-name">{t('favorites.location_name')}</label>
               <input
                 id="loc-name"
                 type="text"
                 className="field-input"
-                placeholder="e.g. Home, Work, Gym"
+                placeholder={t('favorites.location_name_placeholder')}
                 maxLength={64}
                 value={vm.addName}
                 onChange={(e) => vm.setAddName(e.target.value)}
@@ -105,19 +107,19 @@ export default function FavoriteLocationsTab() {
             </div>
 
             <div className="fav-loc-modal-field">
-              <label className="fav-loc-modal-label" htmlFor="loc-search">Search Address</label>
+              <label className="fav-loc-modal-label" htmlFor="loc-search">{t('favorites.search_address')}</label>
               <div className="fav-loc-search-wrapper">
                 <input
                   id="loc-search"
                   type="text"
                   className="field-input"
-                  placeholder="Search for an address..."
+                  placeholder={t('favorites.search_address_placeholder')}
                   value={vm.addQuery}
                   onChange={(e) => vm.handleSearchChange(e.target.value)}
                   disabled={vm.isSubmitting}
                 />
                 {vm.isSearching && (
-                  <span className="fav-loc-searching">Searching...</span>
+                  <span className="fav-loc-searching">{t('common.searching')}</span>
                 )}
                 {vm.addSuggestions.length > 0 && (
                   <ul className="fav-loc-suggestions">
@@ -139,7 +141,7 @@ export default function FavoriteLocationsTab() {
 
             {vm.selectedSuggestion && (
               <div className="fav-loc-selected">
-                📍 {formatEventLocation(vm.selectedSuggestion.display_name)}
+                📍 {t('favorites.selected_location', { location: formatEventLocation(vm.selectedSuggestion.display_name) })}
               </div>
             )}
 
@@ -150,7 +152,7 @@ export default function FavoriteLocationsTab() {
                 onClick={vm.closeAddModal}
                 disabled={vm.isSubmitting}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -158,7 +160,7 @@ export default function FavoriteLocationsTab() {
                 onClick={vm.handleAdd}
                 disabled={vm.isSubmitting || !vm.addName.trim() || !vm.selectedSuggestion}
               >
-                {vm.isSubmitting ? <span className="spinner" /> : 'Save Location'}
+                {vm.isSubmitting ? <span className="spinner" /> : t('favorites.save_location')}
               </button>
             </div>
           </div>

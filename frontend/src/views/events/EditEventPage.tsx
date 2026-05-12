@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import RoutePointsEditor from '@/components/RoutePointsEditor';
+import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import { MAX_CONSTRAINTS } from '@/viewmodels/event/useCreateEventViewModel';
 import {
   type EditEventChangePreview,
@@ -24,15 +26,16 @@ function CriticalChangeModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="ce-popup-overlay" role="presentation">
       <div className="ce-popup ce-edit-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="edit-confirm-title">
         <div className="ce-popup-icon">!</div>
-        <h2 id="edit-confirm-title" className="ce-popup-title">Confirm event update</h2>
+        <h2 id="edit-confirm-title" className="ce-popup-title">{t('edit_event.confirm_title')}</h2>
         {preview.criticalChangeLabels.length > 0 ? (
           <>
             <p className="ce-popup-message">
-              These changes can require approved participants to reconfirm attendance:
+              {t('edit_event.confirm_critical_message')}
             </p>
             <ul className="ce-edit-critical-list">
               {preview.criticalChangeLabels.map((label) => (
@@ -42,15 +45,15 @@ function CriticalChangeModal({
           </>
         ) : (
           <p className="ce-popup-message">
-            This update creates a new event version. Participants will see the latest event details.
+            {t('edit_event.confirm_default_message')}
           </p>
         )}
         <div className="ce-edit-modal-actions">
           <button type="button" className="btn-secondary" onClick={onCancel} disabled={loading}>
-            Review Again
+            {t('edit_event.review_again')}
           </button>
           <button type="button" className="btn-primary" onClick={onConfirm} disabled={loading}>
-            {loading ? 'Saving...' : 'Save Update'}
+            {loading ? t('profile.saving') : t('edit_event.save_update')}
           </button>
         </div>
       </div>
@@ -59,6 +62,7 @@ function CriticalChangeModal({
 }
 
 export default function EditEventPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const vm = useEditEventViewModel(id);
@@ -81,7 +85,7 @@ export default function EditEventPage() {
   if (vm.isLoading) {
     return (
       <div className="create-event-page edit-event-page">
-        <h1 className="create-event-title">Loading event...</h1>
+        <h1 className="create-event-title">{t('edit_event.loading')}</h1>
       </div>
     );
   }
@@ -89,10 +93,10 @@ export default function EditEventPage() {
   if (vm.apiError && !vm.event) {
     return (
       <div className="create-event-page edit-event-page">
-        <h1 className="create-event-title">Edit Event</h1>
+        <h1 className="create-event-title">{t('edit_event.title')}</h1>
         <p className="create-event-subtitle">{vm.apiError}</p>
         <button type="button" className="btn-secondary" onClick={() => navigate(-1)}>
-          Go Back
+          {t('edit_event.go_back')}
         </button>
       </div>
     );
@@ -112,10 +116,10 @@ export default function EditEventPage() {
       )}
 
       <Link className="ce-edit-back-link" to={`/events/${vm.event.id}`}>
-        &larr; Back to Event
+        &larr; {t('edit_event.back_to_event')}
       </Link>
-      <h1 className="create-event-title">Edit Event</h1>
-      <p className="create-event-subtitle">Update event details through the versioned event contract.</p>
+      <h1 className="create-event-title">{t('edit_event.title')}</h1>
+      <p className="create-event-subtitle">{t('edit_event.subtitle')}</p>
 
       {vm.successMessage && (
         <div className="success-banner" role="status">
@@ -126,13 +130,13 @@ export default function EditEventPage() {
 
       {!vm.canEdit && (
         <div className="error-banner">
-          Only active events that have not started can be edited.
+          {t('edit_event.not_editable')}
         </div>
       )}
 
       <form className="create-event-form edit-event-form" onSubmit={handleSubmit}>
         <div className="ce-host-info">
-          <span className="ce-host-label">Current version:</span>
+          <span className="ce-host-label">{t('edit_event.current_version')}</span>
           <span className="ce-host-name">
             v{vm.event.version_no ?? vm.event.viewer_context.latest_event_version ?? 1}
           </span>
@@ -153,7 +157,7 @@ export default function EditEventPage() {
         </div>
 
         <div className="field-group">
-          <label className="field-label" htmlFor="edit-description">Description</label>
+          <label className="field-label" htmlFor="edit-description">{t('edit_event.description')}</label>
           <textarea
             id="edit-description"
             className={`field-input field-textarea ${vm.errors.description ? 'has-error' : ''}`}
@@ -166,7 +170,7 @@ export default function EditEventPage() {
 
         <div className="field-group">
           <label className="field-label" htmlFor="edit-category">
-            Category <RequiredMark />
+            {t('create_event.category')} <RequiredMark />
           </label>
           <select
             id="edit-category"
@@ -175,9 +179,11 @@ export default function EditEventPage() {
             disabled={busy || !vm.canEdit}
             onChange={(e) => vm.updateField('categoryId', e.target.value ? Number(e.target.value) : null)}
           >
-            <option value="">Select category</option>
+            <option value="">{t('edit_event.select_category')}</option>
             {vm.categories.map((category) => (
-              <option key={category.id} value={category.id}>{category.name}</option>
+              <option key={category.id} value={category.id}>
+                {getEventCategoryPresentation(category.name, false).label}
+              </option>
             ))}
           </select>
           {vm.errors.categoryId && <p className="field-error">{vm.errors.categoryId}</p>}
@@ -185,7 +191,7 @@ export default function EditEventPage() {
 
         <div className="field-group">
           <span className="field-label">
-            Location <RequiredMark />
+            {t('edit_event.location')} <RequiredMark />
           </span>
           <div className="ce-location-type-row">
             {(['POINT', 'ROUTE'] as LocationType[]).map((type) => (
@@ -196,7 +202,7 @@ export default function EditEventPage() {
                 disabled={busy || !vm.canEdit}
                 onClick={() => vm.setLocationType(type)}
               >
-                {type === 'POINT' ? 'Point' : 'Route'}
+                {type === 'POINT' ? t('create_event.point') : t('create_event.route')}
               </button>
             ))}
           </div>
@@ -205,7 +211,7 @@ export default function EditEventPage() {
         {vm.form.locationType === 'POINT' ? (
           <div className="field-group">
             <label className="field-label" htmlFor="edit-location-search">
-              Search location <RequiredMark />
+              {t('edit_event.search_location')} <RequiredMark />
             </label>
             <input
               id="edit-location-search"
@@ -213,9 +219,9 @@ export default function EditEventPage() {
               value={vm.form.locationQuery}
               disabled={busy || !vm.canEdit}
               onChange={(e) => vm.handleLocationSearch(e.target.value)}
-              placeholder="Search a place"
+              placeholder={t('edit_event.search_place_placeholder')}
             />
-            {vm.locationSearching && <p className="field-hint">Searching...</p>}
+            {vm.locationSearching && <p className="field-hint">{t('common.searching')}</p>}
             {vm.locationResults.length > 0 && (
               <ul className="ce-location-results">
                 {vm.locationResults.map((suggestion, index) => (
@@ -229,21 +235,21 @@ export default function EditEventPage() {
             )}
             {vm.form.lat != null && vm.form.lon != null && (
               <p className="field-hint">
-                Selected: {vm.form.lat.toFixed(5)}, {vm.form.lon.toFixed(5)}
+                {t('edit_event.selected_coordinates', { lat: vm.form.lat.toFixed(5), lon: vm.form.lon.toFixed(5) })}
               </p>
             )}
             {vm.errors.location && <p className="field-error">{vm.errors.location}</p>}
           </div>
         ) : (
           <div className="field-group">
-            <label className="field-label" htmlFor="edit-route-address">Route label</label>
+            <label className="field-label" htmlFor="edit-route-address">{t('edit_event.route_label')}</label>
             <input
               id="edit-route-address"
               className="field-input"
               value={vm.form.address}
               disabled={busy || !vm.canEdit}
               onChange={(e) => vm.updateField('address', e.target.value)}
-              placeholder="Optional route label"
+              placeholder={t('edit_event.route_label_placeholder')}
             />
             <RoutePointsEditor
               routePoints={vm.form.routePoints}
@@ -265,7 +271,7 @@ export default function EditEventPage() {
         <div className="ce-row">
           <div className="field-group">
             <label className="field-label" htmlFor="edit-start-date">
-              Start date <RequiredMark />
+              {t('edit_event.start_date')} <RequiredMark />
             </label>
             <input
               id="edit-start-date"
@@ -279,7 +285,7 @@ export default function EditEventPage() {
           </div>
           <div className="field-group">
             <label className="field-label" htmlFor="edit-start-time">
-              Start time <RequiredMark />
+              {t('edit_event.start_time')} <RequiredMark />
             </label>
             <input
               id="edit-start-time"
@@ -295,7 +301,7 @@ export default function EditEventPage() {
 
         <div className="ce-row">
           <div className="field-group">
-            <label className="field-label" htmlFor="edit-end-date">End date</label>
+            <label className="field-label" htmlFor="edit-end-date">{t('edit_event.end_date')}</label>
             <input
               id="edit-end-date"
               type="date"
@@ -307,7 +313,7 @@ export default function EditEventPage() {
             {vm.errors.endDate && <p className="field-error">{vm.errors.endDate}</p>}
           </div>
           <div className="field-group">
-            <label className="field-label" htmlFor="edit-end-time">End time</label>
+            <label className="field-label" htmlFor="edit-end-time">{t('edit_event.end_time')}</label>
             <input
               id="edit-end-time"
               type="time"
@@ -321,7 +327,7 @@ export default function EditEventPage() {
         </div>
 
         <div className="field-group">
-          <label className="field-label" htmlFor="edit-capacity">Capacity</label>
+          <label className="field-label" htmlFor="edit-capacity">{t('edit_event.capacity')}</label>
           <input
             id="edit-capacity"
             type="number"
@@ -330,13 +336,13 @@ export default function EditEventPage() {
             value={vm.form.capacity}
             disabled={busy || !vm.canEdit}
             onChange={(e) => vm.updateField('capacity', e.target.value)}
-            placeholder="Unlimited"
+            placeholder={t('common.unlimited')}
           />
           {vm.errors.capacity && <p className="field-error">{vm.errors.capacity}</p>}
         </div>
 
         <div className="field-group">
-          <label className="field-label">Participation requirements</label>
+          <label className="field-label">{t('edit_event.requirements')}</label>
           {vm.form.constraints.length > 0 && (
             <ul className="ce-edit-constraint-list">
               {vm.form.constraints.map((constraint, index) => (
@@ -360,17 +366,17 @@ export default function EditEventPage() {
               value={vm.form.constraintType}
               disabled={busy || !vm.canEdit || vm.form.constraints.length >= MAX_CONSTRAINTS}
               onChange={(e) => vm.updateField('constraintType', e.target.value)}
-              placeholder="Type"
+              placeholder={t('edit_event.constraint_type_placeholder')}
             />
             <input
               className="field-input"
               value={vm.form.constraintInfo}
               disabled={busy || !vm.canEdit || vm.form.constraints.length >= MAX_CONSTRAINTS}
               onChange={(e) => vm.updateField('constraintInfo', e.target.value)}
-              placeholder="Details"
+              placeholder={t('edit_event.constraint_details_placeholder')}
             />
             <button type="button" className="btn-secondary" disabled={busy || !vm.canEdit} onClick={vm.addConstraint}>
-              Add
+              {t('common.add')}
             </button>
           </div>
           {vm.errors.constraints && <p className="field-error">{vm.errors.constraints}</p>}
@@ -378,19 +384,19 @@ export default function EditEventPage() {
 
         {vm.updateResult?.reconfirmation_required && (
           <div className="ce-edit-warning" role="status">
-            Reconfirmation needed: {Math.max(
+            {t('edit_event.reconfirmation_needed', { count: Math.max(
               vm.event?.pending_participant_count ?? 0,
               vm.updateResult.participants_marked_pending,
-            )}
+            ) })}
           </div>
         )}
 
         <div className="ce-edit-form-actions">
           <button type="button" className="btn-secondary" onClick={() => navigate(`/events/${vm.event?.id}`)} disabled={busy}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="submit" className="btn-primary" disabled={busy || !vm.canEdit}>
-            {vm.isSaving ? 'Saving...' : 'Preview & Save'}
+            {vm.isSaving ? t('profile.saving') : t('edit_event.preview_save')}
           </button>
         </div>
       </form>

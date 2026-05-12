@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   useCreateEventViewModel,
@@ -7,14 +8,9 @@ import {
   MAX_CONSTRAINTS,
 } from '@/viewmodels/event/useCreateEventViewModel';
 import type { PreferredGender, LocationType } from '@/models/event';
+import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import RoutePointsEditor from '@/components/RoutePointsEditor';
 import '@/styles/create-event.css';
-
-const GENDER_OPTIONS: { label: string; value: PreferredGender }[] = [
-  { label: 'Male', value: 'MALE' },
-  { label: 'Female', value: 'FEMALE' },
-  { label: 'Other', value: 'OTHER' },
-];
 
 const AGE_PRESETS = [
   { label: '18+', min: '18', max: '' },
@@ -40,6 +36,7 @@ function TimePicker({
   hasError?: boolean;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'hours' | 'minutes'>('hours');
   const [inputValue, setInputValue] = useState('');
@@ -119,7 +116,7 @@ function TimePicker({
         ref={inputRef}
         type="text"
         className={`field-input ce-tp-trigger ${hasError ? 'has-error' : ''}`}
-        placeholder="HH:MM"
+        placeholder={t('common.time_placeholder')}
         maxLength={5}
         value={inputValue}
         onChange={(e) => handleInputChange(e.target.value)}
@@ -186,12 +183,18 @@ function RequiredMark() {
 }
 
 function CreateEventForm() {
+  const { t } = useTranslation();
   const { token, username } = useAuth();
   const navigate = useNavigate();
   const vm = useCreateEventViewModel();
   const [showSuccess, setShowSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const busy = vm.isLoading || vm.isUploadingImage;
+  const genderOptions: { label: string; value: PreferredGender }[] = [
+    { label: t('auth.register.gender_options.male'), value: 'MALE' },
+    { label: t('auth.register.gender_options.female'), value: 'FEMALE' },
+    { label: t('auth.register.gender_options.other'), value: 'OTHER' },
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,13 +225,11 @@ function CreateEventForm() {
         <div className="ce-popup-overlay" onClick={handleSuccessDismiss}>
           <div className="ce-popup" onClick={(e) => e.stopPropagation()}>
             <div className="ce-popup-icon">&#10003;</div>
-            <h2 className="ce-popup-title">Event Created!</h2>
-            <p className="ce-popup-message">
-              Your event has been successfully created.
-            </p>
+            <h2 className="ce-popup-title">{t('create_event.created_title')}</h2>
+            <p className="ce-popup-message">{t('create_event.created_message')}</p>
             {vm.coverImageUploadedForLastCreate ? (
               <p className="ce-popup-message ce-popup-message-secondary">
-                Cover image uploaded successfully.
+                {t('create_event.cover_uploaded_message')}
               </p>
             ) : null}
             <button
@@ -236,7 +237,7 @@ function CreateEventForm() {
               className="btn-primary ce-popup-btn"
               onClick={handleSuccessDismiss}
             >
-              OK
+              {t('create_event.ok')}
             </button>
           </div>
         </div>
@@ -247,20 +248,20 @@ function CreateEventForm() {
       <form className="create-event-form" onSubmit={handleSubmit}>
         {/* Host info */}
         <div className="ce-host-info">
-          <span className="ce-host-label">Host:</span>
+          <span className="ce-host-label">{t('create_event.host')}</span>
           <span className="ce-host-name">{username}</span>
         </div>
 
         {/* Title */}
         <div className="field-group">
           <label className="field-label" htmlFor="event-title">
-            Title <RequiredMark />
+            {t('create_event.title')} <RequiredMark />
           </label>
           <input
             id="event-title"
             className={`field-input ${vm.errors.title ? 'has-error' : ''}`}
             type="text"
-            placeholder="Give your event a catchy title"
+            placeholder={t('create_event.title_placeholder')}
             maxLength={60}
             value={vm.form.title}
             onChange={(e) => {
@@ -281,12 +282,12 @@ function CreateEventForm() {
         {/* Description */}
         <div className="field-group">
           <label className="field-label" htmlFor="event-desc">
-            Description <RequiredMark />
+            {t('create_event.description')} <RequiredMark />
           </label>
           <textarea
             id="event-desc"
             className={`field-input ce-textarea ${vm.errors.description ? 'has-error' : ''}`}
-            placeholder="Describe your event in detail"
+            placeholder={t('create_event.description_placeholder')}
             maxLength={600}
             rows={4}
             value={vm.form.description}
@@ -307,7 +308,7 @@ function CreateEventForm() {
 
         {/* Category */}
         <div className="field-group">
-          <label className="field-label">Category <RequiredMark /></label>
+          <label className="field-label">{t('create_event.category')} <RequiredMark /></label>
           <div className="ce-category-grid">
             {vm.categories.map((cat) => (
               <button
@@ -320,7 +321,7 @@ function CreateEventForm() {
                 }}
                 disabled={busy}
               >
-                {cat.name}
+                {getEventCategoryPresentation(cat.name, false).label}
               </button>
             ))}
           </div>
@@ -332,7 +333,7 @@ function CreateEventForm() {
         {/* Event Image */}
         <div className="field-group">
           <label className="field-label">
-            Event Image <RequiredMark />
+            {t('create_event.event_image')} <RequiredMark />
           </label>
           <input
             ref={fileInputRef}
@@ -344,7 +345,7 @@ function CreateEventForm() {
           />
           {vm.form.imagePreview ? (
             <div className="ce-image-preview-wrapper">
-              <img src={vm.form.imagePreview} alt="Event preview" className="ce-image-preview" />
+              <img src={vm.form.imagePreview} alt={t('create_event.event_preview_alt')} className="ce-image-preview" />
               <button
                 type="button"
                 className="ce-image-remove"
@@ -353,7 +354,7 @@ function CreateEventForm() {
                   if (fileInputRef.current) fileInputRef.current.value = '';
                 }}
               >
-                Remove
+                {t('create_event.remove')}
               </button>
             </div>
           ) : (
@@ -363,7 +364,7 @@ function CreateEventForm() {
               onClick={() => fileInputRef.current?.click()}
               disabled={busy}
             >
-              Upload Image
+              {t('create_event.upload_image')}
             </button>
           )}
           {vm.errors.image && (
@@ -374,12 +375,12 @@ function CreateEventForm() {
         {/* Location */}
         <div className="field-group">
           <label className="field-label">
-            Location <RequiredMark />
+            {t('create_event.location')} <RequiredMark />
           </label>
           <div className="ce-location-type-row">
             {([
-              { label: 'Point', value: 'POINT' as LocationType },
-              { label: 'Route', value: 'ROUTE' as LocationType },
+              { label: t('create_event.point'), value: 'POINT' as LocationType },
+              { label: t('create_event.route'), value: 'ROUTE' as LocationType },
             ]).map((opt) => (
               <button
                 key={opt.value}
@@ -400,14 +401,14 @@ function CreateEventForm() {
                   id="event-location"
                   className={`field-input ${vm.errors.location ? 'has-error' : ''}`}
                   type="text"
-                  placeholder="Search for a location..."
+                  placeholder={t('create_event.location_search_placeholder')}
                   value={vm.form.locationQuery}
                   onChange={(e) => vm.handleLocationSearch(e.target.value)}
                   onBlur={() => vm.touchField('location')}
                   disabled={busy}
                 />
                 {vm.locationSearching && (
-                  <div className="ce-location-searching">Searching...</div>
+                  <div className="ce-location-searching">{t('create_event.searching')}</div>
                 )}
                 {vm.locationResults.length > 0 && (
                   <ul className="ce-location-results">
@@ -454,7 +455,7 @@ function CreateEventForm() {
         <div className="ce-row">
           <div className="field-group ce-flex-1">
             <label className="field-label" htmlFor="start-date">
-              Start Date <RequiredMark />
+              {t('create_event.start_date')} <RequiredMark />
             </label>
             <input
               id="start-date"
@@ -473,7 +474,7 @@ function CreateEventForm() {
             )}
           </div>
           <div className="field-group ce-flex-1">
-            <label className="field-label">Start Time <RequiredMark /></label>
+            <label className="field-label">{t('create_event.start_time')} <RequiredMark /></label>
             <TimePicker
               value={vm.form.startTime}
               onChange={(val) => {
@@ -493,7 +494,7 @@ function CreateEventForm() {
         <div className="ce-row">
           <div className="field-group ce-flex-1">
             <label className="field-label" htmlFor="end-date">
-              End Date <span className="optional">(optional)</span>
+              {t('create_event.end_date')} <span className="optional">({t('common.optional')})</span>
             </label>
             <input
               id="end-date"
@@ -513,7 +514,7 @@ function CreateEventForm() {
           </div>
           <div className="field-group ce-flex-1">
             <label className="field-label">
-              End Time <span className="optional">(optional)</span>
+              {t('create_event.end_time')} <span className="optional">({t('common.optional')})</span>
             </label>
             <TimePicker
               value={vm.form.endTime}
@@ -533,7 +534,7 @@ function CreateEventForm() {
 
         {/* Privacy Level */}
         <div className="field-group">
-          <label className="field-label">Privacy</label>
+          <label className="field-label">{t('create_event.privacy')}</label>
           <div className="ce-privacy-row">
             {PRIVACY_OPTIONS.map((opt) => (
               <button
@@ -543,30 +544,34 @@ function CreateEventForm() {
                 onClick={() => vm.updateField('privacyLevel', opt.value)}
                 disabled={busy}
               >
-                {opt.label}
+                {opt.value === 'PUBLIC'
+                  ? t('create_event.privacy_public')
+                  : opt.value === 'PROTECTED'
+                    ? t('create_event.privacy_protected')
+                    : t('create_event.privacy_private')}
               </button>
             ))}
           </div>
           <p className="field-hint">
             {vm.form.privacyLevel === 'PUBLIC'
-              ? 'Public events appear in discovery and anyone can join immediately.'
+              ? t('create_event.privacy_hint_public')
               : vm.form.privacyLevel === 'PROTECTED'
-                ? 'Protected events appear in discovery but require host approval to join.'
-                : 'Private events are invite-based: only invited users can see and join. They do not appear in public discovery.'}
+                ? t('create_event.privacy_hint_protected')
+                : t('create_event.privacy_hint_private')}
           </p>
         </div>
 
         {/* Capacity */}
         <div className="field-group">
           <label className="field-label" htmlFor="event-capacity">
-            Capacity <span className="optional">(optional)</span>
+            {t('create_event.capacity')} <span className="optional">({t('common.optional')})</span>
           </label>
           <input
             id="event-capacity"
             className={`field-input ce-short-input ${vm.errors.capacity ? 'has-error' : ''}`}
             type="number"
             min={2}
-            placeholder="e.g. 50"
+            placeholder={t('create_event.capacity_placeholder')}
             value={vm.form.capacity}
             onChange={(e) => {
               const val = e.target.value;
@@ -583,13 +588,13 @@ function CreateEventForm() {
         {/* Tags */}
         <div className="field-group">
           <label className="field-label">
-            Tags <span className="optional">(up to 5)</span>
+            {t('create_event.tags')} <span className="optional">({t('create_event.tags_limit')})</span>
           </label>
           <div className="ce-tag-input-row">
             <input
               className="field-input ce-tag-input"
               type="text"
-              placeholder="Add a tag"
+              placeholder={t('create_event.tag_placeholder')}
               maxLength={20}
               value={vm.form.tagInput}
               onChange={(e) => vm.updateField('tagInput', e.target.value)}
@@ -607,7 +612,7 @@ function CreateEventForm() {
               onClick={vm.addTag}
               disabled={busy || vm.form.tags.length >= 5 || !vm.form.tagInput.trim()}
             >
-              Add
+              {t('create_event.add')}
             </button>
           </div>
           {vm.form.tags.length > 0 && (
@@ -630,7 +635,7 @@ function CreateEventForm() {
 
         <fieldset className="ce-constraints-section ce-audience-section">
           <legend className="field-label">
-            Audience Attributes <span className="optional">(optional)</span>
+            {t('create_event.audience_attributes')} <span className="optional">({t('common.optional')})</span>
           </legend>
           <div className="ce-audience-grid">
             <label className={`ce-audience-toggle ${vm.form.childFriendly ? 'selected' : ''}`}>
@@ -641,8 +646,8 @@ function CreateEventForm() {
                 disabled={busy}
               />
               <span className="ce-audience-toggle-text">
-                <span className="ce-audience-toggle-title">Child-friendly</span>
-                <span className="ce-audience-toggle-copy">Suitable for children</span>
+                <span className="ce-audience-toggle-title">{t('create_event.child_friendly')}</span>
+                <span className="ce-audience-toggle-copy">{t('create_event.child_friendly_copy')}</span>
               </span>
             </label>
             <label className={`ce-audience-toggle ${vm.form.familyOriented ? 'selected' : ''}`}>
@@ -653,8 +658,8 @@ function CreateEventForm() {
                 disabled={busy}
               />
               <span className="ce-audience-toggle-text">
-                <span className="ce-audience-toggle-title">Family-oriented</span>
-                <span className="ce-audience-toggle-copy">Built for families</span>
+                <span className="ce-audience-toggle-title">{t('create_event.family_oriented')}</span>
+                <span className="ce-audience-toggle-copy">{t('create_event.family_oriented_copy')}</span>
               </span>
             </label>
           </div>
@@ -663,12 +668,12 @@ function CreateEventForm() {
         {/* Participation Constraints */}
         <fieldset className="ce-constraints-section">
           <legend className="field-label">
-            Participation Constraints <span className="optional">(optional)</span>
+            {t('create_event.participation_constraints')} <span className="optional">({t('common.optional')})</span>
           </legend>
 
           {/* Age Presets */}
           <div className="field-group">
-            <label className="field-label ce-sub-label">Age Restriction</label>
+            <label className="field-label ce-sub-label">{t('create_event.age_restriction')}</label>
             <div className="ce-age-presets">
               {AGE_PRESETS.map((preset) => {
                 const isActive =
@@ -700,7 +705,7 @@ function CreateEventForm() {
           <div className="ce-row">
             <div className="field-group ce-flex-1">
               <label className="field-label ce-sub-label" htmlFor="min-age">
-                Min Age
+                {t('create_event.min_age')}
               </label>
               <input
                 id="min-age"
@@ -708,7 +713,7 @@ function CreateEventForm() {
                 type="number"
                 min={1}
                 max={120}
-                placeholder="e.g. 18"
+                placeholder={t('create_event.min_age_placeholder')}
                 value={vm.form.minimumAge}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -723,7 +728,7 @@ function CreateEventForm() {
             </div>
             <div className="field-group ce-flex-1">
               <label className="field-label ce-sub-label" htmlFor="max-age">
-                Max Age
+                {t('create_event.max_age')}
               </label>
               <input
                 id="max-age"
@@ -731,7 +736,7 @@ function CreateEventForm() {
                 type="number"
                 min={1}
                 max={120}
-                placeholder="e.g. 65"
+                placeholder={t('create_event.max_age_placeholder')}
                 value={vm.form.maximumAge}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -748,9 +753,9 @@ function CreateEventForm() {
 
           {/* Preferred Gender */}
           <div className="field-group">
-            <label className="field-label ce-sub-label">Preferred Gender</label>
+            <label className="field-label ce-sub-label">{t('create_event.preferred_gender')}</label>
             <div className="ce-privacy-row">
-              {GENDER_OPTIONS.map((opt) => (
+              {genderOptions.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
@@ -771,12 +776,12 @@ function CreateEventForm() {
 
           {/* Custom Constraints */}
           <div className="field-group">
-            <label className="field-label ce-sub-label">Other Constraints</label>
+            <label className="field-label ce-sub-label">{t('create_event.other_constraints')}</label>
             <div className="ce-tag-input-row">
               <input
                 className="field-input ce-tag-input"
                 type="text"
-                placeholder="e.g. Bring your own equipment"
+                placeholder={t('create_event.other_constraints_placeholder')}
                 value={vm.form.otherConstraintInput}
                 onChange={(e) => vm.updateField('otherConstraintInput', e.target.value)}
                 onKeyDown={(e) => {
@@ -797,7 +802,7 @@ function CreateEventForm() {
                   !vm.form.otherConstraintInput.trim()
                 }
               >
-                Add
+                {t('create_event.add')}
               </button>
             </div>
             {vm.form.constraints.length > 0 && (
@@ -826,11 +831,11 @@ function CreateEventForm() {
           disabled={busy}
         >
           {vm.isUploadingImage ? (
-            'Uploading image…'
+            t('create_event.uploading_image')
           ) : vm.isLoading ? (
             <span className="spinner" />
           ) : (
-            'Create Event'
+            t('create_event.submitting')
           )}
         </button>
       </form>
@@ -839,14 +844,15 @@ function CreateEventForm() {
 }
 
 export default function CreateEventPage() {
+  const { t } = useTranslation();
   const [hasError, setHasError] = useState(false);
 
   if (hasError) {
     return (
       <div className="create-event-page">
-        <h1 className="create-event-title">Create a New Event</h1>
+        <h1 className="create-event-title">{t('create_event.page_title')}</h1>
         <div className="error-banner">
-          Something went wrong loading the form. Please try refreshing the page.
+          {t('create_event.load_error')}
         </div>
       </div>
     );
@@ -854,9 +860,9 @@ export default function CreateEventPage() {
 
   return (
     <div className="create-event-page">
-      <h1 className="create-event-title">Create a New Event</h1>
+      <h1 className="create-event-title">{t('create_event.page_title')}</h1>
       <p className="create-event-subtitle">
-        Fill in the details below to set up your event.
+        {t('create_event.page_subtitle')}
       </p>
       <ErrorBoundary onError={() => setHasError(true)}>
         <CreateEventForm />

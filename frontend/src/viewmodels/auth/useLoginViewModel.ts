@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { login } from '@/services/authService';
 import { AuthSessionResponse } from '@/models/auth';
 import { ApiError } from '@/services/api';
+import i18n from '@/i18n';
+import { getAuthApiErrorMessage, getAuthApiFieldErrors } from '@/utils/authErrorPresentation';
 import { validateUsername, validatePassword } from '@/utils/validators';
 
 export interface LoginFormData {
@@ -55,9 +57,15 @@ export function useLoginViewModel() {
       });
     } catch (err) {
       if (err instanceof ApiError) {
-        setApiError(err.message);
+        const fieldErrors = getAuthApiFieldErrors(err);
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors((prev) => ({ ...prev, ...fieldErrors }));
+          setApiError(null);
+        } else {
+          setApiError(getAuthApiErrorMessage(err));
+        }
       } else {
-        setApiError('An unexpected error occurred. Please try again.');
+        setApiError(i18n.t('errors.unexpected'));
       }
       return null;
     } finally {

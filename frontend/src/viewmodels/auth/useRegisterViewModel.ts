@@ -14,6 +14,8 @@ import {
   validatePhoneNumber,
   validateBirthDate,
 } from '@/utils/validators';
+import i18n from '@/i18n';
+import { getAuthApiErrorMessage, getAuthApiFieldErrors } from '@/utils/authErrorPresentation';
 
 export type RegisterStep = 'details' | 'otp';
 
@@ -52,11 +54,11 @@ const INITIAL_FORM_DATA: RegisterFormData = {
 const OTP_ERROR_CODES = new Set(['invalid_otp', 'otp_attempts_exceeded']);
 
 function validateRequiredGender(gender: Gender): string | null {
-  return gender ? null : 'Gender is required.';
+  return gender ? null : i18n.t('validation.gender_required');
 }
 
 function validateRequiredBirthDate(date: string): string | null {
-  if (!date.trim()) return 'Birth date is required.';
+  if (!date.trim()) return i18n.t('validation.birth_date_required');
   return validateBirthDate(date);
 }
 
@@ -101,10 +103,10 @@ export function useRegisterViewModel() {
       });
       const taken: RegisterFormErrors = {};
       if (availability.email === 'TAKEN') {
-        taken.email = 'This email is already in use.';
+        taken.email = i18n.t('errors.email_in_use');
       }
       if (availability.username === 'TAKEN') {
-        taken.username = 'This username is already in use.';
+        taken.username = i18n.t('errors.username_in_use');
       }
       if (Object.keys(taken).length > 0) {
         setErrors((prev) => ({ ...prev, ...taken }));
@@ -115,9 +117,15 @@ export function useRegisterViewModel() {
       setStep('otp');
     } catch (err) {
       if (err instanceof ApiError) {
-        setApiError(err.message);
+        const fieldErrors = getAuthApiFieldErrors(err);
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors((prev) => ({ ...prev, ...fieldErrors }));
+          setApiError(null);
+        } else {
+          setApiError(getAuthApiErrorMessage(err));
+        }
       } else {
-        setApiError('An unexpected error occurred. Please try again.');
+        setApiError(i18n.t('errors.unexpected'));
       }
     } finally {
       setIsLoading(false);
@@ -145,13 +153,22 @@ export function useRegisterViewModel() {
       });
     } catch (err) {
       if (err instanceof ApiError) {
+        const localizedMessage = getAuthApiErrorMessage(err);
+        const fieldErrors = getAuthApiFieldErrors(err);
         if (OTP_ERROR_CODES.has(err.code)) {
           setFormData((prev) => ({ ...prev, otp: '' }));
-          setErrors({ otp: err.message });
+          setErrors({ otp: localizedMessage });
+          setApiError(null);
+          return null;
         }
-        setApiError(err.message);
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors((prev) => ({ ...prev, ...fieldErrors }));
+          setApiError(null);
+        } else {
+          setApiError(localizedMessage);
+        }
       } else {
-        setApiError('An unexpected error occurred. Please try again.');
+        setApiError(i18n.t('errors.unexpected'));
       }
       return null;
     } finally {

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import i18n from '@/i18n';
 import {
   discoverEvents,
   listCategories,
@@ -213,7 +214,7 @@ function locationShortLabel(selected: LocationSuggestion | null): string {
     return DEFAULT_MAP_LABEL;
   }
   if (selected.display_name.endsWith('(your location)')) {
-    return 'Near you';
+    return i18n.t('home.near_you');
   }
   return formatEventLocation(selected.display_name);
 }
