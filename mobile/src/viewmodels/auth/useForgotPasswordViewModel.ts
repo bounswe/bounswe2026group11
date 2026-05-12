@@ -13,12 +13,14 @@ export interface ForgotPasswordFormData {
   email: string;
   otp: string;
   newPassword: string;
+  confirmNewPassword: string;
 }
 
 export interface ForgotPasswordFormErrors {
   email?: string | null;
   otp?: string | null;
   newPassword?: string | null;
+  confirmNewPassword?: string | null;
 }
 
 export interface ForgotPasswordViewModel {
@@ -42,6 +44,7 @@ const INITIAL_FORM_DATA: ForgotPasswordFormData = {
   email: '',
   otp: '',
   newPassword: '',
+  confirmNewPassword: '',
 };
 
 const OTP_ERROR_CODES = new Set(['invalid_otp', 'otp_attempts_exceeded']);
@@ -125,9 +128,23 @@ export function useForgotPasswordViewModel(): ForgotPasswordViewModel {
   }, [formData.email, formData.otp]);
 
   const handleResetPassword = useCallback(async (): Promise<boolean> => {
-    const passwordError = validatePassword(formData.newPassword);
-    if (passwordError) {
-      setErrors((prev) => ({ ...prev, newPassword: passwordError }));
+    const newErrors: ForgotPasswordFormErrors = {
+      newPassword: validatePassword(formData.newPassword),
+      confirmNewPassword: !formData.confirmNewPassword
+        ? 'Please confirm your new password.'
+        : null,
+    };
+
+    if (
+      !newErrors.confirmNewPassword &&
+      formData.newPassword !== formData.confirmNewPassword
+    ) {
+      newErrors.confirmNewPassword = 'Passwords do not match.';
+    }
+
+    const hasErrors = Object.values(newErrors).some((e) => e != null);
+    if (hasErrors) {
+      setErrors((prev) => ({ ...prev, ...newErrors }));
       return false;
     }
 
@@ -145,6 +162,11 @@ export function useForgotPasswordViewModel(): ForgotPasswordViewModel {
         new_password: formData.newPassword,
       });
       setSuccessMessage(result.message);
+      setFormData((prev) => ({
+        ...prev,
+        newPassword: '',
+        confirmNewPassword: '',
+      }));
       return true;
     } catch (err) {
       if (err instanceof ApiError) {
@@ -156,7 +178,12 @@ export function useForgotPasswordViewModel(): ForgotPasswordViewModel {
     } finally {
       setIsLoading(false);
     }
-  }, [formData.email, formData.newPassword, resetToken]);
+  }, [
+    formData.email,
+    formData.newPassword,
+    formData.confirmNewPassword,
+    resetToken,
+  ]);
 
   const goBack = useCallback(() => {
     setApiError(null);
@@ -165,7 +192,12 @@ export function useForgotPasswordViewModel(): ForgotPasswordViewModel {
       setFormData((prev) => ({ ...prev, otp: '' }));
       setStep('email');
     } else if (step === 'reset') {
-      setFormData((prev) => ({ ...prev, otp: '', newPassword: '' }));
+      setFormData((prev) => ({
+        ...prev,
+        otp: '',
+        newPassword: '',
+        confirmNewPassword: '',
+      }));
       setResetToken(null);
       setStep('otp');
     }

@@ -219,6 +219,28 @@ function getInvitationErrorMessage(error: unknown): string {
   return error instanceof ApiError ? error.message : i18n.t('profile.invitations.loadFailed');
 }
 
+function getProfileRatingLabels(profile: UserProfile | null) {
+  const totalCount =
+    (profile?.host_score?.rating_count || 0) +
+    (profile?.participant_score?.rating_count || 0);
+  const newLabel = i18n.t('profile.new');
+
+  return {
+    overallRatingLabel:
+      profile?.final_score != null && totalCount > 0
+        ? `${profile.final_score.toFixed(1)} (${totalCount})`
+        : newLabel,
+    hostRatingLabel:
+      profile?.host_score?.score != null && profile.host_score.rating_count > 0
+        ? `${profile.host_score.score.toFixed(1)} (${profile.host_score.rating_count})`
+        : newLabel,
+    participantRatingLabel:
+      profile?.participant_score?.score != null && profile.participant_score.rating_count > 0
+        ? `${profile.participant_score.score.toFixed(1)} (${profile.participant_score.rating_count})`
+        : newLabel,
+  };
+}
+
 export function useProfileViewModel(): ProfileViewModel {
   const { token } = useAuth();
 
@@ -231,9 +253,6 @@ export function useProfileViewModel(): ProfileViewModel {
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageUploadSuccessMessage, setImageUploadSuccessMessage] = useState<string | null>(null);
   const imageUploadSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [overallRatingLabel, setOverallRatingLabel] = useState(i18n.t('profile.new'));
-  const [hostRatingLabel, setHostRatingLabel] = useState(i18n.t('profile.new'));
-  const [participantRatingLabel, setParticipantRatingLabel] = useState(i18n.t('profile.new'));
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [invitations, setInvitations] = useState<ReceivedInvitation[]>([]);
   const [badges, setBadges] = useState<BadgeItem[]>([]);
@@ -249,9 +268,6 @@ export function useProfileViewModel(): ProfileViewModel {
         setProfile(null);
         setHostedEvents([]);
         setAttendedEvents([]);
-        setOverallRatingLabel(i18n.t('profile.new'));
-        setHostRatingLabel(i18n.t('profile.new'));
-        setParticipantRatingLabel(i18n.t('profile.new'));
         setInvitations([]);
         setInvitationError(null);
         setApiError(i18n.t('profile.errors.loginRequired'));
@@ -328,30 +344,11 @@ export function useProfileViewModel(): ProfileViewModel {
         ).filter((event) => shouldShowProfileEvent(event.status));
         setHostedEvents(visibleHostedEvents);
         setAttendedEvents(mergedAttendedEvents);
-        const totalCount = (profileResult.host_score?.rating_count || 0) + (profileResult.participant_score?.rating_count || 0);
-        setOverallRatingLabel(
-          profileResult.final_score != null && totalCount > 0
-            ? `${profileResult.final_score.toFixed(1)} (${totalCount})`
-            : i18n.t('profile.new'),
-        );
-        setHostRatingLabel(
-          profileResult.host_score?.score != null && profileResult.host_score.rating_count > 0
-            ? `${profileResult.host_score.score.toFixed(1)} (${profileResult.host_score.rating_count})`
-            : i18n.t('profile.new'),
-        );
-        setParticipantRatingLabel(
-          profileResult.participant_score?.score != null && profileResult.participant_score.rating_count > 0
-            ? `${profileResult.participant_score.score.toFixed(1)} (${profileResult.participant_score.rating_count})`
-            : i18n.t('profile.new'),
-        );
       } catch (err) {
         setHostedEvents([]);
         setAttendedEvents([]);
         setInvitations([]);
         setInvitationError(null);
-        setOverallRatingLabel(i18n.t('profile.new'));
-        setHostRatingLabel(i18n.t('profile.new'));
-        setParticipantRatingLabel(i18n.t('profile.new'));
         if (err instanceof ApiError) {
           setApiError(err.message);
         } else {
@@ -625,6 +622,11 @@ export function useProfileViewModel(): ProfileViewModel {
   const primaryName = profile?.display_name ?? profile?.username ?? '';
   const secondaryName = profile?.display_name ? profile.username : null;
   const avatarInitial = primaryName.trim().charAt(0).toUpperCase() || '?';
+  const {
+    overallRatingLabel,
+    hostRatingLabel,
+    participantRatingLabel,
+  } = getProfileRatingLabels(profile);
 
   return {
     profile,

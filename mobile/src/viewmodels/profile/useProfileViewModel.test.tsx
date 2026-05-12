@@ -9,6 +9,7 @@ import type {
   ProfileEventSummary,
   UserProfile,
 } from '@/models/profile';
+import i18n from '@/i18n';
 import { useProfileViewModel } from './useProfileViewModel';
 
 jest.mock('@/services/profileService');
@@ -151,7 +152,8 @@ const invitationsResponse = {
 };
 
 describe('useProfileViewModel', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
     jest.clearAllMocks();
     mockUseAuth.mockReturnValue({
       token: 'test-token',
@@ -333,6 +335,31 @@ describe('useProfileViewModel', () => {
     expect(result.current.overallRatingLabel).toBe('New');
     expect(result.current.hostRatingLabel).toBe('4.7 (12)');
     expect(result.current.participantRatingLabel).toBe('3.8 (9)');
+  });
+
+  it('updates unrated labels when language changes without refetching profile data', async () => {
+    mockGetMyProfile.mockResolvedValue({
+      ...profileFixture,
+      final_score: null,
+      host_score: null,
+      participant_score: null,
+    });
+
+    const { result, rerender } = await renderProfileViewModel();
+
+    expect(result.current.overallRatingLabel).toBe('New');
+    expect(result.current.hostRatingLabel).toBe('New');
+    expect(result.current.participantRatingLabel).toBe('New');
+
+    await act(async () => {
+      await i18n.changeLanguage('tr');
+    });
+    rerender();
+
+    expect(result.current.overallRatingLabel).toBe('Yeni');
+    expect(result.current.hostRatingLabel).toBe('Yeni');
+    expect(result.current.participantRatingLabel).toBe('Yeni');
+    expect(mockGetMyProfile).toHaveBeenCalledTimes(1);
   });
 
   it('deduplicates attended events returned by multiple endpoints', async () => {
