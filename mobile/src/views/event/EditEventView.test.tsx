@@ -10,11 +10,15 @@ import { useEditEventViewModel } from '@/viewmodels/event/useEditEventViewModel'
 
 const mockBack = jest.fn();
 const mockReplace = jest.fn();
+const mockDismissTo = jest.fn();
+const mockPush = jest.fn();
 
 jest.mock('expo-router', () => ({
   router: {
     back: (...args: unknown[]) => mockBack(...args),
     replace: (...args: unknown[]) => mockReplace(...args),
+    dismissTo: (...args: unknown[]) => mockDismissTo(...args),
+    push: (...args: unknown[]) => mockPush(...args),
   },
 }));
 
@@ -165,9 +169,13 @@ function buildViewModel(
     errors: {},
     isLoading: false,
     isSaving: false,
+    isUploadingImage: false,
     apiError: null,
+    imageError: null,
     successMessage: null,
+    imageUploadSuccessMessage: null,
     updateResult: null,
+    selectedImageUri: null,
     locationSuggestions: [],
     isSearchingLocation: false,
     categoriesExpanded: false,
@@ -188,6 +196,8 @@ function buildViewModel(
     moveRoutePoint: jest.fn(),
     updateRoutePointLabel: jest.fn(),
     toggleCategoriesExpanded: jest.fn(),
+    pickImage: jest.fn().mockResolvedValue(undefined),
+    removeImage: jest.fn(),
     updateConstraintDraftType: jest.fn(),
     updateConstraintDraftInfo: jest.fn(),
     addConstraint: jest.fn(),
@@ -216,13 +226,30 @@ describe('EditEventView', () => {
     expect(screen.getByDisplayValue('Belgrad Forest, Istanbul')).toBeTruthy();
     expect(screen.getByDisplayValue('12')).toBeTruthy();
     expect(screen.getByText('Bring water')).toBeTruthy();
+    expect(screen.getByText('Cover image')).toBeTruthy();
     expect(screen.queryByText('Privacy Level')).toBeNull();
+  });
+
+  it('lets hosts choose a cover image from the edit form', () => {
+    const pickImage = jest.fn().mockResolvedValue(undefined);
+    mockUseEditEventViewModel.mockReturnValue(
+      buildViewModel({
+        pickImage,
+        event: makeEvent({ image_url: 'https://example.com/current-cover.jpg' }),
+      }),
+    );
+
+    render(<EditEventView eventId="event-1" />);
+
+    fireEvent.click(screen.getByText('Change Cover Image'));
+
+    expect(pickImage).toHaveBeenCalledTimes(1);
   });
 
   it('shows confirmation for critical updates and navigates to refreshed detail on success', async () => {
     const previewChanges = jest.fn(() => ({
       request: { title: 'Updated Istanbul Trail Morning' },
-      changedFields: ['title'],
+      changedFields: ['title', 'image_url'],
       criticalChangeLabels: ['Title'],
     }));
     const handleSubmit = jest.fn().mockResolvedValue(updateResult);
@@ -241,12 +268,14 @@ describe('EditEventView', () => {
     expect(screen.getByTestId('edit-event-confirmation')).toBeTruthy();
     expect(screen.getByText('Review before saving')).toBeTruthy();
     expect(screen.getAllByText('Title').length).toBeGreaterThan(1);
+    expect(screen.getAllByText('Cover image').length).toBeGreaterThan(1);
 
     fireEvent.click(screen.getByText('Save Anyway'));
 
     await waitFor(() => {
       expect(handleSubmit).toHaveBeenCalledWith({ title: 'Updated Istanbul Trail Morning' });
-      expect(mockReplace).toHaveBeenCalledWith('/event/event-1');
+      expect(mockDismissTo).toHaveBeenCalledWith('/(tabs)/home');
+      expect(mockPush).toHaveBeenCalledWith('/event/event-1');
     });
   });
 

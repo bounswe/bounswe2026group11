@@ -38,11 +38,17 @@ export default function HomeView() {
   const styles = useMemo(() => makeStyles(theme, isDark), [theme, isDark]);
   const isMapMode = vm.viewMode === 'MAP';
   const insets = useSafeAreaInsets();
+  const hasFocusedOnceRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
       void refreshUnreadCount();
-    }, [refreshUnreadCount]),
+      if (hasFocusedOnceRef.current) {
+        void vm.silentRefresh();
+      } else {
+        hasFocusedOnceRef.current = true;
+      }
+    }, [refreshUnreadCount, vm.silentRefresh]),
   );
 
   const locationButtonRef = useRef<any>(null);
