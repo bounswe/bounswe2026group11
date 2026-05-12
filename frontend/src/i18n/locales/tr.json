@@ -96,6 +96,26 @@
       "sign_in": "Giriş Yap",
       "sign_up": "Kayıt Ol",
       "continue_as_guest": "Aktivasyon olmadan devam et →"
+    },
+    "entry": {
+      "title": "Social Event Mapper",
+      "subtitle": "Çevrendeki etkinlikleri keşfet ve katıl"
+    }
+  },
+  "fallback": {
+    "not_found": {
+      "heading": "Sayfa bulunamadı",
+      "body": "Aradığın sayfayı bulamadık. Taşınmış, silinmiş ya da hiç var olmamış olabilir.",
+      "back_discover": "Keşfete dön"
+    },
+    "access_denied": {
+      "heading": "Erişim reddedildi",
+      "body": "Bu sayfayı görüntüleme iznin yok. Bir hata olduğunu düşünüyorsan etkinlik sahibiyle iletişime geç ya da ana ekrana dön.",
+      "private_event_body": "Bu özel bir etkinlik. Yalnızca onaylı katılımcılar ve davetli misafirler detayları görebilir.",
+      "back_discover": "Keşfete dön",
+      "go_back": "Geri",
+      "admin_title": "Yönetici erişimi gerekli",
+      "admin_body": "Bu yönetim paneli alanı yalnızca yöneticilere açıktır."
     }
   },
   "shell": {
@@ -332,7 +352,7 @@
       "Food & Drink": "Yeme & İçme",
       "Outdoors": "Doğa",
       "Fitness": "Fitness",
-      "Networking": "Networking",
+      "Networking": "Ağ Kurma",
       "Gaming": "Oyun",
       "Charity": "Yardım",
       "Photography": "Fotoğrafçılık",
@@ -477,6 +497,25 @@
     "empty_title": "Henüz bildirim yok",
     "empty_body": "Etkinliklerinle ilgili bir şey olduğunda güncellemeleri burada göreceksin.",
     "load_more": "Daha fazla yükle",
+    "invitation_modal": {
+      "title": "Davet detayları",
+      "close_aria": "Davet detaylarını kapat",
+      "loading": "Davet yükleniyor...",
+      "sign_in_required": "Bu daveti görmek için giriş yapmalısın.",
+      "load_failed": "Davet yüklenemedi",
+      "accept_failed": "Davet kabul edilemedi",
+      "decline_failed": "Davet reddedilemedi",
+      "datetime": "{{date}} · {{time}}",
+      "from_host": "{{host}} tarafından",
+      "status_body": {
+        "ACCEPTED": "Bu daveti zaten kabul ettin.",
+        "DECLINED": "Bu daveti zaten reddettin.",
+        "CANCELED": "Ev sahibi bu daveti iptal etti.",
+        "EXPIRED": "Bu davetin süresi doldu.",
+        "PENDING": "Bu davet için yanıt bekleniyor.",
+        "UNKNOWN": "Bu davet üzerinde işlem yapılamıyor."
+      }
+    },
     "presentation": {
       "event_update": "Etkinlik güncellemesi",
       "cooldown": "{{date}} sonrasında tekrar dene",
@@ -930,6 +969,12 @@
     "ticket_section": "Bilet",
     "ticket_id": "Bilet ID",
     "participation": "Katılım",
+    "participation_status": {
+      "APPROVED": "Onaylandı",
+      "PENDING": "Beklemede",
+      "CANCELED": "İptal edildi",
+      "LEAVED": "Ayrıldı"
+    },
     "expires_label": "Sona erme",
     "used": "Kullanıldı",
     "show_qr_title": "QR'ını mobilde göster",

@@ -3,13 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { useTicketDetailViewModel } from '@/viewmodels/tickets/useTicketDetailViewModel';
 import { getTicketStatusPresentation } from '@/utils/ticketStatus';
 import NotFoundView from '../fallback/NotFoundView';
+import i18n from '@/i18n';
 import '@/styles/tickets.css';
 
 function formatDateTime(iso: string | undefined | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(i18n.resolvedLanguage, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -138,7 +139,11 @@ export default function TicketDetailPage() {
           </div>
           <div className="tk-detail-row">
             <span className="tk-detail-label">{t('tickets.participation')}</span>
-            <span className="tk-detail-value">{participation.status}</span>
+            <span className="tk-detail-value">
+              {t(`tickets.participation_status.${participation.status}`, {
+                defaultValue: participation.status,
+              })}
+            </span>
           </div>
           <div className="tk-detail-row">
             <span className="tk-detail-label">{t('tickets.expires_label')}</span>

@@ -47,6 +47,29 @@ const FALLBACK_CATEGORY_PRESENTATIONS: EventCategoryPresentationConfig[] = [
   { emoji: '🎟️', lightColor: '#B45309', darkColor: '#FBBF24' },
 ];
 
+const CATEGORY_TRANSLATION_KEYS_BY_NORMALIZED_NAME: Record<string, string> = {
+  sports: 'Sports',
+  music: 'Music',
+  education: 'Education',
+  technology: 'Technology',
+  art: 'Art',
+  fooddrink: 'Food & Drink',
+  outdoors: 'Outdoors',
+  fitness: 'Fitness',
+  networking: 'Networking',
+  gaming: 'Gaming',
+  charity: 'Charity',
+  photography: 'Photography',
+  travel: 'Travel',
+  workshops: 'Workshops',
+  conferences: 'Conferences',
+  moviescinema: 'Movies & Cinema',
+  theatre: 'Theatre',
+  booksliterature: 'Books & Literature',
+  wellness: 'Wellness',
+  volunteering: 'Volunteering',
+};
+
 function normalizeCategoryName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
@@ -72,10 +95,11 @@ export function getEventCategoryPresentation(
   isDark: boolean,
 ): EventCategoryPresentation {
   const rawLabel = categoryName.trim() || 'Event';
-  const translationKey = `events.categories.${rawLabel}`;
+  const normalizedName = normalizeCategoryName(rawLabel);
+  const translationLabelKey = CATEGORY_TRANSLATION_KEYS_BY_NORMALIZED_NAME[normalizedName] ?? rawLabel;
+  const translationKey = `events.categories.${translationLabelKey}`;
   const translated = i18n.t(translationKey);
   const label = translated === translationKey ? rawLabel : translated;
-  const normalizedName = normalizeCategoryName(rawLabel);
   const config =
     CATEGORY_PRESENTATION_BY_NAME[normalizedName] ??
     FALLBACK_CATEGORY_PRESENTATIONS[

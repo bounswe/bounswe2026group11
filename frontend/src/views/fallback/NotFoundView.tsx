@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import '@/styles/fallback.css';
 
 interface NotFoundViewProps {
@@ -9,20 +10,26 @@ interface NotFoundViewProps {
 }
 
 export default function NotFoundView({
-  title = '404',
-  message = "We couldn't find the page you're looking for. It might have been moved, deleted, or perhaps it never existed.",
-  actionText = 'Back to Discover',
+  title,
+  message,
+  actionText,
   actionTo = '/discover',
 }: NotFoundViewProps) {
+  const { t } = useTranslation();
+  const resolvedHeading = title ?? t('fallback.not_found.heading');
+  const resolvedMessage = message ?? t('fallback.not_found.body');
+  const resolvedAction = actionText ?? t('fallback.not_found.back_discover');
+  const isGeneric404 = title === undefined;
+
   return (
     <div className="fallback-page">
       <div className="fallback-content">
-        <div className="fallback-icon">{title === '404' ? '404' : '👀'}</div>
-        <h1 className="fallback-title">{title === '404' ? 'Page Not Found' : title}</h1>
-        <p className="fallback-desc">{message}</p>
+        <div className="fallback-icon">{isGeneric404 ? '404' : '👀'}</div>
+        <h1 className="fallback-title">{resolvedHeading}</h1>
+        <p className="fallback-desc">{resolvedMessage}</p>
         <div className="fallback-actions">
           <Link to={actionTo} className="fallback-btn-primary">
-            {actionText}
+            {resolvedAction}
           </Link>
         </div>
       </div>
