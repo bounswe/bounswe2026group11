@@ -1,12 +1,23 @@
 Running on emulator-5554
  > Flow my-events-view-ticket-test
 Launch app "com.bounswe2026group11.socialeventmapper" with clear state... COMPLETED
-Assert that id: login-submit-button is visible... COMPLETED
-Tap on id: login-username-input... COMPLETED
-Input text ${E2E_USERNAME}... COMPLETED
-Tap on id: login-password-input... COMPLETED
-Input text ${E2E_PASSWORD}... COMPLETED
-Tap on id: login-submit-button... COMPLETED
+Run login-flow.yaml...
+  Run dev-build-bootstrap.yaml...
+    Tap on (Optional) "http://10.0.2.2:8081"... COMPLETED
+    Tap on point (90%,74%)... COMPLETED
+    Tap on (Optional) "Continue"... WARNED
+  Run dev-build-bootstrap.yaml... COMPLETED
+  Assert that id: login-username-input is visible... COMPLETED
+  Assert that id: login-password-input is visible... COMPLETED
+  Assert that id: login-submit-button is visible... COMPLETED
+  Tap on id: login-username-input... COMPLETED
+  Erase text... COMPLETED
+  Input text ${E2E_USERNAME}... COMPLETED
+  Tap on id: login-password-input... COMPLETED
+  Erase text... COMPLETED
+  Input text ${E2E_PASSWORD}... COMPLETED
+  Tap on id: login-submit-button... COMPLETED
+Run login-flow.yaml... COMPLETED
 Tap on (Optional) "Don't allow"... WARNED
 
 

@@ -3,20 +3,11 @@ env:
   E2E_USERNAME: "123"
   E2E_PASSWORD: "ab123456"
   E2E_EVENT_TITLE: "Indie Film Discussion Night in Moda"
-  E2E_REQUEST_USERNAME: "sp123"
+  E2E_REQUEST_USERNAME: "1234"
 ---
 - launchApp:
     clearState: true
-- assertVisible:
-    id: "login-submit-button"
-- tapOn:
-    id: "login-username-input"
-- inputText: ${E2E_USERNAME}
-- tapOn:
-    id: "login-password-input"
-- inputText: ${E2E_PASSWORD}
-- tapOn:
-    id: "login-submit-button"
+- runFlow: login-flow.yaml
 - tapOn:
     text: "Don't allow"
     optional: true

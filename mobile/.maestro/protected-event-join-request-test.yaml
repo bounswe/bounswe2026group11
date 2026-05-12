@@ -8,16 +8,7 @@ env:
 ---
 - launchApp:
     clearState: true
-- assertVisible:
-    id: "login-submit-button"
-- tapOn:
-    id: "login-username-input"
-- inputText: ${E2E_USERNAME}
-- tapOn:
-    id: "login-password-input"
-- inputText: ${E2E_PASSWORD}
-- tapOn:
-    id: "login-submit-button"
+- runFlow: login-flow.yaml
 - tapOn:
     text: "Don't allow"
     optional: true
