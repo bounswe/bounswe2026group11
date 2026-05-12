@@ -27,6 +27,7 @@ env:
 - eraseText
 - inputText: ${E2E_SEARCH_QUERY}
 - pressKey: Enter
+- hideKeyboard
 - extendedWaitUntil:
     visible: ${E2E_EVENT_TITLE}
     timeout: 60000
@@ -40,6 +41,7 @@ env:
 - tapOn:
     id: "join-request-message-input"
 - inputText: ${E2E_JOIN_MESSAGE}
+- hideKeyboard
 - tapOn:
     id: "join-request-send-button"
 - assertVisible:

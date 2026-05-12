@@ -17,5 +17,6 @@ appId: com.bounswe2026group11.socialeventmapper
     id: "login-password-input"
 - eraseText
 - inputText: ${E2E_PASSWORD}
+- hideKeyboard
 - tapOn:
     id: "login-submit-button"

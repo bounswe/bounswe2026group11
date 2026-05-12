@@ -38,6 +38,7 @@ env:
     id: "edit-event-title-input"
 - eraseText
 - inputText: ${E2E_UPDATED_EVENT_TITLE}
+- hideKeyboard
 - scrollUntilVisible:
     element:
       id: "edit-event-save-button"

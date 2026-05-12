@@ -39,6 +39,7 @@ env:
 - tapOn:
     id: "favorite-location-address-input"
 - inputText: ${E2E_LOCATION_QUERY}
+- hideKeyboard
 - extendedWaitUntil:
     visible:
       id: "favorite-location-suggestion-0"
