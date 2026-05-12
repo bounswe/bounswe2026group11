@@ -1,5 +1,5 @@
 import { RatingWithCount } from '@/components/RatingWithCount';
-import type { ProfileEquipmentItem, PublicProfile, ShowcaseImageItem } from '@/models/profile';
+import type { EarnedBadge, ProfileEquipmentItem, PublicProfile, ShowcaseImageItem } from '@/models/profile';
 import i18n from '@/i18n';
 
 function getProfileInitial(profile: Pick<PublicProfile, 'display_name' | 'username'>): string {
@@ -145,6 +145,86 @@ export function ProfileShowcaseSection({
         </div>
       ) : (
         <div className="profile-public-empty">{emptyMessage}</div>
+      )}
+    </section>
+  );
+}
+
+function earnedBadgeEmoji(slug: string, category: EarnedBadge['category']): string {
+  const bySlug: Record<string, string> = {
+    FIRST_STEPS: '👣',
+    REGULAR: '🎟️',
+    VETERAN: '🏅',
+    EXPLORER: '🧭',
+    HOST_DEBUT: '🎤',
+    SUPER_HOST: '🌟',
+    TOP_RATED: '⭐',
+    FAVORITE_FINDER: '📍',
+  };
+  if (bySlug[slug]) return bySlug[slug];
+  if (category === 'HOSTING') return '🎤';
+  if (category === 'SOCIAL') return '🤝';
+  return '🏅';
+}
+
+export function ProfilePublicEarnedBadgesSection({
+  badges,
+  loading,
+  error,
+  onRetry,
+  viewerHasSession,
+}: {
+  badges: EarnedBadge[];
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+  viewerHasSession: boolean;
+}) {
+  if (!viewerHasSession) return null;
+
+  return (
+    <section className="profile-public-section">
+      <div className="profile-public-section-header">
+        <div>
+          <h2 className="profile-public-section-title">{i18n.t('public_profile.badges_title')}</h2>
+          <p className="profile-public-section-subtitle">{i18n.t('public_profile.badges_subtitle')}</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="profile-public-empty">{i18n.t('public_profile.badges_loading')}</div>
+      ) : error ? (
+        <div className="profile-public-empty">
+          <p>{error}</p>
+          <button type="button" className="save-btn profile-public-retry" onClick={() => void onRetry()}>
+            {i18n.t('common.retry')}
+          </button>
+        </div>
+      ) : badges.length === 0 ? (
+        <div className="profile-public-empty">{i18n.t('public_profile.badges_empty')}</div>
+      ) : (
+        <div className="profile-badges-row" aria-label={i18n.t('public_profile.badges_title')}>
+          {badges.map((badge) => (
+            <div
+              key={badge.slug}
+              className="profile-badge-card compact earned"
+              title={i18n.t(`profile.badge_descriptions.${badge.slug}`, { defaultValue: badge.description })}
+            >
+              <span className="profile-badge-icon-wrap">
+                {badge.icon_url ? (
+                  <img src={badge.icon_url} alt="" className="profile-badge-icon-img" />
+                ) : (
+                  <span className="profile-badge-icon-emoji" aria-hidden>
+                    {earnedBadgeEmoji(badge.slug, badge.category)}
+                  </span>
+                )}
+              </span>
+              <span className="profile-badge-name">
+                {i18n.t(`profile.badge_names.${badge.slug}`, { defaultValue: badge.name })}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
     </section>
   );

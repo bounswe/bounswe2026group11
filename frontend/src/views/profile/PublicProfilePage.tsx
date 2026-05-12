@@ -1,13 +1,29 @@
 import '@/styles/profile.css';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ProfileEquipmentSection, ProfilePublicHero, ProfileShowcaseSection } from './ProfilePublicSections';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  ProfileEquipmentSection,
+  ProfilePublicEarnedBadgesSection,
+  ProfilePublicHero,
+  ProfileShowcaseSection,
+} from './ProfilePublicSections';
 import { usePublicProfileViewModel } from '../../viewmodels/profile/usePublicProfileViewModel';
 
 export default function PublicProfilePage() {
   const { t } = useTranslation();
+  const { token } = useAuth();
   const { userId } = useParams<{ userId: string }>();
-  const { profile, isLoading, error, retry } = usePublicProfileViewModel(userId);
+  const {
+    profile,
+    isLoading,
+    error,
+    retry,
+    earnedBadges,
+    earnedBadgesLoading,
+    earnedBadgesError,
+    refreshEarnedBadges,
+  } = usePublicProfileViewModel(userId, token);
 
   if (isLoading) {
     return (
@@ -37,6 +53,14 @@ export default function PublicProfilePage() {
   return (
     <div className="profile-container profile-container-wide">
       <ProfilePublicHero profile={profile} eyebrow={t('public_profile.eyebrow')} />
+
+      <ProfilePublicEarnedBadgesSection
+        badges={earnedBadges}
+        loading={earnedBadgesLoading}
+        error={earnedBadgesError}
+        onRetry={refreshEarnedBadges}
+        viewerHasSession={Boolean(token)}
+      />
 
       <ProfileEquipmentSection
         items={profile.equipment}

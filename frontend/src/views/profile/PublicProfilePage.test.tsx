@@ -7,6 +7,10 @@ import PublicProfilePage from './PublicProfilePage';
 
 const mockUsePublicProfileViewModel = vi.fn();
 
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({ token: null as string | null }),
+}));
+
 vi.mock('../../viewmodels/profile/usePublicProfileViewModel', () => ({
   usePublicProfileViewModel: (...args: unknown[]) => mockUsePublicProfileViewModel(...args),
 }));
@@ -60,6 +64,10 @@ describe('PublicProfilePage', () => {
       isLoading: false,
       error: null,
       retry: vi.fn(),
+      earnedBadges: [],
+      earnedBadgesLoading: false,
+      earnedBadgesError: null,
+      refreshEarnedBadges: vi.fn(),
     });
 
     renderPage();
@@ -78,6 +86,10 @@ describe('PublicProfilePage', () => {
       isLoading: true,
       error: null,
       retry: vi.fn(),
+      earnedBadges: [],
+      earnedBadgesLoading: false,
+      earnedBadgesError: null,
+      refreshEarnedBadges: vi.fn(),
     });
 
     renderPage();
@@ -92,6 +104,10 @@ describe('PublicProfilePage', () => {
       isLoading: false,
       error: 'Profile not found.',
       retry,
+      earnedBadges: [],
+      earnedBadgesLoading: false,
+      earnedBadgesError: null,
+      refreshEarnedBadges: vi.fn(),
     });
 
     renderPage();

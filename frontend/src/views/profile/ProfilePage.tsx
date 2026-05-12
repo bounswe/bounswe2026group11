@@ -908,6 +908,14 @@ export default function ProfilePage() {
 
       {!isEditing ? (
         <>
+        <ProfileBadgesSection
+          earnedBadges={earnedBadges}
+          badgeCatalog={badgeCatalog}
+          badgesLoading={badgesLoading}
+          badgeError={badgeError}
+          onRetry={refreshBadges}
+        />
+
         <div className="profile-info">
           <div className="info-group">
             <label>{t('profile.username')}</label>
@@ -939,14 +947,6 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
-
-        <ProfileBadgesSection
-          earnedBadges={earnedBadges}
-          badgeCatalog={badgeCatalog}
-          badgesLoading={badgesLoading}
-          badgeError={badgeError}
-          onRetry={refreshBadges}
-        />
 
         {publicProfileSections}
 
