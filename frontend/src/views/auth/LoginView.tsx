@@ -2,12 +2,14 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLoginViewModel } from '@/viewmodels/auth/useLoginViewModel';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import SemLogo from '@/components/SemLogo';
 import '@/styles/auth.css';
 
 export default function LoginView() {
   const vm = useLoginViewModel();
   const { setSession } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,7 +25,7 @@ export default function LoginView() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-brand">
-          <SemLogo height={76} color="#111827" />
+          <SemLogo height={76} color={theme === 'dark' ? '#f9fafb' : '#111827'} />
         </div>
         <h1 className="auth-title">Welcome Back</h1>
         <p className="auth-subtitle">Sign in to continue to your account</p>

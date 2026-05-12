@@ -296,3 +296,148 @@
     font-size: 15px;
   }
 }
+
+/* Spinner variant that follows the document text color (works in both themes) */
+.spinner-themed {
+  border-color: rgba(17, 24, 39, 0.2);
+  border-top-color: #111827;
+}
+
+:root[data-theme='dark'] .spinner-themed {
+  border-color: rgba(229, 231, 235, 0.25);
+  border-top-color: #e5e7eb;
+}
+
+/* Landing page right-pane pattern background — pulled out of inline style so it can flip per theme */
+.auth-landing-pattern {
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.3) 1px, transparent 1px),
+    radial-gradient(circle at 75% 75%, rgba(130, 135, 145, 0.25) 1px, transparent 1px);
+  background-size: 28px 28px, 28px 28px;
+  background-position: 0 0, 14px 14px;
+}
+
+:root[data-theme='dark'] .auth-landing-pattern {
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    radial-gradient(circle at 75% 75%, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+}
+
+/* ============================================== */
+/* Dark mode overrides for auth surfaces          */
+/* ============================================== */
+
+:root[data-theme='dark'] .auth-page {
+  background-color: #000000;
+}
+
+:root[data-theme='dark'] .auth-card {
+  background: #080808;
+  border: 1px solid #2a2a2a;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .auth-title {
+  color: #f9fafb;
+}
+
+:root[data-theme='dark'] .auth-subtitle {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .error-banner {
+  background-color: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.45);
+  color: #fca5a5;
+}
+
+:root[data-theme='dark'] .field-label {
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .field-label .optional {
+  color: #6b7280;
+}
+
+:root[data-theme='dark'] .field-input {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .field-input:focus {
+  border-color: #f9fafb;
+  box-shadow: 0 0 0 3px rgba(249, 250, 251, 0.15);
+}
+
+:root[data-theme='dark'] .field-input.has-error {
+  border-color: #f87171;
+  background-color: rgba(220, 38, 38, 0.08);
+}
+
+:root[data-theme='dark'] .field-input::placeholder {
+  color: #6b7280;
+}
+
+:root[data-theme='dark'] .field-error {
+  color: #fca5a5;
+}
+
+:root[data-theme='dark'] .gender-option {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .gender-option:hover {
+  border-color: #f9fafb;
+}
+
+:root[data-theme='dark'] .gender-option.selected {
+  background-color: #f9fafb;
+  border-color: #f9fafb;
+  color: #111827;
+}
+
+:root[data-theme='dark'] .btn-primary {
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+:root[data-theme='dark'] .btn-primary:hover:not(:disabled) {
+  background-color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .btn-secondary {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .btn-secondary:hover {
+  color: #f9fafb;
+}
+
+:root[data-theme='dark'] .btn-outline {
+  border-color: #e5e7eb;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .btn-outline:hover {
+  background-color: #1f2937;
+}
+
+:root[data-theme='dark'] .auth-footer span {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .auth-footer a,
+:root[data-theme='dark'] .link {
+  color: #f9fafb;
+}
+
+:root[data-theme='dark'] .step-dot {
+  background-color: #374151;
+}
+
+:root[data-theme='dark'] .step-dot.active {
+  background-color: #f9fafb;
+}

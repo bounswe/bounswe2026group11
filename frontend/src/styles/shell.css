@@ -544,10 +544,22 @@
 
   .shell-hamburger {
     display: flex;
+    flex-shrink: 0;
+    margin-left: auto;
+    order: 99;
   }
 
   .shell-username {
     display: none;
+  }
+
+  .shell-user-menu {
+    flex-shrink: 0;
+    min-width: 0;
+  }
+
+  .shell-user-btn {
+    overflow: hidden;
   }
 
   .shell-overlay {
@@ -630,6 +642,8 @@
 
   .shell-header-inner {
     height: 56px;
+    padding: 0 8px;
+    gap: 4px;
   }
 
   .shell-nav {
@@ -646,6 +660,10 @@
     width: 52px;
     height: 52px;
     font-size: 26px;
+  }
+
+  .shell-view-toggle {
+    display: none;
   }
 }
 
