@@ -4,6 +4,7 @@
 import { renderHook, act } from '@testing-library/react';
 import * as authService from '@/services/authService';
 import { ApiError } from '@/services/api';
+import i18n from '@/i18n';
 import type { AuthSessionResponse } from '@/models/auth';
 import {
   useLoginViewModel,
@@ -42,8 +43,9 @@ const sessionFixture: AuthSessionResponse = {
 };
 
 describe('useLoginViewModel', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
+    await i18n.changeLanguage('en');
     mockLogin.mockResolvedValue(sessionFixture);
   });
 
@@ -117,6 +119,27 @@ describe('useLoginViewModel', () => {
     });
 
     expect(result.current.apiError).toBe('Invalid username or password.');
+  });
+
+  it('localizes invalid credentials API errors in Turkish', async () => {
+    await i18n.changeLanguage('tr');
+    const { result } = renderHook(() => useLoginViewModel());
+
+    mockLogin.mockRejectedValueOnce(
+      new ApiError(401, {
+        error: {
+          code: 'invalid_credentials',
+          message: 'Invalid username or password.',
+        },
+      }),
+    );
+
+    await fillForm(result.current);
+    await act(async () => {
+      await result.current.handleLogin();
+    });
+
+    expect(result.current.apiError).toBe('Kullanıcı adı veya şifre hatalı.');
   });
 
   it('sets apiError on rate limit (429)', async () => {

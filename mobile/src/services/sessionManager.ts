@@ -1,10 +1,12 @@
 import type { AuthSessionResponse, StoredAuthSession } from '@/models/auth';
 import { API_BASE_URL } from '@/config/apiBaseUrl';
+import { getCurrentLocale } from '@/contexts/LocaleContext';
 import {
   clearStoredSession,
   readStoredSession,
   writeStoredSession,
 } from '@/services/sessionStorage';
+import { localizeApiErrorMessage } from '@/utils/apiErrorLocalization';
 
 type SessionListener = (session: StoredAuthSession | null) => void;
 
@@ -42,14 +44,19 @@ async function refreshSessionRequest(
 ): Promise<AuthSessionResponse> {
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept-Language': getCurrentLocale(),
+    },
     body: JSON.stringify({ refresh_token: refreshToken }),
   });
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const error = new Error(
-      body?.error?.message ?? 'Could not refresh the session.',
+      body?.error?.message
+        ? localizeApiErrorMessage(body.error.message)
+        : 'Could not refresh the session.',
     ) as Error & { status?: number; code?: string };
     error.status = response.status;
     error.code = body?.error?.code;
