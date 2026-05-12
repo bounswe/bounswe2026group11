@@ -497,3 +497,51 @@
   background: rgba(113, 63, 18, 0.28);
   border-color: #92400e;
 }
+
+/* ============================================== */
+/* Dark mode overrides — ticket status pills (#650) */
+/* ============================================== */
+
+/* Status pills — categorical hue pattern */
+:root[data-theme='dark'] .tk-status-active {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+:root[data-theme='dark'] .tk-status-pending {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+:root[data-theme='dark'] .tk-status-expired {
+  background: rgba(148, 163, 184, 0.22);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+:root[data-theme='dark'] .tk-status-used {
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+:root[data-theme='dark'] .tk-status-canceled {
+  background: rgba(220, 38, 38, 0.18);
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.4);
+}
+
+/* Mobile-hint purple variant — darkened gradient */
+:root[data-theme='dark'] .tk-mobile-hint {
+  background: linear-gradient(135deg, rgba(91, 33, 182, 0.28) 0%, rgba(124, 58, 237, 0.16) 100%);
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+/* Mobile-hint warn icon — readable on dark amber bg */
+:root[data-theme='dark'] .tk-mobile-hint-warn .tk-mobile-hint-icon {
+  background-color: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #fcd34d;
+}

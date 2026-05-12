@@ -126,3 +126,58 @@
 .ed-mgmt-attachment-icon {
   font-size: 0.95rem;
 }
+
+/* ============================================== */
+/* Dark mode overrides — attachment widget (#650) */
+/* ============================================== */
+
+:root[data-theme='dark'] .ed-request-image-pick {
+  background: #111111;
+  border-color: #374151;
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .ed-request-image-pick:hover:not(:disabled) {
+  background: #1f2937;
+  border-color: #9ca3af;
+  color: #f9fafb;
+}
+
+:root[data-theme='dark'] .ed-request-image-preview {
+  background: #1f2937;
+  border-color: #2a2a2a;
+}
+
+:root[data-theme='dark'] .ed-request-image-name {
+  color: #f9fafb;
+}
+
+:root[data-theme='dark'] .ed-request-image-size {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .ed-request-image-remove {
+  background: transparent;
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.45);
+}
+
+:root[data-theme='dark'] .ed-request-image-remove:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.12);
+  border-color: #fca5a5;
+}
+
+:root[data-theme='dark'] .ed-request-image-error {
+  color: #fca5a5;
+}
+
+:root[data-theme='dark'] .ed-mgmt-attachment {
+  background: rgba(124, 58, 237, 0.18);
+  border-color: rgba(124, 58, 237, 0.4);
+  color: #c4b5fd;
+}
+
+:root[data-theme='dark'] .ed-mgmt-attachment:hover {
+  background: rgba(124, 58, 237, 0.28);
+  border-color: rgba(124, 58, 237, 0.6);
+}

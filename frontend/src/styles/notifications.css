@@ -586,3 +586,29 @@
 :root[data-theme='dark'] .notif-error-dismiss {
   color: #fecaca;
 }
+
+/* ============================================== */
+/* Dark mode overrides — invitation modal pills (#650) */
+/* ============================================== */
+
+:root[data-theme='dark'] .notif-inv-modal-status {
+  background: rgba(148, 163, 184, 0.22);
+  color: #cbd5e1;
+}
+
+:root[data-theme='dark'] .notif-inv-modal-status.status-pending {
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+}
+
+:root[data-theme='dark'] .notif-inv-modal-status.status-accepted {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+}
+
+:root[data-theme='dark'] .notif-inv-modal-status.status-declined,
+:root[data-theme='dark'] .notif-inv-modal-status.status-expired,
+:root[data-theme='dark'] .notif-inv-modal-status.status-canceled {
+  background: rgba(220, 38, 38, 0.18);
+  color: #fca5a5;
+}

@@ -303,3 +303,33 @@
     text-align: center;
   }
 }
+
+/* ============================================== */
+/* Dark mode overrides — favorites (#650)         */
+/* ============================================== */
+
+:root[data-theme='dark'] .fav-loc-limit-banner {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+:root[data-theme='dark'] .fav-loc-modal-error {
+  background: rgba(220, 38, 38, 0.12);
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.45);
+}
+
+:root[data-theme='dark'] .fav-loc-selected {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.45);
+  color: #86efac;
+}
+
+:root[data-theme='dark'] .fav-loc-card-remove {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .fav-loc-card-remove:hover {
+  color: #fca5a5;
+}
