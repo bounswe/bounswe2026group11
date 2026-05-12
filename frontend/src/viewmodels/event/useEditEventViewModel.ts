@@ -463,6 +463,34 @@ export function useEditEventViewModel(eventId: string | undefined) {
       setEvent(refreshed);
       setForm(formFromEvent(refreshed));
       setUpdateResult(result);
+      if (typeof window !== 'undefined') {
+        const updatedEventSummary = {
+          eventId: refreshed.id,
+          title: refreshed.title,
+          status: refreshed.status,
+          category_name: refreshed.category?.name ?? null,
+          start_time: refreshed.start_time,
+          end_time: refreshed.end_time,
+          location_address: refreshed.location.address,
+          approved_participant_count: refreshed.approved_participant_count,
+          image_url: refreshed.image_url,
+          privacy_level: refreshed.privacy_level,
+          host_score: refreshed.host_score,
+        };
+        try {
+          window.sessionStorage.setItem(
+            'sem_recent_event_update',
+            JSON.stringify(updatedEventSummary),
+          );
+        } catch {
+          /* ignore */
+        }
+        window.dispatchEvent(
+          new CustomEvent('sem:event-updated', {
+            detail: updatedEventSummary,
+          }),
+        );
+      }
       const pendingReconfirmationCount = Math.max(
         refreshed.pending_participant_count,
         result.participants_marked_pending,

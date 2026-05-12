@@ -19,6 +19,7 @@ import { formatEventLocation } from '@/utils/eventLocation';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const MIN_PASSWORD_LENGTH = 8;
+const RECENT_EVENT_UPDATE_STORAGE_KEY = 'sem_recent_event_update';
 
 type ChangePasswordErrors = {
   currentPassword?: string;
@@ -33,6 +34,10 @@ type EquipmentDraft = {
   imageUrl: string;
 };
 
+type RecentEventUpdate = Partial<EventSummary> & {
+  eventId?: string;
+};
+
 function createEmptyEquipmentDraft(): EquipmentDraft {
   return {
     id: null,
@@ -45,6 +50,32 @@ function createEmptyEquipmentDraft(): EquipmentDraft {
 function getBackendValidationMessage(err: ApiError): string {
   const details = err.details ? Object.values(err.details).filter(Boolean) : [];
   return details.length > 0 ? details.join(' ') : err.message;
+}
+
+function readRecentEventUpdate(): RecentEventUpdate | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(RECENT_EVENT_UPDATE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as RecentEventUpdate;
+    return typeof parsed.eventId === 'string' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function applyRecentEventUpdate(events: EventSummary[], recent: RecentEventUpdate | null): EventSummary[] {
+  if (!recent?.eventId) return events;
+  return events.map((event) => {
+    if (event.id !== recent.eventId) return event;
+    return {
+      ...event,
+      ...recent,
+      id: event.id,
+      category: event.category,
+      category_name: recent.category_name ?? event.category_name,
+    };
+  });
 }
 
 export function useProfileViewModel(token: string | null) {
@@ -139,7 +170,11 @@ export function useProfileViewModel(token: string | null) {
       );
       setLocationQuery('');
       setLocationCleared(false);
-      const visibleHosted = hosted.filter((event) => shouldShowProfileEvent(event.status));
+      const recentUpdate = readRecentEventUpdate();
+      const visibleHosted = applyRecentEventUpdate(
+        hosted.filter((event) => shouldShowProfileEvent(event.status)),
+        recentUpdate,
+      );
       const hostedIds = new Set(hosted.map((event) => event.id));
       const mergedAttended = [...upcoming, ...completed, ...canceled]
         .filter((event, index, arr) => arr.findIndex((candidate) => candidate.id === event.id) === index)
@@ -187,6 +222,14 @@ export function useProfileViewModel(token: string | null) {
     void fetchProfile();
     void fetchBadges();
   }, [fetchBadges, fetchProfile]);
+
+  useEffect(() => {
+    const refreshAfterEventUpdate = () => {
+      void fetchProfile();
+    };
+    window.addEventListener('sem:event-updated', refreshAfterEventUpdate);
+    return () => window.removeEventListener('sem:event-updated', refreshAfterEventUpdate);
+  }, [fetchProfile]);
 
   useEffect(
     () => () => {
