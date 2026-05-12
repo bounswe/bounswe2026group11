@@ -608,7 +608,11 @@
     "showcase_subtitle": "Profilde paylaşılan anlar, kareler ve görsel öne çıkanlar.",
     "showcase_empty_member": "Henüz vitrin görseli eklenmemiş.",
     "showcase_empty_self": "Henüz vitrin görseli yüklemedin.",
-    "no_description": "Açıklama eklenmemiş."
+    "no_description": "Açıklama eklenmemiş.",
+    "badges_title": "Rozetler",
+    "badges_subtitle": "Bu üyenin platformda kazandığı başarılar.",
+    "badges_loading": "Rozetler yükleniyor…",
+    "badges_empty": "Bu üyenin henüz kazandığı rozet yok."
   },
   "edit_event": {
     "confirm_title": "Etkinlik güncellemesini onayla",

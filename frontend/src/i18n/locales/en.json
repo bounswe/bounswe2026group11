@@ -608,7 +608,11 @@
     "showcase_subtitle": "Moments, snapshots, and visual highlights shared on the profile.",
     "showcase_empty_member": "No showcase images have been added yet.",
     "showcase_empty_self": "You have not uploaded any showcase images yet.",
-    "no_description": "No description provided."
+    "no_description": "No description provided.",
+    "badges_title": "Badges",
+    "badges_subtitle": "Achievements this member has earned on the platform.",
+    "badges_loading": "Loading badges…",
+    "badges_empty": "This member has not earned any badges yet."
   },
   "edit_event": {
     "confirm_title": "Confirm event update",

@@ -237,6 +237,42 @@ describe('EventDetailPage ratings', () => {
     });
   });
 
+  it('links pending join requesters to the public profile page', () => {
+    const event = makeBaseEvent();
+    event.viewer_context.is_host = true;
+    event.privacy_level = 'PROTECTED';
+
+    const vm = makeReadyViewModel(event);
+    vm.pendingJoinRequests = [
+      {
+        join_request_id: 'jr-1',
+        status: 'PENDING',
+        message: 'Please let me join',
+        image_url: null,
+        created_at: '2026-04-01T12:00:00Z',
+        updated_at: '2026-04-01T12:00:00Z',
+        user: {
+          id: 'requester-1',
+          username: 'hopeful',
+          display_name: 'Hopeful Hiker',
+          avatar_url: null,
+          final_score: null,
+          rating_count: 0,
+        },
+      },
+    ];
+
+    mockUseEventDetailViewModel.mockReturnValue(vm);
+
+    renderPage();
+
+    const requesterLinks = screen.getAllByRole('link', { name: /hopeful hiker/i });
+    expect(requesterLinks.length).toBeGreaterThanOrEqual(2);
+    requesterLinks.forEach((link) => {
+      expect(link.getAttribute('href')).toBe('/users/requester-1');
+    });
+  });
+
   it('opens the report modal from the flag button and submits the selected reason', async () => {
     const event = makeBaseEvent();
     const vm = makeReadyViewModel(event);

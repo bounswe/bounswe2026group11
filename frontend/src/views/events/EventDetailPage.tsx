@@ -2674,15 +2674,24 @@ function EventContent({
                 <ul className="ed-mgmt-list">
                   {pendingJoinRequests.map((r) => (
                     <li key={r.join_request_id} className="ed-mgmt-item ed-mgmt-item-pending">
-                      <UserAvatar
-                        username={r.user.username}
-                        displayName={r.user.display_name}
-                        avatarUrl={r.user.avatar_url}
-                        size="sm"
-                        variant="muted"
-                      />
+                      <Link
+                        to={`/users/${r.user.id}`}
+                        className="ed-mgmt-avatar-link"
+                        aria-label={t('event_detail.view_user_profile', { name: getDisplayName(r.user) })}
+                      >
+                        <UserAvatar
+                          username={r.user.username}
+                          displayName={r.user.display_name}
+                          avatarUrl={r.user.avatar_url}
+                          size="sm"
+                          variant="muted"
+                        />
+                      </Link>
+                      <Link to={`/users/${r.user.id}`} className="ed-mgmt-user-link">
                       <div className="ed-mgmt-user-info">
-                        <span className="ed-mgmt-name">{r.user.display_name ?? r.user.username}</span>
+                        <div className="ed-mgmt-user-topline">
+                          <span className="ed-mgmt-name">{getDisplayName(r.user)}</span>
+                        </div>
                         <span className="ed-mgmt-username">@{r.user.username}</span>
                         {r.message && <span className="ed-mgmt-message">"{r.message}"</span>}
                         {r.image_url && (
@@ -2705,6 +2714,7 @@ function EventContent({
                           />
                         )}
                       </div>
+                      </Link>
                       <div className="ed-mgmt-actions">
                         <button
                           type="button"
