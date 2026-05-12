@@ -12,6 +12,7 @@ var mockImagePrefetch: jest.Mock<Promise<boolean>, [string]>;
 var mockRedrawCallout: jest.Mock;
 var mockShowCallout: jest.Mock;
 var mockAnimateToRegion: jest.Mock;
+var mockPlatformOS: 'ios' | 'android';
 
 // ── react-native mock ──────────────────────────────────────────────────────────
 
@@ -26,6 +27,7 @@ jest.mock('react-native', () => {
     'accessibilityRole',
     'accessibilityState',
     'activeOpacity',
+    'collapsable',
     'numberOfLines',
     'showsVerticalScrollIndicator',
     'testID',
@@ -118,7 +120,11 @@ jest.mock('react-native', () => {
     ActivityIndicator: ({ testID }: { testID?: string }) =>
       ReactLocal.createElement('div', { 'data-testid': testID ?? 'activity-indicator', role: 'progressbar' }),
     Image: MockImage,
-    Platform: { OS: 'ios' },
+    Platform: {
+      get OS() {
+        return mockPlatformOS;
+      },
+    },
     StyleSheet: { create: <T,>(s: T) => s },
     Text: container('span'),
     TouchableOpacity: button,
@@ -180,11 +186,13 @@ jest.mock('react-native-maps', () => {
         children,
         testID,
         coordinate,
+        tracksViewChanges,
         onPress,
       }: {
         children?: React.ReactNode;
         testID?: string;
         coordinate?: { latitude: number; longitude: number };
+        tracksViewChanges?: boolean;
         onPress?: () => void;
       },
       ref: React.Ref<unknown>,
@@ -199,6 +207,8 @@ jest.mock('react-native-maps', () => {
         {
           'data-testid': testID,
           'data-coordinate': coordinate ? JSON.stringify(coordinate) : undefined,
+          'data-tracks-view-changes':
+            tracksViewChanges == null ? undefined : String(tracksViewChanges),
           onClick: (event: React.MouseEvent) => {
             event.stopPropagation();
             onPress?.();
@@ -245,12 +255,36 @@ jest.mock('react-native-maps', () => {
       'data-radius': radius,
     });
 
+  const Polyline = ({
+    testID,
+    coordinates,
+    strokeColor,
+    strokeWidth,
+    lineDashPattern,
+  }: {
+    testID?: string;
+    coordinates?: Array<{ latitude: number; longitude: number }>;
+    strokeColor?: string;
+    strokeWidth?: number;
+    lineDashPattern?: number[];
+  }) =>
+    ReactLocal.createElement('div', {
+      'data-testid': testID,
+      'data-coordinates': coordinates ? JSON.stringify(coordinates) : undefined,
+      'data-line-dash-pattern': lineDashPattern
+        ? JSON.stringify(lineDashPattern)
+        : undefined,
+      'data-stroke-color': strokeColor,
+      'data-stroke-width': strokeWidth,
+    });
+
   return {
     __esModule: true,
     default: MapView,
     Marker,
     Callout,
     Circle,
+    Polyline,
     PROVIDER_GOOGLE: 'google',
   };
 });
@@ -313,6 +347,7 @@ function selectMarker(eventId = 'evt-1'): void {
 describe('EventMapView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPlatformOS = 'ios';
     mockImagePrefetch.mockResolvedValue(true);
   });
 
@@ -466,6 +501,65 @@ describe('EventMapView', () => {
       );
     });
 
+    it('keeps iOS event marker view tracking disabled after selection', () => {
+      render(
+        <EventMapView
+          events={[makeEvent({ id: 'evt-static-marker' })]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      expect(
+        screen.getByTestId('marker-evt-static-marker').getAttribute(
+          'data-tracks-view-changes',
+        ),
+      ).toBe('false');
+
+      selectMarker('evt-static-marker');
+
+      expect(
+        screen.getByTestId('marker-evt-static-marker').getAttribute(
+          'data-tracks-view-changes',
+        ),
+      ).toBe('false');
+    });
+
+    it('lets Android marker tracking settle after the first native snapshot', () => {
+      jest.useFakeTimers();
+      mockPlatformOS = 'android';
+
+      render(
+        <EventMapView
+          events={[makeEvent({ id: 'evt-android-marker' })]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          onMarkerPress={jest.fn()}
+        />,
+      );
+
+      expect(
+        screen.getByTestId('marker-evt-android-marker').getAttribute(
+          'data-tracks-view-changes',
+        ),
+      ).toBe('true');
+
+      act(() => {
+        jest.advanceTimersByTime(650);
+      });
+
+      expect(
+        screen.getByTestId('marker-evt-android-marker').getAttribute(
+          'data-tracks-view-changes',
+        ),
+      ).toBe('false');
+
+      jest.useRealTimers();
+    });
+
     it('clusters events that are geographically very close at the current zoom', () => {
       render(
         <EventMapView
@@ -481,6 +575,11 @@ describe('EventMapView', () => {
       );
 
       expect(screen.getByTestId('cluster-marker-evt-1-evt-2')).toBeTruthy();
+      expect(
+        screen.getByTestId('cluster-marker-evt-1-evt-2').getAttribute(
+          'data-tracks-view-changes',
+        ),
+      ).toBe('false');
       expect(screen.getByText('2')).toBeTruthy();
       expect(screen.queryByText('events')).toBeNull();
       expect(screen.queryByTestId('marker-evt-1')).toBeNull();
@@ -589,7 +688,7 @@ describe('EventMapView', () => {
   });
 
   describe('location overlays', () => {
-    it('draws the active filter radius around the filter center', () => {
+    it('draws the active filter radius as a dashed boundary around the filter center', () => {
       render(
         <EventMapView
           events={[makeEvent()]}
@@ -603,12 +702,16 @@ describe('EventMapView', () => {
       );
 
       const circle = screen.getByTestId('filter-radius-circle');
+      const coordinates = JSON.parse(
+        circle.getAttribute('data-coordinates') ?? '[]',
+      ) as Array<{ latitude: number; longitude: number }>;
 
-      expect(circle.getAttribute('data-radius')).toBe('15000');
-      expect(JSON.parse(circle.getAttribute('data-center') ?? '{}')).toEqual({
-        latitude: 40.99,
-        longitude: 29.03,
-      });
+      expect(coordinates).toHaveLength(145);
+      expect(coordinates[0].latitude).toBeGreaterThan(40.99);
+      expect(coordinates[0].longitude).toBeCloseTo(29.03, 4);
+      expect(coordinates[0]).toEqual(coordinates.at(-1));
+      expect(circle.getAttribute('data-line-dash-pattern')).toBe('[1,10]');
+      expect(circle.getAttribute('data-stroke-width')).toBe('3');
     });
 
     it('shows current location controls when live location is available', () => {
@@ -670,6 +773,43 @@ describe('EventMapView', () => {
       fireEvent.click(screen.getByTestId('callout-evt-42'));
 
       expect(onMarkerPress).toHaveBeenCalledWith('evt-42');
+    });
+
+    it('opens event details from the Android overlay callout', async () => {
+      mockPlatformOS = 'android';
+      const onMarkerPress = jest.fn();
+
+      render(
+        <EventMapView
+          events={[
+            makeEvent({
+              id: 'evt-android-image',
+              image_url: 'https://example.com/android-event.jpg',
+            }),
+          ]}
+          isLoading={false}
+          apiError={null}
+          region={DEFAULT_REGION}
+          onMarkerPress={onMarkerPress}
+        />,
+      );
+
+      await waitFor(() =>
+        expect(mockImagePrefetch).toHaveBeenCalledWith(
+          'https://example.com/android-event.jpg',
+        ),
+      );
+      selectMarker('evt-android-image');
+
+      expect(screen.queryByTestId('callout-evt-android-image')).toBeNull();
+      expect(screen.getByTestId('android-callout-evt-android-image')).toBeTruthy();
+      expect(
+        screen.getByTestId('callout-image-evt-android-image').getAttribute('src'),
+      ).toBe('https://example.com/android-event.jpg');
+
+      fireEvent.click(screen.getByTestId('android-callout-evt-android-image'));
+
+      expect(onMarkerPress).toHaveBeenCalledWith('evt-android-image');
     });
   });
 
@@ -750,6 +890,7 @@ describe('EventMapView', () => {
       expect(image.getAttribute('src')).toBe('https://example.com/event.jpg');
       expect(mockImagePrefetch).toHaveBeenCalledWith('https://example.com/event.jpg');
       expect(screen.queryByTestId('callout-image-placeholder-evt-image')).toBeNull();
+      fireEvent.load(image);
       await waitFor(() => expect(mockRedrawCallout).toHaveBeenCalled());
     });
 

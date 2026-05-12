@@ -207,9 +207,11 @@ function normalizeInvitationsResponse(
     | undefined,
 ): ReceivedInvitation[] {
   if (Array.isArray(response?.pending)) {
-    return [...response.pending, ...(response.past?.items ?? [])];
+    return response.pending.filter((invitation) => invitation.status === 'PENDING');
   }
-  if (Array.isArray(response?.items)) return response.items;
+  if (Array.isArray(response?.items)) {
+    return response.items.filter((invitation) => invitation.status === 'PENDING');
+  }
   return [];
 }
 

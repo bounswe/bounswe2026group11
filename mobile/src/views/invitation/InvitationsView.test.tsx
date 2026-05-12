@@ -116,7 +116,10 @@ describe('InvitationsView', () => {
   it('renders empty state when no invitations', () => {
     mockUseInvitationsViewModel.mockReturnValue(buildViewModel({ invitations: [] }));
     render(<InvitationsView />);
-    expect(screen.getByText('No invitations yet')).toBeTruthy();
+    expect(screen.getByText('No pending invitations.')).toBeTruthy();
+    expect(
+      screen.getByText('Private event invites from your friends and hosts will appear here.'),
+    ).toBeTruthy();
   });
 
   it('renders list of invitations', () => {
@@ -146,36 +149,6 @@ describe('InvitationsView', () => {
     expect(screen.getByText('Secret Party')).toBeTruthy();
     expect(screen.getByText('Host: Jay Gatsby')).toBeTruthy();
     expect(screen.getByText('"Old Sport!"')).toBeTruthy();
-  });
-
-  it('renders accepted past invitation without response actions', () => {
-    const invitations = [
-      {
-        invitation_id: 'inv-accepted',
-        status: 'ACCEPTED' as any,
-        event: {
-          id: 'evt-accepted',
-          title: 'Accepted Private Event',
-          start_time: '2026-05-01T20:00:00Z',
-          image_url: null,
-        },
-        host: {
-          username: 'gatsby',
-          display_name: 'Jay Gatsby',
-          profile_image_url: null,
-        },
-        message: null,
-        created_at: '2026-05-01T10:00:00Z',
-        updated_at: '2026-05-01T10:00:00Z',
-      },
-    ];
-    mockUseInvitationsViewModel.mockReturnValue(buildViewModel({ invitations }));
-    render(<InvitationsView />);
-
-    expect(screen.getByText('Accepted Private Event')).toBeTruthy();
-    expect(screen.getByText('ACCEPTED')).toBeTruthy();
-    expect(screen.queryByText('Accept')).toBeNull();
-    expect(screen.queryByText('Decline')).toBeNull();
   });
 
   it('triggers accept and decline actions', () => {

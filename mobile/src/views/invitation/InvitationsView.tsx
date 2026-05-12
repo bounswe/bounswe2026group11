@@ -16,10 +16,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, Href } from 'expo-router';
 import { useTheme } from '@/theme';
 import type { Theme } from '@/theme';
+import { useTranslation } from 'react-i18next';
 
 export default function InvitationsView() {
   const vm = useInvitationsViewModel();
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const renderEmpty = () => (
@@ -27,9 +29,9 @@ export default function InvitationsView() {
       <View style={styles.emptyIconContainer}>
         <MaterialIcons name="mail-outline" size={48} color={theme.textTertiary} />
       </View>
-      <Text style={styles.emptyTitle}>No invitations yet</Text>
+      <Text style={styles.emptyTitle}>{t('profile.invitations.empty')}</Text>
       <Text style={styles.emptySubtitle}>
-        Private event invites from your friends and hosts will appear here.
+        {t('profile.invitations.emptySubtitle')}
       </Text>
     </View>
   );
@@ -44,7 +46,7 @@ export default function InvitationsView() {
         >
           <MaterialIcons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Invitations</Text>
+        <Text style={styles.headerTitle}>{t('profile.invitations.title')}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -57,7 +59,7 @@ export default function InvitationsView() {
           <MaterialIcons name="error-outline" size={48} color={theme.errorText} />
           <Text style={styles.errorText}>{vm.error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={vm.fetchInvitations}>
-            <Text style={styles.retryButtonText}>Retry</Text>
+            <Text style={styles.retryButtonText}>{t('profile.invitations.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
