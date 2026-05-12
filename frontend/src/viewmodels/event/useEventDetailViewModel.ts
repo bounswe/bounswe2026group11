@@ -34,6 +34,7 @@ import type {
 } from '@/models/event';
 import type { CreateEventInvitationsResponse } from '@/models/invitation';
 import { ApiError } from '@/services/api';
+import i18n from '@/i18n';
 import { prepareAvatarBlobs } from '@/utils/imageResize';
 import { uploadImageVariants } from '@/utils/directImageUpload';
 
@@ -216,7 +217,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
   const fetchDetail = useCallback(async () => {
     if (!eventId) {
       setStatus('error');
-      setErrorMessage('Invalid event ID.');
+      setErrorMessage(i18n.t('errors.event_detail_invalid_id'));
       return;
     }
 
@@ -245,7 +246,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         }
       } else {
         setStatus('error');
-        setErrorMessage('Failed to load event. Please try again.');
+        setErrorMessage(i18n.t('errors.event_detail_load_failed'));
       }
     }
   }, [eventId, refreshEventDetail, refreshHostManagement, resetHostManagement, token]);
@@ -298,7 +299,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         };
         setJoinError(errorMap[err.code] ?? err.message);
       } else {
-        setJoinError('Failed to join event. Please try again.');
+        setJoinError(i18n.t('errors.event_detail_join_failed'));
       }
     } finally {
       setJoinLoading(false);
@@ -317,7 +318,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
       if (err instanceof ApiError) {
         setLeaveError(err.message);
       } else {
-        setLeaveError('Failed to leave event. Please try again.');
+        setLeaveError(i18n.t('errors.event_detail_leave_failed'));
       }
     } finally {
       setLeaveLoading(false);
@@ -358,7 +359,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         };
         setReconfirmError(errorMap[err.code] ?? err.message);
       } else {
-        setReconfirmError('Failed to reconfirm your attendance. Please try again.');
+        setReconfirmError(i18n.t('errors.event_detail_reconfirm_failed'));
       }
     } finally {
       setReconfirmLoading(false);
@@ -418,7 +419,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         } else if (err instanceof Error) {
           setJoinError(err.message);
         } else {
-          setJoinError('Failed to send join request. Please try again.');
+          setJoinError(i18n.t('errors.event_detail_join_request_failed'));
         }
       } finally {
         setJoinLoading(false);
@@ -469,10 +470,10 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
             'Your request status changed. Please review the latest state of this event.',
           );
         } else {
-          setCancelJoinRequestError(err.message || 'Failed to cancel request. Please try again.');
+          setCancelJoinRequestError(err.message || i18n.t('errors.event_detail_cancel_join_request_failed'));
         }
       } else {
-        setCancelJoinRequestError('Failed to cancel request. Please try again.');
+        setCancelJoinRequestError(i18n.t('errors.event_detail_cancel_join_request_failed'));
       }
     } finally {
       setCancelJoinRequestLoading(false);
@@ -500,7 +501,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         };
         setModerateError(errorMap[err.code] ?? err.message);
       } else {
-        setModerateError('Failed to approve request. Please try again.');
+        setModerateError(i18n.t('errors.event_detail_moderate_approve_failed'));
       }
     } finally {
       setModeratingId(null);
@@ -523,7 +524,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         };
         setModerateError(errorMap[err.code] ?? err.message);
       } else {
-        setModerateError('Failed to reject request. Please try again.');
+        setModerateError(i18n.t('errors.event_detail_moderate_reject_failed'));
       }
     } finally {
       setModeratingId(null);
@@ -600,7 +601,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         };
         setCancelError(errorMap[err.code] ?? err.message);
       } else {
-        setCancelError('Failed to cancel event. Please try again.');
+        setCancelError(i18n.t('errors.event_detail_cancel_event_failed'));
       }
     } finally {
       setCancelLoading(false);
@@ -623,7 +624,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         };
         setCompleteError(errorMap[err.code] ?? err.message);
       } else {
-        setCompleteError('Failed to end event. Please try again.');
+        setCompleteError(i18n.t('errors.event_detail_complete_failed'));
       }
     } finally {
       setCompleteLoading(false);
@@ -657,9 +658,9 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
       await refreshEventDetail();
     } catch (err) {
       if (err instanceof ApiError) {
-        setViewerRatingError(mapRatingError(err, 'Failed to save your rating. Please try again.'));
+        setViewerRatingError(mapRatingError(err, i18n.t('errors.event_detail_rating_save_failed')));
       } else {
-        setViewerRatingError('Failed to save your rating. Please try again.');
+        setViewerRatingError(i18n.t('errors.event_detail_rating_save_failed'));
       }
     } finally {
       setViewerRatingLoading(false);
@@ -687,12 +688,12 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
       if (err instanceof ApiError) {
         setParticipantRatingError({
           participantUserId,
-          message: mapRatingError(err, 'Failed to save the participant rating. Please try again.'),
+          message: mapRatingError(err, i18n.t('errors.event_detail_participant_rating_failed')),
         });
       } else {
         setParticipantRatingError({
           participantUserId,
-          message: 'Failed to save the participant rating. Please try again.',
+          message: i18n.t('errors.event_detail_participant_rating_failed'),
         });
       }
     } finally {
@@ -738,7 +739,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
       if (err instanceof ApiError) {
         setCoverImageError(err.message);
       } else {
-        setCoverImageError(err instanceof Error ? err.message : 'Failed to update cover image.');
+        setCoverImageError(err instanceof Error ? err.message : i18n.t('errors.event_detail_cover_image_failed'));
       }
     } finally {
       setCoverImageUploading(false);
@@ -780,7 +781,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
           setReportError(errorMap[err.code] ?? err.message);
         }
       } else {
-        setReportError('Failed to submit report. Please try again.');
+        setReportError(i18n.t('errors.event_detail_report_failed'));
       }
       return false;
     } finally {
@@ -845,7 +846,7 @@ export function useEventDetailViewModel(eventId: string | undefined, token: stri
         await Promise.all([refreshInvitations(undefined, false), refreshHostContextSummary()]);
         return response;
       } catch (err) {
-        setInviteError(err instanceof ApiError ? err.message : 'Failed to send invitations');
+        setInviteError(err instanceof ApiError ? err.message : i18n.t('errors.event_detail_invite_failed'));
         return null;
       } finally {
         setInviteLoading(false);

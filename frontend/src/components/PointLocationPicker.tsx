@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AdvancedMarker,
   Map as GoogleMap,
@@ -70,6 +71,7 @@ export default function PointLocationPicker({
   disabled,
   onSelect,
 }: PointLocationPickerProps) {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const configured = isGoogleMapsConfigured();
@@ -99,7 +101,7 @@ export default function PointLocationPicker({
   if (!configured) {
     return (
       <div className="ce-point-map-placeholder">
-        Set <code>VITE_GOOGLE_MAPS_WEB_API_KEY</code> to choose a point on the map.
+        {t('point_location.env_missing', { variable: 'VITE_GOOGLE_MAPS_WEB_API_KEY' })}
       </div>
     );
   }
@@ -124,14 +126,14 @@ export default function PointLocationPicker({
         <MapRecenter center={center} />
         {lat != null && lon != null && (
           <AdvancedMarker position={{ lat, lng: lon }}>
-            <div className="ce-point-marker" aria-label={address ?? 'Selected location'}>
+            <div className="ce-point-marker" aria-label={address ?? t('point_location.selected_location')}>
               <span />
             </div>
           </AdvancedMarker>
         )}
       </GoogleMap>
       <div className="ce-point-map-footer">
-        {isResolving ? 'Resolving address...' : 'Click the map to choose the event point.'}
+        {isResolving ? t('point_location.resolving') : t('point_location.hint_click')}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { profileService } from '@/services/profileService';
 import type { EventSummary } from '@/models/profile';
 import { ApiError } from '@/services/api';
+import i18n from '@/i18n';
 
 export type MyEventsTab = 'organized' | 'upcoming' | 'active' | 'past' | 'canceled';
 
@@ -37,7 +38,7 @@ export function useMyEventsViewModel(token: string | null) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('Failed to load your events. Please try again.');
+        setError(i18n.t('errors.my_events_load_failed'));
       }
     } finally {
       setIsLoading(false);

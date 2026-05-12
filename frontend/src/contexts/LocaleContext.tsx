@@ -38,6 +38,11 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     setLocaleState(nextLocale);
   }, []);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.lang = locale === 'tr' ? 'tr' : 'en';
+  }, [locale]);
+
   const value = useMemo(
     () => ({
       locale,

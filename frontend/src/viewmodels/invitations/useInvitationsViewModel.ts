@@ -7,6 +7,7 @@ import {
 } from '@/services/invitationService';
 import type { ReceivedInvitation } from '@/models/invitation';
 import { ApiError } from '@/services/api';
+import i18n from '@/i18n';
 
 export interface InvitationsViewModel {
   invitations: ReceivedInvitation[];
@@ -42,7 +43,7 @@ export function useInvitationsViewModel(): InvitationsViewModel {
       const response = await listMyInvitations(token);
       setInvitations(mergeInvitationBuckets(response));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load invitations');
+      setError(err instanceof ApiError ? err.message : i18n.t('errors.invitations_load_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -64,7 +65,7 @@ export function useInvitationsViewModel(): InvitationsViewModel {
         );
         return { event_id: response.event_id };
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Failed to accept invitation');
+        setError(err instanceof ApiError ? err.message : i18n.t('errors.invitations_accept_failed'));
         return null;
       } finally {
         setIsActionLoading(null);
@@ -88,7 +89,7 @@ export function useInvitationsViewModel(): InvitationsViewModel {
           ),
         );
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Failed to decline invitation');
+        setError(err instanceof ApiError ? err.message : i18n.t('errors.invitations_decline_failed'));
       } finally {
         setIsActionLoading(null);
       }

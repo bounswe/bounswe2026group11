@@ -11,6 +11,7 @@ import type {
   EventCommentCollection,
 } from '@/models/event';
 import { ApiError } from '@/services/api';
+import i18n from '@/i18n';
 import { prepareAvatarBlobs } from '@/utils/imageResize';
 import { uploadImageVariants } from '@/utils/directImageUpload';
 
@@ -148,7 +149,7 @@ export function useEventCommentsViewModel(
         }
       }
       setStatus('error');
-      setErrorMessage(mapCommentApiError(err, 'Failed to load comments. Please try again.'));
+      setErrorMessage(mapCommentApiError(err, i18n.t('errors.comments_load_failed')));
     }
   }, [eventId, token, applyResponseCollection]);
 
@@ -177,7 +178,7 @@ export function useEventCommentsViewModel(
         hasNext: data.discussion_comments.page_info.has_next,
       });
     } catch (err) {
-      setErrorMessage(mapCommentApiError(err, 'Failed to load more discussion comments.'));
+      setErrorMessage(mapCommentApiError(err, i18n.t('errors.comments_load_discussion_more_failed')));
     } finally {
       setDiscussionLoadingMore(false);
     }
@@ -200,7 +201,7 @@ export function useEventCommentsViewModel(
         hasNext: data.review_comments.page_info.has_next,
       });
     } catch (err) {
-      setErrorMessage(mapCommentApiError(err, 'Failed to load more reviews.'));
+      setErrorMessage(mapCommentApiError(err, i18n.t('errors.comments_load_reviews_more_failed')));
     } finally {
       setReviewLoadingMore(false);
     }
@@ -238,7 +239,7 @@ export function useEventCommentsViewModel(
         updateReplyState(commentId, (prev) => ({
           ...prev,
           loading: false,
-          error: mapCommentApiError(err, 'Failed to load replies.'),
+          error: mapCommentApiError(err, i18n.t('errors.comments_load_replies_failed')),
         }));
       }
     },
@@ -279,7 +280,7 @@ export function useEventCommentsViewModel(
       if (!eventId || !token) return false;
       const trimmed = message.trim();
       if (trimmed.length === 0) {
-        setDiscussionSubmitError('Please write a message before posting.');
+        setDiscussionSubmitError(i18n.t('errors.comments_post_empty_discussion'));
         return false;
       }
       setDiscussionSubmitLoading(true);
@@ -289,7 +290,7 @@ export function useEventCommentsViewModel(
         setDiscussionComments((prev) => [created, ...prev]);
         return true;
       } catch (err) {
-        setDiscussionSubmitError(mapCommentApiError(err, 'Failed to post comment. Please try again.'));
+        setDiscussionSubmitError(mapCommentApiError(err, i18n.t('errors.comments_post_failed')));
         return false;
       } finally {
         setDiscussionSubmitLoading(false);
@@ -303,7 +304,7 @@ export function useEventCommentsViewModel(
       if (!eventId || !token) return false;
       const trimmed = message.trim();
       if (trimmed.length === 0) {
-        setReplySubmitState({ parentId, loading: false, error: 'Please write a reply before posting.' });
+        setReplySubmitState({ parentId, loading: false, error: i18n.t('errors.comments_reply_empty') });
         return false;
       }
       setReplySubmitState({ parentId, loading: true, error: null });
@@ -329,7 +330,7 @@ export function useEventCommentsViewModel(
         setReplySubmitState({
           parentId,
           loading: false,
-          error: mapCommentApiError(err, 'Failed to post reply. Please try again.'),
+          error: mapCommentApiError(err, i18n.t('errors.comments_reply_failed')),
         });
         return false;
       }
@@ -346,7 +347,7 @@ export function useEventCommentsViewModel(
         return false;
       }
       if (trimmed.length === 0) {
-        setReviewSubmitError('Please write a review message.');
+        setReviewSubmitError(i18n.t('errors.comments_review_empty'));
         return false;
       }
       setReviewSubmitLoading(true);
@@ -384,7 +385,7 @@ export function useEventCommentsViewModel(
         }, 5000);
         return true;
       } catch (err) {
-        setReviewSubmitError(mapCommentApiError(err, 'Failed to submit review. Please try again.'));
+        setReviewSubmitError(mapCommentApiError(err, i18n.t('errors.comments_review_failed')));
         return false;
       } finally {
         setReviewSubmitLoading(false);

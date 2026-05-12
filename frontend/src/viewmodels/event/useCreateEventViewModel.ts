@@ -50,11 +50,7 @@ export function deriveRouteAddress(waypoints: RouteWaypoint[]): string {
   return `${first} → ${last}`;
 }
 
-export const PRIVACY_OPTIONS: { label: string; value: PrivacyLevel }[] = [
-  { label: 'Public', value: 'PUBLIC' },
-  { label: 'Protected', value: 'PROTECTED' },
-  { label: 'Private', value: 'PRIVATE' },
-];
+export const PRIVACY_LEVELS: PrivacyLevel[] = ['PUBLIC', 'PROTECTED', 'PRIVATE'];
 
 export type ConstraintType = 'gender' | 'age' | 'capacity' | 'other';
 

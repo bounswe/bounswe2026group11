@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   useCreateEventViewModel,
-  PRIVACY_OPTIONS,
+  PRIVACY_LEVELS,
   MAX_CONSTRAINTS,
 } from '@/viewmodels/event/useCreateEventViewModel';
 import type { PreferredGender, LocationType } from '@/models/event';
@@ -547,17 +547,17 @@ function CreateEventForm() {
         <div className="field-group">
           <label className="field-label">{t('create_event.privacy')}</label>
           <div className="ce-privacy-row">
-            {PRIVACY_OPTIONS.map((opt) => (
+            {PRIVACY_LEVELS.map((level) => (
               <button
-                key={opt.value}
+                key={level}
                 type="button"
-                className={`ce-privacy-chip ${vm.form.privacyLevel === opt.value ? 'selected' : ''}`}
-                onClick={() => vm.updateField('privacyLevel', opt.value)}
+                className={`ce-privacy-chip ${vm.form.privacyLevel === level ? 'selected' : ''}`}
+                onClick={() => vm.updateField('privacyLevel', level)}
                 disabled={busy}
               >
-                {opt.value === 'PUBLIC'
+                {level === 'PUBLIC'
                   ? t('create_event.privacy_public')
-                  : opt.value === 'PROTECTED'
+                  : level === 'PROTECTED'
                     ? t('create_event.privacy_protected')
                     : t('create_event.privacy_private')}
               </button>

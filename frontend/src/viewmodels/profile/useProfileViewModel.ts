@@ -16,6 +16,7 @@ import { searchLocation } from '@/services/eventService';
 import type { LocationSuggestion } from '@/models/event';
 import { shouldShowProfileEvent } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
+import i18n from '@/i18n';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const MIN_PASSWORD_LENGTH = 8;
@@ -138,7 +139,7 @@ export function useProfileViewModel(token: string | null) {
       setPublicProfile(data);
     } catch (err: unknown) {
       setPublicProfile(null);
-      setPublicProfileError(err instanceof Error ? err.message : 'Failed to load public profile sections.');
+      setPublicProfileError(err instanceof Error ? err.message : i18n.t('errors.profile_public_sections_failed'));
     } finally {
       setPublicProfileLoading(false);
     }
@@ -192,7 +193,7 @@ export function useProfileViewModel(token: string | null) {
       setAttendedEvents([]);
       setPublicProfile(null);
       setPublicProfileLoading(false);
-      setError(err instanceof Error ? err.message : 'Failed to load profile');
+      setError(err instanceof Error ? err.message : i18n.t('errors.profile_load_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -212,7 +213,7 @@ export function useProfileViewModel(token: string | null) {
     } catch (err: unknown) {
       setEarnedBadges([]);
       setBadgeCatalog([]);
-      setBadgeError(err instanceof Error ? err.message : 'Failed to load badges');
+      setBadgeError(err instanceof Error ? err.message : i18n.t('errors.profile_badges_failed'));
     } finally {
       setBadgesLoading(false);
     }
@@ -370,7 +371,7 @@ export function useProfileViewModel(token: string | null) {
         successTimerRef.current = null;
       }, 5000);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update profile');
+      setError(err instanceof Error ? err.message : i18n.t('errors.profile_update_failed'));
     } finally {
       setIsSaving(false);
     }
@@ -456,7 +457,7 @@ export function useProfileViewModel(token: string | null) {
           setPasswordError(err.message);
         }
       } else {
-        setPasswordError(err instanceof Error ? err.message : 'Failed to change password');
+        setPasswordError(err instanceof Error ? err.message : i18n.t('errors.profile_password_failed'));
       }
     } finally {
       setIsChangingPassword(false);
@@ -522,7 +523,7 @@ export function useProfileViewModel(token: string | null) {
       await refreshPublicProfile();
       cancelEquipmentEditor();
     } catch (err: unknown) {
-      setEquipmentError(err instanceof Error ? err.message : 'Failed to save equipment.');
+      setEquipmentError(err instanceof Error ? err.message : i18n.t('errors.profile_equipment_save_failed'));
     } finally {
       setEquipmentSubmitting(false);
     }
@@ -544,7 +545,7 @@ export function useProfileViewModel(token: string | null) {
         cancelEquipmentEditor();
       }
     } catch (err: unknown) {
-      setEquipmentError(err instanceof Error ? err.message : 'Failed to delete equipment.');
+      setEquipmentError(err instanceof Error ? err.message : i18n.t('errors.profile_equipment_delete_failed'));
     } finally {
       setEquipmentDeletingId(null);
     }
@@ -567,7 +568,7 @@ export function useProfileViewModel(token: string | null) {
       await profileService.confirmShowcaseUpload({ confirm_token: uploadInit.confirm_token }, token);
       await refreshPublicProfile();
     } catch (err: unknown) {
-      setShowcaseError(err instanceof Error ? err.message : 'Failed to upload showcase image.');
+      setShowcaseError(err instanceof Error ? err.message : i18n.t('errors.profile_showcase_upload_failed'));
     } finally {
       setShowcaseUploading(false);
     }
@@ -586,7 +587,7 @@ export function useProfileViewModel(token: string | null) {
       await profileService.deleteShowcaseImage(showcaseImageId, token);
       await refreshPublicProfile();
     } catch (err: unknown) {
-      setShowcaseError(err instanceof Error ? err.message : 'Failed to remove showcase image.');
+      setShowcaseError(err instanceof Error ? err.message : i18n.t('errors.profile_showcase_remove_failed'));
     } finally {
       setShowcaseRemovingId(null);
     }
