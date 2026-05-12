@@ -33,27 +33,38 @@ function buildBrowserLocationSuggestion(pos: GeolocationPosition): LocationSugge
   const lat = pos.coords.latitude;
   const lon = pos.coords.longitude;
   return {
-    display_name: `${lat.toFixed(4)}, ${lon.toFixed(4)} (your location)`,
+    display_name: i18n.t('discover.browser_location_display', {
+      lat: lat.toFixed(4),
+      lon: lon.toFixed(4),
+      label: i18n.t('discover.your_location_label'),
+    }),
     lat: String(lat),
     lon: String(lon),
+    source: 'browser_geolocation',
   };
 }
 
 function getBrowserLocationErrorMessage(error?: GeolocationPositionError): string {
   if (!error) {
-    return 'Could not access your location. Please try again.';
+    return i18n.t('discover.browser_location_generic_error');
   }
 
   switch (error.code) {
     case error.PERMISSION_DENIED:
-      return 'Location permission was denied. Please allow location access in Safari site settings.';
+      return i18n.t('discover.browser_location_permission_denied');
     case error.POSITION_UNAVAILABLE:
-      return 'Your current location could not be determined right now.';
+      return i18n.t('discover.browser_location_unavailable');
     case error.TIMEOUT:
-      return 'Location request timed out. Please try again.';
+      return i18n.t('discover.browser_location_timeout');
     default:
-      return error.message || 'Could not access your location. Please try again.';
+      return error.message || i18n.t('discover.browser_location_generic_error');
   }
+}
+
+function isBrowserGeolocationSuggestion(selected: LocationSuggestion | null): boolean {
+  if (!selected) return false;
+  if (selected.source === 'browser_geolocation') return true;
+  return selected.display_name.endsWith('(your location)');
 }
 
 export type PrivacyFilter = 'ALL' | 'PUBLIC' | 'PROTECTED';
@@ -90,20 +101,9 @@ interface StoredDiscoverState {
   selectedLocation: LocationSuggestion | null;
 }
 
-export const RADIUS_OPTIONS = [
-  { label: '1 km', value: 1000 },
-  { label: '5 km', value: 5000 },
-  { label: '10 km', value: 10000 },
-  { label: '25 km', value: 25000 },
-  { label: '50 km', value: 50000 },
-];
+export const DISCOVER_RADIUS_METERS = [1000, 5000, 10000, 25000, 50000];
 
-export const MINIMUM_AGE_OPTIONS: Array<{ label: string; value: number | null }> = [
-  { label: 'Any', value: null },
-  { label: '16+', value: 16 },
-  { label: '18+', value: 18 },
-  { label: '21+', value: 21 },
-];
+export const DISCOVER_MINIMUM_AGE_VALUES: Array<number | null> = [null, 16, 18, 21];
 
 function profileToSelectedLocation(profile: {
   default_location_address?: string | null;
@@ -181,10 +181,21 @@ function readStoredDiscoverState(): StoredDiscoverState | null {
           : INITIAL_FILTERS.familyOriented,
     };
 
+    let selectedLocation: LocationSuggestion | null = isLocationSuggestion(parsed.selectedLocation)
+      ? parsed.selectedLocation
+      : null;
+    if (
+      selectedLocation
+      && selectedLocation.source !== 'browser_geolocation'
+      && selectedLocation.display_name.endsWith('(your location)')
+    ) {
+      selectedLocation = { ...selectedLocation, source: 'browser_geolocation' };
+    }
+
     return {
       filters: restoredFilters,
       debouncedQ: typeof parsed.debouncedQ === 'string' ? parsed.debouncedQ : restoredFilters.q,
-      selectedLocation: isLocationSuggestion(parsed.selectedLocation) ? parsed.selectedLocation : null,
+      selectedLocation,
     };
   } catch {
     return null;
@@ -213,7 +224,7 @@ function locationShortLabel(selected: LocationSuggestion | null): string {
   if (!selected) {
     return DEFAULT_MAP_LABEL;
   }
-  if (selected.display_name.endsWith('(your location)')) {
+  if (isBrowserGeolocationSuggestion(selected)) {
     return i18n.t('home.near_you');
   }
   return formatEventLocation(selected.display_name);
@@ -224,7 +235,7 @@ function isDiscoverLocationFilterActive(
   defaultProfile: LocationSuggestion | null,
 ): boolean {
   if (!selected) return false;
-  if (selected.display_name.endsWith('(your location)')) return false;
+  if (isBrowserGeolocationSuggestion(selected)) return false;
   if (defaultProfile && locationsMatch(selected, defaultProfile)) return false;
   return true;
 }
@@ -374,11 +385,11 @@ export function useDiscoverViewModel(token: string | null) {
   const requestBrowserLocation = useCallback(() => {
     if (browserLocationRequestPending) return;
     if (typeof window !== 'undefined' && !window.isSecureContext) {
-      setBrowserLocationError('Browser location requires HTTPS or localhost.');
+      setBrowserLocationError(i18n.t('discover.browser_location_https_required'));
       return;
     }
     if (!navigator.geolocation) {
-      setBrowserLocationError('This browser does not support location access.');
+      setBrowserLocationError(i18n.t('discover.browser_location_not_supported'));
       return;
     }
     setBrowserLocationError(null);
@@ -475,7 +486,7 @@ export function useDiscoverViewModel(token: string | null) {
           : '';
         setError(err.message + details);
       } else {
-        setError('Failed to load events. Please try again.');
+        setError(i18n.t('errors.discover_events_load_failed'));
       }
     } finally {
       setIsLoading(false);
@@ -634,7 +645,7 @@ export function useDiscoverViewModel(token: string | null) {
     const requestId = mapLocationRequestId.current + 1;
     mapLocationRequestId.current = requestId;
     const pendingSelection = {
-      display_name: 'Finding address…',
+      display_name: i18n.t('discover.finding_address'),
       lat: String(lat),
       lon: String(lon),
     };
@@ -644,7 +655,7 @@ export function useDiscoverViewModel(token: string | null) {
       setSelectedLocation(
         resolved
           ? { ...resolved, lat: String(lat), lon: String(lon) }
-          : { ...pendingSelection, display_name: 'Selected map location' },
+          : { ...pendingSelection, display_name: i18n.t('discover.selected_map_location') },
       );
     }
     setPendingLocation(null);

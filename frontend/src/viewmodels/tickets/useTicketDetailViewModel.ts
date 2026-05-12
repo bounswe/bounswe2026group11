@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getMyTicket } from '@/services/ticketService';
 import type { TicketDetailResponse } from '@/models/ticket';
 import { ApiError } from '@/services/api';
+import i18n from '@/i18n';
 
 export type TicketDetailStatus = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -42,7 +43,7 @@ export function useTicketDetailViewModel(
         }
       } else {
         setStatus('error');
-        setErrorMessage('Failed to load ticket');
+        setErrorMessage(i18n.t('errors.ticket_detail_load_failed'));
       }
     }
   }, [ticketId, token]);

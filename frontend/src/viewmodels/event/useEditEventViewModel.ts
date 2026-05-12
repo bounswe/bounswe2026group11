@@ -23,6 +23,7 @@ import type {
   UpdateEventRequest,
   UpdateEventResponse,
 } from '@/models/event';
+import i18n from '@/i18n';
 
 const TITLE_MIN = 10;
 const TITLE_MAX = 60;
@@ -298,10 +299,10 @@ function validateForm(form: EditEventFormData, event: EventDetailResponse | null
     errors.description = `Description must be at most ${DESC_MAX} characters.`;
   }
 
-  if (form.categoryId == null) errors.categoryId = 'Please select a category.';
+  if (form.categoryId == null) errors.categoryId = i18n.t('errors.edit_event_select_category');
 
   if (form.locationType === 'POINT') {
-    if (form.lat == null || form.lon == null) errors.location = 'Please search and select a location.';
+    if (form.lat == null || form.lon == null) errors.location = i18n.t('errors.edit_event_select_location');
   } else if (form.routePoints.length < ROUTE_MIN_POINTS) {
     errors.location = `Add at least ${ROUTE_MIN_POINTS} waypoints to create a route.`;
   } else if (form.routePoints.length > ROUTE_MAX_POINTS) {
@@ -386,12 +387,12 @@ export function useEditEventViewModel(eventId: string | undefined) {
 
   const load = useCallback(async () => {
     if (!eventId) {
-      setApiError('Event not found.');
+      setApiError(i18n.t('errors.edit_event_not_found'));
       setIsLoading(false);
       return;
     }
     if (!token) {
-      setApiError('You must be logged in to edit this event.');
+      setApiError(i18n.t('errors.edit_event_login_required'));
       setIsLoading(false);
       return;
     }
@@ -410,7 +411,7 @@ export function useEditEventViewModel(eventId: string | undefined) {
       setUpdateResult(null);
     } catch (err) {
       setEvent(null);
-      setApiError(err instanceof ApiError ? err.message : 'Failed to load event details. Please try again.');
+      setApiError(err instanceof ApiError ? err.message : i18n.t('errors.edit_event_load_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -431,7 +432,7 @@ export function useEditEventViewModel(eventId: string | undefined) {
   const previewChanges = useCallback((): EditEventChangePreview | null => {
     if (!event) return null;
     if (!canEdit) {
-      setApiError('Only active events that have not started can be edited.');
+      setApiError(i18n.t('errors.edit_event_not_editable'));
       return null;
     }
     const nextErrors = validateForm(form, event);
@@ -441,7 +442,7 @@ export function useEditEventViewModel(eventId: string | undefined) {
     }
     const preview = buildUpdateRequest(form, event);
     if (preview.changedFields.length === 0) {
-      setApiError('No changes to save.');
+      setApiError(i18n.t('errors.edit_event_no_changes'));
       return null;
     }
     setErrors({});
@@ -506,7 +507,7 @@ export function useEditEventViewModel(eventId: string | undefined) {
         setErrors(mapApiValidationErrors(err));
         setApiError(err.message);
       } else {
-        setApiError('Failed to update event. Please try again.');
+        setApiError(i18n.t('errors.edit_event_update_failed'));
       }
       return null;
     } finally {
