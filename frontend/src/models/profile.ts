@@ -32,6 +32,7 @@ export interface UserProfile {
   display_name?: string;
   bio?: string;
   avatar_url?: string;
+  locale?: string | null;
 }
 
 export interface ProfileEquipmentItem {
@@ -66,6 +67,7 @@ export interface UpdateProfileRequest {
   default_location_address?: string | null;
   default_location_lat?: number | null;
   default_location_lon?: number | null;
+  locale?: string | null;
 }
 
 export interface ChangePasswordRequest {

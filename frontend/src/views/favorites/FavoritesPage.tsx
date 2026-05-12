@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFavoritesViewModel } from '@/viewmodels/favorites/useFavoritesViewModel';
 import FavoriteLocationsTab from './FavoriteLocationsTab';
@@ -7,6 +9,7 @@ import type { FavoriteEventItem } from '@/models/event';
 import { EventCoverImage } from '@/components/EventCoverImage';
 import { RatingWithCount } from '@/components/RatingWithCount';
 import { getEventCardBadgePresentation } from '@/utils/eventStatus';
+import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import '@/styles/my-events.css';
 import '@/styles/discover.css';
 import '@/styles/favorites.css';
@@ -15,7 +18,7 @@ type FavoritesTab = 'events' | 'locations';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString(i18n.resolvedLanguage, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -24,7 +27,7 @@ function formatDate(iso: string): string {
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString(undefined, {
+  return d.toLocaleTimeString(i18n.resolvedLanguage, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -32,8 +35,9 @@ function formatTime(iso: string): string {
 }
 
 function FavoriteCard({ item }: { item: FavoriteEventItem }) {
+  const { t } = useTranslation();
   const badge = getEventCardBadgePresentation(item.status);
-  const category = item.category_name ?? item.category ?? 'Event';
+  const category = getEventCategoryPresentation(item.category_name ?? item.category ?? 'Event', false).label;
 
   return (
     <Link to={`/events/${item.id}`} className="dc-card">
@@ -61,7 +65,7 @@ function FavoriteCard({ item }: { item: FavoriteEventItem }) {
         )}
         {item.privacy_level && item.privacy_level !== 'PRIVATE' && (
           <span className={`dc-privacy-badge dc-privacy-${item.privacy_level.toLowerCase()}`}>
-            {item.privacy_level === 'PUBLIC' ? 'Public' : 'Protected'}
+            {t(`events.privacy.${item.privacy_level}`)}
           </span>
         )}
       </div>
@@ -78,7 +82,7 @@ function FavoriteCard({ item }: { item: FavoriteEventItem }) {
         )}
         <div className="dc-card-footer">
           <span className="dc-card-participants">
-            {item.approved_participant_count ?? 0} participant{item.approved_participant_count === 1 ? '' : 's'}
+            {t('favorites.participants', { count: item.approved_participant_count ?? 0 })}
           </span>
           {item.host_score && (
             <RatingWithCount
@@ -94,13 +98,14 @@ function FavoriteCard({ item }: { item: FavoriteEventItem }) {
 }
 
 function FavoriteEventsContent({ token }: { token: string | null }) {
+  const { t } = useTranslation();
   const vm = useFavoritesViewModel(token);
 
   if (vm.isLoading) {
     return (
       <div className="me-loading">
         <span className="spinner" />
-        <p>Loading your favorites...</p>
+        <p>{t('favorites.loading_events')}</p>
       </div>
     );
   }
@@ -110,7 +115,7 @@ function FavoriteEventsContent({ token }: { token: string | null }) {
       <div className="me-error">
         <p>{vm.error}</p>
         <button type="button" className="me-retry-btn" onClick={vm.retry}>
-          Retry
+          {t('common.retry')}
         </button>
       </div>
     );
@@ -119,7 +124,7 @@ function FavoriteEventsContent({ token }: { token: string | null }) {
   if (vm.items.length === 0) {
     return (
       <div className="me-empty">
-        <p>No favorites yet. Discover events and save them for later!</p>
+        <p>{t('favorites.empty_events')}</p>
       </div>
     );
   }
@@ -133,23 +138,23 @@ function FavoriteEventsContent({ token }: { token: string | null }) {
   );
 }
 
-const TABS: { key: FavoritesTab; label: string }[] = [
-  { key: 'events', label: 'Events' },
-  { key: 'locations', label: 'Locations' },
-];
-
 export default function FavoritesPage() {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const [activeTab, setActiveTab] = useState<FavoritesTab>('events');
+  const tabs: { key: FavoritesTab; label: string }[] = [
+    { key: 'events', label: t('favorites.events_tab') },
+    { key: 'locations', label: t('favorites.locations_tab') },
+  ];
 
   return (
     <div className="me-page">
-      <h1 className="me-title">Favorites</h1>
-      <p className="me-subtitle">Your saved events and locations</p>
+      <h1 className="me-title">{t('favorites.title')}</h1>
+      <p className="me-subtitle">{t('favorites.subtitle')}</p>
 
       {/* Tabs */}
       <div className="me-tabs">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.key}
             type="button"

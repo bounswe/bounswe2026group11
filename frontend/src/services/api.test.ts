@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { setCurrentLocale } from '@/i18n';
 import { ApiError, apiGetAuth, apiPostAuth, apiPatchAuth, setTokenRefreshManager } from './api';
 
 // Helper to build a minimal fetch Response
@@ -28,9 +29,10 @@ const manager = {
   onRefreshFailure,
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.resetAllMocks();
   setTokenRefreshManager(manager);
+  await setCurrentLocale('en');
 });
 
 afterEach(() => {
@@ -45,9 +47,13 @@ describe('apiGetAuth', () => {
 
     expect(result).toEqual({ id: 42 });
     expect(fetch).toHaveBeenCalledOnce();
+    expect((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.headers).toMatchObject({
+      'Accept-Language': 'en',
+    });
   });
 
   it('silently refreshes on 401 and retries with the new token', async () => {
+    await setCurrentLocale('tr');
     vi.stubGlobal(
       'fetch',
       vi.fn()
@@ -65,6 +71,7 @@ describe('apiGetAuth', () => {
     const refreshCall = (fetch as ReturnType<typeof vi.fn>).mock.calls[1];
     expect(refreshCall[0]).toContain('/auth/refresh');
     expect(JSON.parse(refreshCall[1].body)).toEqual({ refresh_token: 'stored-refresh-token' });
+    expect(refreshCall[1].headers).toMatchObject({ 'Accept-Language': 'tr' });
   });
 
   it('calls onRefreshSuccess with new tokens after a successful refresh', async () => {
@@ -162,6 +169,9 @@ describe('apiPostAuth', () => {
     const result = await apiPostAuth<{ joined: boolean }>('/events/1/join', {}, 'valid-token');
 
     expect(result).toEqual({ joined: true });
+    expect((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.headers).toMatchObject({
+      'Accept-Language': 'en',
+    });
   });
 
   it('silently refreshes on 401 and retries', async () => {
@@ -195,6 +205,9 @@ describe('apiPatchAuth', () => {
     const result = await apiPatchAuth<{ username: string }>('/profile', { username: 'updated' }, 'valid-token');
 
     expect(result).toEqual({ username: 'updated' });
+    expect((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.headers).toMatchObject({
+      'Accept-Language': 'en',
+    });
   });
 
   it('silently refreshes on 401 and retries', async () => {

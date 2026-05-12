@@ -17,6 +17,7 @@ import {
   type LocationType,
 } from '@/models/event';
 import { ApiError } from '@/services/api';
+import i18n from '@/i18n';
 
 const TITLE_MIN = 10;
 const TITLE_MAX = 60;
@@ -156,42 +157,42 @@ function validateForm(form: CreateEventFormData): CreateEventFormErrors {
   const errors: CreateEventFormErrors = {};
 
   if (!form.title.trim()) {
-    errors.title = 'Title is required.';
+    errors.title = i18n.t('errors.create_event_title_required');
   } else if (form.title.trim().length < TITLE_MIN) {
-    errors.title = `Title must be at least ${TITLE_MIN} characters.`;
+    errors.title = i18n.t('errors.create_event_title_min', { count: TITLE_MIN });
   } else if (form.title.trim().length > TITLE_MAX) {
-    errors.title = `Title must be at most ${TITLE_MAX} characters.`;
+    errors.title = i18n.t('errors.create_event_title_max', { count: TITLE_MAX });
   }
 
   if (!form.description.trim()) {
-    errors.description = 'Description is required.';
+    errors.description = i18n.t('errors.create_event_description_required');
   } else if (form.description.trim().length < DESC_MIN) {
-    errors.description = `Description must be at least ${DESC_MIN} characters.`;
+    errors.description = i18n.t('errors.create_event_description_min', { count: DESC_MIN });
   } else if (form.description.trim().length > DESC_MAX) {
-    errors.description = `Description must be at most ${DESC_MAX} characters.`;
+    errors.description = i18n.t('errors.create_event_description_max', { count: DESC_MAX });
   }
 
   if (!form.categoryId) {
-    errors.categoryId = 'Please select a category.';
+    errors.categoryId = i18n.t('errors.create_event_category_required');
   }
 
   if (!form.imageFile) {
-    errors.image = 'Event image is required.';
+    errors.image = i18n.t('errors.create_event_image_required');
   }
 
   if (form.locationType === 'ROUTE') {
     if (form.routePoints.length < ROUTE_MIN_POINTS) {
-      errors.location = `Add at least ${ROUTE_MIN_POINTS} waypoints to create a route.`;
+      errors.location = i18n.t('errors.create_event_route_min_points', { count: ROUTE_MIN_POINTS });
     }
   } else if (form.lat === null || form.lon === null) {
-    errors.location = 'Please search and select a location.';
+    errors.location = i18n.t('errors.create_event_location_required');
   }
 
   if (!form.startDate) {
-    errors.startDate = 'Start date is required.';
+    errors.startDate = i18n.t('errors.create_event_start_date_required');
   }
   if (!form.startTime) {
-    errors.startTime = 'Start time is required.';
+    errors.startTime = i18n.t('errors.create_event_start_time_required');
   }
 
   const now = new Date();
@@ -199,9 +200,9 @@ function validateForm(form: CreateEventFormData): CreateEventFormErrors {
 
   const startDateOnly = form.startDate ? toDateOnly(form.startDate) : null;
   if (form.startDate && !startDateOnly) {
-    errors.startDate = 'Invalid start date.';
+    errors.startDate = i18n.t('errors.create_event_start_date_invalid');
   } else if (startDateOnly && startDateOnly < today) {
-    errors.startDate = 'Start date must be today or later.';
+    errors.startDate = i18n.t('errors.create_event_start_date_past');
   }
 
   const startISO = !errors.startDate && form.startDate && form.startTime
@@ -209,7 +210,7 @@ function validateForm(form: CreateEventFormData): CreateEventFormErrors {
     : null;
 
   if (!errors.startDate && form.startDate && form.startTime && !startISO) {
-    errors.startTime = 'Invalid start time.';
+    errors.startTime = i18n.t('errors.create_event_start_time_invalid');
   } else if (
     !errors.startDate
     && startDateOnly
@@ -217,18 +218,18 @@ function validateForm(form: CreateEventFormData): CreateEventFormErrors {
     && startISO
     && new Date(startISO) <= now
   ) {
-    errors.startTime = 'Start time must be in the future.';
+    errors.startTime = i18n.t('errors.create_event_start_time_future');
   }
 
   if (form.endDate || form.endTime) {
-    if (!form.endDate) errors.endDate = 'End date is required if end time is set.';
-    if (!form.endTime) errors.endTime = 'End time is required if end date is set.';
+    if (!form.endDate) errors.endDate = i18n.t('errors.create_event_end_date_required');
+    if (!form.endTime) errors.endTime = i18n.t('errors.create_event_end_time_required');
 
     const endDateOnly = form.endDate ? toDateOnly(form.endDate) : null;
     if (form.endDate && !endDateOnly) {
-      errors.endDate = 'Invalid end date.';
+      errors.endDate = i18n.t('errors.create_event_end_date_invalid');
     } else if (!errors.startDate && startDateOnly && endDateOnly && endDateOnly < startDateOnly) {
-      errors.endDate = 'End date must be on or after start date.';
+      errors.endDate = i18n.t('errors.create_event_end_date_before_start');
     }
 
     const endISO = !errors.endDate && form.endDate && form.endTime
@@ -236,7 +237,7 @@ function validateForm(form: CreateEventFormData): CreateEventFormErrors {
       : null;
 
     if (!errors.endDate && form.endDate && form.endTime && !endISO) {
-      errors.endTime = 'Invalid end time.';
+      errors.endTime = i18n.t('errors.create_event_end_time_invalid');
     } else if (
       !errors.endDate
       && !errors.startDate
@@ -247,32 +248,32 @@ function validateForm(form: CreateEventFormData): CreateEventFormErrors {
       && endDateOnly.getTime() === startDateOnly.getTime()
       && new Date(endISO) <= new Date(startISO)
     ) {
-      errors.endTime = 'End time must be after start time.';
+      errors.endTime = i18n.t('errors.create_event_end_time_before_start');
     }
   }
 
   if (form.capacity) {
     const cap = parseInt(form.capacity, 10);
     if (isNaN(cap) || cap < CAPACITY_MIN) {
-      errors.capacity = `Capacity must be at least ${CAPACITY_MIN}.`;
+      errors.capacity = i18n.t('errors.create_event_capacity_min', { count: CAPACITY_MIN });
     }
   }
 
   if (form.minimumAge) {
     const age = parseInt(form.minimumAge, 10);
     if (isNaN(age) || age < 1 || age > 120) {
-      errors.minimumAge = 'Enter a valid age (1-120).';
+      errors.minimumAge = i18n.t('errors.create_event_age_invalid');
     }
   }
 
   if (form.maximumAge) {
     const age = parseInt(form.maximumAge, 10);
     if (isNaN(age) || age < 1 || age > 120) {
-      errors.maximumAge = 'Enter a valid age (1-120).';
+      errors.maximumAge = i18n.t('errors.create_event_age_invalid');
     } else if (form.minimumAge) {
       const minAge = parseInt(form.minimumAge, 10);
       if (!isNaN(minAge) && age <= minAge) {
-        errors.maximumAge = 'Maximum age must be greater than minimum age.';
+        errors.maximumAge = i18n.t('errors.create_event_max_age_gt_min');
       }
     }
   }
@@ -608,7 +609,7 @@ export function useCreateEventViewModel() {
             );
             setCoverImageUploadedForLastCreate(true);
             if (imageUploadSuccessTimerRef.current) clearTimeout(imageUploadSuccessTimerRef.current);
-            setImageUploadSuccessMessage('Cover image uploaded successfully.');
+            setImageUploadSuccessMessage(i18n.t('create_event.cover_uploaded_message'));
             imageUploadSuccessTimerRef.current = setTimeout(() => {
               setImageUploadSuccessMessage(null);
               imageUploadSuccessTimerRef.current = null;
@@ -620,7 +621,7 @@ export function useCreateEventViewModel() {
               setImageError(
                 err instanceof Error
                   ? err.message
-                  : 'The event was created, but the cover image could not be uploaded.',
+                  : i18n.t('errors.create_event_image_upload_failed_after_create'),
               );
             }
           } finally {
@@ -628,13 +629,13 @@ export function useCreateEventViewModel() {
           }
         }
 
-        setSuccessMessage('Event created successfully!');
+        setSuccessMessage(i18n.t('errors.create_event_created_success'));
         return result;
       } catch (err) {
         if (err instanceof ApiError) {
           setApiError(err.message);
         } else {
-          setApiError('An unexpected error occurred. Please try again.');
+          setApiError(i18n.t('errors.unexpected'));
         }
         return null;
       } finally {

@@ -1,11 +1,13 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useLoginViewModel } from '@/viewmodels/auth/useLoginViewModel';
 import { useAuth } from '@/contexts/AuthContext';
 import SemLogo from '@/components/SemLogo';
 import '@/styles/auth.css';
 
 export default function LoginView() {
+  const { t } = useTranslation();
   const vm = useLoginViewModel();
   const { setSession } = useAuth();
   const navigate = useNavigate();
@@ -25,8 +27,8 @@ export default function LoginView() {
         <div className="auth-brand">
           <SemLogo height={76} color="#111827" />
         </div>
-        <h1 className="auth-title">Welcome Back</h1>
-        <p className="auth-subtitle">Sign in to continue to your account</p>
+        <h1 className="auth-title">{t('auth.login.title')}</h1>
+        <p className="auth-subtitle">{t('auth.login.subtitle')}</p>
 
         {vm.apiError && (
           <div className="error-banner" role="alert" aria-live="assertive">
@@ -37,13 +39,13 @@ export default function LoginView() {
         <form onSubmit={handleSubmit}>
           <div className="field-group">
             <label className="field-label" htmlFor="username">
-              Username
+              {t('auth.login.username')}
             </label>
             <input
               id="username"
               className={`field-input ${vm.errors.username ? 'has-error' : ''}`}
               type="text"
-              placeholder="maplover"
+              placeholder={t('auth.login.username_placeholder')}
               value={vm.formData.username}
               onChange={(e) => vm.updateField('username', e.target.value)}
               autoComplete="username"
@@ -60,13 +62,13 @@ export default function LoginView() {
 
           <div className="field-group">
             <label className="field-label" htmlFor="password">
-              Password
+              {t('auth.login.password')}
             </label>
             <input
               id="password"
               className={`field-input ${vm.errors.password ? 'has-error' : ''}`}
               type="password"
-              placeholder="Your password"
+              placeholder={t('auth.login.password_placeholder')}
               value={vm.formData.password}
               onChange={(e) => vm.updateField('password', e.target.value)}
               autoComplete="current-password"
@@ -81,7 +83,7 @@ export default function LoginView() {
             )}
             <div style={{ textAlign: 'right', marginTop: '0.5rem', marginBottom: '1rem' }}>
               <Link to="/forgot-password" className="link" style={{ fontSize: '0.875rem' }}>
-                Forgot Password?
+                {t('auth.login.forgot_password')}
               </Link>
             </div>
           </div>
@@ -91,14 +93,14 @@ export default function LoginView() {
             className="btn-primary"
             disabled={vm.isLoading}
           >
-            {vm.isLoading ? <span className="spinner" /> : 'Sign In'}
+            {vm.isLoading ? <span className="spinner" /> : t('auth.login.submit')}
           </button>
         </form>
 
         <div className="auth-footer">
-          <span>Don&apos;t have an account?</span>
+          <span>{t('auth.login.signup_prompt')}</span>
           <Link to="/register" className="link">
-            Sign Up
+            {t('auth.login.signup_link')}
           </Link>
         </div>
       </div>

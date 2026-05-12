@@ -1,4 +1,5 @@
 import type { NotificationItem, NotificationType } from '@/models/notification';
+import i18n from '@/i18n';
 
 export type NotificationActionTarget = 'EVENT' | 'INVITATIONS' | 'NONE';
 
@@ -41,10 +42,10 @@ function formatCooldown(iso: string | undefined): string | null {
   if (!iso) return null;
   const timestamp = new Date(iso);
   if (Number.isNaN(timestamp.getTime())) return null;
-  return `Retry after ${timestamp.toLocaleDateString(undefined, {
+  return i18n.t('notifications.presentation.cooldown', { date: timestamp.toLocaleDateString(i18n.resolvedLanguage, {
     month: 'short',
     day: 'numeric',
-  })}`;
+  }) });
 }
 
 export function isDedicatedParticipationNotification(
@@ -58,7 +59,7 @@ export function getNotificationPresentation(
 ): NotificationPresentation {
   const eventTitle = firstNonEmpty(
     notification.data.event_title,
-    notification.event_id ? 'Event update' : null,
+    notification.event_id ? i18n.t('notifications.presentation.event_update') : null,
   );
   const actorLabel = formatActorLabel(notification.data);
 
@@ -67,30 +68,30 @@ export function getNotificationPresentation(
       return {
         accentColor: '#5B21B6',
         accentBackgroundColor: '#EDE9FE',
-        badgeLabel: 'Invitation',
-        title: 'Private event invitation',
+        badgeLabel: i18n.t('notifications.presentation.badge_invitation'),
+        title: i18n.t('notifications.presentation.title_private_invitation'),
         eventTitle,
         iconKind: 'mail',
         summary: actorLabel
-          ? `${actorLabel} invited you to a private event.`
-          : 'You received a private event invitation.',
+          ? i18n.t('notifications.presentation.summary_private_invitation_actor', { actor: actorLabel })
+          : i18n.t('notifications.presentation.summary_private_invitation_default'),
         metadata: [],
-        actionLabel: 'Review invitation',
+        actionLabel: i18n.t('notifications.presentation.action_review_invitation'),
         actionTarget: 'INVITATIONS',
       };
     case 'PROTECTED_EVENT_JOIN_REQUEST_APPROVED':
       return {
         accentColor: '#047857',
         accentBackgroundColor: '#DCFCE7',
-        badgeLabel: 'Approved',
-        title: 'Join request approved',
+        badgeLabel: i18n.t('notifications.presentation.badge_approved'),
+        title: i18n.t('notifications.presentation.title_join_approved'),
         eventTitle,
         iconKind: 'check',
         summary: actorLabel
-          ? `${actorLabel} approved your join request.`
-          : 'Your join request was approved.',
+          ? i18n.t('notifications.presentation.summary_join_approved_actor', { actor: actorLabel })
+          : i18n.t('notifications.presentation.summary_join_approved_default'),
         metadata: [],
-        actionLabel: 'Open event',
+        actionLabel: i18n.t('notifications.presentation.action_open_event'),
         actionTarget: 'EVENT',
       };
     case 'PROTECTED_EVENT_JOIN_REQUEST_REJECTED': {
@@ -98,15 +99,15 @@ export function getNotificationPresentation(
       return {
         accentColor: '#B45309',
         accentBackgroundColor: '#FEF3C7',
-        badgeLabel: 'Rejected',
-        title: 'Join request rejected',
+        badgeLabel: i18n.t('notifications.presentation.badge_rejected'),
+        title: i18n.t('notifications.presentation.title_join_rejected'),
         eventTitle,
         iconKind: 'cross',
         summary: actorLabel
-          ? `${actorLabel} rejected your join request.`
-          : 'Your join request was rejected.',
+          ? i18n.t('notifications.presentation.summary_join_rejected_actor', { actor: actorLabel })
+          : i18n.t('notifications.presentation.summary_join_rejected_default'),
         metadata: cooldown ? [cooldown] : [],
-        actionLabel: 'View event details',
+        actionLabel: i18n.t('notifications.presentation.action_view_event_details'),
         actionTarget: 'EVENT',
       };
     }
@@ -114,60 +115,60 @@ export function getNotificationPresentation(
       return {
         accentColor: '#D97706',
         accentBackgroundColor: '#FEF3C7',
-        badgeLabel: 'New Request',
-        title: 'Join request submitted',
+        badgeLabel: i18n.t('notifications.presentation.badge_new_request'),
+        title: i18n.t('notifications.presentation.title_join_submitted'),
         eventTitle,
         iconKind: 'mail',
         summary: actorLabel
-          ? `${actorLabel} wants to join your event.`
-          : 'Someone wants to join your event.',
+          ? i18n.t('notifications.presentation.summary_join_submitted_actor', { actor: actorLabel })
+          : i18n.t('notifications.presentation.summary_join_submitted_default'),
         metadata: [],
-        actionLabel: 'Review request',
+        actionLabel: i18n.t('notifications.presentation.action_review_request'),
         actionTarget: 'EVENT',
       };
     case 'EVENT_CANCELED':
       return {
         accentColor: '#B91C1C',
         accentBackgroundColor: '#FEE2E2',
-        badgeLabel: 'Canceled',
-        title: 'Event canceled',
+        badgeLabel: i18n.t('notifications.presentation.badge_canceled'),
+        title: i18n.t('notifications.presentation.title_event_canceled'),
         eventTitle,
         iconKind: 'cross',
         summary: eventTitle
-          ? `The event "${eventTitle}" has been canceled.`
-          : 'An event you were interested in has been canceled.',
+          ? i18n.t('notifications.presentation.summary_event_canceled_with_title', { title: eventTitle })
+          : i18n.t('notifications.presentation.summary_event_canceled_default'),
         metadata: [],
-        actionLabel: 'View event',
+        actionLabel: i18n.t('notifications.presentation.action_view_event'),
         actionTarget: 'EVENT',
       };
     case 'PRIVATE_EVENT_INVITATION_ACCEPTED':
       return {
         accentColor: '#047857',
         accentBackgroundColor: '#DCFCE7',
-        badgeLabel: 'Accepted',
-        title: 'Invitation accepted',
+        badgeLabel: i18n.t('notifications.presentation.badge_accepted'),
+        title: i18n.t('notifications.presentation.title_invitation_accepted'),
         eventTitle,
         iconKind: 'check',
         summary: actorLabel
-          ? `${actorLabel} accepted your invitation.`
-          : 'Your invitation was accepted.',
+          ? i18n.t('notifications.presentation.summary_invitation_accepted_actor', { actor: actorLabel })
+          : i18n.t('notifications.presentation.summary_invitation_accepted_default'),
         metadata: [],
-        actionLabel: 'View event',
+        actionLabel: i18n.t('notifications.presentation.action_view_event'),
         actionTarget: 'EVENT',
       };
     case 'PRIVATE_EVENT_INVITATION_DECLINED':
       return {
         accentColor: '#B45309',
         accentBackgroundColor: '#FEF3C7',
-        badgeLabel: 'Declined',
-        title: 'Invitation declined',
+        badgeLabel: i18n.t('notifications.presentation.badge_declined'),
+        title: i18n.t('notifications.presentation.title_invitation_declined'),
         eventTitle,
         iconKind: 'cross',
         summary: actorLabel
-          ? `${actorLabel} declined your invitation.`
-          : 'Your invitation was declined.',
+          ? i18n.t('notifications.presentation.summary_invitation_declined_actor', { actor: actorLabel })
+          : i18n.t('notifications.presentation.summary_invitation_declined_default'),
         metadata: [],
-        actionLabel: 'View event',
+        actionLabel: i18n.t('notifications.presentation.action_view_event'),
         actionTarget: 'EVENT',
       };
     default:
@@ -180,7 +181,7 @@ export function getNotificationPresentation(
         iconKind: 'bell',
         summary: notification.body,
         metadata: [],
-        actionLabel: notification.event_id ? 'View event' : null,
+        actionLabel: notification.event_id ? i18n.t('notifications.presentation.action_view_event') : null,
         actionTarget: notification.event_id ? 'EVENT' : 'NONE',
       };
   }

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { isSupportedLocale, setCurrentLocale } from '@/i18n';
 import { setTokenRefreshManager } from '@/services/api';
 import { profileService } from '@/services/profileService';
 import type { UserRole } from '@/models/auth';
@@ -135,6 +136,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             avatarUrl: data.avatar_url ?? null,
             displayName: data.display_name ?? null,
           });
+          if (isSupportedLocale(data.locale)) {
+            void setCurrentLocale(data.locale);
+          }
         }
       })
       .catch(() => {

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useTicketsViewModel } from '@/viewmodels/tickets/useTicketsViewModel';
 import { getTicketStatusPresentation } from '@/utils/ticketStatus';
 import type { TicketListItem } from '@/models/ticket';
@@ -18,6 +19,7 @@ function formatDateTime(iso: string): string {
 }
 
 function TicketRow({ ticket }: { ticket: TicketListItem }) {
+  const { t } = useTranslation();
   const presentation = getTicketStatusPresentation(ticket.status);
 
   return (
@@ -44,9 +46,9 @@ function TicketRow({ ticket }: { ticket: TicketListItem }) {
 
         <div className="tk-card-footer">
           <span className="tk-card-meta">
-            Expires {formatDateTime(ticket.expires_at)}
+            {t('tickets.expires', { date: formatDateTime(ticket.expires_at) })}
           </span>
-          <span className="tk-card-link">View ticket &rarr;</span>
+          <span className="tk-card-link">{t('tickets.view_ticket')}</span>
         </div>
       </div>
     </Link>
@@ -54,16 +56,14 @@ function TicketRow({ ticket }: { ticket: TicketListItem }) {
 }
 
 export default function TicketsPage() {
+  const { t } = useTranslation();
   const vm = useTicketsViewModel();
 
   return (
     <div className="tk-page">
       <header className="tk-page-header">
-        <h1 className="tk-page-title">My Tickets</h1>
-        <p className="tk-page-subtitle">
-          Tickets for events you&rsquo;re approved to attend &mdash; public, protected, or private.
-          The live scannable QR is available in the mobile app at the venue.
-        </p>
+        <h1 className="tk-page-title">{t('tickets.page_title')}</h1>
+        <p className="tk-page-subtitle">{t('tickets.page_subtitle')}</p>
       </header>
 
       {vm.error && (
@@ -73,7 +73,7 @@ export default function TicketsPage() {
             type="button"
             className="tk-error-dismiss"
             onClick={vm.dismissError}
-            aria-label="Dismiss error"
+            aria-label={t('tickets.dismiss_error')}
           >
             &times;
           </button>
@@ -83,17 +83,14 @@ export default function TicketsPage() {
       {vm.isLoading && vm.tickets.length === 0 && (
         <div className="tk-loading">
           <span className="spinner" />
-          <p>Loading tickets...</p>
+          <p>{t('tickets.loading')}</p>
         </div>
       )}
 
       {!vm.isLoading && vm.tickets.length === 0 && !vm.error && (
         <div className="tk-empty">
-          <h2>No tickets yet</h2>
-          <p>
-            Tickets appear here once you join an event &mdash; either by joining a public event,
-            being approved on a protected event, or accepting a private event invitation.
-          </p>
+          <h2>{t('tickets.empty_title')}</h2>
+          <p>{t('tickets.empty_body')}</p>
         </div>
       )}
 

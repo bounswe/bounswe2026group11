@@ -1,4 +1,5 @@
 import type { TicketStatus } from '@/models/ticket';
+import i18n from '@/i18n';
 
 export interface TicketStatusPresentation {
   label: string;
@@ -10,39 +11,39 @@ export function getTicketStatusPresentation(status: TicketStatus): TicketStatusP
   switch (status) {
     case 'ACTIVE':
       return {
-        label: 'Active',
+        label: i18n.t('tickets.status.ACTIVE'),
         tone: 'active',
-        description: 'Ready to use. Show the live QR in the mobile app at the venue.',
+        description: i18n.t('tickets.status_descriptions.ACTIVE'),
       };
     case 'PENDING':
       return {
-        label: 'Pending',
+        label: i18n.t('tickets.status.PENDING'),
         tone: 'pending',
-        description: 'Your ticket is being prepared. Check back closer to the event.',
+        description: i18n.t('tickets.status_descriptions.PENDING'),
       };
     case 'USED':
       return {
-        label: 'Used',
+        label: i18n.t('tickets.status.USED'),
         tone: 'used',
-        description: 'This ticket was scanned at the event.',
+        description: i18n.t('tickets.status_descriptions.USED'),
       };
     case 'EXPIRED':
       return {
-        label: 'Expired',
+        label: i18n.t('tickets.status.EXPIRED'),
         tone: 'expired',
-        description: 'This ticket has expired and can no longer be used.',
+        description: i18n.t('tickets.status_descriptions.EXPIRED'),
       };
     case 'CANCELED':
       return {
-        label: 'Canceled',
+        label: i18n.t('tickets.status.CANCELED'),
         tone: 'canceled',
-        description: 'This ticket is canceled and cannot be used.',
+        description: i18n.t('tickets.status_descriptions.CANCELED'),
       };
     default:
       return {
         label: status,
         tone: 'pending',
-        description: 'Ticket status unavailable.',
+        description: i18n.t('tickets.status_descriptions.UNKNOWN'),
       };
   }
 }

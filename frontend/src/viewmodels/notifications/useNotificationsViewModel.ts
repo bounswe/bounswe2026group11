@@ -9,6 +9,7 @@ import {
 } from '@/services/notificationService';
 import type { NotificationItem } from '@/models/notification';
 import { ApiError } from '@/services/api';
+import i18n from '@/i18n';
 
 export interface NotificationsViewModel {
   notifications: NotificationItem[];
@@ -50,7 +51,7 @@ export function useNotificationsViewModel(): NotificationsViewModel {
       setNextCursor(response.page_info.next_cursor);
       setHasNext(response.page_info.has_next);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load notifications');
+      setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +69,7 @@ export function useNotificationsViewModel(): NotificationsViewModel {
       setNextCursor(response.page_info.next_cursor);
       setHasNext(response.page_info.has_next);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load more notifications');
+      setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
     } finally {
       setIsLoadingMore(false);
     }
@@ -109,7 +110,7 @@ export function useNotificationsViewModel(): NotificationsViewModel {
       await markAllNotificationsRead(token);
     } catch (err) {
       setNotifications(previous);
-      setError(err instanceof ApiError ? err.message : 'Failed to mark all as read');
+      setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
     }
   }, [token, notifications]);
 
@@ -122,7 +123,7 @@ export function useNotificationsViewModel(): NotificationsViewModel {
         await deleteNotification(id, token);
       } catch (err) {
         setNotifications(previous);
-        setError(err instanceof ApiError ? err.message : 'Failed to delete notification');
+        setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
       }
     },
     [token, notifications],
@@ -136,7 +137,7 @@ export function useNotificationsViewModel(): NotificationsViewModel {
       await deleteAllNotifications(token);
     } catch (err) {
       setNotifications(previous);
-      setError(err instanceof ApiError ? err.message : 'Failed to clear notifications');
+      setError(err instanceof ApiError ? err.message : i18n.t('errors.unexpected'));
     }
   }, [token, notifications]);
 

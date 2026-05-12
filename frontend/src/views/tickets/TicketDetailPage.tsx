@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useTicketDetailViewModel } from '@/viewmodels/tickets/useTicketDetailViewModel';
 import { getTicketStatusPresentation } from '@/utils/ticketStatus';
 import NotFoundView from '../fallback/NotFoundView';
@@ -41,6 +42,7 @@ function MobileQRIcon() {
 }
 
 export default function TicketDetailPage() {
+  const { t } = useTranslation();
   const { ticketId } = useParams<{ ticketId: string }>();
   const vm = useTicketDetailViewModel(ticketId);
 
@@ -49,7 +51,7 @@ export default function TicketDetailPage() {
       <div className="tk-page">
         <div className="tk-loading">
           <span className="spinner" />
-          <p>Loading ticket...</p>
+          <p>{t('tickets.loading_ticket')}</p>
         </div>
       </div>
     );
@@ -63,9 +65,9 @@ export default function TicketDetailPage() {
     return (
       <div className="tk-page">
         <div className="tk-error" role="alert">
-          <span>{vm.errorMessage ?? 'Failed to load ticket'}</span>
+          <span>{vm.errorMessage ?? t('tickets.load_failed')}</span>
           <button type="button" className="tk-retry-btn" onClick={vm.refresh}>
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       </div>
@@ -77,13 +79,13 @@ export default function TicketDetailPage() {
   const canShowMobileHint = ticket.status === 'ACTIVE';
   const eligibilityNotice =
     ticket.status === 'ACTIVE' && qr_access.eligible_now === false
-      ? qr_access.reason ?? 'Ticket is not eligible for QR right now.'
+      ? qr_access.reason ?? t('tickets.qr_not_eligible')
       : null;
 
   return (
     <div className="tk-page">
       <Link to="/tickets" className="tk-back-link">
-        &larr; Back to tickets
+        &larr; {t('tickets.back_to_tickets')}
       </Link>
 
       <article className="tk-detail" data-testid="ticket-detail">
@@ -96,16 +98,16 @@ export default function TicketDetailPage() {
         </header>
 
         <section className="tk-detail-section">
-          <h2 className="tk-detail-section-title">Event</h2>
+          <h2 className="tk-detail-section-title">{t('tickets.event_section')}</h2>
           <div className="tk-detail-row">
-            <span className="tk-detail-label">When</span>
+            <span className="tk-detail-label">{t('tickets.when')}</span>
             <span className="tk-detail-value">
               {formatDateTime(event.start_time)}
               {event.end_time && (
                 <>
                   <br />
                   <span className="tk-detail-secondary">
-                    until {formatDateTime(event.end_time)}
+                    {t('tickets.until', { date: formatDateTime(event.end_time) })}
                   </span>
                 </>
               )}
@@ -113,38 +115,38 @@ export default function TicketDetailPage() {
           </div>
           {event.address && (
             <div className="tk-detail-row">
-              <span className="tk-detail-label">Where</span>
+              <span className="tk-detail-label">{t('tickets.where')}</span>
               <span className="tk-detail-value">{event.address}</span>
             </div>
           )}
           <div className="tk-detail-row">
-            <span className="tk-detail-label">Coordinates</span>
+            <span className="tk-detail-label">{t('tickets.coordinates')}</span>
             <span className="tk-detail-value tk-detail-mono">
               {location.anchor_lat.toFixed(5)}, {location.anchor_lon.toFixed(5)}
             </span>
           </div>
           <Link to={`/events/${event.id}`} className="tk-detail-link">
-            View event details &rarr;
+            {t('tickets.view_event_details')}
           </Link>
         </section>
 
         <section className="tk-detail-section">
-          <h2 className="tk-detail-section-title">Ticket</h2>
+          <h2 className="tk-detail-section-title">{t('tickets.ticket_section')}</h2>
           <div className="tk-detail-row">
-            <span className="tk-detail-label">Ticket ID</span>
+            <span className="tk-detail-label">{t('tickets.ticket_id')}</span>
             <span className="tk-detail-value tk-detail-mono">{ticket.id}</span>
           </div>
           <div className="tk-detail-row">
-            <span className="tk-detail-label">Participation</span>
+            <span className="tk-detail-label">{t('tickets.participation')}</span>
             <span className="tk-detail-value">{participation.status}</span>
           </div>
           <div className="tk-detail-row">
-            <span className="tk-detail-label">Expires</span>
+            <span className="tk-detail-label">{t('tickets.expires_label')}</span>
             <span className="tk-detail-value">{formatDateTime(ticket.expires_at)}</span>
           </div>
           {ticket.used_at && (
             <div className="tk-detail-row">
-              <span className="tk-detail-label">Used</span>
+              <span className="tk-detail-label">{t('tickets.used')}</span>
               <span className="tk-detail-value">{formatDateTime(ticket.used_at)}</span>
             </div>
           )}
@@ -158,15 +160,11 @@ export default function TicketDetailPage() {
               <MobileQRIcon />
             </span>
             <div className="tk-mobile-hint-body">
-              <p className="tk-mobile-hint-title">Show your QR on mobile</p>
-              <p className="tk-mobile-hint-text">
-                For security, the rotating QR token is only generated in the mobile app at the
-                venue. Open the Social Event Mapper mobile app and tap this ticket to display the
-                live QR for entry.
-              </p>
+              <p className="tk-mobile-hint-title">{t('tickets.show_qr_title')}</p>
+              <p className="tk-mobile-hint-text">{t('tickets.show_qr_body')}</p>
               {eligibilityNotice && (
                 <p className="tk-mobile-hint-notice">
-                  Eligibility note: <strong>{eligibilityNotice}</strong>
+                  {t('tickets.eligibility_note', { reason: eligibilityNotice })}
                 </p>
               )}
             </div>

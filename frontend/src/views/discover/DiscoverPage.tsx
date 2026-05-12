@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDiscoverViewMode } from '@/contexts/DiscoverViewModeContext';
 import {
@@ -11,16 +13,12 @@ import {
 import type { DiscoverEventItem, DiscoverSortBy } from '@/models/event';
 import { EventCoverImage } from '@/components/EventCoverImage';
 import { RatingWithCount } from '@/components/RatingWithCount';
+import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import { getEventLifecyclePresentation } from '@/utils/eventStatus';
 import { formatEventLocation } from '@/utils/eventLocation';
 import DiscoverMapView from './DiscoverMapView';
 import DiscoverEventSidePanel from './DiscoverEventSidePanel';
 import '@/styles/discover.css';
-
-const SORT_OPTIONS: { label: string; value: DiscoverSortBy; icon: 'time' | 'distance' }[] = [
-  { label: 'Soonest', value: 'START_TIME', icon: 'time' },
-  { label: 'Nearest', value: 'DISTANCE', icon: 'distance' },
-];
 
 interface DiscoverWeatherSummary {
   temperatureC: number;
@@ -211,7 +209,7 @@ function getWeatherKind(code: number): 'CLEAR' | 'CLOUD' | 'RAIN' | 'SNOW' | 'ST
 }
 
 function getTodayLabel(): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(i18n.resolvedLanguage, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -297,22 +295,11 @@ function SortOptionIcon({ kind, className }: { kind: 'time' | 'distance'; classN
 /** Maximum number of category chips rendered before the expand control. */
 const CATEGORY_COLLAPSED_COUNT = 8;
 
-const PRIVACY_OPTIONS: { label: string; value: PrivacyFilter }[] = [
-  { label: 'All', value: 'ALL' },
-  { label: 'Public', value: 'PUBLIC' },
-  { label: 'Protected', value: 'PROTECTED' },
-];
-
 type AudienceFilterKey = 'childFriendly' | 'familyOriented';
-
-const AUDIENCE_FILTER_OPTIONS: { label: string; value: AudienceFilterKey }[] = [
-  { label: 'Child-friendly', value: 'childFriendly' },
-  { label: 'Family-oriented', value: 'familyOriented' },
-];
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString(i18n.resolvedLanguage, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -321,7 +308,7 @@ function formatDate(iso: string): string {
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString(undefined, {
+  return d.toLocaleTimeString(i18n.resolvedLanguage, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -329,7 +316,9 @@ function formatTime(iso: string): string {
 }
 
 function EventCard({ event }: { event: DiscoverEventItem }) {
+  const { t } = useTranslation();
   const lifecycle = getEventLifecyclePresentation(event.status);
+  const category = getEventCategoryPresentation(event.category_name ?? 'Event', false).label;
 
   return (
     <Link to={`/events/${event.id}`} className="dc-card">
@@ -350,13 +339,13 @@ function EventCard({ event }: { event: DiscoverEventItem }) {
           </span>
         )}
         <span className={`dc-privacy-badge dc-privacy-${event.privacy_level.toLowerCase()}`}>
-          {event.privacy_level === 'PUBLIC' ? 'Public' : 'Protected'}
+          {t(`events.privacy.${event.privacy_level}`)}
         </span>
       </div>
 
       <div className="dc-card-body">
         <div className="dc-card-meta">
-          <span className="dc-card-category">{event.category_name}</span>
+          <span className="dc-card-category">{category}</span>
           <span className="dc-card-date">
             {formatDate(event.start_time)} &middot; {formatTime(event.start_time)}
           </span>
@@ -370,7 +359,7 @@ function EventCard({ event }: { event: DiscoverEventItem }) {
 
         <div className="dc-card-footer">
           <span className="dc-card-participants">
-            {event.approved_participant_count} participant{event.approved_participant_count !== 1 ? 's' : ''}
+            {t('events.my_events.participants', { count: event.approved_participant_count })}
           </span>
           <RatingWithCount
             score={event.host_score.final_score}
@@ -392,6 +381,7 @@ function MapEventListItem({
   onSelect: (id: string) => void;
   isSelected: boolean;
 }) {
+  const category = getEventCategoryPresentation(event.category_name ?? 'Event', false).label;
   return (
     <button
       type="button"
@@ -407,7 +397,7 @@ function MapEventListItem({
         />
       </div>
       <div className="dc-list-item-body">
-        <div className="dc-list-item-category">{event.category_name}</div>
+        <div className="dc-list-item-category">{category}</div>
         <div className="dc-list-item-title">{event.title}</div>
         <div className="dc-list-item-meta">
           {formatDate(event.start_time)} · {formatTime(event.start_time)}
@@ -421,8 +411,22 @@ function MapEventListItem({
 }
 
 export default function DiscoverPage() {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const vm = useDiscoverViewModel(token);
+  const sortOptions: { label: string; value: DiscoverSortBy; icon: 'time' | 'distance' }[] = [
+    { label: t('home.sort_soonest'), value: 'START_TIME', icon: 'time' },
+    { label: t('home.sort_nearest'), value: 'DISTANCE', icon: 'distance' },
+  ];
+  const privacyOptions: { label: string; value: PrivacyFilter }[] = [
+    { label: t('common.all', 'All'), value: 'ALL' },
+    { label: t('events.privacy.PUBLIC'), value: 'PUBLIC' },
+    { label: t('events.privacy.PROTECTED'), value: 'PROTECTED' },
+  ];
+  const audienceFilterOptions: { label: string; value: AudienceFilterKey }[] = [
+    { label: t('home.child_friendly'), value: 'childFriendly' },
+    { label: t('home.family_oriented'), value: 'familyOriented' },
+  ];
   const { viewMode } = useDiscoverViewMode();
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [overlayCollapsed, setOverlayCollapsed] = useState(false);
@@ -532,10 +536,10 @@ export default function DiscoverPage() {
   const titleBlock = (
     <div className="dc-title-card">
       <div className="dc-title-card-copy">
-        <h1 className="dc-title">Discover Events</h1>
-        <p className="dc-subtitle">Find events happening near you</p>
+        <h1 className="dc-title">{t('home.title')}</h1>
+        <p className="dc-subtitle">{t('home.subtitle')}</p>
       </div>
-      <div className="dc-title-card-meta" aria-label={weatherSummary ? 'Current weather' : 'Today'}>
+      <div className="dc-title-card-meta" aria-label={weatherSummary ? t('home.current_weather') : t('home.today')}>
         {weatherSummary && titleWeatherKind ? (
           <>
             <WeatherGlyph
@@ -564,7 +568,7 @@ export default function DiscoverPage() {
         onClick={vm.handleLocationButtonClick}
         aria-haspopup="dialog"
         aria-expanded={vm.isLocationModalOpen}
-        aria-label={`Location: ${vm.locationShortLabel}. Open location picker.`}
+        aria-label={t('home.location_picker_aria', { location: vm.locationShortLabel })}
       >
         <MapPinIcon className="dc-location-bar-icon" />
         <span className="dc-location-bar-value">{vm.locationShortLabel}</span>
@@ -582,11 +586,11 @@ export default function DiscoverPage() {
         >
           <CrosshairIcon className="dc-map-pick-location-icon" />
           <span>
-            {isChoosingMapLocation ? 'Click map to choose' : 'Choose location from map'}
+            {isChoosingMapLocation ? t('home.click_map_to_choose') : t('home.choose_location_from_map')}
           </span>
         </button>
         <label className="dc-map-radius-control">
-          <span className="dc-map-radius-label">Radius</span>
+          <span className="dc-map-radius-label">{t('home.radius')}</span>
           <input
             type="range"
             min={1000}
@@ -594,7 +598,7 @@ export default function DiscoverPage() {
             step={1000}
             value={vm.filters.radiusMeters}
             onChange={(e) => vm.updateFilter('radiusMeters', Number(e.target.value))}
-            aria-label="Discovery radius"
+            aria-label={t('home.discovery_radius')}
           />
           <span className="dc-map-radius-value">
             {Math.round(vm.filters.radiusMeters / 1000)} km
@@ -609,7 +613,7 @@ export default function DiscoverPage() {
       onClick={vm.handleLocationButtonClick}
       aria-haspopup="dialog"
       aria-expanded={vm.isLocationModalOpen}
-      aria-label={`Location: ${vm.locationShortLabel}. Open location picker.`}
+      aria-label={t('home.location_picker_aria', { location: vm.locationShortLabel })}
     >
       <MapPinIcon className="dc-location-bar-icon" />
       <span className="dc-location-bar-value">{vm.locationShortLabel}</span>
@@ -622,7 +626,7 @@ export default function DiscoverPage() {
       <input
         type="text"
         className="field-input dc-search"
-        placeholder="Search events..."
+        placeholder={t('home.search_placeholder')}
         value={vm.filters.q}
         onChange={(e) => vm.updateSearch(e.target.value)}
       />
@@ -632,7 +636,7 @@ export default function DiscoverPage() {
         onClick={() => setFilterModalOpen(true)}
       >
         <FilterIcon className="dc-filter-toggle-icon" />
-        <span>Filters</span>
+        <span>{t('home.filters')}</span>
       </button>
       {isMapMode && (
         <button
@@ -640,8 +644,8 @@ export default function DiscoverPage() {
           className="dc-overlay-collapse-btn"
           onClick={() => setOverlayCollapsed((v) => !v)}
           aria-pressed={overlayCollapsed}
-          aria-label={overlayCollapsed ? 'Expand panel' : 'Collapse panel'}
-          title={overlayCollapsed ? 'Expand panel' : 'Collapse panel'}
+          aria-label={overlayCollapsed ? t('home.expand_panel') : t('home.collapse_panel')}
+          title={overlayCollapsed ? t('home.expand_panel') : t('home.collapse_panel')}
         >
           <ChevronDownIcon
             className={`dc-overlay-collapse-icon ${
@@ -668,13 +672,13 @@ export default function DiscoverPage() {
       >
         <div className="dc-filter-modal-header">
           <h2 id="dc-filter-modal-title" className="dc-filter-modal-title">
-            Filters
+            {t('home.filters')}
           </h2>
           <button
             type="button"
             className="dc-filter-modal-close"
             onClick={() => setFilterModalOpen(false)}
-            aria-label="Close filters"
+            aria-label={t('home.close_filters')}
           >
             ×
           </button>
@@ -682,9 +686,9 @@ export default function DiscoverPage() {
 
         <div className="dc-filter-modal-body">
           <div className="dc-filter-group">
-            <label className="dc-filter-label" id="dc-discover-sort-label">Sort by</label>
+            <label className="dc-filter-label" id="dc-discover-sort-label">{t('home.sort_by')}</label>
             <div className="dc-sort-row" role="group" aria-labelledby="dc-discover-sort-label">
-              {SORT_OPTIONS.map((opt) => (
+              {sortOptions.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
@@ -699,7 +703,7 @@ export default function DiscoverPage() {
           </div>
 
           <div className="dc-filter-group">
-            <label className="dc-filter-label">Radius</label>
+            <label className="dc-filter-label">{t('home.radius')}</label>
             <div className="dc-chip-row">
               {RADIUS_OPTIONS.map((opt) => (
                 <button
@@ -715,7 +719,7 @@ export default function DiscoverPage() {
           </div>
 
           <div className="dc-filter-group">
-            <label className="dc-filter-label">Event age restriction</label>
+            <label className="dc-filter-label">{t('home.event_age_restriction')}</label>
             <div className="dc-chip-row">
               {MINIMUM_AGE_OPTIONS.map((opt) => (
                 <button
@@ -731,9 +735,9 @@ export default function DiscoverPage() {
           </div>
 
           <div className="dc-filter-group">
-            <label className="dc-filter-label">Privacy</label>
+            <label className="dc-filter-label">{t('home.privacy')}</label>
             <div className="dc-chip-row">
-              {PRIVACY_OPTIONS.map((opt) => (
+              {privacyOptions.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
@@ -747,9 +751,9 @@ export default function DiscoverPage() {
           </div>
 
           <div className="dc-filter-group">
-            <label className="dc-filter-label" id="dc-audience-filter-label">Audience</label>
+            <label className="dc-filter-label" id="dc-audience-filter-label">{t('home.audience')}</label>
             <div className="dc-audience-filter-grid" role="group" aria-labelledby="dc-audience-filter-label">
-              {AUDIENCE_FILTER_OPTIONS.map((opt) => {
+              {audienceFilterOptions.map((opt) => {
                 const selected = vm.filters[opt.value];
                 return (
                   <button
@@ -767,22 +771,22 @@ export default function DiscoverPage() {
           </div>
 
           <div className="dc-filter-group">
-            <label className="dc-filter-label">Date Range</label>
+            <label className="dc-filter-label">{t('discover.date_range', 'Date Range')}</label>
             <div className="dc-date-row">
               <input
                 type="date"
                 className="field-input dc-date-input"
                 value={vm.filters.startFrom}
                 onChange={(e) => vm.updateFilter('startFrom', e.target.value)}
-                placeholder="From"
+                placeholder={t('discover.from', 'From')}
               />
-              <span className="dc-date-sep">to</span>
+              <span className="dc-date-sep">{t('discover.to', 'to')}</span>
               <input
                 type="date"
                 className="field-input dc-date-input"
                 value={vm.filters.startTo}
                 onChange={(e) => vm.updateFilter('startTo', e.target.value)}
-                placeholder="To"
+                placeholder={t('discover.to_capital', 'To')}
               />
             </div>
           </div>
@@ -797,7 +801,7 @@ export default function DiscoverPage() {
                 vm.clearFilters();
               }}
             >
-              Clear all
+              {t('discover.clear_all', 'Clear all')}
             </button>
           )}
           <button
@@ -805,7 +809,7 @@ export default function DiscoverPage() {
             className="dc-filter-modal-apply"
             onClick={() => setFilterModalOpen(false)}
           >
-            Done
+            {t('discover.done', 'Done')}
           </button>
         </div>
       </div>
@@ -830,7 +834,7 @@ export default function DiscoverPage() {
           !categoriesExpanded ? 'dc-category-chips--collapsed' : ''
         }`}
         role="group"
-        aria-label="Event categories"
+        aria-label={t('discover.event_categories', 'Event categories')}
       >
         {visibleCategories.map((cat) => {
           const isSelected = vm.filters.categoryIds.includes(cat.id);
@@ -857,7 +861,7 @@ export default function DiscoverPage() {
             style={{ fontWeight: 600 }}
             onClick={() => vm.updateFilter('categoryIds', [])}
           >
-            Clear categories
+            {t('discover.clear_categories', 'Clear categories')}
           </button>
         )}
         {categoryChipsNeedExpand && (
@@ -873,7 +877,7 @@ export default function DiscoverPage() {
               }`}
             />
             <span className="sr-only">
-              {categoriesExpanded ? 'Collapse categories' : 'Expand categories'}
+              {categoriesExpanded ? t('discover.collapse_categories', 'Collapse categories') : t('discover.expand_categories', 'Expand categories')}
             </span>
           </button>
         )}
@@ -882,14 +886,14 @@ export default function DiscoverPage() {
   );
 
   const activeAudienceChips = (vm.filters.childFriendly || vm.filters.familyOriented) && (
-    <div className="dc-active-filter-row" aria-label="Active audience filters">
+    <div className="dc-active-filter-row" aria-label={t('discover.active_audience_filters', 'Active audience filters')}>
       {vm.filters.childFriendly && (
         <button
           type="button"
           className="dc-active-filter-chip"
           onClick={() => vm.updateFilter('childFriendly', false)}
         >
-          Child-friendly <span aria-hidden="true">×</span>
+          {t('home.child_friendly')} <span aria-hidden="true">×</span>
         </button>
       )}
       {vm.filters.familyOriented && (
@@ -898,7 +902,7 @@ export default function DiscoverPage() {
           className="dc-active-filter-chip"
           onClick={() => vm.updateFilter('familyOriented', false)}
         >
-          Family-oriented <span aria-hidden="true">×</span>
+          {t('home.family_oriented')} <span aria-hidden="true">×</span>
         </button>
       )}
     </div>
@@ -907,7 +911,7 @@ export default function DiscoverPage() {
   const browserLocationPrompt = vm.showBrowserLocationPrompt && (
     <div className="dc-location-prompt" role="status">
       <p className="dc-location-prompt-text">
-        Use your device location for nearby results. Safari requires tapping the button below to allow access.
+        {t('discover.location_prompt', 'Use your device location for nearby results. Safari requires tapping the button below to allow access.')}
       </p>
       {vm.browserLocationError && (
         <p className="dc-location-prompt-error">{vm.browserLocationError}</p>
@@ -919,14 +923,14 @@ export default function DiscoverPage() {
           onClick={vm.requestBrowserLocation}
           disabled={vm.browserLocationRequestPending}
         >
-          {vm.browserLocationRequestPending ? 'Requesting…' : 'Use my location'}
+          {vm.browserLocationRequestPending ? t('discover.requesting_location', 'Requesting…') : t('discover.use_my_location', 'Use my location')}
         </button>
         <button
           type="button"
           className="dc-location-prompt-dismiss"
           onClick={vm.dismissBrowserLocationPrompt}
         >
-          Not now
+          {t('discover.not_now', 'Not now')}
         </button>
       </div>
     </div>
@@ -938,17 +942,17 @@ export default function DiscoverPage() {
         <div className="dc-overlay-events-status dc-overlay-events-status--error">
           {vm.error}
           <button type="button" className="dc-overlay-events-retry" onClick={vm.refresh}>
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       )}
       {vm.isLoading ? (
         <div className="dc-overlay-events-status">
-          <span className="spinner" /> Loading events…
+          <span className="spinner" /> {t('home.loading_events')}
         </div>
       ) : vm.events.length === 0 && !vm.error ? (
         <div className="dc-overlay-events-status">
-          No events match your filters.
+          {t('discover.no_events_match', 'No events match your filters.')}
         </div>
       ) : (
         <ul className="dc-overlay-events-list">
@@ -969,7 +973,7 @@ export default function DiscoverPage() {
                 onClick={vm.loadMore}
                 disabled={vm.isLoadingMore}
               >
-                {vm.isLoadingMore ? <span className="spinner" /> : 'Load more'}
+                {vm.isLoadingMore ? <span className="spinner" /> : t('discover.load_more', 'Load more')}
               </button>
             </li>
           )}
@@ -1006,12 +1010,12 @@ export default function DiscoverPage() {
             type="button"
             className="dc-loc-modal-icon-btn"
             onClick={vm.closeLocationModal}
-            aria-label="Close"
+            aria-label={t('common.close')}
           >
             ×
           </button>
           <h2 id="dc-loc-modal-title" className="dc-loc-modal-title">
-            Choose location
+            {t('home.choose_location_from_map')}
           </h2>
           {vm.defaultProfileLocation ? (
             <button
@@ -1019,7 +1023,7 @@ export default function DiscoverPage() {
               className="dc-loc-modal-reset"
               onClick={vm.resetModalLocationDraft}
             >
-              Reset
+              {t('common.retry')}
             </button>
           ) : (
             <span className="dc-loc-modal-header-spacer" aria-hidden />
@@ -1027,7 +1031,7 @@ export default function DiscoverPage() {
         </div>
 
         <div className="dc-loc-modal-section">
-          <p className="dc-loc-modal-section-label">Current location</p>
+          <p className="dc-loc-modal-section-label">{t('discover.current_location')}</p>
           {vm.hasBrowserLocation ? (
             <button
               type="button"
@@ -1035,12 +1039,11 @@ export default function DiscoverPage() {
               onClick={vm.selectBrowserLocationInModal}
             >
               <CrosshairIcon className="dc-loc-modal-pill-icon" />
-              <span>Use my current location</span>
+              <span>{t('discover.use_current_location')}</span>
             </button>
           ) : vm.browserLocationPermissionDenied ? (
             <p className="dc-loc-modal-permission">
-              Location permission denied. Allow location access in your browser settings to use your
-              current position.
+              {vm.browserLocationError ?? t('home.location_prompt')}
             </p>
           ) : (
             <button
@@ -1052,8 +1055,8 @@ export default function DiscoverPage() {
               <CrosshairIcon className="dc-loc-modal-pill-icon" />
               <span>
                 {vm.browserLocationRequestPending
-                  ? 'Requesting permission…'
-                  : 'Need location permission'}
+                  ? t('discover.requesting_location')
+                  : t('discover.use_my_location')}
               </span>
             </button>
           )}
@@ -1061,7 +1064,7 @@ export default function DiscoverPage() {
 
         {vm.defaultProfileLocation && (
           <div className="dc-loc-modal-section">
-            <p className="dc-loc-modal-section-label">Default</p>
+            <p className="dc-loc-modal-section-label">{t('discover.default_location')}</p>
             <button
               type="button"
               className={`dc-loc-modal-pill ${defaultLocCurrentlyApplied ? 'selected' : ''}`}
@@ -1075,7 +1078,7 @@ export default function DiscoverPage() {
 
         {vm.favoriteLocations.length > 0 && (
           <div className="dc-loc-modal-section dc-loc-modal-section--favorites">
-            <p className="dc-loc-modal-section-label">Favorite locations</p>
+            <p className="dc-loc-modal-section-label">{t('discover.favorite_locations')}</p>
             <ul className="dc-loc-modal-fav-list">
               {vm.favoriteLocations.map((fav) => {
                 const selected =
@@ -1104,7 +1107,7 @@ export default function DiscoverPage() {
           <input
             type="text"
             className="dc-loc-modal-input field-input"
-            placeholder="Search for a location"
+            placeholder={t('discover.search_location_placeholder')}
             value={vm.modalLocationQuery}
             onChange={(e) => vm.updateModalLocationQuery(e.target.value)}
             autoComplete="off"
@@ -1117,7 +1120,7 @@ export default function DiscoverPage() {
           vm.modalLocationQuery.trim().length >= 2) && (
           <div className="dc-loc-modal-list-wrap">
             {vm.modalLocationSearching ? (
-              <p className="dc-loc-modal-hint">Searching…</p>
+              <p className="dc-loc-modal-hint">{t('common.searching')}</p>
             ) : vm.modalLocationResults.length > 0 ? (
               <ul className="dc-loc-modal-suggestions">
                 {vm.modalLocationResults.map((loc, i) => {
@@ -1139,13 +1142,13 @@ export default function DiscoverPage() {
                 })}
               </ul>
             ) : (
-              <p className="dc-loc-modal-hint">No locations found.</p>
+              <p className="dc-loc-modal-hint">{t('discover.no_locations_found')}</p>
             )}
           </div>
         )}
 
         <button type="button" className="dc-loc-modal-apply" onClick={vm.applyModalLocation}>
-          Apply
+          {t('discover.apply_location')}
         </button>
       </div>
     </div>
@@ -1223,7 +1226,7 @@ export default function DiscoverPage() {
         <div className="error-banner">
           {vm.error}
           <button type="button" className="dc-retry-btn" onClick={vm.refresh}>
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       )}
@@ -1231,14 +1234,14 @@ export default function DiscoverPage() {
       {vm.isLoading && (
         <div className="dc-loading">
           <span className="spinner" />
-          <p>Loading events...</p>
+          <p>{t('home.loading_events')}</p>
         </div>
       )}
 
       {!vm.isLoading && !vm.error && vm.events.length === 0 && (
         <div className="dc-empty">
-          <h2>No events found</h2>
-          <p>Try adjusting your filters or search to find events.</p>
+          <h2>{t('discover.no_events_found')}</h2>
+          <p>{t('discover.try_adjusting_filters')}</p>
         </div>
       )}
 
@@ -1258,7 +1261,7 @@ export default function DiscoverPage() {
                 onClick={vm.loadMore}
                 disabled={vm.isLoadingMore}
               >
-                {vm.isLoadingMore ? <span className="spinner" /> : 'Load More'}
+                {vm.isLoadingMore ? <span className="spinner" /> : t('common.load_more')}
               </button>
             </div>
           )}

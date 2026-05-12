@@ -247,7 +247,7 @@ describe('EventDetailPage ratings', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /report event/i }));
     fireEvent.click(screen.getByLabelText(/harassment/i));
-    fireEvent.change(screen.getByLabelText(/additional details/i), {
+    fireEvent.change(screen.getByLabelText(/additional context/i), {
       target: { value: 'The event description targets a user group.' },
     });
     fireEvent.click(screen.getByRole('button', { name: /submit report/i }));

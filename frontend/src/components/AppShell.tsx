@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDiscoverViewMode } from '@/contexts/DiscoverViewModeContext';
@@ -10,18 +11,10 @@ import SemLogo from '@/components/SemLogo';
 import { useUnreadCountViewModel } from '@/viewmodels/notifications/useUnreadCountViewModel';
 import '@/styles/shell.css';
 
-const AUTH_NAV = [
-  { to: '/discover', label: 'Discover' },
-  { to: '/my-events', label: 'My Events' },
-  { to: '/favorites', label: 'Favorites' },
-  { to: '/tickets', label: 'My Tickets' },
-  { to: '/invitations', label: 'Invitations' },
-];
-
-const LOGIN_REQUIRED_MESSAGE = 'You must sign in';
 const PRIMARY_NAV_ID = 'primary-navigation';
 
 export default function AppShell() {
+  const { t } = useTranslation();
   const { token, username, role, avatarUrl, displayName, refreshToken, clearAuth } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -31,12 +24,19 @@ export default function AppShell() {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isLoggedIn = !!token;
-  const navItems = AUTH_NAV;
+  const navItems = [
+    { to: '/discover', label: t('shell.discover') },
+    { to: '/my-events', label: t('shell.my_events') },
+    { to: '/favorites', label: t('shell.favorites') },
+    { to: '/tickets', label: t('shell.my_tickets') },
+    { to: '/invitations', label: t('shell.invitations') },
+  ];
   const isAdminPanel = location.pathname.startsWith('/backoffice') || location.pathname.startsWith('/admin-panel');
   const isDiscoverRoute = location.pathname === '/discover';
   const isDarkMode = theme === 'dark';
   const { unreadCount } = useUnreadCountViewModel();
   const { viewMode, setViewMode } = useDiscoverViewMode();
+  const loginRequiredMessage = t('shell.login_required');
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -68,7 +68,7 @@ export default function AppShell() {
   return (
     <div className="shell">
       <a className="skip-link" href="#main-content">
-        Skip to main content
+        {t('shell.skip_to_content')}
       </a>
       <header className="shell-header">
         <div className="shell-header-inner">
@@ -79,7 +79,7 @@ export default function AppShell() {
           <nav
             id={PRIMARY_NAV_ID}
             className={`shell-nav ${menuOpen ? 'open' : ''}`}
-            aria-label="Primary navigation"
+            aria-label={t('shell.primary_navigation')}
           >
             {navItems.map((item) => (
               <NavLink
@@ -92,12 +92,12 @@ export default function AppShell() {
                 }
                 onClick={isLoggedIn ? closeMobileMenu : handleLockedAction}
                 aria-disabled={!isLoggedIn}
-                title={!isLoggedIn ? LOGIN_REQUIRED_MESSAGE : undefined}
+                title={!isLoggedIn ? loginRequiredMessage : undefined}
               >
                 {item.label}
                 {!isLoggedIn && (
                   <span className="shell-lock-tooltip" aria-hidden="true">
-                    {LOGIN_REQUIRED_MESSAGE}
+                    {loginRequiredMessage}
                   </span>
                 )}
               </NavLink>
@@ -106,14 +106,14 @@ export default function AppShell() {
 
           <div className="shell-header-right">
             {isDiscoverRoute && (
-              <div className="shell-view-toggle" role="group" aria-label="Discover view mode">
+              <div className="shell-view-toggle" role="group" aria-label={t('shell.discover_view_mode')}>
                 <button
                   type="button"
                   className={`shell-view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
                   onClick={() => setViewMode('list')}
                   aria-pressed={viewMode === 'list'}
-                  aria-label="Show events as a list"
-                  title="List view"
+                  aria-label={t('shell.show_list')}
+                  title={t('shell.list')}
                 >
                   <svg
                     className="shell-view-toggle-icon"
@@ -132,15 +132,15 @@ export default function AppShell() {
                     <line x1="3" y1="12" x2="3.01" y2="12" />
                     <line x1="3" y1="18" x2="3.01" y2="18" />
                   </svg>
-                  <span className="shell-view-toggle-label">List</span>
+                  <span className="shell-view-toggle-label">{t('shell.list')}</span>
                 </button>
                 <button
                   type="button"
                   className={`shell-view-toggle-btn ${viewMode === 'map' ? 'active' : ''}`}
                   onClick={() => setViewMode('map')}
                   aria-pressed={viewMode === 'map'}
-                  aria-label="Show events on a map"
-                  title="Map view"
+                  aria-label={t('shell.show_map')}
+                  title={t('shell.map')}
                 >
                   <svg
                     className="shell-view-toggle-icon"
@@ -156,7 +156,7 @@ export default function AppShell() {
                     <line x1="8" y1="2" x2="8" y2="18" />
                     <line x1="16" y1="6" x2="16" y2="22" />
                   </svg>
-                  <span className="shell-view-toggle-label">Map</span>
+                  <span className="shell-view-toggle-label">{t('shell.map')}</span>
                 </button>
               </div>
             )}
@@ -164,8 +164,8 @@ export default function AppShell() {
               type="button"
               className="shell-theme-btn"
               onClick={toggleTheme}
-              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-              title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={isDarkMode ? t('shell.switch_to_light_mode') : t('shell.switch_to_dark_mode')}
+              title={isDarkMode ? t('shell.switch_to_light_mode') : t('shell.switch_to_dark_mode')}
             >
               {isDarkMode ? (
                 <svg className="shell-theme-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -183,11 +183,11 @@ export default function AppShell() {
               className={`shell-bell-btn ${!isLoggedIn ? 'locked shell-locked-item' : ''}`}
               aria-label={
                 unreadCount > 0
-                  ? `Notifications, ${unreadCount} unread`
-                  : 'Notifications'
+                  ? t('shell.notifications_unread', { count: unreadCount })
+                  : t('shell.notifications')
               }
               aria-disabled={!isLoggedIn}
-              title={isLoggedIn ? 'Notifications' : LOGIN_REQUIRED_MESSAGE}
+              title={isLoggedIn ? t('shell.notifications') : loginRequiredMessage}
               onClick={!isLoggedIn ? handleLockedAction : undefined}
             >
               <svg
@@ -210,7 +210,7 @@ export default function AppShell() {
               )}
               {!isLoggedIn && (
                 <span className="shell-lock-tooltip" aria-hidden="true">
-                  {LOGIN_REQUIRED_MESSAGE}
+                  {loginRequiredMessage}
                 </span>
               )}
             </NavLink>
@@ -223,12 +223,12 @@ export default function AppShell() {
               }
               onClick={!isLoggedIn ? handleLockedAction : undefined}
               aria-disabled={!isLoggedIn}
-              title={!isLoggedIn ? LOGIN_REQUIRED_MESSAGE : undefined}
+              title={!isLoggedIn ? loginRequiredMessage : undefined}
             >
-              + Create Event
+              {t('shell.create_event')}
               {!isLoggedIn && (
                 <span className="shell-lock-tooltip" aria-hidden="true">
-                  {LOGIN_REQUIRED_MESSAGE}
+                  {loginRequiredMessage}
                 </span>
               )}
             </NavLink>
@@ -237,7 +237,7 @@ export default function AppShell() {
                 <svg className="shell-admin-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 3.5 18 6v5.2c0 3.9-2.4 7.4-6 8.8-3.6-1.4-6-4.9-6-8.8V6l6-2.5Z" />
                 </svg>
-                <span>Admin Panel</span>
+                <span>{t('shell.admin_panel')}</span>
               </NavLink>
             )}
             {isLoggedIn ? (
@@ -248,7 +248,7 @@ export default function AppShell() {
                     onClick={() => setUserMenuOpen((prev) => !prev)}
                     aria-haspopup="menu"
                     aria-expanded={userMenuOpen}
-                    aria-label="Open user menu"
+                    aria-label={t('shell.open_user_menu')}
                   >
                     <span className="shell-avatar">
                       <UserAvatar
@@ -269,7 +269,7 @@ export default function AppShell() {
                         onClick={() => setUserMenuOpen(false)}
                         role="menuitem"
                       >
-                        Profile
+                        {t('shell.profile')}
                       </NavLink>
                       <NavLink
                         to="/invitations"
@@ -277,7 +277,7 @@ export default function AppShell() {
                         onClick={() => setUserMenuOpen(false)}
                         role="menuitem"
                       >
-                        Invitations
+                        {t('shell.invitations')}
                       </NavLink>
                       <NavLink
                         to="/notifications"
@@ -285,7 +285,7 @@ export default function AppShell() {
                         onClick={() => setUserMenuOpen(false)}
                         role="menuitem"
                       >
-                        Notifications
+                        {t('shell.notifications')}
                       </NavLink>
                       <NavLink
                         to="/tickets"
@@ -293,14 +293,14 @@ export default function AppShell() {
                         onClick={() => setUserMenuOpen(false)}
                         role="menuitem"
                       >
-                        My Tickets
+                        {t('shell.my_tickets')}
                       </NavLink>
                       <button
                         className="shell-dropdown-item shell-dropdown-logout"
                         onClick={handleLogout}
                         role="menuitem"
                       >
-                        Sign Out
+                        {t('shell.sign_out')}
                       </button>
                     </div>
                   )}
@@ -308,10 +308,10 @@ export default function AppShell() {
             ) : (
               <div className="shell-auth-buttons">
                 <NavLink to="/login" className="shell-signin-btn">
-                  Sign In
+                  {t('shell.sign_in')}
                 </NavLink>
                 <NavLink to="/register" className="shell-signup-btn">
-                  Sign Up
+                  {t('shell.sign_up')}
                 </NavLink>
               </div>
             )}
@@ -320,7 +320,7 @@ export default function AppShell() {
               type="button"
               className="shell-hamburger"
               onClick={() => setMenuOpen((prev) => !prev)}
-              aria-label="Toggle navigation"
+              aria-label={t('shell.toggle_navigation')}
               aria-controls={PRIMARY_NAV_ID}
               aria-expanded={menuOpen}
             >
@@ -348,7 +348,7 @@ export default function AppShell() {
       </main>
 
       {isLoggedIn && (
-        <NavLink to="/events/create" className="shell-fab" aria-label="Create Event">
+        <NavLink to="/events/create" className="shell-fab" aria-label={t('shell.create_event')}>
           +
         </NavLink>
       )}

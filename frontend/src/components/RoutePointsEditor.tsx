@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AdvancedMarker,
   Map as GoogleMap,
@@ -98,6 +99,7 @@ export default function RoutePointsEditor({
   onMove,
   onUpdateLabel,
 }: RoutePointsEditorProps) {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const configured = isGoogleMapsConfigured();
@@ -167,7 +169,7 @@ export default function RoutePointsEditor({
         <input
           type="text"
           className={`field-input ${errorText ? 'has-error' : ''}`}
-          placeholder="Search a place to add a waypoint..."
+          placeholder={t('create_event.route_search_placeholder')}
           value={locationQuery}
           onChange={(e) => onSearch(e.target.value)}
           disabled={disabled}
@@ -193,7 +195,7 @@ export default function RoutePointsEditor({
       )}
 
       <p className="ce-route-hint">
-        Or click on the map to add a waypoint.
+        {t('create_event.route_click_hint')}
       </p>
 
       {/* Map */}
@@ -234,18 +236,20 @@ export default function RoutePointsEditor({
         </div>
       ) : (
         <div className="ce-route-map-placeholder">
-          Set <code>VITE_GOOGLE_MAPS_WEB_API_KEY</code> to enable the map for route creation.
+          {t('create_event.route_map_placeholder')}
         </div>
       )}
 
       {/* Waypoints list */}
       <div className="ce-route-list-header">
-        Waypoints {routePoints.length > 0 ? `(${routePoints.length})` : ''}
+        {routePoints.length > 0
+          ? t('create_event.waypoints_count', { count: routePoints.length })
+          : t('create_event.waypoints')}
       </div>
 
       {routePoints.length === 0 ? (
         <div className="ce-route-empty">
-          No waypoints yet. Add at least 2 to continue.
+          {t('create_event.route_empty')}
         </div>
       ) : (
         <div className="ce-route-waypoints">
@@ -275,8 +279,8 @@ export default function RoutePointsEditor({
                   className="ce-route-action-btn"
                   onClick={() => onMove(i, -1)}
                   disabled={i === 0 || disabled}
-                  aria-label="Move up"
-                  title="Move up"
+                  aria-label={t('create_event.move_up')}
+                  title={t('create_event.move_up')}
                 >
                   &#8593;
                 </button>
@@ -285,8 +289,8 @@ export default function RoutePointsEditor({
                   className="ce-route-action-btn"
                   onClick={() => onMove(i, 1)}
                   disabled={i === routePoints.length - 1 || disabled}
-                  aria-label="Move down"
-                  title="Move down"
+                  aria-label={t('create_event.move_down')}
+                  title={t('create_event.move_down')}
                 >
                   &#8595;
                 </button>
@@ -295,8 +299,8 @@ export default function RoutePointsEditor({
                   className="ce-route-action-btn ce-route-action-btn--danger"
                   onClick={() => onRemove(i)}
                   disabled={disabled}
-                  aria-label="Remove"
-                  title="Remove"
+                  aria-label={t('create_event.remove')}
+                  title={t('create_event.remove')}
                 >
                   &times;
                 </button>

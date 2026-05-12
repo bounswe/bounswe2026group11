@@ -14,6 +14,7 @@ import {
   validatePhoneNumber,
   validateBirthDate,
 } from '@/utils/validators';
+import i18n from '@/i18n';
 
 export type RegisterStep = 'details' | 'otp';
 
@@ -52,11 +53,11 @@ const INITIAL_FORM_DATA: RegisterFormData = {
 const OTP_ERROR_CODES = new Set(['invalid_otp', 'otp_attempts_exceeded']);
 
 function validateRequiredGender(gender: Gender): string | null {
-  return gender ? null : 'Gender is required.';
+  return gender ? null : i18n.t('validation.gender_required');
 }
 
 function validateRequiredBirthDate(date: string): string | null {
-  if (!date.trim()) return 'Birth date is required.';
+  if (!date.trim()) return i18n.t('validation.birth_date_required');
   return validateBirthDate(date);
 }
 
@@ -101,10 +102,10 @@ export function useRegisterViewModel() {
       });
       const taken: RegisterFormErrors = {};
       if (availability.email === 'TAKEN') {
-        taken.email = 'This email is already in use.';
+        taken.email = i18n.t('errors.email_in_use');
       }
       if (availability.username === 'TAKEN') {
-        taken.username = 'This username is already in use.';
+        taken.username = i18n.t('errors.username_in_use');
       }
       if (Object.keys(taken).length > 0) {
         setErrors((prev) => ({ ...prev, ...taken }));
@@ -117,7 +118,7 @@ export function useRegisterViewModel() {
       if (err instanceof ApiError) {
         setApiError(err.message);
       } else {
-        setApiError('An unexpected error occurred. Please try again.');
+        setApiError(i18n.t('errors.unexpected'));
       }
     } finally {
       setIsLoading(false);
@@ -151,7 +152,7 @@ export function useRegisterViewModel() {
         }
         setApiError(err.message);
       } else {
-        setApiError('An unexpected error occurred. Please try again.');
+        setApiError(i18n.t('errors.unexpected'));
       }
       return null;
     } finally {

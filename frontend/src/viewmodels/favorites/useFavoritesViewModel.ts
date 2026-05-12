@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getFavoriteEvents } from '@/services/eventService';
 import type { FavoriteEventItem } from '@/models/event';
 import { ApiError } from '@/services/api';
+import i18n from '@/i18n';
 
 export function useFavoritesViewModel(token: string | null) {
   const [items, setItems] = useState<FavoriteEventItem[]>([]);
@@ -20,7 +21,7 @@ export function useFavoritesViewModel(token: string | null) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('Failed to load favorites. Please try again.');
+        setError(i18n.t('errors.unexpected'));
       }
     } finally {
       setIsLoading(false);

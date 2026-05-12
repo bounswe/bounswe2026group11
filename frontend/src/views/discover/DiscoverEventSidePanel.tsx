@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { EventCoverImage } from '@/components/EventCoverImage';
 import { RatingWithCount } from '@/components/RatingWithCount';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -18,7 +20,7 @@ interface DiscoverEventSidePanelProps {
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString(i18n.resolvedLanguage, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -27,7 +29,7 @@ function formatDate(iso: string): string {
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString(undefined, {
+  return d.toLocaleTimeString(i18n.resolvedLanguage, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -51,9 +53,9 @@ function formatRange(startISO: string, endISO: string | null): string {
 function formatGender(g: string | null | undefined): string | null {
   if (!g) return null;
   const lower = g.toLowerCase();
-  if (lower === 'male' || lower === 'female' || lower === 'other') {
-    return lower.charAt(0).toUpperCase() + lower.slice(1);
-  }
+  if (lower === 'male') return i18n.t('auth.register.gender_options.male');
+  if (lower === 'female') return i18n.t('auth.register.gender_options.female');
+  if (lower === 'other') return i18n.t('auth.register.gender_options.other');
   return g;
 }
 
@@ -61,6 +63,7 @@ export default function DiscoverEventSidePanel({
   event,
   onClose,
 }: DiscoverEventSidePanelProps) {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -81,7 +84,7 @@ export default function DiscoverEventSidePanel({
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err instanceof ApiError ? err.message : 'Failed to load event details.');
+        setError(err instanceof ApiError ? err.message : t('errors.unexpected'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -89,7 +92,7 @@ export default function DiscoverEventSidePanel({
     return () => {
       cancelled = true;
     };
-  }, [event.id, token]);
+  }, [event.id, t, token]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -130,13 +133,13 @@ export default function DiscoverEventSidePanel({
     <aside
       className="dc-side-panel"
       role="dialog"
-      aria-label={`Event: ${title}`}
+      aria-label={t('home.event_preview_aria', { title })}
     >
       <button
         type="button"
         className="dc-side-panel-close"
         onClick={onClose}
-        aria-label="Close event preview"
+        aria-label={t('home.close_event_preview')}
       >
         ×
       </button>
@@ -174,11 +177,7 @@ export default function DiscoverEventSidePanel({
           <span
             className={`dc-side-panel-privacy dc-side-panel-privacy-${privacyLevel.toLowerCase()}`}
           >
-            {privacyLevel === 'PUBLIC'
-              ? 'Public'
-              : privacyLevel === 'PROTECTED'
-              ? 'Protected'
-              : 'Private'}
+            {t(`events.privacy.${privacyLevel}`)}
           </span>
         </div>
 
@@ -193,7 +192,7 @@ export default function DiscoverEventSidePanel({
               <span>
                 {address}
                 {isApprox && (
-                  <span className="dc-side-panel-fact-note"> · approximate area</span>
+                  <span className="dc-side-panel-fact-note"> · {t('home.approximate_area')}</span>
                 )}
               </span>
             </li>
@@ -201,16 +200,16 @@ export default function DiscoverEventSidePanel({
           <li className="dc-side-panel-fact">
             <span className="dc-side-panel-fact-icon" aria-hidden>👥</span>
             <span>
-              {approvedCount} going{capacity != null ? ` / ${capacity}` : ''}
+              {t('home.going', { count: approvedCount })}{capacity != null ? ` / ${capacity}` : ''}
             </span>
           </li>
           {(minAge != null || preferredGender) && (
             <li className="dc-side-panel-fact">
               <span className="dc-side-panel-fact-icon" aria-hidden>🛡️</span>
               <span>
-                {minAge != null && <>Age {minAge}+</>}
+                {minAge != null && <>{t('home.age_preference', { age: minAge })}</>}
                 {minAge != null && preferredGender && ' · '}
-                {preferredGender && <>{preferredGender} preferred</>}
+                {preferredGender && <>{t('home.gender_preferred', { gender: preferredGender })}</>}
               </span>
             </li>
           )}
@@ -218,7 +217,7 @@ export default function DiscoverEventSidePanel({
             <li className="dc-side-panel-fact">
               <span className="dc-side-panel-fact-icon" aria-hidden>♥</span>
               <span>
-                {favoriteCount} {favoriteCount === 1 ? 'favorite' : 'favorites'}
+                {t('home.favorite', { count: favoriteCount })}
               </span>
             </li>
           )}
@@ -239,7 +238,7 @@ export default function DiscoverEventSidePanel({
                 score={hostScore}
                 count={hostScoreCount}
                 className="dc-side-panel-host-score"
-                suffix="host score"
+                suffix={t('home.host_score_suffix')}
               />
             </div>
           </div>
@@ -261,7 +260,7 @@ export default function DiscoverEventSidePanel({
 
         {loading && (
           <p className="dc-side-panel-status" role="status">
-            Loading details…
+            {t('common.loading')}
           </p>
         )}
         {error && (
@@ -271,7 +270,7 @@ export default function DiscoverEventSidePanel({
         )}
 
         <Link to={`/events/${event.id}`} className="dc-side-panel-cta">
-          Go to event page &rarr;
+          {t('tickets.view_event_details')}
         </Link>
       </div>
     </aside>

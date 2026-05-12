@@ -4,6 +4,7 @@ import {
   verifyPasswordResetOtp,
   resetPassword,
 } from '@/services/authService';
+import i18n from '@/i18n';
 
 export type ForgotPasswordStep = 'request' | 'verify' | 'reset' | 'success';
 
@@ -29,11 +30,11 @@ export function useForgotPasswordViewModel() {
   const validateEmail = (): boolean => {
     setErrors({});
     if (!email) {
-      setErrors({ email: 'Email is required' });
+      setErrors({ email: i18n.t('validation.email_required') });
       return false;
     }
     if (!/\S+@\S+\.\S+/.test(email)) {
-      setErrors({ email: 'Please enter a valid email address' });
+      setErrors({ email: i18n.t('validation.email_invalid') });
       return false;
     }
     return true;
@@ -42,11 +43,11 @@ export function useForgotPasswordViewModel() {
   const validateOtp = (): boolean => {
     setErrors({});
     if (!otp) {
-      setErrors({ otp: 'Verification code is required' });
+      setErrors({ otp: i18n.t('validation.otp_required') });
       return false;
     }
     if (otp.length < 6) {
-      setErrors({ otp: 'Code must be at least 6 characters' });
+      setErrors({ otp: i18n.t('validation.otp_min_length') });
       return false;
     }
     return true;
@@ -56,13 +57,13 @@ export function useForgotPasswordViewModel() {
     setErrors({});
     const newErrors: FieldErrors = {};
     if (!newPassword) {
-      newErrors.newPassword = 'Password is required';
+      newErrors.newPassword = i18n.t('validation.password_required');
     } else if (newPassword.length < 8) {
-      newErrors.newPassword = 'Password must be at least 8 characters';
+      newErrors.newPassword = i18n.t('validation.password_min');
     }
 
     if (newPassword !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = i18n.t('validation.passwords_mismatch');
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -84,7 +85,7 @@ export function useForgotPasswordViewModel() {
     } catch (err: any) {
       setApiError(
         err.response?.data?.error?.message ||
-          'Failed to send code. Please try again.',
+          i18n.t('errors.send_code_failed'),
       );
       return false;
     } finally {
@@ -105,7 +106,7 @@ export function useForgotPasswordViewModel() {
     } catch (err: any) {
       setApiError(
         err.response?.data?.error?.message ||
-          'Invalid verification code. Please try again.',
+          i18n.t('errors.invalid_verification_code'),
       );
       return false;
     } finally {
@@ -129,7 +130,7 @@ export function useForgotPasswordViewModel() {
     } catch (err: any) {
       setApiError(
         err.response?.data?.error?.message ||
-          'Failed to reset password. Please try again.',
+          i18n.t('errors.reset_password_failed'),
       );
       return false;
     } finally {

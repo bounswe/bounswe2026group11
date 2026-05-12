@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { UserAvatar } from '@/components/UserAvatar';
 import type { EventComment, EventDetailResponse } from '@/models/event';
 import { useEventCommentsViewModel } from '@/viewmodels/event/useEventCommentsViewModel';
+import i18n from '@/i18n';
 
 const COMMENT_MAX_LENGTH = 1000;
 const REVIEW_MIN_LENGTH = 1;
@@ -21,17 +23,18 @@ export interface EventInteractionPanelProps {
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
   const now = Date.now();
-  const seconds = Math.max(1, Math.floor((now - then) / 1000));
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  return new Date(iso).toLocaleDateString();
+  const diffSeconds = Math.round((then - now) / 1000);
+  const rtf = new Intl.RelativeTimeFormat(i18n.resolvedLanguage, { numeric: 'auto' });
+  if (Math.abs(diffSeconds) < 60) return rtf.format(diffSeconds, 'second');
+  const diffMinutes = Math.round(diffSeconds / 60);
+  if (Math.abs(diffMinutes) < 60) return rtf.format(diffMinutes, 'minute');
+  const diffHours = Math.round(diffMinutes / 60);
+  if (Math.abs(diffHours) < 24) return rtf.format(diffHours, 'hour');
+  const diffDays = Math.round(diffHours / 24);
+  if (Math.abs(diffDays) < 30) return rtf.format(diffDays, 'day');
+  const diffMonths = Math.round(diffDays / 30);
+  if (Math.abs(diffMonths) < 12) return rtf.format(diffMonths, 'month');
+  return new Date(iso).toLocaleDateString(i18n.resolvedLanguage);
 }
 
 function getDisplayName(user: { display_name: string | null; username: string }): string {
@@ -50,17 +53,18 @@ interface ReviewStarsInputProps {
 }
 
 function ReviewStarsInput({ value, onChange, disabled }: ReviewStarsInputProps) {
+  const { t } = useTranslation();
   const [hovered, setHovered] = useState<number | null>(null);
   const active = hovered ?? value;
   return (
-    <div className="ed-comments-stars-input" role="radiogroup" aria-label="Select a star rating">
+    <div className="ed-comments-stars-input" role="radiogroup" aria-label={t('interaction.select_star_rating')}>
       {[1, 2, 3, 4, 5].map((star) => (
         <button
           key={star}
           type="button"
           role="radio"
           aria-checked={value === star}
-          aria-label={`${star} star${star === 1 ? '' : 's'}`}
+          aria-label={t('interaction.star_rating_label', { count: star })}
           className={`ed-comments-star-btn ${active >= star ? 'is-active' : ''}`}
           onClick={() => onChange(star)}
           onMouseEnter={() => setHovered(star)}
@@ -83,6 +87,7 @@ interface CommentItemProps {
 }
 
 function CommentAuthorBlock({ comment, hostUserId, variant }: CommentItemProps) {
+  const { t } = useTranslation();
   const isHost = comment.user.id === hostUserId;
   return (
     <div className="ed-comments-item-header">
@@ -96,7 +101,7 @@ function CommentAuthorBlock({ comment, hostUserId, variant }: CommentItemProps) 
       <div className="ed-comments-item-author">
         <div className="ed-comments-item-author-line">
           <span className="ed-comments-item-name">{getDisplayName(comment.user)}</span>
-          {isHost && <span className="ed-comments-host-badge">Host</span>}
+          {isHost && <span className="ed-comments-host-badge">{t('interaction.host_badge')}</span>}
         </div>
         <span className="ed-comments-item-meta">
           @{comment.user.username} · {timeAgo(comment.created_at)}
@@ -121,6 +126,7 @@ function DiscussionCommentNode({
   canReply,
   onRequireSignIn,
 }: DiscussionCommentNodeProps) {
+  const { t } = useTranslation();
   const repliesState = vm.repliesByCommentId[comment.id];
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -151,10 +157,10 @@ function DiscussionCommentNode({
   };
 
   const repliesToggleLabel = expanded
-    ? 'Hide replies'
+    ? t('interaction.hide_replies')
     : replyCount === 0
-      ? 'Show replies'
-      : `View ${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`;
+      ? t('interaction.show_replies')
+      : t('interaction.view_replies', { count: replyCount });
 
   return (
     <li className="ed-comments-item ed-comments-item-top">
@@ -169,7 +175,7 @@ function DiscussionCommentNode({
             onClick={() => vm.toggleReplies(comment)}
             disabled={repliesState?.loading}
           >
-            {repliesState?.loading && !expanded ? 'Loading…' : repliesToggleLabel}
+            {repliesState?.loading && !expanded ? t('common.loading') : repliesToggleLabel}
           </button>
         )}
         <button
@@ -178,14 +184,14 @@ function DiscussionCommentNode({
           onClick={handleReplyClick}
           disabled={submittingThisReply}
         >
-          {showReplyForm ? 'Cancel reply' : 'Reply'}
+          {showReplyForm ? t('interaction.cancel_reply') : t('interaction.reply')}
         </button>
       </div>
 
       {expanded && (
         <ul className="ed-comments-replies">
           {replies.length === 0 && !repliesState?.loading && replyCount === 0 && (
-            <li className="ed-comments-empty-inline">No replies yet.</li>
+            <li className="ed-comments-empty-inline">{t('interaction.no_replies')}</li>
           )}
           {replies.map((reply) => (
             <li key={reply.id} className="ed-comments-item ed-comments-item-reply">
@@ -206,7 +212,7 @@ function DiscussionCommentNode({
                 onClick={() => vm.loadMoreReplies(comment.id)}
                 disabled={repliesState.loading}
               >
-                {repliesState.loading ? 'Loading…' : 'Load more replies'}
+                {repliesState.loading ? t('common.loading') : t('interaction.load_more_replies')}
               </button>
             </li>
           )}
@@ -219,7 +225,7 @@ function DiscussionCommentNode({
             className="ed-comments-textarea"
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
-            placeholder="Write a reply…"
+            placeholder={t('interaction.write_reply_placeholder')}
             rows={2}
             maxLength={COMMENT_MAX_LENGTH}
             disabled={submittingThisReply}
@@ -231,7 +237,7 @@ function DiscussionCommentNode({
                 type="button"
                 className="ed-comments-error-dismiss"
                 onClick={() => vm.dismissReplySubmitError()}
-                aria-label="Dismiss error"
+                aria-label={t('notifications.dismiss_error')}
               >
                 ×
               </button>
@@ -251,7 +257,7 @@ function DiscussionCommentNode({
                 }}
                 disabled={submittingThisReply}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -259,7 +265,7 @@ function DiscussionCommentNode({
                 onClick={handleReplySubmit}
                 disabled={submittingThisReply || replyText.trim().length === 0}
               >
-                {submittingThisReply ? <span className="spinner" /> : 'Post reply'}
+                {submittingThisReply ? <span className="spinner" /> : t('interaction.post_reply')}
               </button>
             </div>
           </div>
@@ -275,6 +281,7 @@ interface ReviewItemProps {
 }
 
 function ReviewItem({ comment, hostUserId }: ReviewItemProps) {
+  const { t } = useTranslation();
   return (
     <li className="ed-comments-item ed-comments-item-review">
       <CommentAuthorBlock comment={comment} hostUserId={hostUserId} variant="top-level" />
@@ -298,7 +305,7 @@ function ReviewItem({ comment, hostUserId }: ReviewItemProps) {
         >
           <img
             src={comment.image_url}
-            alt={`Memory shared by ${getDisplayName(comment.user)}`}
+            alt={t('interaction.selected_memory_preview')}
             className="ed-comments-review-image"
             loading="lazy"
           />
@@ -315,6 +322,7 @@ interface DiscussionSectionProps {
 }
 
 function DiscussionSection({ event, vm, isAuthenticated }: DiscussionSectionProps) {
+  const { t } = useTranslation();
   const [composerText, setComposerText] = useState('');
 
   const writesAllowed = (() => {
@@ -328,12 +336,12 @@ function DiscussionSection({ event, vm, isAuthenticated }: DiscussionSectionProp
   })();
 
   const composerDisabledReason = (() => {
-    if (event.privacy_level === 'PRIVATE') return 'Discussion is unavailable for private events.';
+    if (event.privacy_level === 'PRIVATE') return t('interaction.discussion_private_unavailable');
     if (event.status === 'COMPLETED')
-      return 'This event has ended. Past discussion is read-only — share your experience in the Review tab.';
-    if (event.status === 'CANCELED') return 'This event was canceled. Discussion is closed.';
+      return t('interaction.discussion_completed_readonly');
+    if (event.status === 'CANCELED') return t('interaction.discussion_canceled_closed');
     if (event.status === 'IN_PROGRESS' && !writesAllowed)
-      return 'Only the host and joined participants can post during the event.';
+      return t('interaction.discussion_in_progress_restricted');
     if (!isAuthenticated) return null;
     return null;
   })();
@@ -356,8 +364,8 @@ function DiscussionSection({ event, vm, isAuthenticated }: DiscussionSectionProp
             onChange={(e) => setComposerText(e.target.value)}
             placeholder={
               event.status === 'IN_PROGRESS'
-                ? 'Share an update from the event…'
-                : 'Ask a question or share something with attendees…'
+                ? t('interaction.discussion_placeholder_live')
+                : t('interaction.discussion_placeholder_default')
             }
             rows={3}
             maxLength={COMMENT_MAX_LENGTH}
@@ -371,7 +379,7 @@ function DiscussionSection({ event, vm, isAuthenticated }: DiscussionSectionProp
                 type="button"
                 className="ed-comments-error-dismiss"
                 onClick={vm.dismissDiscussionSubmitError}
-                aria-label="Dismiss error"
+                aria-label={t('notifications.dismiss_error')}
               >
                 ×
               </button>
@@ -388,15 +396,15 @@ function DiscussionSection({ event, vm, isAuthenticated }: DiscussionSectionProp
               disabled={vm.discussionSubmitLoading || composerCount === 0}
               data-testid="ed-discussion-submit"
             >
-              {vm.discussionSubmitLoading ? <span className="spinner" /> : 'Post'}
+              {vm.discussionSubmitLoading ? <span className="spinner" /> : t('interaction.post')}
             </button>
           </div>
         </div>
       ) : !isAuthenticated ? (
         <div className="ed-comments-callout">
-          <span>Sign in to join the discussion.</span>
+          <span>{t('interaction.sign_in_discussion')}</span>
           <Link to="/login" className="ed-comments-link">
-            Sign in
+            {t('shell.sign_in')}
           </Link>
         </div>
       ) : composerDisabledReason ? (
@@ -409,18 +417,18 @@ function DiscussionSection({ event, vm, isAuthenticated }: DiscussionSectionProp
       {vm.status === 'loading' ? (
         <div className="ed-comments-state">
           <span className="spinner" />
-          <p>Loading discussion…</p>
+          <p>{t('interaction.loading_discussion')}</p>
         </div>
       ) : vm.status === 'error' ? (
         <div className="ed-comments-state ed-comments-state-error">
-          <p>{vm.errorMessage ?? 'Failed to load discussion.'}</p>
+          <p>{vm.errorMessage ?? t('interaction.failed_discussion')}</p>
           <button type="button" className="ed-comments-secondary-btn" onClick={vm.retry}>
-            Try again
+            {t('event_detail.try_again')}
           </button>
         </div>
       ) : vm.discussionComments.length === 0 ? (
         <div className="ed-comments-empty">
-          <p>No comments yet. Start the conversation!</p>
+          <p>{t('interaction.empty_discussion')}</p>
         </div>
       ) : (
         <>
@@ -445,7 +453,7 @@ function DiscussionSection({ event, vm, isAuthenticated }: DiscussionSectionProp
               onClick={vm.loadMoreDiscussion}
               disabled={vm.discussionLoadingMore}
             >
-              {vm.discussionLoadingMore ? 'Loading…' : 'Load more comments'}
+              {vm.discussionLoadingMore ? t('common.loading') : t('interaction.load_more_comments')}
             </button>
           )}
         </>
@@ -461,6 +469,7 @@ interface ReviewSectionProps {
 }
 
 function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
+  const { t } = useTranslation();
   const [rating, setRating] = useState(0);
   const [message, setMessage] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -495,11 +504,11 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
       return;
     }
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setImageError('Please choose a JPEG, PNG, or WebP image.');
+      setImageError(t('interaction.image_type_error'));
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      setImageError('Image must be 8MB or smaller.');
+      setImageError(t('interaction.image_size_error'));
       return;
     }
     setImageFile(file);
@@ -528,20 +537,20 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
     <div className="ed-comments-tab-content" data-testid="ed-review-section">
       {!isAuthenticated ? (
         <div className="ed-comments-callout">
-          <span>Sign in to leave a review for this event.</span>
+          <span>{t('interaction.sign_in_review')}</span>
           <Link to="/login" className="ed-comments-link">
-            Sign in
+            {t('shell.sign_in')}
           </Link>
         </div>
       ) : !isVerifiedAttendee ? (
         <div className="ed-comments-callout ed-comments-callout-muted">
           <span>
-            Only verified attendees of this event can leave a review and share memories.
+            {t('interaction.verified_attendee_only')}
           </span>
         </div>
       ) : (
         <div className="ed-comments-composer ed-comments-review-composer">
-          <h3 className="ed-comments-composer-title">Share your experience</h3>
+          <h3 className="ed-comments-composer-title">{t('interaction.share_experience')}</h3>
           <div className="ed-comments-review-rating-row">
             <ReviewStarsInput
               value={rating}
@@ -551,14 +560,14 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
             <span
               className={`ed-comments-review-rating-summary ${rating > 0 ? 'is-selected' : ''}`}
             >
-              {rating > 0 ? `${rating}/5` : 'Tap to rate'}
+              {rating > 0 ? `${rating}/5` : t('interaction.tap_to_rate')}
             </span>
           </div>
           <textarea
             className="ed-comments-textarea"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="What was memorable about this event?"
+            placeholder={t('interaction.review_placeholder')}
             rows={4}
             maxLength={COMMENT_MAX_LENGTH}
             disabled={vm.reviewSubmitLoading}
@@ -595,7 +604,7 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
               <div className="ed-comments-image-preview">
                 <img
                   src={imagePreviewUrl}
-                  alt="Selected memory preview"
+                  alt={t('interaction.selected_memory_preview')}
                   className="ed-comments-image-preview-img"
                 />
                 <div className="ed-comments-image-preview-actions">
@@ -605,7 +614,7 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
                     onClick={() => fileInputRef.current?.click()}
                     disabled={vm.reviewSubmitLoading}
                   >
-                    Replace image
+                    {t('interaction.replace_image')}
                   </button>
                   <button
                     type="button"
@@ -616,7 +625,7 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
                     }}
                     disabled={vm.reviewSubmitLoading}
                   >
-                    Remove
+                    {t('common.remove')}
                   </button>
                 </div>
               </div>
@@ -631,8 +640,8 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
                   📷
                 </span>
                 <span className="ed-comments-image-drop-text">
-                  <strong>Add a memory</strong>
-                  <span>Click to upload or drag &amp; drop a photo (optional)</span>
+                  <strong>{t('interaction.add_memory')}</strong>
+                  <span>{t('interaction.add_memory_body')}</span>
                 </span>
               </button>
             )}
@@ -645,7 +654,7 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
                 type="button"
                 className="ed-comments-error-dismiss"
                 onClick={() => setImageError(null)}
-                aria-label="Dismiss error"
+                aria-label={t('notifications.dismiss_error')}
               >
                 ×
               </button>
@@ -659,7 +668,7 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
                 type="button"
                 className="ed-comments-error-dismiss"
                 onClick={vm.dismissReviewSubmitError}
-                aria-label="Dismiss error"
+                aria-label={t('notifications.dismiss_error')}
               >
                 ×
               </button>
@@ -673,7 +682,7 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
                 type="button"
                 className="ed-comments-error-dismiss"
                 onClick={vm.dismissReviewSubmitSuccess}
-                aria-label="Dismiss"
+                aria-label={t('common.close')}
               >
                 ×
               </button>
@@ -691,7 +700,7 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
               disabled={submitDisabled}
               data-testid="ed-review-submit"
             >
-              {vm.reviewSubmitLoading ? <span className="spinner" /> : 'Submit review'}
+              {vm.reviewSubmitLoading ? <span className="spinner" /> : t('interaction.submit_review')}
             </button>
           </div>
         </div>
@@ -700,18 +709,18 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
       {vm.status === 'loading' ? (
         <div className="ed-comments-state">
           <span className="spinner" />
-          <p>Loading reviews…</p>
+          <p>{t('interaction.loading_reviews')}</p>
         </div>
       ) : vm.status === 'error' ? (
         <div className="ed-comments-state ed-comments-state-error">
-          <p>{vm.errorMessage ?? 'Failed to load reviews.'}</p>
+          <p>{vm.errorMessage ?? t('interaction.failed_reviews')}</p>
           <button type="button" className="ed-comments-secondary-btn" onClick={vm.retry}>
-            Try again
+            {t('event_detail.try_again')}
           </button>
         </div>
       ) : vm.reviewComments.length === 0 ? (
         <div className="ed-comments-empty">
-          <p>No reviews yet. Be the first to share your experience.</p>
+          <p>{t('interaction.empty_reviews')}</p>
         </div>
       ) : (
         <>
@@ -727,7 +736,7 @@ function ReviewSection({ event, vm, isAuthenticated }: ReviewSectionProps) {
               onClick={vm.loadMoreReviews}
               disabled={vm.reviewLoadingMore}
             >
-              {vm.reviewLoadingMore ? 'Loading…' : 'Load more reviews'}
+              {vm.reviewLoadingMore ? t('common.loading') : t('interaction.load_more_reviews')}
             </button>
           )}
         </>
@@ -741,6 +750,7 @@ export default function EventInteractionPanel({
   token,
   isAuthenticated,
 }: EventInteractionPanelProps) {
+  const { t } = useTranslation();
   const vm = useEventCommentsViewModel(event.id, token);
 
   // Discussion appears for ACTIVE/IN_PROGRESS/COMPLETED. Hide entire panel for CANCELED or PRIVATE.
@@ -767,11 +777,11 @@ export default function EventInteractionPanel({
   const showTabs = discussionVisible && reviewVisible;
 
   return (
-    <section className="ed-section ed-comments-section" aria-label="Event interaction">
+    <section className="ed-section ed-comments-section" aria-label={t('interaction.event_interaction')}>
       <div className="ed-comments-header">
-        <h2 className="ed-section-title ed-comments-title">Community</h2>
+        <h2 className="ed-section-title ed-comments-title">{t('interaction.community')}</h2>
         {showTabs ? (
-          <div className="ed-comments-tabs" role="tablist" aria-label="Discussion or review">
+          <div className="ed-comments-tabs" role="tablist" aria-label={t('interaction.discussion_or_review')}>
             <button
               type="button"
               role="tab"
@@ -780,7 +790,7 @@ export default function EventInteractionPanel({
               onClick={() => setActiveTab('DISCUSSION')}
               data-testid="ed-tab-discussion"
             >
-              Discussion
+              {t('interaction.discussion')}
             </button>
             <button
               type="button"
@@ -790,12 +800,12 @@ export default function EventInteractionPanel({
               onClick={() => setActiveTab('REVIEW')}
               data-testid="ed-tab-review"
             >
-              Reviews
+              {t('interaction.reviews')}
             </button>
           </div>
         ) : (
           <span className="ed-comments-single-tab-label">
-            {discussionVisible ? 'Discussion' : 'Reviews'}
+            {discussionVisible ? t('interaction.discussion') : t('interaction.reviews')}
           </span>
         )}
       </div>

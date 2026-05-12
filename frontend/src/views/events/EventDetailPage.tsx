@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEventDetailViewModel } from '@/viewmodels/event/useEventDetailViewModel';
 import type {
@@ -20,6 +22,7 @@ import type {
 import { EventCoverImage } from '@/components/EventCoverImage';
 import { RatingWithCount } from '@/components/RatingWithCount';
 import { UserAvatar } from '@/components/UserAvatar';
+import { getEventCategoryPresentation } from '@/utils/eventCategoryPresentation';
 import { getEventLifecyclePresentation, getEventStatusPresentation } from '@/utils/eventStatus';
 import { getApproximateLocationText } from '@/utils/locationApproximation';
 import { formatEventLocation } from '@/utils/eventLocation';
@@ -41,41 +44,42 @@ const FEEDBACK_MIN_LENGTH = 10;
 const FEEDBACK_MAX_LENGTH = 100;
 const REPORT_MESSAGE_MAX_LENGTH = 1000;
 
-const REPORT_REASONS: Array<{ value: EventReportCategory; label: string; hint: string }> = [
-  {
-    value: 'SPAM_OR_SCAM',
-    label: 'Spam',
-    hint: 'Promotional, misleading, or scam-like event content.',
-  },
-  {
-    value: 'INAPPROPRIATE_CONTENT',
-    label: 'Inappropriate',
-    hint: 'Offensive, explicit, or otherwise inappropriate event content.',
-  },
-  {
-    value: 'HARASSMENT',
-    label: 'Harassment',
-    hint: 'Targeted abuse, threats, or harassing behavior.',
-  },
-];
+function getReportReasons(): Array<{ value: EventReportCategory; label: string; hint: string }> {
+  return [
+    {
+      value: 'SPAM_OR_SCAM',
+      label: i18n.t('event_detail.report_reasons.SPAM_OR_SCAM.label'),
+      hint: i18n.t('event_detail.report_reasons.SPAM_OR_SCAM.hint'),
+    },
+    {
+      value: 'INAPPROPRIATE_CONTENT',
+      label: i18n.t('event_detail.report_reasons.INAPPROPRIATE_CONTENT.label'),
+      hint: i18n.t('event_detail.report_reasons.INAPPROPRIATE_CONTENT.hint'),
+    },
+    {
+      value: 'HARASSMENT',
+      label: i18n.t('event_detail.report_reasons.HARASSMENT.label'),
+      hint: i18n.t('event_detail.report_reasons.HARASSMENT.hint'),
+    },
+  ];
+}
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, {
+  return new Intl.DateTimeFormat(i18n.resolvedLanguage, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  }) + ' at ' + d.toLocaleTimeString(undefined, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  });
+  }).format(d);
 }
 
 function formatShortDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString(i18n.resolvedLanguage, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -106,32 +110,44 @@ function formatTitleCaseValue(value: string): string {
     .join(' ');
 }
 
+function formatGenderValue(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  const labels: Record<string, string> = {
+    male: i18n.t('auth.register.gender_options.male'),
+    female: i18n.t('auth.register.gender_options.female'),
+    other: i18n.t('auth.register.gender_options.other'),
+    prefer_not_to_say: i18n.t('auth.register.gender_options.prefer_not_to_say'),
+  };
+  return labels[normalized] ?? formatTitleCaseValue(value);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function formatConstraintType(value: unknown): string {
-  if (typeof value !== 'string' || value.trim() === '') return 'Requirement';
+  if (typeof value !== 'string' || value.trim() === '') return i18n.t('event_detail.requirements');
   const normalized = value.trim().toUpperCase();
   const labels: Record<string, string> = {
-    AGE: 'Age',
-    MINIMUM_AGE: 'Minimum age',
-    MAXIMUM_AGE: 'Maximum age',
-    GENDER: 'Gender',
-    PREFERRED_GENDER: 'Preferred gender',
-    CAPACITY: 'Capacity',
-    EQUIPMENT: 'Equipment',
-    EXPERIENCE: 'Experience',
-    SKILL: 'Skill',
-    ACCESSIBILITY: 'Accessibility',
-    CUSTOM: 'Other',
-    OTHER: 'Other',
+    AGE: i18n.t('event_detail.minimum_age'),
+    MINIMUM_AGE: i18n.t('event_detail.minimum_age'),
+    MAXIMUM_AGE: i18n.t('event_detail.maximum_age', { defaultValue: 'Maximum Age' }),
+    GENDER: i18n.t('event_detail.preferred_gender'),
+    PREFERRED_GENDER: i18n.t('event_detail.preferred_gender'),
+    CAPACITY: i18n.t('event_detail.capacity'),
+    EQUIPMENT: i18n.t('public_profile.equipment_title'),
+    EXPERIENCE: i18n.t('event_detail.experience', { defaultValue: 'Experience' }),
+    SKILL: i18n.t('event_detail.skill', { defaultValue: 'Skill' }),
+    ACCESSIBILITY: i18n.t('event_detail.accessibility', { defaultValue: 'Accessibility' }),
+    CUSTOM: i18n.t('event_detail.other', { defaultValue: 'Other' }),
+    OTHER: i18n.t('event_detail.other', { defaultValue: 'Other' }),
   };
   return labels[normalized] ?? formatTitleCaseValue(normalized);
 }
 
 function formatConstraintList(value: unknown): string {
-  if (!Array.isArray(value) || value.length === 0) return 'None';
+  if (!Array.isArray(value) || value.length === 0) return i18n.t('event_detail.none');
   return value
     .map((item) => {
       if (isRecord(item)) {
@@ -145,42 +161,51 @@ function formatConstraintList(value: unknown): string {
 }
 
 function formatHistoryLocation(value: unknown): string {
-  if (!isRecord(value)) return value == null ? 'Not set' : String(value);
+  if (!isRecord(value)) return value == null ? i18n.t('common.not_set') : String(value);
   const type = typeof value.type === 'string' ? value.type : null;
   const address = typeof value.address === 'string' && value.address.trim() ? value.address : null;
   if (type === 'ROUTE') {
     const routePoints = Array.isArray(value.route_points) ? value.route_points.length : 0;
-    return [address, routePoints ? `${routePoints} route point${routePoints === 1 ? '' : 's'}` : null]
+    return [address, routePoints ? i18n.t('event_detail.route_points_count', { count: routePoints }) : null]
       .filter(Boolean)
-      .join(' · ') || 'Route';
+      .join(' · ') || i18n.t('create_event.route');
   }
   const point = isRecord(value.point) ? value.point : null;
   const lat = typeof point?.lat === 'number' ? point.lat : null;
   const lon = typeof point?.lon === 'number' ? point.lon : null;
   return [address, lat != null && lon != null ? `${lat.toFixed(4)}, ${lon.toFixed(4)}` : null]
     .filter(Boolean)
-    .join(' · ') || 'Point location';
+    .join(' · ') || i18n.t('event_detail.point_location');
 }
 
 function formatDiffValue(field: string, value: unknown): string {
-  if (value == null) return field === 'capacity' ? 'Unlimited' : 'Not set';
+  if (value == null) return field === 'capacity' ? i18n.t('common.unlimited') : i18n.t('common.not_set');
   if (field === 'start_time' || field === 'end_time') {
     return typeof value === 'string' ? formatDateTime(value) : String(value);
   }
   if (field === 'location') return formatHistoryLocation(value);
   if (field === 'constraints') return formatConstraintList(value);
   if (field === 'privacy_level' || field === 'preferred_gender' || field === 'status') {
+    if (field === 'preferred_gender') return formatGenderValue(typeof value === 'string' ? value : null) ?? i18n.t('common.not_set');
+    if (field === 'privacy_level') {
+      return typeof value === 'string'
+        ? i18n.t(`events.privacy.${value}`, { defaultValue: formatTitleCaseValue(value) })
+        : String(value);
+    }
+    if (field === 'status') {
+      return typeof value === 'string' ? getEventStatusPresentation(value).label : String(value);
+    }
     return typeof value === 'string' ? formatTitleCaseValue(value) : String(value);
   }
-  if (field === 'capacity') return typeof value === 'number' ? `${value} participants` : String(value);
+  if (field === 'capacity') return typeof value === 'number' ? i18n.t('event_detail.participants_metric', { count: value }) : String(value);
   if (field === 'minimum_age') return typeof value === 'number' ? `${value}+` : String(value);
-  if (field === 'maximum_age') return typeof value === 'number' ? `Up to ${value}` : String(value);
+  if (field === 'maximum_age') return typeof value === 'number' ? i18n.t('event_detail.up_to', { defaultValue: `Up to ${value}`, value }) : String(value);
   if (field === 'category' || field === 'category_id') {
     if (isRecord(value) && typeof value.name === 'string') return value.name;
     return String(value);
   }
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-  if (typeof value === 'string') return value.trim() || 'Not set';
+  if (typeof value === 'boolean') return value ? i18n.t('common.yes') : i18n.t('common.no');
+  if (typeof value === 'string') return value.trim() || i18n.t('common.not_set');
   if (typeof value === 'number') return String(value);
   try {
     return JSON.stringify(value);
@@ -191,19 +216,19 @@ function formatDiffValue(field: string, value: unknown): string {
 
 function getChangeFieldLabel(field: string): string {
   const labels: Record<string, string> = {
-    title: 'Title',
-    description: 'Description',
-    category: 'Category',
-    category_id: 'Category',
-    location: 'Location or route',
-    start_time: 'Start time',
-    end_time: 'End time',
-    privacy_level: 'Privacy',
-    capacity: 'Capacity',
-    minimum_age: 'Minimum age',
-    maximum_age: 'Maximum age',
-    preferred_gender: 'Preferred gender',
-    constraints: 'Participation requirements',
+    title: i18n.t('create_event.title'),
+    description: i18n.t('event_detail.description'),
+    category: i18n.t('create_event.category'),
+    category_id: i18n.t('create_event.category'),
+    location: i18n.t('event_detail.location'),
+    start_time: i18n.t('edit_event.start_time'),
+    end_time: i18n.t('edit_event.end_time'),
+    privacy_level: i18n.t('event_detail.privacy'),
+    capacity: i18n.t('event_detail.capacity'),
+    minimum_age: i18n.t('event_detail.minimum_age'),
+    maximum_age: i18n.t('event_detail.maximum_age', { defaultValue: 'Maximum Age' }),
+    preferred_gender: i18n.t('event_detail.preferred_gender'),
+    constraints: i18n.t('edit_event.requirements'),
   };
   return labels[field] ?? formatTitleCaseValue(field);
 }
@@ -216,7 +241,7 @@ function VersionChangeValues({ change }: { change: EventVersionChange }) {
   return (
     <div className={`ed-version-values ${isConstraintField ? 'ed-version-values-constraints' : ''}`}>
       <div>
-        <span>Before</span>
+        <span>{i18n.t('event_detail.before')}</span>
         <p>{beforeValue}</p>
       </div>
       <span className="ed-version-flow-arrow" aria-hidden>
@@ -226,7 +251,7 @@ function VersionChangeValues({ change }: { change: EventVersionChange }) {
         </svg>
       </span>
       <div>
-        <span>Now</span>
+        <span>{i18n.t('event_detail.now')}</span>
         <p>{nowValue}</p>
       </div>
     </div>
@@ -242,7 +267,7 @@ function VersionChangeList({ changes, compact = false }: { changes: EventVersion
           <li key={`${change.field}-${index}`} className="ed-version-change">
             <div className="ed-version-change-title">
               <strong>{getChangeFieldLabel(change.field)}</strong>
-              {isCritical && <span>Attendance impact</span>}
+              {isCritical && <span>{i18n.t('event_detail.attendance_impact')}</span>}
             </div>
             <VersionChangeValues change={change} />
           </li>
@@ -257,9 +282,9 @@ function summarizeChangedFields(changedFields: string[]): string[] {
   const add = (summary: string) => {
     if (!summaries.includes(summary)) summaries.push(summary);
   };
-  if (changedFields.includes('start_time') || changedFields.includes('end_time')) add('Time changed');
-  if (changedFields.includes('location')) add('Location or route changed');
-  if (changedFields.includes('privacy_level')) add('Privacy changed');
+  if (changedFields.includes('start_time') || changedFields.includes('end_time')) add(i18n.t('event_detail.time_changed'));
+  if (changedFields.includes('location')) add(i18n.t('event_detail.location_changed'));
+  if (changedFields.includes('privacy_level')) add(i18n.t('event_detail.privacy_changed'));
   if (
     changedFields.includes('capacity') ||
     changedFields.includes('minimum_age') ||
@@ -267,12 +292,14 @@ function summarizeChangedFields(changedFields: string[]): string[] {
     changedFields.includes('preferred_gender') ||
     changedFields.includes('constraints')
   ) {
-    add('Participation rules changed');
+    add(i18n.t('event_detail.participation_rules_changed'));
   }
   changedFields.forEach((field) => {
-    if (!ATTENDANCE_CRITICAL_FIELDS.has(field)) add(`${getChangeFieldLabel(field)} changed`);
+    if (!ATTENDANCE_CRITICAL_FIELDS.has(field)) {
+      add(i18n.t('event_detail.generic_field_changed', { field: getChangeFieldLabel(field) }));
+    }
   });
-  return summaries.length > 0 ? summaries : ['Event details changed'];
+  return summaries.length > 0 ? summaries : [i18n.t('event_detail.event_details_changed')];
 }
 
 function getViewerParticipationState(event: EventDetailResponse): 'JOINED' | 'PENDING' | 'INVITED' | 'NONE' | 'LEAVED' | 'CANCELED' {
@@ -297,11 +324,11 @@ function getFeedbackValidationMessage(message: string): string | null {
   }
 
   if (trimmed.length < FEEDBACK_MIN_LENGTH) {
-    return `Feedback must be at least ${FEEDBACK_MIN_LENGTH} characters.`;
+    return i18n.t('event_detail.feedback_min', { count: FEEDBACK_MIN_LENGTH });
   }
 
   if (trimmed.length > FEEDBACK_MAX_LENGTH) {
-    return `Feedback must be ${FEEDBACK_MAX_LENGTH} characters or fewer.`;
+    return i18n.t('event_detail.feedback_max', { count: FEEDBACK_MAX_LENGTH });
   }
 
   return null;
@@ -345,8 +372,12 @@ function ExpiryWarningBanner({ event }: { event: EventDetailResponse }) {
     <div className="ed-expiry-warning">
       <span className="ed-expiry-warning-icon">&#9200;</span>
       <span>
-        This event will be automatically completed in <strong>{daysRemaining} day{daysRemaining !== 1 ? 's' : ''}</strong> due to inactivity.
-        {event.viewer_context.is_host && ' Update the event to keep it active.'}
+        <span
+          dangerouslySetInnerHTML={{
+            __html: i18n.t('event_detail.expiry_warning', { count: daysRemaining }),
+          }}
+        />
+        {event.viewer_context.is_host && ` ${i18n.t('event_detail.expiry_warning_host_suffix')}`}
       </span>
     </div>
   );
@@ -384,16 +415,16 @@ function ReconfirmationBanner({
       {event.viewer_context.needs_reconfirmation ? (
         <>
           <div>
-            <h2>Attendance needs reconfirmation</h2>
+            <h2>{i18n.t('event_detail.reconfirm_title')}</h2>
             <p>
-              Event details changed since the version you last confirmed. Review what changed and reconfirm if you can still attend.
+              {i18n.t('event_detail.reconfirm_body')}
             </p>
           </div>
           {diff && (
             <div className="ed-reconfirm-diff" data-testid="ed-reconfirmation-diff">
               <div className="ed-reconfirm-diff-header">
-                <strong>Changes since your last confirmation</strong>
-                <span>v{diff.from_version_no} to v{diff.to_version_no}</span>
+                <strong>{i18n.t('event_detail.changes_since_confirmation')}</strong>
+                <span>{i18n.t('event_detail.version_range_short', { from: diff.from_version_no, to: diff.to_version_no })}</span>
               </div>
               <div className="ed-version-summary-row ed-reconfirm-summary-row">
                 {summaries.map((summary) => (
@@ -403,7 +434,7 @@ function ReconfirmationBanner({
               {changes.length > 0 ? (
                 <VersionChangeList changes={changes} compact />
               ) : (
-                <p className="ed-mgmt-empty">No detailed changes are available for this update.</p>
+                <p className="ed-mgmt-empty">{i18n.t('event_detail.no_detailed_changes')}</p>
               )}
             </div>
           )}
@@ -415,10 +446,10 @@ function ReconfirmationBanner({
           )}
           <div className="ed-reconfirm-actions">
             <button type="button" className="ed-reconfirm-btn" onClick={onReconfirm} disabled={loading}>
-              {loading ? 'Reconfirming...' : 'Reconfirm Attendance'}
+              {loading ? i18n.t('event_detail.reconfirming') : i18n.t('event_detail.reconfirm_attendance')}
             </button>
             <button type="button" className="ed-reconfirm-secondary-btn" onClick={onLeave} disabled={loading}>
-              Leave Event
+              {i18n.t('event_detail.leave_event')}
             </button>
           </div>
         </>
@@ -452,21 +483,25 @@ function EventVersionHistorySection({ event }: { event: EventDetailResponse }) {
   return (
     <div className="ed-section ed-version-history" data-testid="ed-version-history">
       <div className="ed-version-header">
-        <h2 className="ed-section-title">Version History</h2>
+        <h2 className="ed-section-title">{i18n.t('event_detail.version_history')}</h2>
         {versionNo != null && <span className="ed-version-pill">v{versionNo}</span>}
       </div>
       <div className="ed-version-card">
         {event.viewer_context.needs_reconfirmation && (
           <div className="ed-version-attention">
-            Review these changes before confirming that you can still attend.
+            {i18n.t('event_detail.review_changes')}
           </div>
         )}
         {diff ? (
           <p className="ed-version-range">
-            Changes from version {diff.from_version_no} to {diff.to_version_no}
+            {i18n.t('event_detail.changes_between_versions', { from: diff.from_version_no, to: diff.to_version_no })}
           </p>
         ) : (
-          <p className="ed-version-range">Current event version{versionNo != null ? ` ${versionNo}` : ''}</p>
+          <p className="ed-version-range">
+            {versionNo != null
+              ? i18n.t('event_detail.current_event_version', { version: versionNo })
+              : i18n.t('event_detail.current_event_version_no_number')}
+          </p>
         )}
         <div className="ed-version-summary-row">
           {summaries.map((summary) => (
@@ -476,7 +511,7 @@ function EventVersionHistorySection({ event }: { event: EventDetailResponse }) {
         {changes.length > 0 ? (
           <VersionChangeList changes={changes} />
         ) : (
-          <p className="ed-mgmt-empty">No changes need review right now.</p>
+          <p className="ed-mgmt-empty">{i18n.t('event_detail.no_changes_to_review')}</p>
         )}
       </div>
     </div>
@@ -523,7 +558,7 @@ function SavesMetricIcon() {
 }
 
 function PrivacyBadge({ level }: { level: string }) {
-  const label = level === 'PUBLIC' ? 'Public' : level === 'PROTECTED' ? 'Protected' : 'Private';
+  const label = i18n.t(`events.privacy.${level}`);
   return (
     <span className={`ed-privacy-badge ed-privacy-${level.toLowerCase()}`}>
       {label}
@@ -546,16 +581,16 @@ function LocationSection({ location }: { location: EventDetailResponse['location
   const isApproximate = location.is_location_approximate;
   const approximateAreaLabel = location.address
     ? formatEventLocation(location.address)
-    : 'Approximate area';
+    : i18n.t('event_detail.approximate_area');
 
   return (
     <div className="ed-section">
-      <h2 className="ed-section-title">Location</h2>
+      <h2 className="ed-section-title">{i18n.t('event_detail.location')}</h2>
       {isApproximate && (
         <div className="ed-approx-location-warning" role="status">
-          <strong>Approximate location shown</strong>
+          <strong>{i18n.t('event_detail.approximate_location_title')}</strong>
           <span>
-            This protected event hides its exact address until your participation is approved.
+            {i18n.t('event_detail.approximate_location_body')}
           </span>
         </div>
       )}
@@ -567,14 +602,14 @@ function LocationSection({ location }: { location: EventDetailResponse['location
           ) : isApproximate ? (
             <p className="ed-info-primary">{approximateAreaLabel}</p>
           ) : (
-            <p className="ed-info-secondary">No address provided</p>
+            <p className="ed-info-secondary">{i18n.t('event_detail.no_address')}</p>
           )}
           <p className="ed-info-secondary">
             {isApproximate
               ? getApproximateLocationText(Boolean(location.address))
               : location.type === 'ROUTE'
-                ? 'Route-based event'
-                : 'Point location'}
+                ? i18n.t('event_detail.route_based_event')
+                : i18n.t('event_detail.point_location')}
             {!isApproximate && location.point && (
               <> &middot; {location.point.lat.toFixed(4)}, {location.point.lon.toFixed(4)}</>
             )}
@@ -588,7 +623,7 @@ function LocationSection({ location }: { location: EventDetailResponse['location
             fallback={
               <div className="ed-map-placeholder" role="status" aria-live="polite">
                 <span className="spinner" />
-                <p>Loading map...</p>
+                <p>{i18n.t('event_detail.loading_map')}</p>
               </div>
             }
           >
@@ -596,7 +631,7 @@ function LocationSection({ location }: { location: EventDetailResponse['location
           </Suspense>
           {isApproximate ? (
             <div className="ed-approx-location-note" role="note">
-              Exact directions become available after your participation is approved.
+              {i18n.t('event_detail.exact_directions_after_approval')}
             </div>
           ) : (
             <a
@@ -619,25 +654,34 @@ function LocationSection({ location }: { location: EventDetailResponse['location
               >
                 <polygon points="3 11 22 2 13 21 11 13 3 11" />
               </svg>
-              Get directions
+              {i18n.t('event_detail.get_directions')}
             </a>
           )}
         </div>
       ) : (
-        <p className="ed-map-fallback">Map unavailable for this event.</p>
+        <p className="ed-map-fallback">{i18n.t('event_detail.map_unavailable')}</p>
       )}
     </div>
   );
 }
 
-const FAILURE_CODE_LABELS: Record<InvitationFailureCode, string> = {
-  ALREADY_INVITED: 'Already invited',
-  ALREADY_PARTICIPATING: 'Already participating',
-  HOST_USER: 'Cannot invite the host',
-  DECLINE_COOLDOWN_ACTIVE: 'Recently declined — try again later',
-  CAPACITY_EXCEEDED: 'Event is full',
-  DUPLICATE_USERNAME: 'Duplicate username in batch',
-};
+function getFailureCodeLabel(code: InvitationFailureCode): string {
+  const labels: Record<InvitationFailureCode, string> = {
+    ALREADY_INVITED: i18n.t('event_detail.failure_already_invited'),
+    ALREADY_PARTICIPATING: i18n.t('event_detail.failure_already_participating'),
+    HOST_USER: i18n.t('event_detail.failure_host_user'),
+    DECLINE_COOLDOWN_ACTIVE: i18n.t('event_detail.failure_declined_recently'),
+    CAPACITY_EXCEEDED: i18n.t('event_detail.failure_capacity'),
+    DUPLICATE_USERNAME: i18n.t('event_detail.failure_duplicate_username'),
+  };
+  return labels[code] ?? code;
+}
+
+function formatInvitationStatus(status: string): string {
+  return i18n.t(`event_detail.invitation_status.${status}`, {
+    defaultValue: formatTitleCaseValue(status),
+  });
+}
 
 function InviteUsersModal({
   loading,
@@ -692,13 +736,13 @@ function InviteUsersModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="ed-invite-modal-header">
-          <h3 id="ed-invite-title">Invite Users</h3>
+          <h3 id="ed-invite-title">{i18n.t('event_detail.invite_users')}</h3>
           <button
             type="button"
             className="ed-invite-modal-close"
             onClick={onClose}
             disabled={loading}
-            aria-label="Close"
+            aria-label={i18n.t('common.close')}
           >
             &times;
           </button>
@@ -706,12 +750,12 @@ function InviteUsersModal({
 
         <form onSubmit={handleSubmit} className="ed-invite-form">
           <label className="ed-invite-label" htmlFor="ed-invite-usernames">
-            Usernames
+            {i18n.t('event_detail.usernames')}
           </label>
           <textarea
             id="ed-invite-usernames"
             className="ed-invite-textarea"
-            placeholder="Enter usernames separated by commas, spaces, or new lines"
+            placeholder={i18n.t('event_detail.invite_usernames_placeholder')}
             value={usernamesInput}
             onChange={(e) => setUsernamesInput(e.target.value)}
             disabled={loading}
@@ -719,19 +763,19 @@ function InviteUsersModal({
           />
           <p className="ed-invite-hint">
             {usernames.length === 0
-              ? 'Enter at least one username.'
+              ? i18n.t('event_detail.invite_none')
               : usernames.length > 100
-                ? `Too many — limit is 100 (you have ${usernames.length}).`
-                : `${usernames.length} username${usernames.length !== 1 ? 's' : ''} ready to invite.`}
+                ? i18n.t('event_detail.invite_too_many', { count: usernames.length })
+                : i18n.t('event_detail.invite_ready', { count: usernames.length })}
           </p>
 
           <label className="ed-invite-label" htmlFor="ed-invite-message">
-            Message (optional)
+            {i18n.t('event_detail.invite_message')}
           </label>
           <textarea
             id="ed-invite-message"
             className="ed-invite-textarea"
-            placeholder="Add a personal note for invitees..."
+            placeholder={i18n.t('event_detail.invite_message_placeholder')}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             disabled={loading}
@@ -752,13 +796,12 @@ function InviteUsersModal({
             <div className="ed-invite-result">
               {result.success_count > 0 && (
                 <p className="ed-invite-result-line ed-invite-result-success">
-                  &#10003; Sent {result.success_count} invitation
-                  {result.success_count !== 1 ? 's' : ''}.
+                  &#10003; {i18n.t('event_detail.invite_success', { count: result.success_count })}
                 </p>
               )}
               {result.invalid_usernames.length > 0 && (
                 <p className="ed-invite-result-line ed-invite-result-warn">
-                  Unknown username{result.invalid_usernames.length !== 1 ? 's' : ''}:{' '}
+                  {i18n.t('event_detail.invite_invalid', { count: result.invalid_usernames.length })}:{' '}
                   <strong>{result.invalid_usernames.join(', ')}</strong>
                 </p>
               )}
@@ -766,7 +809,7 @@ function InviteUsersModal({
                 <ul className="ed-invite-result-failed-list">
                   {result.failed.map((f: EventInvitationFailure) => (
                     <li key={`${f.username}-${f.code}`}>
-                      <strong>@{f.username}</strong>: {FAILURE_CODE_LABELS[f.code] ?? f.code}
+                      <strong>@{f.username}</strong>: {getFailureCodeLabel(f.code)}
                     </li>
                   ))}
                 </ul>
@@ -776,7 +819,7 @@ function InviteUsersModal({
                 className="ed-invite-result-clear"
                 onClick={onClearResult}
               >
-                Dismiss
+                {i18n.t('common.close')}
               </button>
             </div>
           )}
@@ -788,14 +831,14 @@ function InviteUsersModal({
               onClick={onClose}
               disabled={loading}
             >
-              Cancel
+              {i18n.t('common.cancel')}
             </button>
             <button
               type="submit"
               className="ed-primary-btn"
               disabled={!canSubmit}
             >
-              {loading ? <span className="spinner" /> : 'Send Invitations'}
+              {loading ? <span className="spinner" /> : i18n.t('event_detail.send_invitations')}
             </button>
           </div>
         </form>
@@ -837,7 +880,7 @@ function InvitationsManagementSection({
   return (
     <div className="ed-mgmt-group">
       <div className="ed-mgmt-group-header">
-        <h3 className="ed-mgmt-title">Invitations ({total})</h3>
+        <h3 className="ed-mgmt-title">{i18n.t('invitations.title')} ({total})</h3>
         {isCancelable && (
           <button
             type="button"
@@ -845,15 +888,15 @@ function InvitationsManagementSection({
             onClick={() => setShowModal(true)}
             data-testid="ed-invite-open"
           >
-            + Invite Users
+            + {i18n.t('event_detail.invite_users')}
           </button>
         )}
       </div>
 
       {invitationsLoading && invitations.length === 0 ? (
-        <p className="ed-mgmt-empty">Loading invitations...</p>
+        <p className="ed-mgmt-empty">{i18n.t('event_detail.loading_invitations')}</p>
       ) : invitations.length === 0 ? (
-        <p className="ed-mgmt-empty">No invitations sent yet.</p>
+        <p className="ed-mgmt-empty">{i18n.t('event_detail.no_invitations')}</p>
       ) : (
         <ul className="ed-mgmt-list">
           {invitations.map((inv) => (
@@ -870,7 +913,7 @@ function InvitationsManagementSection({
                 <span className="ed-mgmt-username">@{inv.user.username}</span>
               </div>
               <span className={`ed-invitation-status ed-inv-${inv.status.toLowerCase()}`}>
-                {inv.status}
+                {formatInvitationStatus(inv.status)}
               </span>
             </li>
           ))}
@@ -884,7 +927,7 @@ function InvitationsManagementSection({
           onClick={onLoadMoreInvitations}
           disabled={invitationsLoading}
         >
-          {invitationsLoading ? 'Loading...' : 'Load More Invitations'}
+          {invitationsLoading ? i18n.t('common.loading') : i18n.t('event_detail.load_more_invitations')}
         </button>
       )}
 
@@ -962,8 +1005,8 @@ function JoinActionSection({
       ? 'ed-participation-attended'
       : 'ed-participation-joined';
     const joinedBannerText = event.status === 'COMPLETED'
-      ? 'You attended this event'
-      : 'You are participating in this event';
+      ? i18n.t('event_detail.joined_attended')
+      : i18n.t('event_detail.joined_active');
 
     return (
       <div className="ed-section">
@@ -978,8 +1021,8 @@ function JoinActionSection({
           >
             <span className="ed-ticket-cta-icon" aria-hidden>&#127903;</span>
             <span className="ed-ticket-cta-text">
-              <strong>View your ticket</strong>
-              <span>Open it on mobile to scan in at the event.</span>
+              <strong>{i18n.t('event_detail.view_ticket_title')}</strong>
+              <span>{i18n.t('event_detail.view_ticket_body')}</span>
             </span>
             <span className="ed-ticket-cta-arrow" aria-hidden>&rarr;</span>
           </Link>
@@ -998,7 +1041,7 @@ function JoinActionSection({
               onClick={() => setShowLeaveModal(true)}
               disabled={leaveLoading}
             >
-              {leaveLoading ? <span className="spinner" /> : 'Leave Event'}
+              {leaveLoading ? <span className="spinner" /> : i18n.t('event_detail.leave_event')}
             </button>
             {showLeaveModal && (
               <LeaveConfirmModal
@@ -1022,7 +1065,7 @@ function JoinActionSection({
     return (
       <div className="ed-section">
         <div className="ed-participation-banner ed-participation-pending">
-          Your join request is pending approval
+          {i18n.t('event_detail.pending_banner')}
         </div>
         {cancelJoinRequestError && (
           <div className="ed-join-error">
@@ -1031,7 +1074,7 @@ function JoinActionSection({
               type="button"
               className="ed-join-error-dismiss"
               onClick={onDismissCancelJoinRequestError}
-              aria-label="Dismiss error"
+              aria-label={i18n.t('notifications.dismiss_error')}
             >
               &times;
             </button>
@@ -1045,7 +1088,7 @@ function JoinActionSection({
             disabled={cancelJoinRequestLoading}
             data-testid="ed-cancel-request-btn"
           >
-            {cancelJoinRequestLoading ? <span className="spinner" /> : 'Cancel Request'}
+            {cancelJoinRequestLoading ? <span className="spinner" /> : i18n.t('event_detail.cancel_request')}
           </button>
         </div>
         {showCancelRequestModal && (
@@ -1068,7 +1111,7 @@ function JoinActionSection({
     return (
       <div className="ed-section">
         <div className="ed-participation-banner ed-participation-invited">
-          You have been invited to this event
+          {i18n.t('event_detail.invited_banner')}
         </div>
       </div>
     );
@@ -1077,14 +1120,19 @@ function JoinActionSection({
   // Not participating — check if join is possible
   const isInactive = event.status === 'CANCELED' || event.status === 'COMPLETED';
   const isFull = event.capacity != null && event.approved_participant_count >= event.capacity;
+  const statusLabel = getEventStatusPresentation(event.status).label;
 
   // Constraint warnings
   const warnings: string[] = [];
   if (event.minimum_age != null) {
-    warnings.push(`Minimum age: ${event.minimum_age}+`);
+    warnings.push(i18n.t('event_detail.minimum_age_label', { age: event.minimum_age }));
   }
   if (event.preferred_gender) {
-    warnings.push(`Preferred gender: ${event.preferred_gender}`);
+    warnings.push(
+      i18n.t('event_detail.preferred_gender_label', {
+        gender: formatGenderValue(event.preferred_gender) ?? event.preferred_gender,
+      }),
+    );
   }
 
   return (
@@ -1092,7 +1140,7 @@ function JoinActionSection({
       {/* Constraint warnings */}
       {warnings.length > 0 && (
         <div className="ed-constraint-warning">
-          <strong>Eligibility notes:</strong> {warnings.join(' · ')}
+          <strong>{i18n.t('event_detail.eligibility_notes')}</strong> {warnings.join(' · ')}
         </div>
       )}
 
@@ -1107,18 +1155,18 @@ function JoinActionSection({
       {/* Disabled reasons */}
       {isInactive ? (
         <div className="ed-join-disabled-banner">
-          This event is {event.status.toLowerCase()} and no longer accepting participants.
+          {i18n.t('event_detail.inactive_banner', { status: statusLabel })}
         </div>
       ) : isFull ? (
         <div className="ed-join-disabled-banner">
-          This event has reached its maximum capacity.
+          {i18n.t('event_detail.full_banner')}
         </div>
       ) : event.privacy_level === 'PUBLIC' ? (
         <>
           {!isAuthenticated && (
             <p className="ed-join-auth-hint">
-              Please sign in to participate.{' '}
-              <Link to="/login" className="ed-join-auth-link">Sign in</Link>
+              {i18n.t('event_detail.sign_in_to_participate')}{' '}
+              <Link to="/login" className="ed-join-auth-link">{i18n.t('shell.sign_in')}</Link>
             </p>
           )}
           <button
@@ -1127,7 +1175,7 @@ function JoinActionSection({
             onClick={onJoin}
             disabled={!isAuthenticated || joinLoading}
           >
-            {joinLoading ? <span className="spinner" /> : 'Join Event'}
+            {joinLoading ? <span className="spinner" /> : i18n.t('event_detail.join_event')}
           </button>
         </>
       ) : event.privacy_level === 'PROTECTED' ? (
@@ -1137,8 +1185,8 @@ function JoinActionSection({
             <>
               {!isAuthenticated && (
                 <p className="ed-join-auth-hint">
-                  Please sign in to participate.{' '}
-                  <Link to="/login" className="ed-join-auth-link">Sign in</Link>
+                  {i18n.t('event_detail.sign_in_to_participate')}{' '}
+                  <Link to="/login" className="ed-join-auth-link">{i18n.t('shell.sign_in')}</Link>
                 </p>
               )}
               <button
@@ -1147,14 +1195,14 @@ function JoinActionSection({
                 onClick={() => setShowRequestForm(true)}
                 disabled={!isAuthenticated || joinLoading}
               >
-                Request to Join
+                {i18n.t('event_detail.request_to_join')}
               </button>
             </>
           ) : (
             <div className="ed-request-form">
               <textarea
                 className="field-input ed-request-message"
-                placeholder="Add a message (optional)..."
+                placeholder={i18n.t('event_detail.request_message_placeholder')}
                 value={requestMessage}
                 onChange={(e) => setRequestMessage(e.target.value)}
                 rows={3}
@@ -1176,7 +1224,7 @@ function JoinActionSection({
                       return;
                     }
                     if (file.size > 5 * 1024 * 1024) {
-                      setRequestImageError('File must be 5 MB or smaller.');
+                      setRequestImageError(i18n.t('event_detail.file_too_large_5mb'));
                       e.target.value = '';
                       return;
                     }
@@ -1188,7 +1236,7 @@ function JoinActionSection({
                 />
                 {requestImageFile && requestImagePreview ? (
                   <div className="ed-request-image-preview">
-                    <img src={requestImagePreview} alt="Selected proof" />
+                    <img src={requestImagePreview} alt={i18n.t('event_detail.request_image_alt')} />
                     <div className="ed-request-image-meta">
                       <span className="ed-request-image-name">{requestImageFile.name}</span>
                       <span className="ed-request-image-size">
@@ -1205,9 +1253,9 @@ function JoinActionSection({
                         if (requestImageInputRef.current) requestImageInputRef.current.value = '';
                       }}
                       disabled={joinLoading}
-                      aria-label="Remove image"
+                      aria-label={i18n.t('event_detail.remove_image')}
                     >
-                      Remove
+                      {i18n.t('common.remove')}
                     </button>
                   </div>
                 ) : (
@@ -1218,7 +1266,7 @@ function JoinActionSection({
                     disabled={joinLoading}
                     data-testid="ed-request-image-pick"
                   >
-                    + Attach proof image (optional, up to 5 MB)
+                    + {i18n.t('event_detail.pick_image')}
                   </button>
                 )}
                 {requestImageError && (
@@ -1244,7 +1292,7 @@ function JoinActionSection({
                   }}
                   disabled={joinLoading}
                 >
-                  {joinLoading ? <span className="spinner" /> : 'Send Request'}
+                  {joinLoading ? <span className="spinner" /> : i18n.t('event_detail.send_request')}
                 </button>
                 <button
                   type="button"
@@ -1259,7 +1307,7 @@ function JoinActionSection({
                     if (requestImageInputRef.current) requestImageInputRef.current.value = '';
                   }}
                 >
-                  Cancel
+                  {i18n.t('common.cancel')}
                 </button>
               </div>
             </div>
@@ -1285,14 +1333,14 @@ function StarRatingInput({
   const activeValue = hoveredValue ?? value;
 
   return (
-    <div className={`ed-star-input ed-star-input-${size}`} role="radiogroup" aria-label="Select a star rating">
+    <div className={`ed-star-input ed-star-input-${size}`} role="radiogroup" aria-label={i18n.t('interaction.select_star_rating')}>
       {[1, 2, 3, 4, 5].map((star) => (
         <button
           key={star}
           type="button"
           role="radio"
           aria-checked={value === star}
-          aria-label={`${star} star${star === 1 ? '' : 's'}`}
+          aria-label={i18n.t('interaction.star_rating_label', { count: star })}
           className={`ed-star-btn ${activeValue >= star ? 'is-active' : ''}`}
           onClick={() => onChange(star)}
           onMouseEnter={() => setHoveredValue(star)}
@@ -1321,6 +1369,7 @@ function ParticipantRatingSection({
   onSubmit: (rating: number, message?: string) => void;
   onDismissError: () => void;
 }) {
+  const { t } = useTranslation();
   const existingRating = event.viewer_event_rating;
   const [rating, setRating] = useState(existingRating?.rating ?? 0);
   const [message, setMessage] = useState(existingRating?.message ?? '');
@@ -1365,18 +1414,20 @@ function ParticipantRatingSection({
       <div className="ed-rating-card ed-rating-card-participant">
         <div className="ed-rating-card-header">
           <div>
-            <span className="ed-rating-kicker">Post-event feedback</span>
+            <span className="ed-rating-kicker">{t('event_detail.post_event_feedback')}</span>
             <h2 className="ed-rating-title">
-              {existingRating ? 'Update your rating for the host' : 'How was this event?'}
+              {existingRating ? t('event_detail.update_host_rating') : t('event_detail.how_was_event')}
             </h2>
           </div>
           <span className="ed-rating-deadline">
-            Open until {formatShortDate(event.rating_window.closes_at)}
+            {t('event_detail.rating_window_open_short', {
+              date: formatShortDate(event.rating_window.closes_at),
+            })}
           </span>
         </div>
 
         <p className="ed-rating-copy">
-          Rate the experience from 1 to 5 stars. You can optionally leave a short message for the host.
+          {t('event_detail.rate_experience_copy')}
         </p>
 
         {existingRating && !isEditing ? (
@@ -1393,7 +1444,7 @@ function ParticipantRatingSection({
 
             <div className="ed-rating-actions">
               <p className="ed-rating-existing-note">
-                Last updated {formatShortDate(existingRating.updated_at)}
+                {t('event_detail.last_updated', { date: formatShortDate(existingRating.updated_at) })}
               </p>
               <button
                 type="button"
@@ -1403,7 +1454,7 @@ function ParticipantRatingSection({
                   setIsEditing(true);
                 }}
               >
-                Edit Rating
+                {t('event_detail.edit_rating')}
               </button>
             </div>
           </div>
@@ -1412,17 +1463,17 @@ function ParticipantRatingSection({
             <div className="ed-rating-star-row">
               <StarRatingInput value={rating} onChange={setRating} disabled={loading} size="lg" />
               <span className={`ed-rating-summary ${rating > 0 ? 'is-selected' : ''}`}>
-                {rating > 0 ? `${rating}/5 · ${renderStars(rating)}` : 'Select a star rating'}
+                {rating > 0 ? `${rating}/5 · ${renderStars(rating)}` : t('event_detail.select_star_rating')}
               </span>
             </div>
 
             <label className="ed-rating-field-label" htmlFor="event-rating-message">
-              Message
+              {t('event_detail.message_label')}
             </label>
             <textarea
               id="event-rating-message"
               className={`field-input ed-rating-textarea ${feedbackError ? 'has-error' : ''}`}
-              placeholder="Share what stood out, how the event felt, or anything the host should know."
+              placeholder={t('event_detail.rating_message_placeholder')}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={4}
@@ -1434,7 +1485,10 @@ function ParticipantRatingSection({
                 {trimmedLength}/{FEEDBACK_MAX_LENGTH}
               </span>
               <span className="ed-rating-helper">
-                Optional. If you write one, keep it between {FEEDBACK_MIN_LENGTH} and {FEEDBACK_MAX_LENGTH} characters.
+                {t('event_detail.rating_helper', {
+                  min: FEEDBACK_MIN_LENGTH,
+                  max: FEEDBACK_MAX_LENGTH,
+                })}
               </span>
             </div>
 
@@ -1449,7 +1503,9 @@ function ParticipantRatingSection({
 
             {existingRating && (
               <p className="ed-rating-existing-note">
-                Last updated {formatShortDate(existingRating.updated_at)}. Submitting again overwrites the existing rating.
+                {t('event_detail.overwrite_rating_notice', {
+                  date: formatShortDate(existingRating.updated_at),
+                })}
               </p>
             )}
 
@@ -1460,7 +1516,7 @@ function ParticipantRatingSection({
                 disabled={loading || rating === 0 || Boolean(feedbackError)}
                 onClick={() => onSubmit(rating, message)}
               >
-                {loading ? <span className="spinner" /> : existingRating ? 'Update Rating' : 'Submit Rating'}
+                {loading ? <span className="spinner" /> : existingRating ? t('event_detail.update_rating') : t('event_detail.submit_rating')}
               </button>
               {existingRating && (
                 <button
@@ -1474,7 +1530,7 @@ function ParticipantRatingSection({
                   }}
                   disabled={loading}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               )}
             </div>
@@ -1506,6 +1562,7 @@ function HostParticipantRatingItem({
   onSubmit: (participantUserId: string, rating: number, message?: string) => void;
   onDismissError: () => void;
 }) {
+  const { t } = useTranslation();
   const existingRating = participant.host_rating;
   const [rating, setRating] = useState(existingRating?.rating ?? 0);
   const [message, setMessage] = useState(existingRating?.message ?? '');
@@ -1554,7 +1611,7 @@ function HostParticipantRatingItem({
       <Link
         to={`/users/${participant.user.id}`}
         className="ed-mgmt-avatar-link"
-        aria-label={`View ${getDisplayName(participant.user)}'s profile`}
+        aria-label={t('event_detail.view_user_profile', { name: getDisplayName(participant.user) })}
       >
         <UserAvatar
           username={participant.user.username}
@@ -1602,22 +1659,22 @@ function HostParticipantRatingItem({
           onClick={onToggleEditor}
           disabled={loading}
         >
-          {isEditorOpen ? 'Close' : existingRating ? 'Edit Rating' : 'Rate'}
+          {isEditorOpen ? t('common.close') : existingRating ? t('event_detail.edit_rating') : t('event_detail.rate_participant')}
         </button>
       )}
 
       {isEditorOpen && (
         <div className="ed-inline-rating-editor">
           <div className="ed-inline-rating-header">
-            <strong>Rate {getDisplayName(participant.user)}</strong>
-            <span>1 to 5 stars</span>
+            <strong>{t('event_detail.rate_participant_named', { name: getDisplayName(participant.user) })}</strong>
+            <span>{t('event_detail.one_to_five_stars')}</span>
           </div>
 
           <StarRatingInput value={rating} onChange={setRating} disabled={loading} />
 
           <textarea
             className={`field-input ed-rating-textarea ed-rating-textarea-inline ${feedbackError ? 'has-error' : ''}`}
-            placeholder="Optional note about reliability, communication, or overall experience."
+            placeholder={t('event_detail.participant_rating_placeholder')}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={3}
@@ -1628,7 +1685,9 @@ function HostParticipantRatingItem({
             <span className={`ed-rating-char-count ${feedbackError ? 'is-error' : ''}`}>
               {trimmedLength}/{FEEDBACK_MAX_LENGTH}
             </span>
-            <span className="ed-rating-helper">Optional, but must be at least {FEEDBACK_MIN_LENGTH} characters if provided.</span>
+            <span className="ed-rating-helper">
+              {t('event_detail.participant_rating_helper', { min: FEEDBACK_MIN_LENGTH })}
+            </span>
           </div>
 
           {feedbackError && <p className="ed-rating-validation">{feedbackError}</p>}
@@ -1647,7 +1706,7 @@ function HostParticipantRatingItem({
               disabled={loading || rating === 0 || Boolean(feedbackError)}
               onClick={() => onSubmit(participant.user.id, rating, message)}
             >
-              {loading ? <span className="spinner" /> : existingRating ? 'Save Changes' : 'Submit Rating'}
+              {loading ? <span className="spinner" /> : existingRating ? t('common.save') : t('event_detail.submit_rating')}
             </button>
             <button
               type="button"
@@ -1655,7 +1714,7 @@ function HostParticipantRatingItem({
               onClick={onToggleEditor}
               disabled={loading}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </div>
@@ -1673,13 +1732,13 @@ function CancelConfirmModal({
   onClose: () => void;
   loading: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="ed-modal-overlay" onClick={onClose}>
       <div className="ed-modal" onClick={(e) => e.stopPropagation()}>
-        <h3 className="ed-modal-title">Cancel Event</h3>
+        <h3 className="ed-modal-title">{t('event_detail.cancel_event_title')}</h3>
         <p className="ed-modal-text">
-          Are you sure you want to cancel this event? This action cannot be undone.
-          All participants will be notified.
+          {t('event_detail.cancel_event_body_with_notice')}
         </p>
         <div className="ed-modal-actions">
           <button
@@ -1688,7 +1747,7 @@ function CancelConfirmModal({
             onClick={onClose}
             disabled={loading}
           >
-            Go Back
+            {t('common.back')}
           </button>
           <button
             type="button"
@@ -1696,7 +1755,7 @@ function CancelConfirmModal({
             onClick={onConfirm}
             disabled={loading}
           >
-            {loading ? <span className="spinner" /> : 'Yes, Cancel Event'}
+            {loading ? <span className="spinner" /> : t('event_detail.confirm_cancel_event')}
           </button>
         </div>
       </div>
@@ -1713,13 +1772,12 @@ function CompleteConfirmModal({
   onClose: () => void;
   loading: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="ed-modal-overlay" onClick={onClose}>
       <div className="ed-modal" onClick={(e) => e.stopPropagation()}>
-        <h3 className="ed-modal-title">End Event</h3>
-        <p className="ed-modal-text">
-          Are you sure you want to end this event now? The event will be marked as completed.
-        </p>
+        <h3 className="ed-modal-title">{t('event_detail.end_event_title')}</h3>
+        <p className="ed-modal-text">{t('event_detail.end_event_body')}</p>
         <div className="ed-modal-actions">
           <button
             type="button"
@@ -1727,7 +1785,7 @@ function CompleteConfirmModal({
             onClick={onClose}
             disabled={loading}
           >
-            Go Back
+            {t('common.back')}
           </button>
           <button
             type="button"
@@ -1735,7 +1793,7 @@ function CompleteConfirmModal({
             onClick={onConfirm}
             disabled={loading}
           >
-            {loading ? <span className="spinner" /> : 'Yes, End Event'}
+            {loading ? <span className="spinner" /> : t('event_detail.confirm_end_event')}
           </button>
         </div>
       </div>
@@ -1756,9 +1814,11 @@ function ReportEventModal({
   onDismissError: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [category, setCategory] = useState<EventReportCategory>('SPAM_OR_SCAM');
   const [message, setMessage] = useState('');
   const isMessageTooLong = message.length > REPORT_MESSAGE_MAX_LENGTH;
+  const reportReasons = getReportReasons();
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -1770,10 +1830,8 @@ function ReportEventModal({
   return (
     <div className="ed-modal-overlay" onClick={onClose}>
       <form className="ed-modal ed-report-modal" onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()}>
-        <h3 className="ed-modal-title">Report Event</h3>
-        <p className="ed-modal-text">
-          Choose the closest reason. Reports are sent to moderators for review.
-        </p>
+        <h3 className="ed-modal-title">{t('event_detail.report_event_title')}</h3>
+        <p className="ed-modal-text">{t('event_detail.report_event_body')}</p>
 
         {error && (
           <div className="ed-join-error" role="alert">
@@ -1784,8 +1842,8 @@ function ReportEventModal({
           </div>
         )}
 
-        <div className="ed-report-reasons" role="radiogroup" aria-label="Report reason">
-          {REPORT_REASONS.map((reason) => (
+        <div className="ed-report-reasons" role="radiogroup" aria-label={t('event_detail.report_reasons_label')}>
+          {reportReasons.map((reason) => (
             <label
               key={reason.value}
               className={`ed-report-reason ${category === reason.value ? 'selected' : ''}`}
@@ -1807,7 +1865,7 @@ function ReportEventModal({
         </div>
 
         <label className="ed-report-message-label" htmlFor="ed-report-message">
-          Additional details <span>(optional)</span>
+          {t('event_detail.report_message_label')} <span>({t('common.optional')})</span>
         </label>
         <textarea
           id="ed-report-message"
@@ -1816,7 +1874,7 @@ function ReportEventModal({
           onChange={(e) => setMessage(e.target.value)}
           maxLength={REPORT_MESSAGE_MAX_LENGTH + 1}
           rows={4}
-          placeholder="Add context that would help moderators understand the issue."
+          placeholder={t('event_detail.report_message_placeholder')}
           disabled={loading}
         />
         <div className={`ed-report-char-count ${isMessageTooLong ? 'is-error' : ''}`}>
@@ -1830,14 +1888,14 @@ function ReportEventModal({
             onClick={onClose}
             disabled={loading}
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
             className="ed-modal-confirm-btn ed-report-submit-btn"
             disabled={loading || isMessageTooLong}
           >
-            {loading ? <span className="spinner" /> : 'Submit Report'}
+            {loading ? <span className="spinner" /> : t('event_detail.submit_report')}
           </button>
         </div>
       </form>
@@ -1846,12 +1904,13 @@ function ReportEventModal({
 }
 
 function HostPendingReconfirmationItem({ participant }: { participant: EventDetailApprovedParticipant }) {
+  const { t } = useTranslation();
   return (
     <li className="ed-mgmt-item ed-mgmt-item-pending-reconfirmation">
       <Link
         to={`/users/${participant.user.id}`}
         className="ed-mgmt-avatar-link"
-        aria-label={`View ${getDisplayName(participant.user)}'s profile`}
+        aria-label={t('event_detail.view_user_profile', { name: getDisplayName(participant.user) })}
       >
         <UserAvatar
           username={participant.user.username}
@@ -1874,10 +1933,12 @@ function HostPendingReconfirmationItem({ participant }: { participant: EventDeta
             )}
           </div>
           <span className="ed-mgmt-username">@{participant.user.username}</span>
-          <span className="ed-mgmt-message">Waiting since {formatShortDate(participant.updated_at)}</span>
+          <span className="ed-mgmt-message">
+            {t('event_detail.waiting_since', { date: formatShortDate(participant.updated_at) })}
+          </span>
         </div>
       </Link>
-      <span className="ed-reconfirm-status-pill">Needs reconfirmation</span>
+      <span className="ed-reconfirm-status-pill">{t('event_detail.needs_reconfirmation_short')}</span>
     </li>
   );
 }
@@ -1891,13 +1952,12 @@ function LeaveConfirmModal({
   onClose: () => void;
   loading: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="ed-modal-overlay" onClick={onClose}>
       <div className="ed-modal" onClick={(e) => e.stopPropagation()}>
-        <h3 className="ed-modal-title">Leave Event</h3>
-        <p className="ed-modal-text">
-          Are you sure you want to leave this event? You will lose your spot and may need to rejoin later.
-        </p>
+        <h3 className="ed-modal-title">{t('event_detail.leave_event_title')}</h3>
+        <p className="ed-modal-text">{t('event_detail.leave_event_body_full')}</p>
         <div className="ed-modal-actions">
           <button
             type="button"
@@ -1905,7 +1965,7 @@ function LeaveConfirmModal({
             onClick={onClose}
             disabled={loading}
           >
-            Go Back
+            {t('common.back')}
           </button>
           <button
             type="button"
@@ -1913,7 +1973,7 @@ function LeaveConfirmModal({
             onClick={onConfirm}
             disabled={loading}
           >
-            {loading ? <span className="spinner" /> : 'Yes, Leave Event'}
+            {loading ? <span className="spinner" /> : t('event_detail.confirm_leave_event')}
           </button>
         </div>
       </div>
@@ -1930,6 +1990,7 @@ function CancelRequestConfirmModal({
   onClose: () => void;
   loading: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="ed-modal-overlay" onClick={onClose}>
       <div
@@ -1940,12 +2001,9 @@ function CancelRequestConfirmModal({
         aria-labelledby="ed-cancel-request-title"
       >
         <h3 className="ed-modal-title" id="ed-cancel-request-title">
-          Cancel Join Request
+          {t('event_detail.cancel_request_title')}
         </h3>
-        <p className="ed-modal-text">
-          Are you sure you want to withdraw your join request? You can request to join again later
-          if you change your mind.
-        </p>
+        <p className="ed-modal-text">{t('event_detail.cancel_request_body_full')}</p>
         <div className="ed-modal-actions">
           <button
             type="button"
@@ -1953,7 +2011,7 @@ function CancelRequestConfirmModal({
             onClick={onClose}
             disabled={loading}
           >
-            Keep Request
+            {t('event_detail.keep_request')}
           </button>
           <button
             type="button"
@@ -1962,7 +2020,7 @@ function CancelRequestConfirmModal({
             disabled={loading}
             data-testid="ed-cancel-request-confirm"
           >
-            {loading ? <span className="spinner" /> : 'Yes, Cancel Request'}
+            {loading ? <span className="spinner" /> : t('event_detail.confirm_cancel_request')}
           </button>
         </div>
       </div>
@@ -2133,6 +2191,7 @@ function EventContent({
   onCancelJoinRequest: () => void | Promise<void>;
   onDismissCancelJoinRequestError: () => void;
 }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const coverFileInputRef = useRef<HTMLInputElement>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -2148,13 +2207,18 @@ function EventContent({
     event.pending_participant_count,
     pendingParticipants.length,
   );
+  const categoryLabel = getEventCategoryPresentation(event.category?.name ?? 'Event', false).label;
+  const preferredGenderLabel = formatGenderValue(event.preferred_gender);
+  const privacyLabel = i18n.t(`events.privacy.${event.privacy_level}`, {
+    defaultValue: formatTitleCaseValue(event.privacy_level),
+  });
 
   const showCoverImageEdit = isAuthenticated && event.viewer_context.is_host;
 
   return (
     <div className="ed-page">
       <button type="button" className="ed-back-btn" onClick={() => navigate(-1)}>
-        &larr; Back
+        &larr; {t('event_detail.back_button')}
       </button>
 
       {/* Hero image */}
@@ -2181,7 +2245,7 @@ function EventContent({
             <button
               type="button"
               className="ed-hero-cover-edit"
-              aria-label="Change cover image"
+              aria-label={t('event_detail.change_cover_image')}
               disabled={coverImageUploading}
               onClick={() => coverFileInputRef.current?.click()}
             >
@@ -2225,15 +2289,15 @@ function EventContent({
               className={`ed-favorite-btn ${event.viewer_context.is_favorited ? 'favorited' : ''}`}
               onClick={isAuthenticated ? onFavoriteToggle : () => navigate('/login')}
               disabled={favoriteLoading}
-              aria-label={event.viewer_context.is_favorited ? 'Remove from favorites' : 'Add to favorites'}
-              title={isAuthenticated ? undefined : 'Sign in to save this event'}
+              aria-label={event.viewer_context.is_favorited ? t('event_detail.remove_favorite') : t('event_detail.add_favorite')}
+              title={isAuthenticated ? undefined : t('event_detail.sign_in_to_save')}
             >
               {event.viewer_context.is_favorited ? '★' : '☆'}
             </button>
             <button
               type="button"
               className="ed-report-flag-btn"
-              aria-label="Report event"
+              aria-label={t('event_detail.report_event')}
               onClick={() => {
                 if (!isAuthenticated) {
                   navigate('/login');
@@ -2262,7 +2326,7 @@ function EventContent({
           </div>
         </div>
         {event.category && (
-          <span className="ed-category">{event.category.name}</span>
+          <span className="ed-category">{categoryLabel}</span>
         )}
       </div>
 
@@ -2273,14 +2337,14 @@ function EventContent({
             <span className="ed-metric-emote" aria-hidden><ParticipantsMetricIcon /></span>
             <span className="ed-metric-value">{event.approved_participant_count}</span>
           </div>
-          <span className="ed-metric-label">Participant{event.approved_participant_count !== 1 ? 's' : ''}</span>
+          <span className="ed-metric-label">{t('event_detail.participants_metric', { count: event.approved_participant_count })}</span>
         </div>
         <div className="ed-metric">
           <div className="ed-metric-topline">
             <span className="ed-metric-emote" aria-hidden><SavesMetricIcon /></span>
             <span className="ed-metric-value">{event.favorite_count}</span>
           </div>
-          <span className="ed-metric-label">Save{event.favorite_count !== 1 ? 's' : ''}</span>
+          <span className="ed-metric-label">{t('event_detail.saves_metric', { count: event.favorite_count })}</span>
         </div>
       </div>
 
@@ -2329,14 +2393,14 @@ function EventContent({
       <div className="ed-sections">
         {/* Date & time */}
         <div className="ed-section">
-          <h2 className="ed-section-title">Date & Time</h2>
+          <h2 className="ed-section-title">{t('event_detail.date_time')}</h2>
           <div className="ed-info-row">
             <span className="ed-info-icon">&#128197;</span>
             <div>
               <p className="ed-info-primary">{formatDateTime(event.start_time)}</p>
               {event.end_time && (
                 <p className="ed-info-secondary">
-                  Until {formatDateTime(event.end_time)}
+                  {t('event_detail.until', { date: formatDateTime(event.end_time) })}
                 </p>
               )}
             </div>
@@ -2348,19 +2412,21 @@ function EventContent({
         {/* Description */}
         {event.description && (
           <div className="ed-section">
-            <h2 className="ed-section-title">Description</h2>
+            <h2 className="ed-section-title">{t('event_detail.description')}</h2>
             <p className="ed-description">{event.description}</p>
           </div>
         )}
 
         {/* Host */}
         <div className="ed-section">
-          <h2 className="ed-section-title">Host</h2>
+          <h2 className="ed-section-title">{t('event_detail.host')}</h2>
           <div className="ed-host">
             <Link
               to={`/users/${event.host.id}`}
               className="ed-host-avatar-link"
-              aria-label={`View ${event.host.display_name ?? event.host.username}'s profile`}
+              aria-label={t('event_detail.view_host_profile', {
+                name: event.host.display_name ?? event.host.username,
+              })}
             >
               <UserAvatar
                 username={event.host.username}
@@ -2386,29 +2452,29 @@ function EventContent({
 
         {/* Details grid */}
         <div className="ed-section">
-          <h2 className="ed-section-title">Details</h2>
+          <h2 className="ed-section-title">{t('event_detail.details')}</h2>
           <div className="ed-details-grid">
             {event.capacity != null && (
               <div className="ed-detail-item">
-                <span className="ed-detail-label">Capacity</span>
+                <span className="ed-detail-label">{t('event_detail.capacity')}</span>
                 <span className="ed-detail-value">{event.approved_participant_count} / {event.capacity}</span>
               </div>
             )}
             {event.minimum_age != null && (
               <div className="ed-detail-item">
-                <span className="ed-detail-label">Minimum Age</span>
+                <span className="ed-detail-label">{t('event_detail.minimum_age')}</span>
                 <span className="ed-detail-value">{event.minimum_age}+</span>
               </div>
             )}
-            {event.preferred_gender && (
+            {preferredGenderLabel && (
               <div className="ed-detail-item">
-                <span className="ed-detail-label">Preferred Gender</span>
-                <span className="ed-detail-value">{event.preferred_gender}</span>
+                <span className="ed-detail-label">{t('event_detail.preferred_gender')}</span>
+                <span className="ed-detail-value">{preferredGenderLabel}</span>
               </div>
             )}
             <div className="ed-detail-item">
-              <span className="ed-detail-label">Privacy</span>
-              <span className="ed-detail-value">{event.privacy_level}</span>
+              <span className="ed-detail-label">{t('event_detail.privacy')}</span>
+              <span className="ed-detail-value">{privacyLabel}</span>
             </div>
           </div>
         </div>
@@ -2416,7 +2482,7 @@ function EventContent({
         {/* Tags */}
         {event.tags.length > 0 && (
           <div className="ed-section">
-            <h2 className="ed-section-title">Tags</h2>
+            <h2 className="ed-section-title">{t('event_detail.tags')}</h2>
             <div className="ed-tags">
               {event.tags.map((tag) => (
                 <span key={tag} className="ed-tag">{tag}</span>
@@ -2428,11 +2494,11 @@ function EventContent({
         {/* Constraints */}
         {event.constraints.length > 0 && (
           <div className="ed-section">
-            <h2 className="ed-section-title">Requirements</h2>
+            <h2 className="ed-section-title">{t('event_detail.requirements')}</h2>
             <ul className="ed-constraints">
               {event.constraints.map((c, i) => (
                 <li key={i} className="ed-constraint">
-                  <span className="ed-constraint-type">{c.type}</span>
+                  <span className="ed-constraint-type">{formatConstraintType(c.type)}</span>
                   <span className="ed-constraint-info">{c.info}</span>
                 </li>
               ))}
@@ -2445,7 +2511,7 @@ function EventContent({
         {/* Host management section — only visible to host */}
         {event.viewer_context.is_host && (
           <div className="ed-section">
-            <h2 className="ed-section-title">Management</h2>
+            <h2 className="ed-section-title">{t('event_detail.management')}</h2>
 
             {/* Cancel event button */}
             {event.status === 'ACTIVE' && (
@@ -2455,7 +2521,7 @@ function EventContent({
                   className="ed-edit-event-link"
                   data-testid="ed-edit-event-link"
                 >
-                  Edit Event
+                  {t('event_detail.edit_event')}
                 </Link>
                 {cancelError && (
                   <div className="ed-join-error" style={{ marginBottom: 10 }}>
@@ -2469,7 +2535,7 @@ function EventContent({
                   onClick={() => setShowCancelModal(true)}
                   disabled={cancelLoading}
                 >
-                  Cancel Event
+                  {t('event_detail.cancel_event')}
                 </button>
               </div>
             )}
@@ -2488,27 +2554,29 @@ function EventContent({
                   onClick={() => setShowCompleteModal(true)}
                   disabled={completeLoading}
                 >
-                  End Event
+                  {t('event_detail.end_event')}
                 </button>
               </div>
             )}
 
             <div className="ed-mgmt-group ed-reconfirmation-mgmt-group">
               <h3 className="ed-mgmt-title">
-                Reconfirmation Needed ({pendingReconfirmationCount})
+                {t('event_detail.reconfirmation_needed', { count: pendingReconfirmationCount })}
               </h3>
               {pendingReconfirmationCount > 0 ? (
                 <>
                   <div className="ed-reconfirmation-mgmt-card">
                     <strong>{pendingReconfirmationCount}</strong>
                     <span>
-                      Participant{pendingReconfirmationCount === 1 ? '' : 's'} must approve the latest event version before they are fully confirmed again.
+                      {t('event_detail.reconfirmation_explainer', {
+                        count: pendingReconfirmationCount,
+                      })}
                     </span>
                   </div>
                   {pendingParticipantsLoading && pendingParticipants.length === 0 ? (
-                    <p className="ed-mgmt-empty">Loading participants awaiting reconfirmation...</p>
+                    <p className="ed-mgmt-empty">{t('event_detail.loading_reconfirmations')}</p>
                   ) : pendingParticipants.length === 0 ? (
-                    <p className="ed-mgmt-empty">No participant details are available yet.</p>
+                    <p className="ed-mgmt-empty">{t('event_detail.no_reconfirmation_details')}</p>
                   ) : (
                     <ul className="ed-mgmt-list">
                       {pendingParticipants.map((p) => (
@@ -2523,29 +2591,33 @@ function EventContent({
                       onClick={onLoadMorePendingParticipants}
                       disabled={pendingParticipantsLoading}
                     >
-                      {pendingParticipantsLoading ? 'Loading...' : 'Load More Reconfirmations'}
+                      {pendingParticipantsLoading ? t('common.loading') : t('event_detail.load_more_reconfirmations')}
                     </button>
                   )}
                 </>
               ) : (
-                <p className="ed-mgmt-empty">No participants need reconfirmation.</p>
+                <p className="ed-mgmt-empty">{t('event_detail.no_reconfirmations')}</p>
               )}
             </div>
 
             {/* Approved participants */}
             <div className="ed-mgmt-group">
               <h3 className="ed-mgmt-title">
-                Approved Participants ({hostContextSummary?.approved_participant_count ?? approvedParticipants.length})
+                {t('event_detail.approved_participants', {
+                  count: hostContextSummary?.approved_participant_count ?? approvedParticipants.length,
+                })}
               </h3>
               {hostCanRateParticipants && (
                 <div className="ed-rating-banner">
-                  Participant rating window is open until {formatShortDate(event.rating_window.closes_at)}
+                  {t('event_detail.rating_window_open_until', {
+                    date: formatShortDate(event.rating_window.closes_at),
+                  })}
                 </div>
               )}
               {approvedParticipantsLoading && approvedParticipants.length === 0 ? (
-                <p className="ed-mgmt-empty">Loading participants...</p>
+                <p className="ed-mgmt-empty">{t('event_detail.loading_participants')}</p>
               ) : approvedParticipants.length === 0 ? (
-                <p className="ed-mgmt-empty">No participants yet</p>
+                <p className="ed-mgmt-empty">{t('event_detail.no_participants')}</p>
               ) : (
                 <ul className="ed-mgmt-list">
                   {approvedParticipants.map((p) => (
@@ -2577,7 +2649,7 @@ function EventContent({
                   onClick={onLoadMoreApprovedParticipants}
                   disabled={approvedParticipantsLoading}
                 >
-                  {approvedParticipantsLoading ? 'Loading...' : 'Load More Participants'}
+                  {approvedParticipantsLoading ? t('common.loading') : t('event_detail.load_more_participants')}
                 </button>
               )}
             </div>
@@ -2586,7 +2658,9 @@ function EventContent({
             {(pendingJoinRequests.length > 0 || (hostContextSummary?.pending_join_request_count ?? 0) > 0) && (
               <div className="ed-mgmt-group">
                 <h3 className="ed-mgmt-title">
-                  Pending Requests ({hostContextSummary?.pending_join_request_count ?? pendingJoinRequests.length})
+                  {t('event_detail.pending_requests', {
+                    count: hostContextSummary?.pending_join_request_count ?? pendingJoinRequests.length,
+                  })}
                 </h3>
                 {moderateError && (
                   <div className="ed-join-error" style={{ marginBottom: 10 }}>
@@ -2595,7 +2669,7 @@ function EventContent({
                   </div>
                 )}
                 {pendingJoinRequestsLoading && pendingJoinRequests.length === 0 ? (
-                  <p className="ed-mgmt-empty">Loading requests...</p>
+                  <p className="ed-mgmt-empty">{t('event_detail.loading_requests')}</p>
                 ) : (
                 <ul className="ed-mgmt-list">
                   {pendingJoinRequests.map((r) => (
@@ -2620,7 +2694,7 @@ function EventContent({
                             data-testid={`ed-mgmt-attachment-${r.join_request_id}`}
                           >
                             <span className="ed-mgmt-attachment-icon" aria-hidden>&#128247;</span>
-                            View attachment
+                            {t('event_detail.view_attachment')}
                           </a>
                         )}
                         {r.user.final_score != null && (
@@ -2638,7 +2712,7 @@ function EventContent({
                           onClick={() => onApprove(r.join_request_id)}
                           disabled={moderatingId === r.join_request_id}
                         >
-                          {moderatingId === r.join_request_id ? '...' : 'Approve'}
+                          {moderatingId === r.join_request_id ? '...' : t('event_detail.approve')}
                         </button>
                         <button
                           type="button"
@@ -2646,7 +2720,7 @@ function EventContent({
                           onClick={() => onReject(r.join_request_id)}
                           disabled={moderatingId === r.join_request_id}
                         >
-                          Reject
+                          {t('event_detail.reject')}
                         </button>
                       </div>
                     </li>
@@ -2660,7 +2734,7 @@ function EventContent({
                     onClick={onLoadMorePendingJoinRequests}
                     disabled={pendingJoinRequestsLoading}
                   >
-                    {pendingJoinRequestsLoading ? 'Loading...' : 'Load More Requests'}
+                    {pendingJoinRequestsLoading ? t('common.loading') : t('event_detail.load_more_requests')}
                   </button>
                 )}
               </div>
@@ -2730,6 +2804,7 @@ function EventContent({
 }
 
 export default function EventDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { token } = useAuth();
   const vm = useEventDetailViewModel(id, token);
@@ -2739,7 +2814,7 @@ export default function EventDetailPage() {
       <div className="ed-page">
         <div className="ed-state-container">
           <span className="spinner" />
-          <p>Loading event...</p>
+          <p>{t('event_detail.loading_event')}</p>
         </div>
       </div>
     );
@@ -2748,8 +2823,8 @@ export default function EventDetailPage() {
   if (vm.status === 'not-found') {
     return (
       <NotFoundView 
-        title="Event Not Found"
-        message="This event doesn't exist or has been removed."
+        title={t('event_detail.not_found_title')}
+        message={t('event_detail.not_found_body')}
       />
     );
   }
@@ -2762,10 +2837,10 @@ export default function EventDetailPage() {
     return (
       <div className="ed-page">
         <div className="ed-state-container">
-          <h2>Something Went Wrong</h2>
+          <h2>{t('event_detail.error_title')}</h2>
           <p>{vm.errorMessage}</p>
           <button type="button" className="btn-primary ed-retry-btn" onClick={vm.retry}>
-            Try Again
+            {t('event_detail.try_again')}
           </button>
         </div>
       </div>

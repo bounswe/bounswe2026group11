@@ -1,9 +1,11 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
 import { useForgotPasswordViewModel } from '@/viewmodels/auth/useForgotPasswordViewModel';
 import '@/styles/auth.css';
 
 export default function ForgotPasswordView() {
+  const { t } = useTranslation();
   const vm = useForgotPasswordViewModel();
   const navigate = useNavigate();
 
@@ -27,10 +29,8 @@ export default function ForgotPasswordView() {
       <div className="auth-card">
         {vm.step === 'request' && (
           <>
-            <h1 className="auth-title">Forgot Password</h1>
-            <p className="auth-subtitle">
-              Enter your email address and we&apos;ll send you a code to reset your password.
-            </p>
+            <h1 className="auth-title">{t('auth.forgot_password.request_title')}</h1>
+            <p className="auth-subtitle">{t('auth.forgot_password.request_subtitle')}</p>
 
             {vm.apiError && (
               <div className="error-banner" role="alert" aria-live="assertive">
@@ -41,13 +41,13 @@ export default function ForgotPasswordView() {
             <form onSubmit={handleRequestSubmit}>
               <div className="field-group">
                 <label className="field-label" htmlFor="email">
-                  Email Address
+                  {t('auth.forgot_password.email')}
                 </label>
                 <input
                   id="email"
                   className={`field-input ${vm.errors.email ? 'has-error' : ''}`}
                   type="email"
-                  placeholder="name@example.com"
+                  placeholder={t('auth.forgot_password.email_placeholder')}
                   value={vm.email}
                   onChange={(e) => vm.setEmail(e.target.value)}
                   disabled={vm.isLoading}
@@ -67,7 +67,7 @@ export default function ForgotPasswordView() {
                 className="btn-primary"
                 disabled={vm.isLoading}
               >
-                {vm.isLoading ? <span className="spinner" /> : 'Send Code'}
+                {vm.isLoading ? <span className="spinner" /> : t('auth.forgot_password.send_code')}
               </button>
             </form>
           </>
@@ -75,9 +75,13 @@ export default function ForgotPasswordView() {
 
         {vm.step === 'verify' && (
           <>
-            <h1 className="auth-title">Verify Email</h1>
+            <h1 className="auth-title">{t('auth.forgot_password.verify_title')}</h1>
             <p className="auth-subtitle">
-              Enter the 6-digit code sent to <strong>{vm.email}</strong>
+              <Trans
+                i18nKey="auth.forgot_password.verify_subtitle"
+                values={{ email: vm.email }}
+                components={{ strong: <strong /> }}
+              />
             </p>
 
             {vm.apiError && (
@@ -89,13 +93,13 @@ export default function ForgotPasswordView() {
             <form onSubmit={handleVerifySubmit}>
               <div className="field-group">
                 <label className="field-label" htmlFor="otp">
-                  Verification Code
+                  {t('auth.forgot_password.verification_code')}
                 </label>
                 <input
                   id="otp"
                   className={`field-input ${vm.errors.otp ? 'has-error' : ''}`}
                   type="text"
-                  placeholder="123456"
+                  placeholder={t('auth.forgot_password.verification_code_placeholder')}
                   maxLength={6}
                   value={vm.otp}
                   onChange={(e) => vm.setOtp(e.target.value.replace(/\D/g, ''))}
@@ -117,7 +121,7 @@ export default function ForgotPasswordView() {
                 className="btn-primary"
                 disabled={vm.isLoading}
               >
-                {vm.isLoading ? <span className="spinner" /> : 'Verify Code'}
+                {vm.isLoading ? <span className="spinner" /> : t('auth.forgot_password.verify_code')}
               </button>
             </form>
           </>
@@ -125,10 +129,8 @@ export default function ForgotPasswordView() {
 
         {vm.step === 'reset' && (
           <>
-            <h1 className="auth-title">Create New Password</h1>
-            <p className="auth-subtitle">
-              Your new password must be at least 8 characters long.
-            </p>
+            <h1 className="auth-title">{t('auth.forgot_password.reset_title')}</h1>
+            <p className="auth-subtitle">{t('auth.forgot_password.reset_subtitle')}</p>
 
             {vm.apiError && (
               <div className="error-banner" role="alert" aria-live="assertive">
@@ -139,13 +141,13 @@ export default function ForgotPasswordView() {
             <form onSubmit={handleResetSubmit}>
               <div className="field-group">
                 <label className="field-label" htmlFor="newPassword">
-                  New Password
+                  {t('auth.forgot_password.new_password')}
                 </label>
                 <input
                   id="newPassword"
                   className={`field-input ${vm.errors.newPassword ? 'has-error' : ''}`}
                   type="password"
-                  placeholder="New password"
+                  placeholder={t('auth.forgot_password.new_password_placeholder')}
                   value={vm.newPassword}
                   onChange={(e) => vm.setNewPassword(e.target.value)}
                   disabled={vm.isLoading}
@@ -162,13 +164,13 @@ export default function ForgotPasswordView() {
 
               <div className="field-group">
                 <label className="field-label" htmlFor="confirmPassword">
-                  Confirm Password
+                  {t('auth.forgot_password.confirm_password')}
                 </label>
                 <input
                   id="confirmPassword"
                   className={`field-input ${vm.errors.confirmPassword ? 'has-error' : ''}`}
                   type="password"
-                  placeholder="Confirm password"
+                  placeholder={t('auth.forgot_password.confirm_password_placeholder')}
                   value={vm.confirmPassword}
                   onChange={(e) => vm.setConfirmPassword(e.target.value)}
                   disabled={vm.isLoading}
@@ -188,7 +190,7 @@ export default function ForgotPasswordView() {
                 className="btn-primary"
                 disabled={vm.isLoading}
               >
-                {vm.isLoading ? <span className="spinner" /> : 'Set Password'}
+                {vm.isLoading ? <span className="spinner" /> : t('auth.forgot_password.set_password')}
               </button>
             </form>
           </>
@@ -196,16 +198,14 @@ export default function ForgotPasswordView() {
 
         {vm.step === 'success' && (
           <div style={{ textAlign: 'center' }}>
-            <h1 className="auth-title">Password Reset</h1>
-            <p className="auth-subtitle">
-              Your password has been changed successfully. You can now log in with your new password.
-            </p>
+            <h1 className="auth-title">{t('auth.forgot_password.success_title')}</h1>
+            <p className="auth-subtitle">{t('auth.forgot_password.success_subtitle')}</p>
             <button
               className="btn-primary"
               onClick={() => navigate('/login')}
               style={{ marginTop: '1rem' }}
             >
-              Go to Login
+              {t('auth.forgot_password.go_to_login')}
             </button>
           </div>
         )}
@@ -213,7 +213,7 @@ export default function ForgotPasswordView() {
         {vm.step !== 'success' && (
           <div className="auth-footer" style={{ marginTop: '1.5rem' }}>
             <Link to="/login" className="link">
-              Back to Login
+              {t('auth.forgot_password.back_to_login')}
             </Link>
           </div>
         )}
