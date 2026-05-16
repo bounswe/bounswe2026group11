@@ -1,0 +1,1230 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="189" failures="0" errors="0" time="5.675445832">
+    <testsuite name="src/App.test.tsx" timestamp="2026-05-16T11:22:31.242Z" hostname="Sevde-MacBook-Air-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.227391708">
+        <testcase classname="src/App.test.tsx" name="App / route &gt; shows landing page when unauthenticated" time="0.05203975">
+        </testcase>
+        <testcase classname="src/App.test.tsx" name="App / route &gt; redirects authenticated user from / to /discover" time="0.011494917">
+        </testcase>
+        <testcase classname="src/App.test.tsx" name="App / route &gt; renders nothing while auth is loading" time="0.002480041">
+        </testcase>
+        <testcase classname="src/App.test.tsx" name="App / route &gt; denies /backoffice child pages to non-admin users" time="0.0121145">
+        </testcase>
+        <testcase classname="src/App.test.tsx" name="App / route &gt; renders /backoffice child pages for admins" time="0.147720375">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/i18n/index.test.ts" timestamp="2026-05-16T11:22:31.243Z" hostname="Sevde-MacBook-Air-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.001880583">
+        <testcase classname="src/i18n/index.test.ts" name="isSupportedLocale &gt; accepts en and tr" time="0.000701541">
+        </testcase>
+        <testcase classname="src/i18n/index.test.ts" name="isSupportedLocale &gt; rejects everything else" time="0.000205334">
+        </testcase>
+        <testcase classname="src/i18n/index.test.ts" name="resolveLocale &gt; maps tr-TR to tr" time="0.000062958">
+        </testcase>
+        <testcase classname="src/i18n/index.test.ts" name="resolveLocale &gt; maps en-US to en" time="0.00004425">
+        </testcase>
+        <testcase classname="src/i18n/index.test.ts" name="resolveLocale &gt; falls back to en for unsupported tags" time="0.000191667">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/i18n/locales.test.ts" timestamp="2026-05-16T11:22:31.244Z" hostname="Sevde-MacBook-Air-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.005792417">
+        <testcase classname="src/i18n/locales.test.ts" name="locale catalogs &gt; en and tr have identical key sets" time="0.003961583">
+        </testcase>
+        <testcase classname="src/i18n/locales.test.ts" name="locale catalogs &gt; en has no empty string values" time="0.000505583">
+        </testcase>
+        <testcase classname="src/i18n/locales.test.ts" name="locale catalogs &gt; tr has no empty string values" time="0.000293875">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/AppShell.test.tsx" timestamp="2026-05-16T11:22:31.244Z" hostname="Sevde-MacBook-Air-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.328497708">
+        <testcase classname="src/components/AppShell.test.tsx" name="AppShell admin entry &gt; exposes skip link, main landmark, and navigation state" time="0.230213875">
+        </testcase>
+        <testcase classname="src/components/AppShell.test.tsx" name="AppShell admin entry &gt; shows non-admin header actions as locked when unauthenticated" time="0.050309792">
+        </testcase>
+        <testcase classname="src/components/AppShell.test.tsx" name="AppShell admin entry &gt; shows Admin Panel for authenticated admins" time="0.023702958">
+        </testcase>
+        <testcase classname="src/components/AppShell.test.tsx" name="AppShell admin entry &gt; hides Admin Panel for regular authenticated users" time="0.022295125">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/LanguageSwitcher.test.tsx" timestamp="2026-05-16T11:22:31.244Z" hostname="Sevde-MacBook-Air-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.19359025">
+        <testcase classname="src/components/LanguageSwitcher.test.tsx" name="LanguageSwitcher &gt; switches locale and persists the selection" time="0.192429541">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/RatingWithCount.test.ts" timestamp="2026-05-16T11:22:31.244Z" hostname="Sevde-MacBook-Air-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.001366">
+        <testcase classname="src/components/RatingWithCount.test.ts" name="formatRatingWithCountText &gt; shows the score with a defensive rating count when available" time="0.000603875">
+        </testcase>
+        <testcase classname="src/components/RatingWithCount.test.ts" name="formatRatingWithCountText &gt; keeps the score visible when the backend has not rolled out count yet" time="0.00018475">
+        </testcase>
+        <testcase classname="src/components/RatingWithCount.test.ts" name="formatRatingWithCountText &gt; renders nothing for unrated items" time="0.000064084">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/contexts/AuthContext.test.tsx" timestamp="2026-05-16T11:22:31.245Z" hostname="Sevde-MacBook-Air-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.069036542">
+        <testcase classname="src/contexts/AuthContext.test.tsx" name="AuthContext &gt; clears a stale session when the current user profile is not found" time="0.068305541">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/contexts/LocaleContext.test.tsx" timestamp="2026-05-16T11:22:31.245Z" hostname="Sevde-MacBook-Air-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.04594325">
+        <testcase classname="src/contexts/LocaleContext.test.tsx" name="LocaleContext &gt; defaults to english when nothing is stored" time="0.013286875">
+        </testcase>
+        <testcase classname="src/contexts/LocaleContext.test.tsx" name="LocaleContext &gt; hydrates locale from localStorage" time="0.022074833">
+        </testcase>
+        <testcase classname="src/contexts/LocaleContext.test.tsx" name="LocaleContext &gt; persists locale changes to localStorage and i18n state" time="0.008966958">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/services/adminService.test.ts" timestamp="2026-05-16T11:22:31.245Z" hostname="Sevde-MacBook-Air-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.007789667">
+        <testcase classname="src/services/adminService.test.ts" name="buildAdminListPath &gt; serializes filters and pagination while skipping empty values" time="0.002657459">
+        </testcase>
+        <testcase classname="src/services/adminService.test.ts" name="admin mutation services &gt; posts notification payloads with delivery mode" time="0.003169125">
+        </testcase>
+        <testcase classname="src/services/adminService.test.ts" name="admin mutation services &gt; posts participation create and cancel actions" time="0.000636834">
+        </testcase>
+        <testcase classname="src/services/adminService.test.ts" name="admin event report services &gt; fetches event reports with filters" time="0.000718333">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/services/api.test.ts" timestamp="2026-05-16T11:22:31.245Z" hostname="Sevde-MacBook-Air-4.local" tests="12" failures="0" errors="0" skipped="0" time="0.00692325">
+        <testcase classname="src/services/api.test.ts" name="apiGetAuth &gt; returns data on a successful response" time="0.001904375">
+        </testcase>
+        <testcase classname="src/services/api.test.ts" name="apiGetAuth &gt; silently refreshes on 401 and retries with the new token" time="0.000690459">
+        </testcase>
+        <testcase classname="src/services/api.test.ts" name="apiGetAuth &gt; calls onRefreshSuccess with new tokens after a successful refresh" time="0.000665708">
+        </testcase>
+        <testcase classname="src/services/api.test.ts" name="apiGetAuth &gt; calls onRefreshFailure and throws when refresh request returns 401" time="0.000742625">
+        </testcase>
+        <testcase classname="src/services/api.test.ts" name="apiGetAuth &gt; throws without attempting refresh when no token manager is set" time="0.000241583">
+        </testcase>
+        <testcase classname="src/services/api.test.ts" name="apiGetAuth &gt; throws when retry after refresh also returns 401" time="0.000287958">
+        </testcase>
+        <testcase classname="src/services/api.test.ts" name="apiGetAuth &gt; deduplicates concurrent refresh calls" time="0.000551666">
+        </testcase>
+        <testcase classname="src/services/api.test.ts" name="apiPostAuth &gt; returns data on success" time="0.0003205">
+        </testcase>
+        <testcase classname="src/services/api.test.ts" name="apiPostAuth &gt; silently refreshes on 401 and retries" time="0.000302917">
+        </testcase>
+        <testcase classname="src/services/api.test.ts" name="apiPostAuth &gt; returns undefined for 204 responses" time="0.000108958">
+        </testcase>
+        <testcase classname="src/services/api.test.ts" name="apiPatchAuth &gt; returns updated data on success" time="0.000176041">
+        </testcase>
+        <testcase classname="src/services/api.test.ts" name="apiPatchAuth &gt; silently refreshes on 401 and retries" time="0.000083167">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/services/eventService.test.ts" timestamp="2026-05-16T11:22:31.246Z" hostname="Sevde-MacBook-Air-4.local" tests="25" failures="0" errors="0" skipped="0" time="0.019736209">
+        <testcase classname="src/services/eventService.test.ts" name="searchLocation &gt; returns [] without calling fetch when query is shorter than 2 chars" time="0.004457">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="searchLocation &gt; returns [] for whitespace-only queries" time="0.000290916">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="searchLocation &gt; hits the Photon endpoint with the expected query params" time="0.002149417">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="searchLocation &gt; does NOT hit the legacy Nominatim endpoint" time="0.000339917">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="searchLocation &gt; maps Photon GeoJSON business-flows to LocationSuggestion shape" time="0.001236292">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="searchLocation &gt; joins street + housenumber and dedupes repeated locality parts" time="0.000753959">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="searchLocation &gt; skips business-flows missing coordinates or display name" time="0.000807792">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="searchLocation &gt; returns [] when Photon responds with a non-OK status" time="0.000309583">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="searchLocation &gt; returns [] when fetch throws" time="0.000963583">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="searchLocation &gt; returns [] when Photon body is malformed JSON" time="0.00039925">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="reverseGeocode &gt; returns null for non-finite coordinates" time="0.000196667">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="reverseGeocode &gt; hits the Photon reverse endpoint with lat/lon and lang=en" time="0.000383083">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="reverseGeocode &gt; maps the first Photon feature to a LocationSuggestion" time="0.000634083">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="reverseGeocode &gt; keeps standard reverse geocoded names unless area-level formatting is requested" time="0.000642">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="reverseGeocode &gt; prefers area-level names for map-selection reverse geocoding" time="0.000339792">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="reverseGeocode &gt; falls back to original coordinates when the feature lacks geometry" time="0.000261875">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="reverseGeocode &gt; keeps the original clicked coordinates when Photon returns a snapped feature" time="0.000162917">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="reverseGeocode &gt; returns null when Photon returns no business-flows" time="0.000126375">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="reverseGeocode &gt; returns null when fetch throws" time="0.000108416">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="reverseGeocode &gt; returns null when Photon responds with a non-OK status" time="0.000096459">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="eventService.discoverEvents &gt; passes selected audience filters to discovery requests" time="0.001355666">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="eventService.createEventReport &gt; posts an authenticated event report request" time="0.001128709">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="eventService.updateEvent &gt; patches event updates through the versioned update endpoint" time="0.000378125">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="eventService.listEventApprovedParticipants &gt; passes participant status filters to the backend" time="0.000391542">
+        </testcase>
+        <testcase classname="src/services/eventService.test.ts" name="eventService.reconfirmEventParticipation &gt; posts to the reconfirm endpoint with bearer auth" time="0.000318">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/services/invitationService.test.ts" timestamp="2026-05-16T11:22:31.247Z" hostname="Sevde-MacBook-Air-4.local" tests="2" failures="0" errors="0" skipped="0" time="0.016255125">
+        <testcase classname="src/services/invitationService.test.ts" name="invitationService &gt; fetches received invitations from the split pending/past endpoint" time="0.014311042">
+        </testcase>
+        <testcase classname="src/services/invitationService.test.ts" name="invitationService &gt; fetches one invitation detail by id" time="0.000658209">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/services/profileService.test.ts" timestamp="2026-05-16T11:22:31.247Z" hostname="Sevde-MacBook-Air-4.local" tests="9" failures="0" errors="0" skipped="0" time="0.015168166">
+        <testcase classname="src/services/profileService.test.ts" name="profileService.changePassword &gt; posts the authenticated password endpoint with old and new password" time="0.008092167">
+        </testcase>
+        <testcase classname="src/services/profileService.test.ts" name="profileService public profile &gt; fetches the public profile endpoint without authentication" time="0.001943375">
+        </testcase>
+        <testcase classname="src/services/profileService.test.ts" name="profileService equipment &gt; creates an equipment item for the authenticated user" time="0.000524958">
+        </testcase>
+        <testcase classname="src/services/profileService.test.ts" name="profileService equipment &gt; updates an equipment item for the authenticated user" time="0.000432709">
+        </testcase>
+        <testcase classname="src/services/profileService.test.ts" name="profileService showcase images &gt; requests showcase upload instructions for the authenticated user" time="0.000433125">
+        </testcase>
+        <testcase classname="src/services/profileService.test.ts" name="profileService showcase images &gt; confirms a showcase image upload for the authenticated user" time="0.000350125">
+        </testcase>
+        <testcase classname="src/services/profileService.test.ts" name="profileService badges &gt; fetches the authenticated user badges endpoint" time="0.000284458">
+        </testcase>
+        <testcase classname="src/services/profileService.test.ts" name="profileService badges &gt; fetches another user badges endpoint" time="0.000261917">
+        </testcase>
+        <testcase classname="src/services/profileService.test.ts" name="profileService badges &gt; fetches the badge catalog endpoint" time="0.001089625">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/authErrorPresentation.test.ts" timestamp="2026-05-16T11:22:31.247Z" hostname="Sevde-MacBook-Air-4.local" tests="2" failures="0" errors="0" skipped="0" time="0.006502125">
+        <testcase classname="src/utils/authErrorPresentation.test.ts" name="authErrorPresentation &gt; translates auth error codes for banner messages" time="0.004305292">
+        </testcase>
+        <testcase classname="src/utils/authErrorPresentation.test.ts" name="authErrorPresentation &gt; translates backend validation details into field errors" time="0.000932208">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/eventStatus.test.ts" timestamp="2026-05-16T11:22:31.247Z" hostname="Sevde-MacBook-Air-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.0047575">
+        <testcase classname="src/utils/eventStatus.test.ts" name="getEventLifecyclePresentation &gt; maps ACTIVE to UPCOMING" time="0.002428875">
+        </testcase>
+        <testcase classname="src/utils/eventStatus.test.ts" name="getEventLifecyclePresentation &gt; maps IN_PROGRESS" time="0.000330584">
+        </testcase>
+        <testcase classname="src/utils/eventStatus.test.ts" name="getEventLifecyclePresentation &gt; returns null for other statuses" time="0.000078708">
+        </testcase>
+        <testcase classname="src/utils/eventStatus.test.ts" name="getEventStatusPresentation &gt; formats IN_PROGRESS into a user-facing label" time="0.000207125">
+        </testcase>
+        <testcase classname="src/utils/eventStatus.test.ts" name="getEventStatusPresentation &gt; formats unknown uppercase enum-like values into title case" time="0.0000755">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/imageResize.test.ts" timestamp="2026-05-16T11:22:31.248Z" hostname="Sevde-MacBook-Air-4.local" tests="2" failures="0" errors="0" skipped="0" time="0.003101167">
+        <testcase classname="src/utils/imageResize.test.ts" name="prepareAvatarBlobs &gt; returns original and small blobs" time="0.002082958">
+        </testcase>
+        <testcase classname="src/utils/imageResize.test.ts" name="prepareAvatarBlobs &gt; works with png files" time="0.000447833">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/locationApproximation.test.ts" timestamp="2026-05-16T11:22:31.248Z" hostname="Sevde-MacBook-Air-4.local" tests="6" failures="0" errors="0" skipped="0" time="0.002707666">
+        <testcase classname="src/utils/locationApproximation.test.ts" name="shouldShowApproximateLocationIndicator &gt; &apos;public non-participant with exact bac…&apos;" time="0.000726417">
+        </testcase>
+        <testcase classname="src/utils/locationApproximation.test.ts" name="shouldShowApproximateLocationIndicator &gt; &apos;public non-participant with unexpecte…&apos;" time="0.000135458">
+        </testcase>
+        <testcase classname="src/utils/locationApproximation.test.ts" name="shouldShowApproximateLocationIndicator &gt; &apos;protected non-participant with approx…&apos;" time="0.000053625">
+        </testcase>
+        <testcase classname="src/utils/locationApproximation.test.ts" name="shouldShowApproximateLocationIndicator &gt; &apos;protected approved participant with e…&apos;" time="0.000103125">
+        </testcase>
+        <testcase classname="src/utils/locationApproximation.test.ts" name="shouldShowApproximateLocationIndicator &gt; &apos;protected host with exact backend loc…&apos;" time="0.000041958">
+        </testcase>
+        <testcase classname="src/utils/locationApproximation.test.ts" name="shouldShowApproximateLocationIndicator &gt; &apos;private invited viewer with exact bac…&apos;" time="0.000099125">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/notificationPresentation.test.ts" timestamp="2026-05-16T11:22:31.248Z" hostname="Sevde-MacBook-Air-4.local" tests="8" failures="0" errors="0" skipped="0" time="0.028685833">
+        <testcase classname="src/utils/notificationPresentation.test.ts" name="getNotificationPresentation &gt; returns invitation copy and routes to invitations for PRIVATE_EVENT_INVITATION_RECEIVED" time="0.010929625">
+        </testcase>
+        <testcase classname="src/utils/notificationPresentation.test.ts" name="getNotificationPresentation &gt; returns approved copy and routes to event for PROTECTED_EVENT_JOIN_REQUEST_APPROVED" time="0.000875416">
+        </testcase>
+        <testcase classname="src/utils/notificationPresentation.test.ts" name="getNotificationPresentation &gt; formats cooldown metadata for PROTECTED_EVENT_JOIN_REQUEST_REJECTED" time="0.013685792">
+        </testcase>
+        <testcase classname="src/utils/notificationPresentation.test.ts" name="getNotificationPresentation &gt; returns accepted and declined invitation notifications as event updates" time="0.0010495">
+        </testcase>
+        <testcase classname="src/utils/notificationPresentation.test.ts" name="getNotificationPresentation &gt; falls back to generic title and body for unknown notification types" time="0.000873541">
+        </testcase>
+        <testcase classname="src/utils/notificationPresentation.test.ts" name="getNotificationPresentation &gt; returns NONE action target when notification has no event reference" time="0.000115375">
+        </testcase>
+        <testcase classname="src/utils/notificationPresentation.test.ts" name="isDedicatedParticipationNotification &gt; returns true for participation-related types" time="0.0001525">
+        </testcase>
+        <testcase classname="src/utils/notificationPresentation.test.ts" name="isDedicatedParticipationNotification &gt; returns false for unknown or null types" time="0.000065625">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/notificationRouting.test.ts" timestamp="2026-05-16T11:22:31.249Z" hostname="Sevde-MacBook-Air-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.011681875">
+        <testcase classname="src/utils/notificationRouting.test.ts" name="resolveNotificationRoute &gt; routes invitation-received notifications to /invitations regardless of event_id" time="0.004408833">
+        </testcase>
+        <testcase classname="src/utils/notificationRouting.test.ts" name="resolveNotificationRoute &gt; routes approved/rejected join request notifications to the event detail page" time="0.003108666">
+        </testcase>
+        <testcase classname="src/utils/notificationRouting.test.ts" name="resolveNotificationRoute &gt; falls back to event_id from data when top-level event_id is missing" time="0.000449833">
+        </testcase>
+        <testcase classname="src/utils/notificationRouting.test.ts" name="resolveNotificationRoute &gt; returns null when there is nothing to navigate to" time="0.000488417">
+        </testcase>
+        <testcase classname="src/utils/notificationRouting.test.ts" name="resolveNotificationRoute &gt; honors a deep_link pointing to /events/:id when no other route is determinable" time="0.000387417">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/validators.test.ts" timestamp="2026-05-16T11:22:31.249Z" hostname="Sevde-MacBook-Air-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.003374709">
+        <testcase classname="src/utils/validators.test.ts" name="validators &gt; accepts a valid email" time="0.000749125">
+        </testcase>
+        <testcase classname="src/utils/validators.test.ts" name="validators &gt; rejects an invalid otp" time="0.00130475">
+        </testcase>
+        <testcase classname="src/utils/validators.test.ts" name="validators &gt; rejects usernames with unsupported characters" time="0.000190459">
+        </testcase>
+        <testcase classname="src/utils/validators.test.ts" name="validators &gt; allows blank phone numbers but rejects malformed input" time="0.000223292">
+        </testcase>
+        <testcase classname="src/utils/validators.test.ts" name="validators &gt; rejects future birth dates" time="0.00012">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/viewmodels/auth/useLoginViewModel.test.tsx" timestamp="2026-05-16T11:22:31.249Z" hostname="Sevde-MacBook-Air-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.019938375">
+        <testcase classname="src/viewmodels/auth/useLoginViewModel.test.tsx" name="useLoginViewModel &gt; localizes invalid credential errors from the backend" time="0.019125958">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/viewmodels/auth/useRegisterViewModel.test.tsx" timestamp="2026-05-16T11:22:31.249Z" hostname="Sevde-MacBook-Air-4.local" tests="2" failures="0" errors="0" skipped="0" time="0.024482542">
+        <testcase classname="src/viewmodels/auth/useRegisterViewModel.test.tsx" name="useRegisterViewModel &gt; requires gender and birth date before requesting OTP" time="0.012820833">
+        </testcase>
+        <testcase classname="src/viewmodels/auth/useRegisterViewModel.test.tsx" name="useRegisterViewModel &gt; sends required gender and birth date when OTP verify succeeds" time="0.010943167">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/viewmodels/favorites/useFavoritesViewModel.test.ts" timestamp="2026-05-16T11:22:31.249Z" hostname="Sevde-MacBook-Air-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.176094917">
+        <testcase classname="src/viewmodels/favorites/useFavoritesViewModel.test.ts" name="useFavoritesViewModel &gt; returns favorited events" time="0.062726708">
+        </testcase>
+        <testcase classname="src/viewmodels/favorites/useFavoritesViewModel.test.ts" name="useFavoritesViewModel &gt; returns empty list when no favorites" time="0.055101834">
+        </testcase>
+        <testcase classname="src/viewmodels/favorites/useFavoritesViewModel.test.ts" name="useFavoritesViewModel &gt; sets error on failure" time="0.057367583">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/viewmodels/discover/useDiscoverViewModel.test.ts" timestamp="2026-05-16T11:22:31.249Z" hostname="Sevde-MacBook-Air-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.097357916">
+        <testcase classname="src/viewmodels/discover/useDiscoverViewModel.test.ts" name="useDiscoverViewModel persistence &gt; localizes the short label for browser-based locations" time="0.026077083">
+        </testcase>
+        <testcase classname="src/viewmodels/discover/useDiscoverViewModel.test.ts" name="useDiscoverViewModel persistence &gt; restores selected location and active query context from the current session" time="0.012489209">
+        </testcase>
+        <testcase classname="src/viewmodels/discover/useDiscoverViewModel.test.ts" name="useDiscoverViewModel persistence &gt; refetches discover results with the selected minimum age filter" time="0.05805625">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/viewmodels/event/useEventDetailViewModel.test.ts" timestamp="2026-05-16T11:22:31.250Z" hostname="Sevde-MacBook-Air-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.309065083">
+        <testcase classname="src/viewmodels/event/useEventDetailViewModel.test.ts" name="useEventDetailViewModel favorites &gt; adds favorite locally without refetching event detail" time="0.071483667">
+        </testcase>
+        <testcase classname="src/viewmodels/event/useEventDetailViewModel.test.ts" name="useEventDetailViewModel favorites &gt; removes favorite locally without refetching event detail" time="0.056909792">
+        </testcase>
+        <testcase classname="src/viewmodels/event/useEventDetailViewModel.test.ts" name="useEventDetailViewModel favorites &gt; rolls back the local favorite state when the request fails" time="0.061522292">
+        </testcase>
+        <testcase classname="src/viewmodels/event/useEventDetailViewModel.test.ts" name="useEventDetailViewModel favorites &gt; marks the viewer as pending immediately after a successful join request" time="0.062283708">
+        </testcase>
+        <testcase classname="src/viewmodels/event/useEventDetailViewModel.test.ts" name="useEventDetailViewModel favorites &gt; marks the viewer as joined immediately after a successful public join" time="0.055110625">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/viewmodels/event/useMyEventsViewModel.test.ts" timestamp="2026-05-16T11:22:31.250Z" hostname="Sevde-MacBook-Air-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.178369958">
+        <testcase classname="src/viewmodels/event/useMyEventsViewModel.test.ts" name="useMyEventsViewModel &gt; splits upcoming response into upcoming (ACTIVE) and active (IN_PROGRESS)" time="0.063239583">
+        </testcase>
+        <testcase classname="src/viewmodels/event/useMyEventsViewModel.test.ts" name="useMyEventsViewModel &gt; returns empty active list when no IN_PROGRESS events" time="0.05636975">
+        </testcase>
+        <testcase classname="src/viewmodels/event/useMyEventsViewModel.test.ts" name="useMyEventsViewModel &gt; defaults to active tab" time="0.05776675">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/viewmodels/notifications/useUnreadCountViewModel.test.ts" timestamp="2026-05-16T11:22:31.250Z" hostname="Sevde-MacBook-Air-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.229727084">
+        <testcase classname="src/viewmodels/notifications/useUnreadCountViewModel.test.ts" name="useUnreadCountViewModel &gt; applies immediate unread count updates from notification interactions" time="0.228809584">
+            <system-err>
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/viewmodels/admin/useAdminListViewModel.test.tsx" timestamp="2026-05-16T11:22:31.250Z" hostname="Sevde-MacBook-Air-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.06932225">
+        <testcase classname="src/viewmodels/admin/useAdminListViewModel.test.tsx" name="useAdminListViewModel &gt; applies filters and advances offset pagination" time="0.068255916">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/views/backoffice/NotificationsAdminPage.test.tsx" timestamp="2026-05-16T11:22:31.250Z" hostname="Sevde-MacBook-Air-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.396400666">
+        <testcase classname="src/views/backoffice/NotificationsAdminPage.test.tsx" name="NotificationsAdminPage &gt; validates required fields without clearing typed state" time="0.178401541">
+        </testcase>
+        <testcase classname="src/views/backoffice/NotificationsAdminPage.test.tsx" name="NotificationsAdminPage &gt; submits selected delivery mode and displays backend result counts" time="0.126694791">
+        </testcase>
+        <testcase classname="src/views/backoffice/NotificationsAdminPage.test.tsx" name="NotificationsAdminPage &gt; loads sent notifications and filters by user" time="0.090472334">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/views/backoffice/ParticipationsAdminPage.test.tsx" timestamp="2026-05-16T11:22:31.250Z" hostname="Sevde-MacBook-Air-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.370400333">
+        <testcase classname="src/views/backoffice/ParticipationsAdminPage.test.tsx" name="ParticipationsAdminPage &gt; creates an approved manual participation and refreshes the table" time="0.20077725">
+        </testcase>
+        <testcase classname="src/views/backoffice/ParticipationsAdminPage.test.tsx" name="ParticipationsAdminPage &gt; shows create validation and backend failures without refreshing" time="0.13069225">
+        </testcase>
+        <testcase classname="src/views/backoffice/ParticipationsAdminPage.test.tsx" name="ParticipationsAdminPage &gt; confirms cancellation, sends the cancel action, and refreshes the table" time="0.037054458">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/views/events/EventDetailPage.test.tsx" timestamp="2026-05-16T11:22:31.251Z" hostname="Sevde-MacBook-Air-4.local" tests="31" failures="0" errors="0" skipped="0" time="1.373063833">
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; lets the host end an in-progress event from the management section" time="0.401404542">
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; links the host name block to the public profile page" time="0.07485625">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; links approved participants to the public profile page from the management list" time="0.0713745">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; links pending join requesters to the public profile page" time="0.03663775">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; opens the report modal from the flag button and submits the selected reason" time="0.12698325">
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; shows report success state from the view model" time="0.029041875">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; shows existing participant rating in summary mode until edit is requested" time="0.071553709">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; hides the participant rating card for non-participants" time="0.043180125">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; shows host-side participant ratings and edit actions in the management list" time="0.044897875">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; renders the directions link with the event coordinates when location is a POINT" time="0.022297792">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; shows approximate area copy and hides directions for approximate protected locations" time="0.02345575">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; shows the approximate district and province when protected location address is available" time="0.01050225">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; shows the map fallback and hides the directions link when coordinates are missing" time="0.018232917">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; builds a Google Maps directions URL with encoded destination coordinates" time="0.00015175">
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; shows the Invite Users button on private events for the host" time="0.051312167">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; hides the Invite Users button on public events even for the host" time="0.009579708">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; hides the Invite Users button for non-host viewers on private events" time="0.009443791">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; shows a pending join-request banner instead of join actions" time="0.038284416">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; shows the proof image picker in the request form when expanded" time="0.022155166">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; renders a View Attachment link for host pending requests with image_url" time="0.024821459">
+            <system-err>
+In HTML, &lt;a&gt; cannot be a descendant of &lt;a&gt;.
+This will cause a hydration error.
+
+  ...
+    &lt;Router basename={undefined} location={{pathname:&quot;...&quot;, ...}} navigationType=&quot;POP&quot; navigator={{index:0, ...}} ...&gt;
+      &lt;Routes&gt;
+        &lt;RenderedRoute match={{...}} routeContext={{outlet:null, ...}}&gt;
+          &lt;EventDetailPage&gt;
+            &lt;EventContent event={{id:&quot;event-1&quot;, ...}} isAuthenticated={true} token=&quot;token&quot; coverImageUploading={false} ...&gt;
+              &lt;div className=&quot;ed-page&quot;&gt;
+                &lt;button&gt;
+                &lt;div&gt;
+                &lt;div&gt;
+                &lt;div&gt;
+                &lt;ExpiryWarningBanner&gt;
+                &lt;ReconfirmationBanner&gt;
+                &lt;JoinActionSection&gt;
+                &lt;ParticipantRatingSection&gt;
+                &lt;div className=&quot;ed-sections&quot;&gt;
+                  &lt;div&gt;
+                  &lt;LocationSection&gt;
+                  &lt;div&gt;
+                  &lt;div&gt;
+                  &lt;div&gt;
+                  &lt;div&gt;
+                  &lt;EventVersionHistorySection&gt;
+                  &lt;div className=&quot;ed-section&quot;&gt;
+                    &lt;h2&gt;
+                    &lt;div&gt;
+                    &lt;div&gt;
+                    &lt;div className=&quot;ed-mgmt-group&quot;&gt;
+                      &lt;h3&gt;
+                      &lt;ul className=&quot;ed-mgmt-list&quot;&gt;
+                        &lt;li className=&quot;ed-mgmt-it...&quot;&gt;
+                          &lt;LinkWithRef&gt;
+                          &lt;LinkWithRef to=&quot;/users/req...&quot; className=&quot;ed-mgmt-us...&quot;&gt;
+&gt;                           &lt;a
+&gt;                             className=&quot;ed-mgmt-user-link&quot;
+&gt;                             href=&quot;/users/requester-1&quot;
+&gt;                             onClick={function handleClick}
+&gt;                             ref={function}
+&gt;                             target={undefined}
+&gt;                             data-discover=&quot;true&quot;
+&gt;                           &gt;
+                              &lt;div className=&quot;ed-mgmt-us...&quot;&gt;
+                                &lt;div&gt;
+                                &lt;span&gt;
+                                &lt;span&gt;
+&gt;                               &lt;a
+&gt;                                 className=&quot;ed-mgmt-attachment&quot;
+&gt;                                 href=&quot;https://sem-bucket.fra1.cdn.digitaloceanspaces.com/events/x/join-requests/y/up...&quot;
+&gt;                                 target=&quot;_blank&quot;
+&gt;                                 rel=&quot;noopener noreferrer&quot;
+&gt;                                 data-testid=&quot;ed-mgmt-attachment-jr-1&quot;
+&gt;                               &gt;
+                          ...
+                  ...
+
+&lt;a&gt; cannot contain a nested &lt;a&gt;.
+See this log for the ancestor stack trace.
+
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; does not render the attachment link when image_url is null" time="0.011018125">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; shows a Cancel Request button only when the user has a pending request" time="0.011025334">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; does not show a Cancel Request button for non-pending viewers" time="0.013666167">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; does not show a Cancel Request button when attendance needs reconfirmation" time="0.0148795">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; opens a confirmation modal and only calls handleCancelJoinRequest after confirming" time="0.028172083">
+            <system-err>
+An update to JoinActionSection inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; renders a dismissible error message when cancel fails" time="0.066955416">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; shows the View Ticket CTA for joined participants on public events" time="0.042466333">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; shows the View Ticket CTA for joined participants on protected events" time="0.017279708">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; shows the View Ticket CTA for joined participants on private events" time="0.011435292">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; hides the View Ticket CTA for non-participants" time="0.009918583">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/events/EventDetailPage.test.tsx" name="EventDetailPage ratings &gt; hides the View Ticket CTA for completed or canceled events" time="0.013959125">
+            <system-err>
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to EventInteractionPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/views/events/MyEventsPage.test.tsx" timestamp="2026-05-16T11:22:31.252Z" hostname="Sevde-MacBook-Air-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.174533">
+        <testcase classname="src/views/events/MyEventsPage.test.tsx" name="MyEventsPage tabs &gt; renders tabs in the updated order with Hosted label" time="0.17376275">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/views/invitations/InvitationsPage.test.tsx" timestamp="2026-05-16T11:22:31.252Z" hostname="Sevde-MacBook-Air-4.local" tests="6" failures="0" errors="0" skipped="0" time="0.25395375">
+        <testcase classname="src/views/invitations/InvitationsPage.test.tsx" name="InvitationsPage &gt; shows loading state while fetching" time="0.034953">
+        </testcase>
+        <testcase classname="src/views/invitations/InvitationsPage.test.tsx" name="InvitationsPage &gt; shows empty state when there are no invitations" time="0.006696833">
+        </testcase>
+        <testcase classname="src/views/invitations/InvitationsPage.test.tsx" name="InvitationsPage &gt; renders pending invitation with accept and decline actions" time="0.119398958">
+        </testcase>
+        <testcase classname="src/views/invitations/InvitationsPage.test.tsx" name="InvitationsPage &gt; renders past accepted invitation without response actions" time="0.02537775">
+        </testcase>
+        <testcase classname="src/views/invitations/InvitationsPage.test.tsx" name="InvitationsPage &gt; calls handleAccept when Accept is clicked" time="0.059582625">
+            <system-err>
+An update to MemoryRouter inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/views/invitations/InvitationsPage.test.tsx" name="InvitationsPage &gt; renders an error message and dismiss button" time="0.005983916">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/views/notifications/NotificationsPage.test.tsx" timestamp="2026-05-16T11:22:31.253Z" hostname="Sevde-MacBook-Air-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.261052208">
+        <testcase classname="src/views/notifications/NotificationsPage.test.tsx" name="NotificationsPage invitation modal &gt; renders accepted and declined invitation notification labels in the feed" time="0.075259209">
+        </testcase>
+        <testcase classname="src/views/notifications/NotificationsPage.test.tsx" name="NotificationsPage invitation modal &gt; opens invitation details from an invitation notification and fetches by invitation id" time="0.130186084">
+        </testcase>
+        <testcase classname="src/views/notifications/NotificationsPage.test.tsx" name="NotificationsPage invitation modal &gt; shows a non-actionable canceled invitation state" time="0.054751583">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/views/profile/PublicProfilePage.test.tsx" timestamp="2026-05-16T11:22:31.253Z" hostname="Sevde-MacBook-Air-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.233638291">
+        <testcase classname="src/views/profile/PublicProfilePage.test.tsx" name="PublicProfilePage &gt; renders public profile sections without private account fields" time="0.093023542">
+        </testcase>
+        <testcase classname="src/views/profile/PublicProfilePage.test.tsx" name="PublicProfilePage &gt; renders a loading state while the profile is being fetched" time="0.002869625">
+        </testcase>
+        <testcase classname="src/views/profile/PublicProfilePage.test.tsx" name="PublicProfilePage &gt; renders an error state and retries when requested" time="0.136322584">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/views/tickets/TicketDetailPage.test.tsx" timestamp="2026-05-16T11:22:31.253Z" hostname="Sevde-MacBook-Air-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.253636709">
+        <testcase classname="src/views/tickets/TicketDetailPage.test.tsx" name="TicketDetailPage &gt; renders ticket info, status, and the mobile QR hint for an active ticket" time="0.060271125">
+        </testcase>
+        <testcase classname="src/views/tickets/TicketDetailPage.test.tsx" name="TicketDetailPage &gt; shows the eligibility notice when the active ticket cannot issue a QR right now" time="0.00645025">
+        </testcase>
+        <testcase classname="src/views/tickets/TicketDetailPage.test.tsx" name="TicketDetailPage &gt; hides the mobile QR hint for non-active tickets (USED, EXPIRED, CANCELED)" time="0.010079875">
+        </testcase>
+        <testcase classname="src/views/tickets/TicketDetailPage.test.tsx" name="TicketDetailPage &gt; renders the not-found view when the ticket is missing or not owned by the caller" time="0.002272583">
+        </testcase>
+        <testcase classname="src/views/tickets/TicketDetailPage.test.tsx" name="TicketDetailPage &gt; renders an error message with retry when the request fails" time="0.173637375">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/views/tickets/TicketsPage.test.tsx" timestamp="2026-05-16T11:22:31.253Z" hostname="Sevde-MacBook-Air-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.254227167">
+        <testcase classname="src/views/tickets/TicketsPage.test.tsx" name="TicketsPage &gt; shows the loading state while fetching" time="0.128225209">
+        </testcase>
+        <testcase classname="src/views/tickets/TicketsPage.test.tsx" name="TicketsPage &gt; renders the empty state when there are no tickets" time="0.006154375">
+        </testcase>
+        <testcase classname="src/views/tickets/TicketsPage.test.tsx" name="TicketsPage &gt; renders an active ticket card with status badge and event info" time="0.03041825">
+        </testcase>
+        <testcase classname="src/views/tickets/TicketsPage.test.tsx" name="TicketsPage &gt; renders a USED ticket with the Used status badge" time="0.007017417">
+        </testcase>
+        <testcase classname="src/views/tickets/TicketsPage.test.tsx" name="TicketsPage &gt; renders an error message that can be dismissed" time="0.080590584">
+        </testcase>
+    </testsuite>
+</testsuites>

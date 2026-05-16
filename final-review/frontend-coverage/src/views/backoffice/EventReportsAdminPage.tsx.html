@@ -1,0 +1,520 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for src/views/backoffice/EventReportsAdminPage.tsx</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../prettify.css" />
+    <link rel="stylesheet" href="../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../index.html">All files</a> / <a href="index.html">src/views/backoffice</a> EventReportsAdminPage.tsx</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">18.65% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>25/134</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">18.65% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>25/134</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import type { AdminEventReportFilters } from '@/models/admin';
+import { listAdminEventReports, updateAdminEventReportStatus } from '@/services/adminService';
+import { useAdminListViewModel } from '@/viewmodels/admin/useAdminListViewModel';
+import { useAdminMutation } from '@/viewmodels/admin/useAdminMutation';
+import { BackofficeIdCell, BackofficeImageModal, BackofficePageShell, BackofficePagination, BackofficeStatusPill, BackofficeTableState, formatAdminDate } from './BackofficeListParts';
+&nbsp;
+const INITIAL_FILTERS: AdminEventReportFilters = {
+  q: '',
+  status: 'PENDING',
+  report_category: undefined,
+  event_id: '',
+  reporter_user_id: '',
+  created_from: '',
+  created_to: '',
+};
+&nbsp;
+const REPORT_CATEGORY_LABELS: Record&lt;NonNullable&lt;AdminEventReportFilters['report_category']&gt;, string&gt; = {
+  SAFETY: 'Safety',
+  HARASSMENT: 'Harassment',
+  SPAM_OR_SCAM: 'Spam or scam',
+  INAPPROPRIATE_CONTENT: 'Inappropriate',
+  EVENT_NOT_AS_DESCRIBED: 'Not as described',
+  ILLEGAL_OR_DANGEROUS: 'Illegal or dangerous',
+  OTHER: 'Other',
+};
+&nbsp;
+<span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >export default function EventReportsAdminPage() {</span></span>
+<span class="cstat-no" title="statement not covered" >  const { token } = useAuth();</span>
+<span class="cstat-no" title="statement not covered" >  const initialFilters = useMemo(() =&gt; INITIAL_FILTERS, []);</span>
+<span class="cstat-no" title="statement not covered" >  const vm = useAdminListViewModel({ token, initialFilters, fetchPage: listAdminEventReports });</span>
+<span class="cstat-no" title="statement not covered" >  const mutation = useAdminMutation(vm.retry);</span>
+<span class="cstat-no" title="statement not covered" >  const [imageReportId, setImageReportId] = useState&lt;string | null&gt;(null);</span>
+<span class="cstat-no" title="statement not covered" >  const imageReport = vm.items.find((report) =&gt; report.id === imageReportId);</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >  return (</span>
+<span class="cstat-no" title="statement not covered" >    &lt;BackofficePageShell</span>
+<span class="cstat-no" title="statement not covered" >      title="Event Reports"</span>
+<span class="cstat-no" title="statement not covered" >      subtitle="Review user-submitted flags for inappropriate, harassing, or spam event content."</span>
+<span class="cstat-no" title="statement not covered" >      filters={(</span>
+<span class="cstat-no" title="statement not covered" >        &lt;&gt;</span>
+<span class="cstat-no" title="statement not covered" >          &lt;input aria-label="Search reports" placeholder="Search event, reporter, or message" value={vm.filters.q ?? ''} onChange={(event) =&gt; vm.setFilter('q', event.target.value)} /&gt;</span>
+<span class="cstat-no" title="statement not covered" >          &lt;select aria-label="Report status" value={vm.filters.status ?? ''} onChange={(event) =&gt; vm.setFilter('status', event.target.value === '' ? undefined : event.target.value as AdminEventReportFilters['status'])}&gt;</span>
+<span class="cstat-no" title="statement not covered" >            &lt;option value=""&gt;Any status&lt;/option&gt;</span>
+<span class="cstat-no" title="statement not covered" >            &lt;option value="PENDING"&gt;PENDING&lt;/option&gt;</span>
+<span class="cstat-no" title="statement not covered" >            &lt;option value="REVIEWED"&gt;REVIEWED&lt;/option&gt;</span>
+<span class="cstat-no" title="statement not covered" >            &lt;option value="DISMISSED"&gt;DISMISSED&lt;/option&gt;</span>
+<span class="cstat-no" title="statement not covered" >          &lt;/select&gt;</span>
+<span class="cstat-no" title="statement not covered" >          &lt;select aria-label="Report category" value={vm.filters.report_category ?? ''} onChange={(event) =&gt; vm.setFilter('report_category', event.target.value === '' ? undefined : event.target.value as AdminEventReportFilters['report_category'])}&gt;</span>
+<span class="cstat-no" title="statement not covered" >            &lt;option value=""&gt;Any reason&lt;/option&gt;</span>
+<span class="cstat-no" title="statement not covered" >            {Object.entries(REPORT_CATEGORY_LABELS).map(([value, label]) =&gt; (</span>
+<span class="cstat-no" title="statement not covered" >              &lt;option key={value} value={value}&gt;{label}&lt;/option&gt;</span>
+<span class="cstat-no" title="statement not covered" >            ))}</span>
+<span class="cstat-no" title="statement not covered" >          &lt;/select&gt;</span>
+<span class="cstat-no" title="statement not covered" >          &lt;input aria-label="Event ID" placeholder="Event ID" value={vm.filters.event_id ?? ''} onChange={(event) =&gt; vm.setFilter('event_id', event.target.value)} /&gt;</span>
+<span class="cstat-no" title="statement not covered" >          &lt;input aria-label="Reporter user ID" placeholder="Reporter user ID" value={vm.filters.reporter_user_id ?? ''} onChange={(event) =&gt; vm.setFilter('reporter_user_id', event.target.value)} /&gt;</span>
+<span class="cstat-no" title="statement not covered" >          &lt;input aria-label="Created from" type="datetime-local" value={vm.filters.created_from ?? ''} onChange={(event) =&gt; vm.setFilter('created_from', event.target.value)} /&gt;</span>
+<span class="cstat-no" title="statement not covered" >          &lt;input aria-label="Created to" type="datetime-local" value={vm.filters.created_to ?? ''} onChange={(event) =&gt; vm.setFilter('created_to', event.target.value)} /&gt;</span>
+<span class="cstat-no" title="statement not covered" >          &lt;button type="button" onClick={vm.applyFilters}&gt;Apply&lt;/button&gt;</span>
+<span class="cstat-no" title="statement not covered" >          &lt;button type="button" className="bo-secondary-button" onClick={vm.clearFilters}&gt;Clear&lt;/button&gt;</span>
+<span class="cstat-no" title="statement not covered" >        &lt;/&gt;</span>
+      )}
+    &gt;
+<span class="cstat-no" title="statement not covered" >      &lt;BackofficeTableState isLoading={vm.isLoading} error={vm.error} empty={vm.items.length === 0} onRetry={vm.retry} /&gt;</span>
+<span class="cstat-no" title="statement not covered" >      &lt;div className="bo-table-wrap"&gt;</span>
+<span class="cstat-no" title="statement not covered" >        &lt;table className="bo-table bo-report-table"&gt;</span>
+<span class="cstat-no" title="statement not covered" >          &lt;thead&gt;</span>
+<span class="cstat-no" title="statement not covered" >            &lt;tr&gt;</span>
+<span class="cstat-no" title="statement not covered" >              &lt;th&gt;ID&lt;/th&gt;</span>
+<span class="cstat-no" title="statement not covered" >              &lt;th&gt;Status&lt;/th&gt;</span>
+<span class="cstat-no" title="statement not covered" >              &lt;th&gt;Reason&lt;/th&gt;</span>
+<span class="cstat-no" title="statement not covered" >              &lt;th&gt;Event&lt;/th&gt;</span>
+<span class="cstat-no" title="statement not covered" >              &lt;th&gt;Reporter&lt;/th&gt;</span>
+<span class="cstat-no" title="statement not covered" >              &lt;th&gt;Message&lt;/th&gt;</span>
+<span class="cstat-no" title="statement not covered" >              &lt;th&gt;Image&lt;/th&gt;</span>
+<span class="cstat-no" title="statement not covered" >              &lt;th&gt;Created&lt;/th&gt;</span>
+<span class="cstat-no" title="statement not covered" >              &lt;th&gt;Updated&lt;/th&gt;</span>
+<span class="cstat-no" title="statement not covered" >              &lt;th&gt;Actions&lt;/th&gt;</span>
+<span class="cstat-no" title="statement not covered" >            &lt;/tr&gt;</span>
+<span class="cstat-no" title="statement not covered" >          &lt;/thead&gt;</span>
+<span class="cstat-no" title="statement not covered" >          &lt;tbody&gt;</span>
+<span class="cstat-no" title="statement not covered" >            {vm.items.map((report) =&gt; (</span>
+<span class="cstat-no" title="statement not covered" >              &lt;tr key={report.id}&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;td&gt;&lt;BackofficeIdCell id={report.id} /&gt;&lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                  &lt;BackofficeStatusPill status={report.status} /&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;td&gt;{REPORT_CATEGORY_LABELS[report.report_category] ?? report.report_category}&lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                  &lt;div className="bo-report-linked-cell"&gt;</span>
+<span class="cstat-no" title="statement not covered" >                    &lt;Link to={`/events/${report.event_id}`}&gt;{report.event_title ?? 'Open event'}&lt;/Link&gt;</span>
+<span class="cstat-no" title="statement not covered" >                    &lt;span&gt;{report.event_id}&lt;/span&gt;</span>
+<span class="cstat-no" title="statement not covered" >                  &lt;/div&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                  &lt;div className="bo-report-linked-cell"&gt;</span>
+<span class="cstat-no" title="statement not covered" >                    &lt;strong&gt;{report.reporter_username ?? 'Unknown user'}&lt;/strong&gt;</span>
+<span class="cstat-no" title="statement not covered" >                    &lt;span&gt;{report.reporter_email ?? report.reporter_user_id}&lt;/span&gt;</span>
+<span class="cstat-no" title="statement not covered" >                  &lt;/div&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;td className="bo-report-message"&gt;{report.message}&lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                  {report.image_url ? (</span>
+<span class="cstat-no" title="statement not covered" >                    &lt;button type="button" className="bo-row-action" onClick={() =&gt; setImageReportId(report.id)}&gt;View image&lt;/button&gt;</span>
+                  ) : (
+<span class="cstat-no" title="statement not covered" >                    '-'</span>
+                  )}
+<span class="cstat-no" title="statement not covered" >                &lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;td&gt;{formatAdminDate(report.created_at)}&lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;td&gt;{formatAdminDate(report.updated_at)}&lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                  &lt;select</span>
+<span class="cstat-no" title="statement not covered" >                    aria-label={`Change report status ${report.id}`}</span>
+<span class="cstat-no" title="statement not covered" >                    value={report.status}</span>
+<span class="cstat-no" title="statement not covered" >                    disabled={mutation.busyId === report.id}</span>
+<span class="cstat-no" title="statement not covered" >                    onChange={(event) =&gt; void mutation.run(</span>
+<span class="cstat-no" title="statement not covered" >                      report.id,</span>
+<span class="cstat-no" title="statement not covered" >                      () =&gt; updateAdminEventReportStatus(token!, report.id, { status: event.target.value as typeof report.status }),</span>
+<span class="cstat-no" title="statement not covered" >                      'Report status updated.',</span>
+<span class="cstat-no" title="statement not covered" >                    )}</span>
+                  &gt;
+<span class="cstat-no" title="statement not covered" >                    &lt;option value="PENDING"&gt;PENDING&lt;/option&gt;</span>
+<span class="cstat-no" title="statement not covered" >                    &lt;option value="REVIEWED"&gt;REVIEWED&lt;/option&gt;</span>
+<span class="cstat-no" title="statement not covered" >                    &lt;option value="DISMISSED"&gt;DISMISSED&lt;/option&gt;</span>
+<span class="cstat-no" title="statement not covered" >                  &lt;/select&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >              &lt;/tr&gt;</span>
+<span class="cstat-no" title="statement not covered" >            ))}</span>
+<span class="cstat-no" title="statement not covered" >          &lt;/tbody&gt;</span>
+<span class="cstat-no" title="statement not covered" >        &lt;/table&gt;</span>
+<span class="cstat-no" title="statement not covered" >      &lt;/div&gt;</span>
+<span class="cstat-no" title="statement not covered" >      {mutation.error &amp;&amp; &lt;div className="bo-state bo-state-error"&gt;{mutation.error}&lt;/div&gt;}</span>
+<span class="cstat-no" title="statement not covered" >      {mutation.message &amp;&amp; &lt;div className="bo-result" role="status"&gt;&lt;span&gt;{mutation.message}&lt;/span&gt;&lt;/div&gt;}</span>
+<span class="cstat-no" title="statement not covered" >      &lt;BackofficePagination {...vm} onPrevious={vm.previousPage} onNext={vm.nextPage} onLimitChange={vm.changeLimit} /&gt;</span>
+<span class="cstat-no" title="statement not covered" >      &lt;BackofficeImageModal</span>
+<span class="cstat-no" title="statement not covered" >        imageUrl={imageReport?.image_url ?? null}</span>
+<span class="cstat-no" title="statement not covered" >        title={imageReport?.event_title ?? 'Report image'}</span>
+<span class="cstat-no" title="statement not covered" >        message={imageReport?.message}</span>
+<span class="cstat-no" title="statement not covered" >        onClose={() =&gt; setImageReportId(null)}</span>
+<span class="cstat-no" title="statement not covered" >      /&gt;</span>
+<span class="cstat-no" title="statement not covered" >    &lt;/BackofficePageShell&gt;</span>
+  );
+<span class="cstat-no" title="statement not covered" >}</span>
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-05-16T11:23:53.130Z
+            </div>
+        <script src="../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../sorter.js"></script>
+        <script src="../../../block-navigation.js"></script>
+    </body>
+</html>
+    

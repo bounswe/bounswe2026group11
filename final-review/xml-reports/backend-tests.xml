@@ -1,0 +1,869 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="601" failures="0" errors="0" time="19.956306">
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/cmd/server" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="3" failures="0" time="0.229000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/email" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/email" name="TestAuthOTPMailerSendRegistrationOTPBuildsLightweightTemplate" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/email" name="TestAuthOTPMailerSendPasswordResetOTPBuildsPurposeSpecificCopy" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/email" name="TestResendProviderSendBuildsSingleRecipientPayload" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/firebasepush" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/hasher" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="2" failures="0" time="0.396000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/jwt" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/jwt" name="TestTicketTokenManagerIssuesAndVerifiesClaims" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/jwt" name="TestTicketTokenManagerRejectsExpiredToken" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/otp" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="5" failures="0" time="0.498000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/postgres" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/postgres" name="TestBuildCommentCursorClauseUsesComparator" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/postgres" name="TestUnitOfWorkCommitsOnSuccess" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/postgres" name="TestUnitOfWorkRollsBackOnCallbackError" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/postgres" name="TestUnitOfWorkRollsBackOnCanceledContext" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/postgres" name="TestUnitOfWorkReusesNestedTransaction" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/ratelimit" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/security" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="1" failures="0" time="0.619000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/spaces" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/in/spaces" name="TestPresignPutObjectIncludesPublicReadACLHeader" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="23" failures="0" time="0.784000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestWriteErrorResolvesMessageKey/english" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestWriteErrorResolvesMessageKey/turkish" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestWriteErrorResolvesMessageKey" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestWriteErrorWithoutTranslatorFallsBackToLiteral" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestResolveLocaleHeaderOnly/no_header_→_default" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestResolveLocaleHeaderOnly/single_tr" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestResolveLocaleHeaderOnly/region_tr-TR" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestResolveLocaleHeaderOnly/q-weighted_prefers_tr" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestResolveLocaleHeaderOnly/unsupported_only_→_default" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestResolveLocaleHeaderOnly/unsupported_then_supported_→_tr" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestResolveLocaleHeaderOnly" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestResolveLocaleUserPreferenceOverridesDefault/no_header_falls_back_to_user_pref_tr" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestResolveLocaleUserPreferenceOverridesDefault/explicit_header_wins_over_user_pref" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestResolveLocaleUserPreferenceOverridesDefault/unsupported_header_falls_through_to_user_pref" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestResolveLocaleUserPreferenceOverridesDefault" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestResolveLocaleNoPrefAndUnsupportedHeaderFallsToDefault" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestRequireAuthMissingHeader" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestRequireAuthMalformedHeader" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestRequireAuthInvalidToken" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestRequireAuthValidToken" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestRequireAdminMissingHeader" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestRequireAdminRejectsNonAdmin" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi" name="TestRequireAdminAllowsAdmin" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="10" failures="0" time="0.959000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler" name="TestListUsersValidatesPagination" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler" name="TestListUsersParsesFilters" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler" name="TestListEventsValidatesEnumFilters" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler" name="TestListTicketsParsesIDsAndStatus" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler" name="TestCreateNotificationValidatesBody" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler" name="TestListNotificationsParsesFilters" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler" name="TestListNotificationsValidatesFilters" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler" name="TestCreateNotificationParsesInput" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler" name="TestCreateParticipationDefaultsApproved" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/admin_handler" name="TestCancelParticipationParsesID" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="11" failures="0" time="1.107000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler" name="TestRequestRegistrationOTPReturnsAcceptedResponse" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler" name="TestRequestPasswordResetOTPReturnsGenericSuccessResponse" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler" name="TestRequestPasswordResetOTPReturnsInternalServerError" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler" name="TestVerifyPasswordResetOTPReturnsResetGrant" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler" name="TestResetPasswordReturnsSuccessResponse" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler" name="TestLoginReturnsErrorEnvelope" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler" name="TestVerifyRegistrationOTPForwardsUserFields" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler" name="TestCheckAvailabilityBothAvailable" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler" name="TestCheckAvailabilityBothTaken" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler" name="TestCheckAvailabilityValidationError" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/auth_handler" name="TestLogoutForwardsOptionalDeviceInstallationID" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/badge_handler" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/category_handler" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/comment_handler" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="38" failures="0" time="1.280000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestDiscoverEventsParsesQueryParamsBeforeCallingService" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestDiscoverEventsInvalidLatitudeReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestDiscoverEventsInvalidSortReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestDiscoverEventsReturnsHostScoreField" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestDiscoverEventsIgnoresEmptyOptionalListParams" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestDiscoverEventsAcceptsSingularCategoryIDAlias" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestDiscoverEventsCategoryIdsInvalidReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestDiscoverEventsSingularCategoryIDInvalidReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestDiscoverEventsBothCategoryIDAndCategoryIDsPrefersPlural" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestGetEventDetailReturns200" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestGetEventDetailReturnsRatingMetadata" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestGetEventDetailInvalidIDReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestGetEventDetailWithoutAuthReturns200" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestGetEventDetailWithInvalidTokenReturns401" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestGetEventHostContextSummaryReturns200" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestListEventApprovedParticipantsPassesPagination" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestCreateEventReturns201" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestCreateEventWithoutAuthReturns401" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestCreateEventValidationErrorReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestCreateEventInvalidJSONReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestCreateEventParsesTypedFieldsBeforeCallingService" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestCreateEventInvalidStartTimeReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestJoinEventInvalidIDReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestLeaveEventInvalidIDReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestLeaveEventParsesIDBeforeCallingService" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestRequestJoinInvalidIDReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestRequestJoinParsesMessageBeforeCallingService" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestRequestJoinParsesImageConfirmTokenBeforeCallingService" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestApproveJoinRequestInvalidEventIDReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestApproveJoinRequestInvalidJoinRequestIDReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestApproveJoinRequestParsesIDsBeforeCallingService" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestRejectJoinRequestInvalidJoinRequestIDReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestRejectJoinRequestParsesIDsBeforeCallingService" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestCompleteEventReturns204" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestCancelJoinRequestInvalidIDReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestCancelJoinRequestSuccessReturns204" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestRevokeInvitationInvalidEventIDReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_handler" name="TestRevokeInvitationSuccessReturns204" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/event_report_handler" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="7" failures="0" time="1.358000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/favorite_location_handler" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/favorite_location_handler" name="TestCreateFavoriteLocationForwardsParsedBody" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/favorite_location_handler" name="TestCreateFavoriteLocationMissingFieldReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/favorite_location_handler" name="TestListFavoriteLocationsRequiresAuthentication" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/favorite_location_handler" name="TestUpdateFavoriteLocationRejectsInvalidID" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/favorite_location_handler" name="TestUpdateFavoriteLocationRejectsEmptyBody" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/favorite_location_handler" name="TestListFavoriteLocationsReturnsResponseBody" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/favorite_location_handler" name="TestListFavoriteLocationsReturnsEmptyArrayInsteadOfNull" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="12" failures="0" time="1.341000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler" name="TestCreateProfileAvatarUploadReturnsSignedInstructions" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler" name="TestCreateProfileAvatarUploadWithoutAuthReturns401" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler" name="TestConfirmProfileAvatarUploadInvalidTokenReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler" name="TestCreateProfileShowcaseImageUploadReturnsSignedInstructions" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler" name="TestConfirmProfileShowcaseImageUploadReturnsCreatedItem" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler" name="TestCreateEventImageUploadForbiddenReturns403" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler" name="TestCreateEventImageUploadNotFoundReturns404" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler" name="TestCreateEventJoinRequestImageUploadReturnsSignedInstructions" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler" name="TestCreateEventJoinRequestImageUploadWithoutAuthReturns401" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler" name="TestConfirmEventImageUploadParsesRequest" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler" name="TestCreateEventReportImageUploadReturnsSignedInstructions" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/image_upload_handler" name="TestCreateEventReportImageUploadConflictReturns409" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="6" failures="0" time="1.378000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/notification_handler" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/notification_handler" name="TestRegisterPushDeviceForwardsParsedBody" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/notification_handler" name="TestRegisterPushDeviceRejectsInvalidInstallationID" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/notification_handler" name="TestUnregisterPushDeviceRequiresAuthentication" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/notification_handler" name="TestListNotificationsParsesPagination" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/notification_handler" name="TestGetUnreadNotificationCountReturnsCount" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/notification_handler" name="TestMarkNotificationReadRejectsInvalidNotificationID" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/profile_handler" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="4" failures="0" time="1.374000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/rating_handler" timestamp="2026-05-16T14:47:23+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/rating_handler" name="TestUpsertEventRatingParsesBodyAndReturns200" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/rating_handler" name="TestDeleteEventRatingReturns204" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/rating_handler" name="TestUpsertParticipantRatingInvalidParticipantIDReturns400" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/rating_handler" name="TestUpsertEventRatingInvalidJSONReturns400" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="5" failures="0" time="1.385000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/ticket_handler" timestamp="2026-05-16T14:47:24+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/ticket_handler" name="TestScanTicketRequiresMobileHeader" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/ticket_handler" name="TestScanTicketParsesBodyAndForwardsToService" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/ticket_handler" name="TestListMyTicketsDoesNotRequireMobileHeader" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/ticket_handler" name="TestWriteSSEFlushesEventPayload" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/ticket_handler" name="TestWriteSSEReturnsFalseWhenFlushFails" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/adapter/out/httpapi/user_handler" timestamp="2026-05-16T14:47:24+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="1" failures="0" time="1.367000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/admin" timestamp="2026-05-16T14:47:24+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/admin" name="TestCreateManualParticipationCreatesTicketForPublicApprovedParticipation" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="26" failures="0" time="1.358000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" timestamp="2026-05-16T14:47:24+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestRequestRegistrationOTPStoresHashedChallenge" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestRequestPasswordResetOTPStoresHashedChallengeForExistingUser" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestRequestPasswordResetOTPUnknownEmailReturnsSilently" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestRequestPasswordResetOTPValidationError" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestRequestPasswordResetOTPIsSilentlyRateLimited" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestRequestPasswordResetOTPCooldownReturnsSilently" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestRequestPasswordResetOTPMailerErrorReturned" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestVerifyPasswordResetOTPReturnsResetGrantAndConsumesOTP" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestVerifyPasswordResetOTPInvalidCodeIncrementsAttempts" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestResetPasswordUpdatesPasswordAndConsumesGrant" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestResetPasswordRejectsInvalidGrant" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestResetPasswordValidationError" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestVerifyRegistrationOTPSuccessCreatesUserAndSession" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestVerifyRegistrationOTPRejectsInvalidBirthDate" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestVerifyRegistrationOTPInvalidCodeIncrementsAttempts" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestVerifyRegistrationOTPExpiredCodeRejected" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestVerifyRegistrationOTPAttemptExhaustion" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestLoginWrongPasswordRejected" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestRefreshRotatesTokenAndRejectsReuse" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestRefreshCapsRotatedTokenAtAbsoluteSessionLimit" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestRefreshRejectsExpiredAbsoluteSession" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestRefreshExpiredTokenRejected" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestCheckAvailabilityBothAvailable" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestCheckAvailabilityBothTaken" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestCheckAvailabilityValidationError" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/auth" name="TestCheckAvailabilityRateLimited" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="14" failures="0" time="1.343000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" timestamp="2026-05-16T14:47:24+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestServiceListMyBadgesEmpty" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestServiceListMyBadgesProjectsRowsToWire" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestServiceListBadgesMergesEarnedStatus" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestEvaluateParticipationBadgesAwardsTieredBadges" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestEvaluateParticipationBadgesBelowThreshold" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestEvaluateParticipationBadgesIdempotent" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestEvaluateHostBadgesRequiresMinRatingsForTopRated" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestEvaluateHostBadgesAwardsTopRated" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestEvaluateHostBadgesScoreBelowThreshold" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestEvaluateFavoriteLocationBadgesAwardsAtThree" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestEvaluateFavoriteLocationBadgesBelowThreshold" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestEvaluateParticipationBadgesPropagatesRepoError" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestBackfillExistingBadgesEvaluatesHistoricalCandidates" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/badge" name="TestBackfillExistingBadgesPropagatesCandidateLookupError" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/category" timestamp="2026-05-16T14:47:24+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="5" failures="0" time="1.339000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/comment" timestamp="2026-05-16T14:47:24+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/comment" name="TestCreateDiscussionCommentAllowsAnyoneWhenActive" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/comment" name="TestCreateDiscussionCommentRejectsNonParticipantInProgress" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/comment" name="TestUpsertReviewCommentRequiresCompletedParticipant" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/comment" name="TestUpsertReviewCommentStoresConfirmedImageAndRefreshesHostScore" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/comment" name="TestListEventCommentsReturnsNoChildComments" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/email" timestamp="2026-05-16T14:47:24+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="96" failures="0" time="1.144000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/event" timestamp="2026-05-16T14:47:25+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestNormalizeDiscoverEventsInput_ChildFriendlyTrue" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestNormalizeDiscoverEventsInput_FamilyOrientedTrue" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestNormalizeDiscoverEventsInput_BothAudienceFilters" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestNormalizeDiscoverEventsInput_NoAudienceFilters" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestToEventDetailLocationPublicEventNeverFuzzes/host" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestToEventDetailLocationPublicEventNeverFuzzes/joined_participant" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestToEventDetailLocationPublicEventNeverFuzzes/non-participant" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestToEventDetailLocationPublicEventNeverFuzzes" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestToEventDetailLocationProtectedEventFuzzesNonParticipants/host_gets_exact" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestToEventDetailLocationProtectedEventFuzzesNonParticipants/approved_gets_exact" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestToEventDetailLocationProtectedEventFuzzesNonParticipants/pending_reconfirmation_gets_exact" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestToEventDetailLocationProtectedEventFuzzesNonParticipants/none_gets_approximate" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestToEventDetailLocationProtectedEventFuzzesNonParticipants/leaved_gets_approximate" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestToEventDetailLocationProtectedEventFuzzesNonParticipants" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestToEventDetailLocationRoutePointsAreFuzzed" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventSuccessReturnsID" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventWithEndTime" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestGetEventDetailMapsRepositoryRecord" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestGetEventHostContextSummaryRequiresHost" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestGetEventHostContextSummaryReturnsCountsForHost" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestListEventApprovedParticipantsBuildsCursorPage" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestGetEventDetailReturnsNotFoundWhenRepositoryMisses" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationEmptyTitle" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationInvalidPrivacyLevel" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationInvalidLocationType" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationMissingStartTime" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationPastStartTime" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationEndTimeBeforeStartTime" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationEndTimeEqualToStartTime" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationTooManyTags" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationEmptyTag" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationTagTooLong" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationInvalidGender" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationNegativeCapacity" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationZeroCapacity" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationInvalidMinimumAge" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationConstraintMissingType" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationConstraintMissingInfo" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationMissingDescription" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationMissingCategoryID" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationPointRequiresCoordinates" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationRouteRequiresRoutePoints" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationRoutePointMissingLatitude" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventValidationTooManyConstraints" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCreateEventRepoErrorPropagates" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestDiscoverEventsAppliesDefaultsAndMapsResults" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestListFavoriteEventsMapsPrivacyLevelAndLocationAddress" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestDiscoverEventsDefaultsToRelevanceWhenQueryProvided" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestDiscoverEventsRejectsRelevanceWithoutQuery" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestDiscoverEventsRejectsInvalidCursor" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestDiscoverEventsRejectsCursorMismatch" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestDiscoverEventsRejectsOutOfRangeRadiusAndLimit" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestDiscoverEventsPassesMinimumAgeFilterToRepo" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestDiscoverEventsRejectsPrivateVisibilityFilter" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestDiscoverEventsBuildsNextCursorFromLastReturnedItem" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestGetEventDetailReturnsDiffFromViewerLastConfirmedVersion" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestUpdateEventTriggeringChangeMarksApprovedParticipantsPendingAndTickets" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestUpdateEventRemovingConstraintDoesNotRequireReconfirmation" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestUpdateEventRejectsCapacityBelowApprovedAndPendingCount" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestReconfirmParticipationCreatesActiveTicketForPublicEvent" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestTransitionEventStatusesAutoApprovesPendingWhenEventStarts" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCancelEventRunsEventAndParticipationUpdatesInsideOneUnitOfWork" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCancelEventCancelsTicketsInsideUnitOfWork" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCancelEventRollsBackUnitOfWorkWhenParticipationCancelFails" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCompleteEventHostSuccess" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCompleteEventExpiresTickets" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCompleteEventHostSuccessInProgress" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCompleteEventForbiddenForNonHost" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCompleteEventConflictWhenTerminal" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestCompleteEventIgnoresBadgeEvaluationErrors" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestTransitionExpiredEventsEvaluatesBadgesForEachCompletedEvent" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestTransitionExpiredEventsPropagatesRepositoryError" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestJoinEventSuccessReturnsApproved" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestJoinEventCreatesActiveTicketForPublicEvent" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestJoinEventRollsBackUnitOfWorkWhenTicketCreationFails" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestJoinEventRejectsNonExistentEvent" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestJoinEventRejectsHost" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestJoinEventRejectsProtectedEvent" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestJoinEventRejectsFullCapacity" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestJoinEventAllowsWhenUnderCapacity" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestJoinEventRejectsUnderageUser" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestJoinEventRejectsMismatchedGender" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestJoinEventRejectsMissingBirthDateWhenAgeRestricted" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestLeaveEventSuccessReturnsLeaved" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestLeaveEventCancelsLinkedTicket" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestLeaveEventRejectsHost" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestLeaveEventRejectsEndedEvent" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestRequestJoinSuccessReturnsPending" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestRequestJoinWithImageTokenConfirmsAndStoresImageURL" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestRequestJoinWithoutImageTokenDoesNotConfirmImage" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestRequestJoinRejectsHost" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestRequestJoinRejectsPublicEvent" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestRequestJoinRejectsUnderageUser" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestRequestJoinRejectsMismatchedGender" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestApproveJoinRequestDelegatesToJoinRequestService" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/event" name="TestRejectJoinRequestDelegatesToJoinRequestService" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="4" failures="0" time="1.260000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/eventreport" timestamp="2026-05-16T14:47:25+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/eventreport" name="TestCreateEventReportStoresNormalizedReport" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/eventreport" name="TestCreateEventReportRequiresMessage" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/eventreport" name="TestCreateEventReportRejectsImageBeforeEventStarts" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/eventreport" name="TestCreateEventReportStoresConfirmedImageForInProgressEvent" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="4" failures="0" time="1.314000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location" timestamp="2026-05-16T14:47:25+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location" name="TestCreateMyFavoriteLocationTrimsAndPersistsValidatedFields" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location" name="TestCreateMyFavoriteLocationMapsLimitConflict" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location" name="TestUpdateMyFavoriteLocationMergesExistingFields" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/favorite_location" name="TestDeleteMyFavoriteLocationMapsNotFound" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="11" failures="0" time="1.294000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload" timestamp="2026-05-16T14:47:25+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload" name="TestCreateProfileAvatarUploadBuildsVersionedKeysAndBaseURL" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload" name="TestConfirmProfileAvatarUploadUpdatesWhenObjectsExist" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload" name="TestConfirmProfileAvatarUploadRejectsIncompleteUpload" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload" name="TestConfirmProfileAvatarUploadRejectsStaleVersion" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload" name="TestConfirmProfileShowcaseImageUploadPersistsShowcaseImage" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload" name="TestCreateEventImageUploadRejectsNonHost" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload" name="TestConfirmEventImageUploadRejectsInvalidToken" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload" name="TestCreateEventJoinRequestImageUploadBuildsKeysAndToken" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload" name="TestConfirmEventJoinRequestImageUploadReturnsBaseURLWhenObjectsExist" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload" name="TestConfirmEventJoinRequestImageUploadRejectsWrongOwner" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/imageupload" name="TestConfirmEventJoinRequestImageUploadRejectsIncompleteUpload" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="29" failures="0" time="1.300000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" timestamp="2026-05-16T14:47:25+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestPastInvitationCursorRoundTrip" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestDecodePastInvitationCursorRejectsInvalid/empty_token" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestDecodePastInvitationCursorRejectsInvalid/non-base64" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestDecodePastInvitationCursorRejectsInvalid/valid_base64_of_garbage_json" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestDecodePastInvitationCursorRejectsInvalid" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestDecodePastInvitationCursorRejectsZeroFields" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestBuildNextPastInvitationCursor" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestListReceivedInvitationsBucketsAndPagination/empty_result_returns_empty_buckets_and_no_cursor" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestListReceivedInvitationsBucketsAndPagination/populated_buckets_with_implicit_limit_do_not_produce_a_cursor" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestListReceivedInvitationsBucketsAndPagination/explicit_limit_produces_a_next_cursor_when_more_rows_exist" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestListReceivedInvitationsBucketsAndPagination/invalid_cursor_returns_validation_error" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestListReceivedInvitationsBucketsAndPagination/out-of-range_past_limit_returns_validation_error/zero" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestListReceivedInvitationsBucketsAndPagination/out-of-range_past_limit_returns_validation_error/negative" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestListReceivedInvitationsBucketsAndPagination/out-of-range_past_limit_returns_validation_error/above_max" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestListReceivedInvitationsBucketsAndPagination/out-of-range_past_limit_returns_validation_error" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestListReceivedInvitationsBucketsAndPagination/empty_cursor_string_is_ignored_(treated_as_no_cursor)" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestListReceivedInvitationsBucketsAndPagination/repository_error_on_past_bucket_propagates" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestListReceivedInvitationsBucketsAndPagination" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestGetReceivedInvitation/happy_path_returns_translated_DTO" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestGetReceivedInvitation/ErrNotFound_from_repo_maps_to_invitation_not_found_404" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestGetReceivedInvitation/unexpected_repo_error_propagates_wrapped" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestGetReceivedInvitation" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestRevokeInvitationDelegatesToRepo" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestRevokeInvitationPropagatesRepoError" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestCreateInvitationsValidatesUsernameCount" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestCreateInvitationsNotifiesSuccessfulInvitedUsers" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestAcceptInvitationNotifiesHostWithoutFailingAction" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestDeclineInvitationNotifiesHost" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/invitation" name="TestCreateInvitationsReturnsPartialCounts" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="9" failures="0" time="1.303000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/join_request" timestamp="2026-05-16T14:47:25+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/join_request" name="TestCreatePendingJoinRequestDelegatesToRepo" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/join_request" name="TestCreatePendingJoinRequestPropagatesRepoError" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/join_request" name="TestApproveJoinRequestDelegatesToRepo" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/join_request" name="TestApproveJoinRequestCreatesActiveTicket" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/join_request" name="TestRejectJoinRequestDelegatesToRepo" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/join_request" name="TestApproveJoinRequestNotifiesRequester" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/join_request" name="TestRejectJoinRequestNotifiesRequesterWithoutFailingAction" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/join_request" name="TestCancelJoinRequestDelegatesToRepo" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/join_request" name="TestCancelJoinRequestPropagatesRepoError" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="11" failures="0" time="1.308000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/notification" timestamp="2026-05-16T14:47:26+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/notification" name="TestSendNotificationTranslatesPerRecipient" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/notification" name="TestSendNotificationFallsBackToLiteralWhenNoTranslator" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/notification" name="TestRegisterDeviceUpsertsTokenAndEnforcesTwoDeviceLimit" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/notification" name="TestRegisterDeviceReassignsTokenFromPreviousUser" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/notification" name="TestSendPushToUsersStoresResultsAndRevokesInvalidToken" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/notification" name="TestSendNotificationToUsersSkipsPushWhenSSEReceivesNotification" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/notification" name="TestSendNotificationToUsersIsIdempotent" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/notification" name="TestSendNotificationRetriesPushUntilSuccess" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/notification" name="TestSendNotificationStopsAfterTwoPushRetries" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/notification" name="TestSendCustomNotificationBothUsesSSEAndPush" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/notification" name="TestSendCustomNotificationInAppSkipsPush" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="7" failures="0" time="1.305000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/participation" timestamp="2026-05-16T14:47:26+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/participation" name="TestCreateApprovedParticipationDelegatesToRepo" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/participation" name="TestCreateApprovedParticipationPropagatesRepoError" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/participation" name="TestLeaveParticipationDelegatesToRepo" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/participation" name="TestCancelEventParticipationsDelegatesToRepo" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/participation" name="TestEvaluateBadgesForEventParticipantsDelegatesToRepoAndEvaluator" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/participation" name="TestEvaluateBadgesForEventParticipantsPropagatesRepoError" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/participation" name="TestEvaluateBadgesForEventParticipantsIgnoresEvaluatorErrors" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="16" failures="0" time="1.292000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" timestamp="2026-05-16T14:47:26+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestGetMyProfileMapsHostScore" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestGetMyProfileMapsParticipantScore" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestGetMyProfileNullScoresForNewUser" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestGetMyProfilePropagatesRepoError" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestGetPublicProfileIncludesEquipmentAndShowcase" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestGetPublicProfileMapsUserNotFound" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestGetMyHostedEventsIncludesPrivacyLevel" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestGetMyUpcomingEventsIncludesPrivacyLevel" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestGetMyCanceledEventsIncludesPrivacyLevel" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestCreateMyEquipmentNormalizesOptionalFields" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestUpdateMyEquipmentRejectsForeignOwner" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestDeleteMyShowcaseImageRejectsForeignOwner" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestChangePassword_Success" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestChangePassword_WrongOldPassword" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestChangePassword_ValidationFailsShortNew" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/profile" name="TestChangePassword_SamePassword" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="8" failures="0" time="1.290000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/rating" timestamp="2026-05-16T14:47:26+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/rating" name="TestUpsertEventRatingNormalizesBlankMessageAndRefreshesHostScore" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/rating" name="TestUpsertEventRatingRejectsInvalidInput" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/rating" name="TestUpsertEventRatingRejectsCanceledEvent" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/rating" name="TestUpsertEventRatingRejectsHostSelfBeforeApprovedParticipantCheck" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/rating" name="TestUpsertParticipantRatingRejectsHostSelf" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/rating" name="TestUpsertParticipantRatingRefreshesWeightedFinalScore" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/rating" name="TestDeleteEventRatingReturnsNotFoundWhenRecordMissing" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/rating" name="TestDeleteParticipantRatingUsesStartTimeWhenEndTimeIsNil" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="6" failures="0" time="1.143000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/ticket" timestamp="2026-05-16T14:47:26+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/ticket" name="TestIssueQRTokenStoresNextVersionAndHash" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/ticket" name="TestIssueQRTokenAllowsPublicEvent" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/ticket" name="TestIssueQRTokenRejectsFarLocation" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/ticket" name="TestScanTicketMarksActiveLatestTokenUsed" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/ticket" name="TestScanTicketRejectsOldVersion" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/application/ticket" name="TestScanTicketAcceptsPrivateEventTicket" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/application/uow" timestamp="2026-05-16T14:47:26+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/bootstrap" timestamp="2026-05-16T14:47:26+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="16" failures="0" time="1.117000" name="github.com/bounswe/bounswe2026group11/backend/internal/domain" timestamp="2026-05-16T14:47:27+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestParseTicketStatusAcceptsKnownStatuses" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestParseTicketStatusRejectsUnknownStatus" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestParseUserRole/user" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestParseUserRole/admin" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestParseUserRole/trims_and_uppercases" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestParseUserRole/rejects_unknown" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestParseUserRole" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestApproximateGeoPointStaysWithin250m" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestApproximateGeoPointProducesVariedResults" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestCheckParticipationEligibilityAllowsWhenNoRestrictions" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestCheckParticipationEligibilityRejectsUnderageUser" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestCheckParticipationEligibilityRequiresBirthDateWhenAgeRestricted" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestCheckParticipationEligibilityAllowsAtExactMinimumAge" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestCheckParticipationEligibilityRejectsMismatchedGender" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestCheckParticipationEligibilityRequiresGenderWhenGenderRestricted" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/domain" name="TestCheckParticipationEligibilityAllowsMatchingGender" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="32" failures="0" time="1.165000" name="github.com/bounswe/bounswe2026group11/backend/internal/i18n" timestamp="2026-05-16T14:47:27+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestResolveFromAcceptLanguage/empty" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestResolveFromAcceptLanguage/single_tr" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestResolveFromAcceptLanguage/single_en" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestResolveFromAcceptLanguage/region_tr-TR" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestResolveFromAcceptLanguage/q-weighted_prefers_tr" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestResolveFromAcceptLanguage/q-weighted_prefers_en" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestResolveFromAcceptLanguage/unsupported_fr_only" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestResolveFromAcceptLanguage/unsupported_with_q-zero_supported" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestResolveFromAcceptLanguage/unsupported_then_supported" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestResolveFromAcceptLanguage/malformed_falls_back_to_false" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestResolveFromAcceptLanguage" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestCatalogTranslate/hit_en" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestCatalogTranslate/hit_tr" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestCatalogTranslate/missing_in_tr_falls_back_to_en" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestCatalogTranslate/missing_in_both_returns_key" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestCatalogTranslate/args_en" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestCatalogTranslate/args_tr" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestCatalogTranslate" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestCatalogLoadMissingLocaleFails" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestCatalogNilSafe" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestParse/empty" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestParse/plain_en" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestParse/plain_tr" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestParse/upper_TR" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestParse/region_tr-TR" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestParse/underscore_en_US" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestParse/unsupported_fr" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestParse/unsupported_region_fr-FR" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestParse" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestLocaleFromContext" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestEmbeddedCatalogLoads" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/i18n" name="TestEmbeddedCatalogParity" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/i18n/locales" timestamp="2026-05-16T14:47:27+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="9" failures="0" time="1.081000" name="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config" timestamp="2026-05-16T14:47:27+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config" name="TestLoad_RequiredMissing" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config" name="TestLoad_OK" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config" name="TestLoad_UsesRepoRootDotEnvWhenRunningFromBackend" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config" name="TestLoad_UsesRepoRootDotEnvWhenRunningFromCmdServer" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config" name="TestLoad_EnvOverridesYamlAndRepoRootDotEnv" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config" name="TestLoad_RequiresSpacesAccessKey" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config" name="TestLoad_EmptyJWTSecret" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config" name="TestLoad_UsesAppEnvSpecificYaml" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/config" name="TestLoad_RequiresResendAPIKeyWhenProviderIsResend" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/database" timestamp="2026-05-16T14:47:27+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="5" failures="0" time="0.508000" name="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/observability" timestamp="2026-05-16T14:47:28+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/observability" name="TestSetupDisabledWithoutEndpoint" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/observability" name="TestConfigureLoggerWritesToStdoutWithoutProvider" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/observability" name="TestConfigureLoggerSkipsStdoutWhenProviderIsConfigured" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/observability" name="TestLevelAttrHandlerAddsLevelAttribute" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/infrastructure/observability" name="TestLevelAttrHandlerDoesNotDuplicateExistingLevelAttribute" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="5" failures="0" time="0.242000" name="github.com/bounswe/bounswe2026group11/backend/internal/server" timestamp="2026-05-16T14:47:28+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/server" name="TestGlobalSecurityMiddlewareSetsHeaders" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/server" name="TestGlobalSecurityMiddlewareAllowsConfiguredCORSOrigin" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/server" name="TestGlobalSecurityMiddlewareAllowsConfiguredWildcardSubdomain" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/server" name="TestGlobalSecurityMiddlewareRejectsOversizedBody" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/internal/server" name="TestGlobalSecurityMiddlewareRecoversPanics" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="160" failures="0" time="14.235000" name="github.com/bounswe/bounswe2026group11/backend/tests_integration" timestamp="2026-05-16T14:47:28+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestInvitationFlowCreatesEventNotifications" time="0.130000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestApproveJoinRequestCreatesRequesterNotification" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestConfirmProfileAvatarUploadPersistsURLAndVersion" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestConfirmEventImageUploadPersistsURLAndVersionWithoutChangingEventVersionNo" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestListReceivedInvitationsBuckets" time="0.040000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestListReceivedInvitationsPastPagination" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetReceivedInvitationReturnsAllStatuses/PENDING" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetReceivedInvitationReturnsAllStatuses/ACCEPTED" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetReceivedInvitationReturnsAllStatuses/DECLINED" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetReceivedInvitationReturnsAllStatuses/EXPIRED" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetReceivedInvitationReturnsAllStatuses/CANCELED" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetReceivedInvitationReturnsAllStatuses" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetReceivedInvitationDoesNotLeakOtherUsersRows" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetReceivedInvitationReturns404ForMissingID" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestNotificationRegisterDevicePersistsAndEnforcesDeviceLimit" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestNotificationInboxLifecycleAndIdempotency" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestNotificationRetentionDeletesExpiredRows" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetPublicProfileReturnsPublicSafeProfile" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetPublicProfileReturnsNotFoundForUnknownUser" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestMyEquipmentCRUDFlow" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestMyEquipmentUpdateRejectsForeignOwner" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestShowcaseImageLifecycleAndOwnership" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestProtectedJoinApprovalCreatesActiveTicket" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestProtectedReconfirmReactivatesPendingTicketAfterEventEdit" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestPrivateReconfirmReactivatesPendingTicketAfterEventEdit" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestPublicJoinCreatesActiveTicket" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestTicketQRScanAcceptsOnceThenRejectsReuse" time="0.070000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestTicketDetailOwnershipAndProximity" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestEventCancelCancelsTickets" time="0.060000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestEventStatusTransitionExpiresUnusedTickets" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestTransitionEventStatuses_StaleEventAutoCompletes" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCancelEventAppearsInParticipantProfile" time="0.040000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCompleteEventReturnsConflictForCanceledOrCompleted" time="0.070000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCompleteEventForbiddenForNonHost" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestJoinEventRejectsCanceledEvent" time="0.130000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestTransitionEventStatuses_VeryOldEventAutoCompletes" time="0.140000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCompleteEventSuccessOpenEnded" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCompleteEventSuccessPath" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAdminUsersEndpointAuthorizationAndFiltering" time="0.170000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetEventDetailAnonymousCanReadPublicEvent" time="0.170000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCancelEventForbiddenForNonHost" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestHostCannotRateOwnEvent" time="0.170000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestTransitionEventStatuses_RecentlyUpdatedOldEventStaysActive" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCancelEventReturnsConflictForNonActiveEvent" time="0.050000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCancelEventSuccessPath" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRequestJoinRejectsDuringCooldownWindow" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestParticipantRatingUpdatesParticipantScoreAndHostContext" time="0.230000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCancelEventPreservesApprovedSnapshotAndSkipsLeavedParticipations" time="0.090000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRequestJoinReactivatesRejectedRequestAfterCooldown" time="0.040000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsAuthedAdultSeesAgeRestrictedEvent" time="0.250000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetEventDetailReadsPrivateEventForApprovedParticipant" time="0.090000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRejectJoinRequestRejectsNonHost" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsAnonymousHidesGenderRestrictedEvents" time="0.100000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRequestJoinRejectsNonExistentEvent" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestApproveJoinRequestRejectsResolvedRequest" time="0.050000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestApproveJoinRequestRejectsWhenCapacityIsFull" time="0.050000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsAnonymousHidesAgeRestrictedEvents" time="0.100000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRejectJoinRequestRejectsResolvedRequest" time="0.060000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRequestJoinRejectsPublicEvent" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRequestJoinRejectsHostRequestingOwnEvent" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestApproveJoinRequestRejectsNonHost" time="0.040000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRequestJoinImageURLIsVisibleToHostManagementFlows" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRequestJoinSuccessPath" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRequestJoinRejectsDuplicate" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRequestJoinReflectsPendingStatusInProtectedEventDetail" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestLeaveEventRejectsEndedEvent" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRejectJoinRequestSuccessPath" time="0.070000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetEventDetailReadsPrivateEventForHost" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestLeaveEventRejectsPendingJoinRequester" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRequestJoinRejectsReapplyAfterLeavingStartedEvent" time="0.060000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetEventDetailReadsProtectedEventForAnyAuthenticatedUser" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestApproveJoinRequestSuccessPath" time="0.080000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRequestJoinAllowsReapplyAfterApprovedParticipationLeavesBeforeStart" time="0.070000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetEventDetailReadsPublicEventForAuthenticatedUser" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsReflectsFavoriteStateForCurrentUser" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestEventDetailReturnsVersionDiffUntilParticipantReconfirms" time="0.070000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsCursorPaginationIsStableAndNonOverlapping" time="0.050000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsSortsRouteByFirstPointWhenUsingDistance" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCreateRouteEventSuccessPath" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsAppliesSearchAndFiltersTogether" time="0.070000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsHostScoreReflectsHostRatingCountAndScore" time="0.090000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCreateEventValidationEndTimeBeforeStartTime" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCreateEventValidationInvalidPrivacyLevel" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCreateEventValidationTooManyTags" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCreateEventValidationEmptyTitle" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCreateEventAllowsSameTitleForDifferentHosts" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCreateEventRejectsDuplicateTitleForSameHost" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsReturnsOnlyNearbyActivePublicAndProtectedEvents" time="0.060000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsAppliesPrivacyLevelFilter" time="0.100000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsSortsByDistance" time="0.110000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCreateEventWithoutEndTime" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestListCategoriesResponseShape" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestPrivateEventCommentsRejectedForVisibleHost" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestListCategoriesReturnsSeedData" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsIncludesRouteWhenAnyRoutePointFallsWithinRadius" time="0.090000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCreateEventPersistsInternalHostParticipationWithoutChangingVisibleCounts" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCreateEventSuccessPath" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsSearchMatchesTitleDescriptionAndTags" time="0.110000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAuthRequestPasswordResetOTPUnknownEmailReturnsSilently" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAuthCheckAvailabilityReturnsTakenForPersistedIdentity" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAuthVerifyRegistrationOTPRollsBackOnUsernameConflict" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAuthRequestPasswordResetOTPStoresChallengeForExistingUser" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAuthVerifyPasswordResetOTPReturnsResetGrantAndConsumesOTP" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestReviewCommentUpdatesHostScoreAndViewerRating" time="0.050000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAuthVerifyRegistrationOTPPersistsUserProfileAndRefreshToken" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestPublicEventCommentsListTopLevelAndRepliesSeparately" time="0.050000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAudienceAttributes_DefaultsFalse" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAuthResetPasswordUpdatesStoredHashAndAllowsLoginWithNewPassword" time="0.040000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAudienceAttributes_CreateAndDetail" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAdminCreateNotificationMutation" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestJoinEventRejectsNonExistentEvent" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAudienceAttributes_FilterByChildFriendly" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAudienceAttributes_FilterByFamilyOriented" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestJoinEventRejectsHostJoiningOwnEvent" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestJoinEventRejectsProtectedEvent" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestListReceivedInvitationsReturnsCurrentPendingOnly" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestJoinEventRejectsRejoinAfterLeavingStartedEvent" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAdminEventsParticipationsAndTicketsFiltering" time="0.040000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAdminCreateAndCancelParticipationMutationCreatesAndCancelsTicket" time="0.050000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestJoinEventRejectsDuplicate" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestJoinEventSuccessPath" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestLeaveEventSuccessPathBeforeStart" time="0.040000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestFavoriteLocationOwnershipPreventsCrossUserMutation" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestFavoriteLocationCreateRejectsFourthLocation" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetMyUpcomingEventsReturnsApprovedActiveEvents" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestJoinEventAllowsRejoinAfterLeavingBeforeStart" time="0.050000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetMyUpcomingEventsIncludesPrivacyLevel" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestFavoriteLocationCRUDOrdersAlphabetically" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAddAndRemoveFavorite" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetMyProfileReturnsScoreFields" time="0.000000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetMyCompletedEventsExcludesLeavedParticipationBeforeStart" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetMyHostedEventsIncludesPrivacyLevel" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestTransitionEventStatuses_StartedToInProgress" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetMyCompletedEventsIncludesLeavedParticipationAfterStart" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestTransitionEventStatuses_ExpiredToCompleted" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsAuthedMissingGenderSeesGenderRestrictedEvent" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestIntegrationRequestJoinRejectsMismatchedGender" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetMyUpcomingEventsExcludesCanceledEvent" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestLeaveEventRejectsHost" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestIntegrationJoinEventRejectsUnderageUser" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetEventDetailAnonymousCannotReadPrivateEvent" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsAnonymousSeesOnlyPublicAndProtected" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCancelEventAppearsInHostProfile" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestEventRatingUpdatesHostScoreAndEventReadModels" time="0.070000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetEventDetailReturnsRoutePoints" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestCreateInvitationsCreatesValidAndReportsInvalidAndFailed" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetEventDetailRejectsPrivateEventForUnrelatedUser" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetEventDetailReadsPrivateEventForAcceptedInvitee" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetEventDetailReturnsCanceledAndCompletedStatuses" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestAcceptInvitationCreatesParticipationAndAllowsPrivateDetail" time="0.040000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDeclineInvitationCreatesCooldownAndNoParticipation" time="0.050000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetEventDetailReportsViewerParticipationStatuses" time="0.050000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsAuthedMissingBirthDateSeesAgeRestrictedEvent" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsAuthedMinorHidesAgeRestrictedEvent" time="0.010000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetEventDetailReturnsHostOnlyManagementLists" time="0.060000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsAuthedGenderMatchSeesAndMismatchHides" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetEventDetailShowsCanceledParticipationStatus" time="0.030000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestDiscoverEventsMinimumAgeFilterReturnsOnlyEventsAtOrAboveTheRequestedThreshold" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestRequestJoinRejectsCanceledEvent" time="0.020000"></testcase>
+		<testcase classname="github.com/bounswe/bounswe2026group11/backend/tests_integration" name="TestGetMyHostedEventsReturnsCreatedEvents" time="0.010000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/bounswe/bounswe2026group11/backend/tests_integration/common" timestamp="2026-05-16T14:47:28+03:00">
+		<properties>
+			<property name="go.version" value="go1.26.3 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+</testsuites>
